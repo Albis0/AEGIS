@@ -68,15 +68,21 @@ export type TelemetryWidget =
     | "cpu" | "ram" | "disk" | "battery" | "network"
     | "gpu" | "fans" | "processes" | "system" | "activeWindow";
 
+export type AiProvider =
+    | "groq" | "openai" | "anthropic" | "mistral"
+    | "gemini" | "xai" | "deepseek" | "ollama";
+
 export interface AppSettings {
     model: string;
     ttsVoice: string;
     ttsRate: number;
     accentColor: string;
     ttsProvider: "edge" | "elevenlabs";
-    aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama";
+    aiProvider: AiProvider;
     aiApiKey: string;
+    providerKeys: Record<string, string>;
     ollamaUrl: string;
+    ollamaNumCtx: number;
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
@@ -84,6 +90,12 @@ export interface AppSettings {
     language: "tr" | "en" | "de" | "fr" | "es";
     telemetryWidgets: TelemetryWidget[];
     telemetryUpdateMs: number;
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+    presencePenalty: number;
+    frequencyPenalty: number;
+    mistralSafeMode: boolean;
 }
 
 export interface AegisConfig {

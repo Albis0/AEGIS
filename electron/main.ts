@@ -546,18 +546,43 @@ async function getWeather(): Promise<object> {
 type OAIMessage = {role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string};
 type OAICompletion = {choices: [{message: {content: string | null; tool_calls?: {id: string; type: "function"; function: {name: string; arguments: string}}[]}}]};
 
+function getProviderKey(provider: string): string {
+    if (provider === "groq") return process.env.GROQ_API_KEY ?? "";
+    return currentSettings.providerKeys?.[provider] ?? currentSettings.aiApiKey ?? "";
+}
+
+// Find tool name by call ID (needed for Gemini function response format)
+function findToolName(messages: OAIMessage[], callId: string): string {
+    for (const m of messages) {
+        for (const tc of (m.tool_calls ?? []) as {id: string; function: {name: string}}[]) {
+            if (tc.id === callId) return tc.function?.name ?? "result";
+        }
+    }
+    return "result";
+}
+
+// Reasoning models don't support temperature or tools
+const REASONING_MODELS = new Set(["o1", "o1-mini", "o3", "o3-mini", "o4-mini"]);
+
 async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
-    const key = (provider === "groq") ? (process.env.GROQ_API_KEY ?? "") : currentSettings.aiApiKey;
+    const key = getProviderKey(provider);
+    const temp = currentSettings.temperature ?? 0.7;
+    const maxTok = currentSettings.maxTokens ?? 8192;
+    const topP = currentSettings.topP ?? 1.0;
+    const isReasoning = REASONING_MODELS.has(MODEL);
 
     const activeSchemas = getAllToolSchemas();
 
+    // ── Groq (streaming) ──────────────────────────────────────────────────────
     if (provider === "groq") {
         const stream = await groq.chat.completions.create({
             model: MODEL,
             messages: messages as ChatCompletionMessageParam[],
             tools: activeSchemas,
             stream: true,
+            temperature: temp,
+            max_tokens: maxTok,
         });
         let fullContent = "";
         const tcMap = new Map<number, {id: string; name: string; args: string}>();
@@ -584,16 +609,26 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
         }}]};
     }
 
+    // ── Anthropic ────────────────────────────────────────────────────────────
     if (provider === "anthropic") {
-        // Anthropic Messages API — convert to Anthropic format
         const system = messages.find((m) => m.role === "system")?.content ?? "";
         const turns = messages.filter((m) => m.role !== "system");
-        const body = {
+        const body: Record<string, unknown> = {
             model: MODEL,
-            max_tokens: 4096,
+            max_tokens: maxTok,
             system,
-            messages: turns.map((m) => ({role: m.role === "tool" ? "user" : m.role, content: m.role === "tool" ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: m.content}] : m.content ?? ""})),
-            tools: activeSchemas.map((t) => ({name: t.function?.name, description: t.function?.description, input_schema: t.function?.parameters})),
+            temperature: Math.min(temp, 1), // Anthropic max is 1
+            messages: turns.map((m) => ({
+                role: m.role === "tool" ? "user" : m.role,
+                content: m.role === "tool"
+                    ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: m.content}]
+                    : m.content ?? "",
+            })),
+            tools: activeSchemas.map((t) => ({
+                name: t.function?.name,
+                description: t.function?.description,
+                input_schema: t.function?.parameters,
+            })),
         };
         const resp = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -604,21 +639,96 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
         const data = await resp.json() as {content: {type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown>}[]};
         const textBlock = data.content.find((b) => b.type === "text");
         const toolBlocks = data.content.filter((b) => b.type === "tool_use");
+        const text = textBlock?.text ?? null;
+        if (text) onDelta?.(text);
         return {choices: [{message: {
-            content: textBlock?.text ?? null,
-            tool_calls: toolBlocks.length > 0 ? toolBlocks.map((b) => ({id: b.id!, type: "function" as const, function: {name: b.name!, arguments: JSON.stringify(b.input ?? {})}})) : undefined,
+            content: text,
+            tool_calls: toolBlocks.length > 0
+                ? toolBlocks.map((b) => ({id: b.id!, type: "function" as const, function: {name: b.name!, arguments: JSON.stringify(b.input ?? {})}}))
+                : undefined,
         }}]};
     }
 
+    // ── Gemini ───────────────────────────────────────────────────────────────
+    if (provider === "gemini") {
+        if (!key) throw new Error("Gemini API key eksik. Model ayarlarından girin.");
+        const sysMsg = messages.find((m) => m.role === "system");
+        const turns = messages.filter((m) => m.role !== "system");
+
+        const contents: {role: string; parts: object[]}[] = [];
+        for (const m of turns) {
+            if (m.role === "user") {
+                contents.push({role: "user", parts: [{text: m.content ?? ""}]});
+            } else if (m.role === "assistant") {
+                const parts: object[] = [];
+                if (m.content) parts.push({text: m.content});
+                for (const tc of (m.tool_calls ?? []) as {id: string; function: {name: string; arguments: string}}[]) {
+                    let args: unknown = {};
+                    try { args = JSON.parse(tc.function.arguments || "{}"); } catch {}
+                    parts.push({functionCall: {name: tc.function.name, args}});
+                }
+                if (parts.length > 0) contents.push({role: "model", parts});
+            } else if (m.role === "tool") {
+                const toolName = findToolName(messages, m.tool_call_id ?? "");
+                contents.push({role: "user", parts: [{functionResponse: {name: toolName, response: {output: m.content}}}]});
+            }
+        }
+
+        const functionDeclarations = activeSchemas.map((s) => ({
+            name: s.function?.name,
+            description: s.function?.description,
+            parameters: s.function?.parameters,
+        }));
+
+        const body: Record<string, unknown> = {
+            contents,
+            generationConfig: {temperature: temp, maxOutputTokens: maxTok, topP},
+        };
+        if (sysMsg?.content) body.systemInstruction = {parts: [{text: sysMsg.content}]};
+        if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
+
+        const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+            {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+        );
+        if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
+
+        const data = await resp.json() as {
+            candidates?: [{content?: {parts?: ({text?: string; functionCall?: {name: string; args: Record<string, unknown>}})[]; role?: string}}]
+        };
+        const parts = data.candidates?.[0]?.content?.parts ?? [];
+        const textParts = parts.filter((p) => p.text).map((p) => p.text!).join("");
+        const funcCalls = parts.filter((p) => p.functionCall);
+
+        if (textParts) onDelta?.(textParts);
+        return {choices: [{message: {
+            content: textParts || null,
+            tool_calls: funcCalls.length > 0
+                ? funcCalls.map((p, i) => ({
+                    id: `gemini-${p.functionCall!.name}-${i}`,
+                    type: "function" as const,
+                    function: {name: p.functionCall!.name, arguments: JSON.stringify(p.functionCall!.args ?? {})},
+                }))
+                : undefined,
+        }}]};
+    }
+
+    // ── Ollama ───────────────────────────────────────────────────────────────
     if (provider === "ollama") {
-        // Ollama — OpenAI-compatible endpoint, no auth needed, runs locally
         const ollamaUrl = (currentSettings.ollamaUrl || "http://localhost:11434") + "/v1/chat/completions";
         let resp: Response;
         try {
             resp = await fetch(ollamaUrl, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({model: MODEL, messages, tools: activeSchemas, stream: false}),
+                body: JSON.stringify({
+                    model: MODEL,
+                    messages,
+                    tools: activeSchemas,
+                    stream: false,
+                    temperature: temp,
+                    options: {num_ctx: currentSettings.ollamaNumCtx ?? 4096},
+                }),
             });
         } catch {
             throw new Error("Ollama bağlantı hatası. Ollama çalışıyor mu? (ollama serve)");
@@ -630,19 +740,73 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
         return await resp.json() as OAICompletion;
     }
 
-    // OpenAI-compatible: openai, mistral
+    // ── xAI (Grok) — OpenAI-compatible ───────────────────────────────────────
+    if (provider === "xai") {
+        if (!key) throw new Error("xAI API key eksik. Model ayarlarından girin.");
+        const body: Record<string, unknown> = {
+            model: MODEL, messages, tools: activeSchemas, stream: false,
+            temperature: temp, max_tokens: maxTok,
+        };
+        const resp = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) throw new Error(`xAI ${resp.status}: ${await resp.text()}`);
+        const result = await resp.json() as OAICompletion;
+        const text = result.choices[0]?.message?.content;
+        if (text) onDelta?.(text);
+        return result;
+    }
+
+    // ── DeepSeek — OpenAI-compatible ─────────────────────────────────────────
+    if (provider === "deepseek") {
+        if (!key) throw new Error("DeepSeek API key eksik. Model ayarlarından girin.");
+        const body: Record<string, unknown> = {
+            model: MODEL, messages, tools: activeSchemas, stream: false,
+            temperature: Math.min(temp, 1.5), max_tokens: maxTok,
+        };
+        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) throw new Error(`DeepSeek ${resp.status}: ${await resp.text()}`);
+        const result = await resp.json() as OAICompletion;
+        const text = result.choices[0]?.message?.content;
+        if (text) onDelta?.(text);
+        return result;
+    }
+
+    // ── OpenAI / Mistral — OpenAI-compatible ──────────────────────────────────
     const endpoints: Record<string, string> = {
-        openai: "https://api.openai.com/v1/chat/completions",
+        openai:  "https://api.openai.com/v1/chat/completions",
         mistral: "https://api.mistral.ai/v1/chat/completions",
     };
     const url = endpoints[provider] ?? endpoints.openai;
+    const body: Record<string, unknown> = {
+        model: MODEL,
+        messages,
+        tools: isReasoning ? undefined : activeSchemas,
+        stream: false,
+        max_tokens: maxTok,
+    };
+    if (!isReasoning) body.temperature = temp;
+    if (topP !== 1.0) body.top_p = topP;
+    if (provider === "openai" && currentSettings.presencePenalty !== 0) body.presence_penalty = currentSettings.presencePenalty;
+    if (provider === "openai" && currentSettings.frequencyPenalty !== 0) body.frequency_penalty = currentSettings.frequencyPenalty;
+    if (provider === "mistral" && currentSettings.mistralSafeMode) body.safe_prompt = true;
+
     const resp = await fetch(url, {
         method: "POST",
         headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
-        body: JSON.stringify({model: MODEL, messages, tools: activeSchemas, stream: false}),
+        body: JSON.stringify(body),
     });
     if (!resp.ok) throw new Error(`${provider} ${resp.status}: ${await resp.text()}`);
-    return await resp.json() as OAICompletion;
+    const result = await resp.json() as OAICompletion;
+    const text = result.choices[0]?.message?.content;
+    if (text) onDelta?.(text);
+    return result;
 }
 
 // ---- User profile cache (avoid Supabase round-trip on every message) ----
