@@ -191,7 +191,7 @@ export default function HologramSkin({
 
             {/* Input */}
             <div className="shrink-0 z-30" style={{paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)", paddingBottom: "var(--gap)"}}>
-                <div className="flex items-center gap-3 rounded-xl border backdrop-blur-sm transition-colors" style={{padding: "var(--feed-p) calc(var(--feed-p) * 2)", borderColor: "rgba(var(--hud),0.3)", background: "rgba(var(--hud),0.04)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
+                <div className="flex items-center gap-3 rounded-xl border transition-colors" style={{padding: "var(--feed-p) calc(var(--feed-p) * 2)", borderColor: "rgba(var(--hud),0.3)", background: "rgba(3,6,12,0.85)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
                     <span className="text-sm" style={{color: "rgba(var(--hud),0.6)"}}>›</span>
                     <input
                         value={input}

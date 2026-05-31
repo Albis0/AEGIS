@@ -173,7 +173,7 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
     return (
         <div
             className="absolute inset-0 z-50 flex items-end justify-end"
-            style={{background: "rgba(3,6,12,0.6)", backdropFilter: "blur(6px)"}}
+            style={{background: "rgba(3,6,12,0.82)"}}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             <div
