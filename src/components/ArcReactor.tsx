@@ -19,10 +19,10 @@ export default function ArcReactor({state, capturing}: {state: CoreState; captur
 
     return (
         <div className="relative grid place-items-center w-full h-full hud" style={{color: "rgb(var(--hud))"}}>
-            {/* Ambient halo */}
+            {/* Ambient halo — no filter:blur, radial-gradient fades itself */}
             <div
-                className={`absolute rounded-full blur-3xl transition-all duration-700 ${active ? "w-[80%] h-[80%] opacity-50" : "w-[64%] h-[64%] opacity-25"}`}
-                style={{background: "radial-gradient(circle, rgba(var(--hud),0.45), transparent 65%)"}}
+                className={`absolute rounded-full transition-opacity duration-700 ${active ? "w-[80%] h-[80%] opacity-60" : "w-[80%] h-[80%] opacity-20"}`}
+                style={{background: "radial-gradient(circle, rgba(var(--hud),0.35) 0%, rgba(var(--hud),0.12) 40%, transparent 70%)"}}
             />
 
             {/* Outer dashed ring */}

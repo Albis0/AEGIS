@@ -159,12 +159,10 @@ input::placeholder {
 
 .spin-1 {
     animation: spin-cw 20s linear infinite;
-    will-change: transform;
 }
 
 .spin-2 {
     animation: spin-ccw 14s linear infinite;
-    will-change: transform;
 }
 
 .spin-3 {
