@@ -493,9 +493,11 @@ app.whenReady().then(async () => {
     });
 });
 
+let isQuitting = false;
 app.on("before-quit", (e) => {
-    if (sessionHistory.length < 2) return;
+    if (isQuitting || sessionHistory.length < 2) return;
     e.preventDefault();
+    isQuitting = true;
     summarizeAndSave().finally(() => {
         sessionHistory = [];
         app.quit();
