@@ -98,30 +98,39 @@ export const toolSchemas: ChatCompletionTool[] = [
     },
 ];
 
-// Tehlikeli komut pattern'ları — bunlar LLM'in kendiliğinden çalıştırmasını engelle
-const DANGEROUS_PATTERNS = [
-    /Stop-Process/i,
-    /Kill/i,
-    /taskkill/i,
-    /Remove-Item/i,
-    /\brm\b/i,
-    /\bdel\b.*\/[fFsS]/i,
+// Spesifik hedef olmadan toplu process öldürme veya geri alınamaz sistem komutları
+const BULK_KILL_PATTERNS = [
+    /Get-Process\s*\|.*Stop-Process/i,         // Get-Process | Stop-Process
+    /Stop-Process\s+-Id\s+\*/i,                // Stop-Process -Id *
+    /taskkill\s*\/f(?!\s*\/im\s+\S)/i,         // taskkill /f ama /im <isim> yoksa
+    /kill\s+-9\s+-1/i,                         // kill -9 -1 (hepsini öldür)
+];
+
+const SYSTEM_DESTROY_PATTERNS = [
+    /Remove-Item.*-Recurse.*C:\\/i,
     /Format-/i,
     /shutdown/i,
     /restart-computer/i,
-    /\brd\b.*\/s/i,
     /Clear-Disk/i,
     /Initialize-Disk/i,
+    /\brd\b.*\/s.*[A-Za-z]:\\/i,
 ];
 
-function isDangerous(command: string): boolean {
-    return DANGEROUS_PATTERNS.some((p) => p.test(command));
+function isDangerous(command: string): string | null {
+    for (const p of BULK_KILL_PATTERNS) {
+        if (p.test(command)) return "Toplu uygulama kapatma komutu tespit edildi. Hangi uygulamayı kapatmak istediğini söyle, ona göre yapayım.";
+    }
+    for (const p of SYSTEM_DESTROY_PATTERNS) {
+        if (p.test(command)) return "Bu komut geri alınamaz sistem değişikliği yapabilir. Emin misin?";
+    }
+    return null;
 }
 
 const executors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {
     async run_command({command}) {
-        if (isDangerous(command)) {
-            return `ENGELLENDI: Bu komut potansiyel olarak tehlikeli (${command.slice(0, 80)}). Kullanıcıdan açık onay alınmadan çalıştırılamaz. Kullanıcıya ne yapmak istediğini sor ve kesin onay vermesini iste.`;
+        const danger = isDangerous(command);
+        if (danger) {
+            return `ENGELLENDI: ${danger}`;
         }
         return run(`powershell -NoProfile -Command "${command.replace(/"/g, '\\"')}"`);
     },
