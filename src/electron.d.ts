@@ -10,23 +10,63 @@ export interface ProcInfo {
     name: string;
     cpu: number;
     ram: number;
+    pid: number;
+}
+
+export interface DiskInfo {
+    drive: string;
+    usedPct: number;
+    usedGB: number;
+    totalGB: number;
+}
+
+export interface NetInfo {
+    name: string;
+    up: number;
+    down: number;
 }
 
 export interface Telemetry {
+    // CPU
     cpu: number;
+    cpuCores: number[];
+    cpuModel: string;
+    cpuTemp: number | null;
+    cpuFreqMHz: number | null;
+    cpuCoreCount: number;
+    // RAM
     ram: number;
+    ramUsedMB: number;
+    ramTotalMB: number;
+    ramFreeMB: number;
+    // Disk
     disk: number;
+    disks: DiskInfo[];
+    // Battery
     battery: number | null;
+    batteryCharging: boolean | null;
+    // Network
     netUp: number;
     netDown: number;
+    netAdapters: NetInfo[];
+    // GPU
+    gpu: GpuInfo[];
+    // Fans
+    fanSpeeds: number[];
+    // Processes
+    topProcs: ProcInfo[];
+    // System
     uptime: number;
     host: string;
     platform: string;
-    gpu: GpuInfo[];
-    cpuTemp: number | null;
-    topProcs: ProcInfo[];
+    sysModel: string;
+    sysBoard: string;
     activeWindow: string;
 }
+
+export type TelemetryWidget =
+    | "cpu" | "ram" | "disk" | "battery" | "network"
+    | "gpu" | "fans" | "processes" | "system" | "activeWindow";
 
 export interface AppSettings {
     model: string;
@@ -42,6 +82,8 @@ export interface AppSettings {
     layout: "normal" | "compact";
     customCss: string;
     language: "tr" | "en" | "de" | "fr" | "es";
+    telemetryWidgets: TelemetryWidget[];
+    telemetryUpdateMs: number;
 }
 
 export interface AegisConfig {

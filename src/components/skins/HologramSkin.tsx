@@ -1,6 +1,6 @@
 import React, {type ReactNode, useState, useEffect} from "react";
 import type {CoreState} from "../ArcReactor";
-import type {Telemetry, Weather} from "../../electron.d";
+import type {Telemetry, Weather, TelemetryWidget} from "../../electron.d";
 import type {VoiceMode} from "../../hooks/useVoice";
 import ArcReactor from "../ArcReactor";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -10,11 +10,21 @@ import type {FeedItemType} from "../FeedItem";
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type FeedItemLocal = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
-const fmtUptime = (s: number) => `${Math.floor(s / 3600)}s ${Math.floor((s % 3600) / 60)}d`;
+const fmtUptime = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h >= 24) return `${Math.floor(h / 24)}g ${h % 24}s`;
+    return `${h}s ${m}d`;
+};
 const fmtRate = (bps?: number) => {
-    if (bps == null) return "0 KB/s";
+    if (bps == null) return "0 B/s";
     if (bps > 1048576) return `${(bps / 1048576).toFixed(1)} MB/s`;
-    return `${Math.round(bps / 1024)} KB/s`;
+    if (bps > 1024) return `${Math.round(bps / 1024)} KB/s`;
+    return `${bps} B/s`;
+};
+const fmtMHz = (mhz: number | null | undefined) => {
+    if (!mhz) return null;
+    return mhz >= 1000 ? `${(mhz / 1000).toFixed(2)} GHz` : `${mhz} MHz`;
 };
 
 export interface SkinProps {
@@ -37,15 +47,21 @@ export interface SkinProps {
     onHistoryOpen?: () => void;
     feedRef: React.RefObject<HTMLDivElement>;
     layout: "normal" | "compact";
+    telemetryWidgets?: TelemetryWidget[];
 }
+
+const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
 
 export default function HologramSkin({
     feed, input, setInput, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
     onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, layout,
+    telemetryWidgets,
 }: SkinProps) {
     const compact = layout === "compact";
     const active = (s: CoreState) => s !== "idle";
+    const widgets = telemetryWidgets ?? ALL_WIDGETS;
+    const show = (w: TelemetryWidget) => widgets.includes(w);
 
     // Clock lives here — ticking every second must not bust the parent memo
     const [clock, setClock] = useState(new Date());
@@ -105,37 +121,86 @@ export default function HologramSkin({
                     </Section>
 
                     <Section title="SİSTEM DURUMU">
-                        <div className="text-[9px] tracking-widest opacity-60 mb-1.5">UPTIME · {tel ? fmtUptime(tel.uptime) : "—"}</div>
-                        <div className="space-y-1.5 text-[10px] tracking-widest">
-                            <CpuRow cpu={tel?.cpu ?? 0} temp={tel?.cpuTemp ?? null} />
-                            <TelRow label="RAM" value={`${tel?.ram ?? 0}%`} bar={tel?.ram ?? 0} warn={75} danger={88} />
-                            <TelRow label="DISK" value={`${tel?.disk ?? 0}%`} bar={tel?.disk ?? 0} warn={70} danger={90} />
-                            <TelRow label="BAT" value={tel?.battery != null ? `${tel.battery}%` : "N/A"} bar={tel?.battery ?? 0} />
+                        <div className="text-[9px] tracking-widest opacity-60 mb-1.5">
+                            UPTIME · {tel ? fmtUptime(tel.uptime) : "—"}
                         </div>
-                        {(tel?.gpu ?? []).length > 0 && (
+                        <div className="space-y-1.5 text-[10px] tracking-widest">
+                            {show("cpu") && (
+                                <CpuRow
+                                    cpu={tel?.cpu ?? 0}
+                                    temp={tel?.cpuTemp ?? null}
+                                    freq={tel?.cpuFreqMHz ?? null}
+                                    model={tel?.cpuModel ?? ""}
+                                    cores={tel?.cpuCores ?? []}
+                                    coreCount={tel?.cpuCoreCount ?? 0}
+                                />
+                            )}
+                            {show("ram") && (
+                                <RamRow
+                                    pct={tel?.ram ?? 0}
+                                    usedMB={tel?.ramUsedMB ?? 0}
+                                    totalMB={tel?.ramTotalMB ?? 0}
+                                    freeMB={tel?.ramFreeMB ?? 0}
+                                />
+                            )}
+                            {show("disk") && (tel?.disks ?? []).length > 0 && (
+                                <DiskRows disks={tel!.disks} />
+                            )}
+                            {show("battery") && tel?.battery != null && (
+                                <TelRow
+                                    label="BAT"
+                                    value={`${tel.battery}%${tel.batteryCharging ? " ⚡" : ""}`}
+                                    bar={tel.battery}
+                                    warn={20}
+                                    danger={10}
+                                    invertColor
+                                />
+                            )}
+                        </div>
+                        {show("gpu") && (tel?.gpu ?? []).length > 0 && (
                             <div className="mt-2 space-y-1.5 text-[10px] tracking-widest">
                                 {(tel?.gpu ?? []).map((g, i) => <GpuRow key={i} gpu={g} />)}
                             </div>
                         )}
-                        <div className="flex justify-between gap-2 pt-2 text-[10px] opacity-70">
-                            <span>▲ {fmtRate(tel?.netUp)}</span>
-                            <span>▼ {fmtRate(tel?.netDown)}</span>
-                        </div>
-                        {tel?.activeWindow && (
+                        {show("fans") && (tel?.fanSpeeds ?? []).length > 0 && (
+                            <div className="pt-1 text-[9px] opacity-60 space-y-0.5">
+                                {tel!.fanSpeeds.map((rpm, i) => (
+                                    <div key={i} className="flex justify-between">
+                                        <span>FAN {i + 1}</span>
+                                        <span className="tabular-nums">{rpm} RPM</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {show("network") && (
+                            <div className="pt-2 space-y-0.5">
+                                <div className="flex justify-between gap-2 text-[10px] opacity-70">
+                                    <span>▲ {fmtRate(tel?.netUp)}</span>
+                                    <span>▼ {fmtRate(tel?.netDown)}</span>
+                                </div>
+                                {(tel?.netAdapters ?? []).filter((a) => a.up > 0 || a.down > 0).slice(0, 2).map((a, i) => (
+                                    <div key={i} className="text-[8px] opacity-40 truncate" title={a.name}>{a.name}</div>
+                                ))}
+                            </div>
+                        )}
+                        {show("activeWindow") && tel?.activeWindow && (
                             <div className="pt-1 text-[9px] opacity-50 truncate" title={tel.activeWindow}>◈ {tel.activeWindow}</div>
                         )}
-                        <div className="flex justify-between gap-2 pt-1 text-[10px] opacity-60">
-                            <span>HOST</span><span>AEGIS-OS</span>
-                        </div>
+                        {show("system") && (
+                            <div className="pt-1 space-y-0.5 text-[9px] opacity-50">
+                                <div className="truncate" title={tel?.host}>HOST · {tel?.host ?? "—"}</div>
+                                {tel?.sysModel && <div className="truncate" title={tel.sysModel}>{tel.sysModel}</div>}
+                            </div>
+                        )}
                     </Section>
 
-                    {(tel?.topProcs ?? []).length > 0 && (
+                    {show("processes") && (tel?.topProcs ?? []).length > 0 && (
                         <Section title="TOP PROCESS">
                             <div className="space-y-1 text-[9px] tracking-widest">
                                 {(tel?.topProcs ?? []).map((p, i) => (
                                     <div key={i} className="flex justify-between gap-1 opacity-80">
-                                        <span className="truncate flex-1" title={p.name}>{p.name}</span>
-                                        <span className="tabular-nums opacity-60">{p.ram}MB</span>
+                                        <span className="truncate flex-1" title={`${p.name} [${p.pid}]`}>{p.name}</span>
+                                        <span className="tabular-nums opacity-60 shrink-0">{p.ram}MB</span>
                                     </div>
                                 ))}
                             </div>
@@ -240,7 +305,9 @@ function Section({title, children}: {title: string; children: ReactNode}) {
     );
 }
 
-const CpuRow = React.memo(function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
+const CpuRow = React.memo(function CpuRow({
+    cpu, temp, freq, model, cores, coreCount,
+}: {cpu: number; temp: number | null; freq: number | null; model: string; cores: number[]; coreCount: number}) {
     const [open, setOpen] = React.useState(false);
     const color = cpu >= 90 ? "248,80,80" : cpu >= 70 ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
@@ -255,22 +322,111 @@ const CpuRow = React.memo(function CpuRow({cpu, temp}: {cpu: number; temp: numbe
                 <span className="opacity-40 text-[9px]">{open ? "▴" : "▾"}</span>
             </div>
             {open && (
-                <div className="mt-1 pl-9 space-y-0.5 text-[9px] opacity-70">
-                    {temp != null && <div>TEMP · <span style={{color: temp >= 90 ? "rgb(var(--status-danger))" : temp >= 75 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>{temp}°C</span></div>}
-                    <div>CORES · {navigator.hardwareConcurrency ?? "—"}</div>
+                <div className="mt-1.5 pl-2 space-y-1 text-[9px] opacity-80">
+                    {model && <div className="opacity-50 truncate text-[8px]" title={model}>{model}</div>}
+                    <div className="flex gap-2 flex-wrap">
+                        {temp != null && (
+                            <span style={{color: temp >= 90 ? "rgb(var(--status-danger))" : temp >= 75 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>
+                                TEMP {temp}°C
+                            </span>
+                        )}
+                        {freq != null && <span className="opacity-60">{fmtMHz(freq)}</span>}
+                        <span className="opacity-50">CORES {coreCount || (cores.length || "—")}</span>
+                    </div>
+                    {cores.length > 0 && (
+                        <div className="grid gap-0.5" style={{gridTemplateColumns: `repeat(${Math.min(cores.length, 8)}, 1fr)`}}>
+                            {cores.map((c, i) => {
+                                const cc = c >= 90 ? "248,80,80" : c >= 70 ? "245,150,40" : null;
+                                return (
+                                    <div key={i} className="flex flex-col items-center gap-0.5" title={`Core ${i}: ${c}%`}>
+                                        <div className="w-full rounded-sm overflow-hidden" style={{height: "20px", background: "rgba(var(--hud),0.12)"}}>
+                                            <div
+                                                className="w-full rounded-sm transition-[height] duration-500"
+                                                style={{
+                                                    height: `${c}%`,
+                                                    marginTop: `${100 - c}%`,
+                                                    background: cc ? `rgb(${cc})` : "rgb(var(--hud))",
+                                                    boxShadow: `0 0 3px ${cc ? `rgb(${cc})` : "rgb(var(--hud))"}`,
+                                                }}
+                                            />
+                                        </div>
+                                        <span className="text-[7px] opacity-40">{i}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
     );
 });
 
+const RamRow = React.memo(function RamRow({pct, usedMB, totalMB, freeMB}: {pct: number; usedMB: number; totalMB: number; freeMB: number}) {
+    const [open, setOpen] = React.useState(false);
+    const color = pct >= 90 ? "248,80,80" : pct >= 75 ? "245,150,40" : "var(--hud)";
+    const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
+    const fmtGB = (mb: number) => mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+    return (
+        <div>
+            <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setOpen((o) => !o)}>
+                <span className="w-9">RAM</span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                    <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${pct}%`, background: fill, boxShadow: `0 0 4px ${fill}`}} />
+                </div>
+                <span className="tabular-nums w-12 text-right" style={{color: fill}}>{pct}%</span>
+                <span className="opacity-40 text-[9px]">{open ? "▴" : "▾"}</span>
+            </div>
+            {open && (
+                <div className="mt-1 pl-2 space-y-0.5 text-[9px] opacity-70">
+                    <div className="flex justify-between">
+                        <span>KULLANILAN</span>
+                        <span className="tabular-nums" style={{color: fill}}>{fmtGB(usedMB)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>BOŞ</span>
+                        <span className="tabular-nums opacity-60">{fmtGB(freeMB)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>TOPLAM</span>
+                        <span className="tabular-nums opacity-60">{fmtGB(totalMB)}</span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
+const DiskRows = React.memo(function DiskRows({disks}: {disks: {drive: string; usedPct: number; usedGB: number; totalGB: number}[]}) {
+    return (
+        <>
+            {disks.map((d) => {
+                const color = d.usedPct >= 90 ? "248,80,80" : d.usedPct >= 70 ? "245,150,40" : "var(--hud)";
+                const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
+                return (
+                    <div key={d.drive} className="flex items-center gap-2" title={`${d.usedGB} / ${d.totalGB} GB`}>
+                        <span className="w-9 shrink-0">{d.drive}</span>
+                        <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                            <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${d.usedPct}%`, background: fill, boxShadow: `0 0 4px ${fill}`}} />
+                        </div>
+                        <span className="tabular-nums text-right opacity-70 text-[9px]" style={{minWidth: "52px"}}>{d.usedGB}/{d.totalGB}G</span>
+                    </div>
+                );
+            })}
+        </>
+    );
+});
+
 const GpuRow = React.memo(function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null}}) {
+    const [open, setOpen] = React.useState(false);
     const color = gpu.load >= 90 ? "248,80,80" : gpu.load >= 70 ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
     const vramPct = gpu.vramTotal > 0 ? Math.round((gpu.vramUsed / gpu.vramTotal) * 100) : 0;
     return (
         <div className="space-y-1">
-            <div className="text-[9px] opacity-50 truncate" title={gpu.name}>{gpu.name.toUpperCase()}</div>
+            <div className="text-[9px] opacity-50 truncate cursor-pointer select-none" title={gpu.name} onClick={() => setOpen((o) => !o)}>
+                {gpu.name.toUpperCase()} {open ? "▴" : "▾"}
+            </div>
             <div className="flex items-center gap-2">
                 <span className="w-9">GPU</span>
                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
@@ -284,26 +440,34 @@ const GpuRow = React.memo(function GpuRow({gpu}: {gpu: {name: string; load: numb
                     <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
                         <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${vramPct}%`, background: "rgb(var(--hud))", boxShadow: "0 0 6px rgb(var(--hud))"}} />
                     </div>
-                    <span className="tabular-nums w-12 text-right opacity-80">{gpu.vramUsed}/{gpu.vramTotal}MB</span>
+                    <span className="tabular-nums w-12 text-right opacity-80 text-[9px]">{gpu.vramUsed}/{gpu.vramTotal}M</span>
                 </div>
             )}
-            {gpu.temp != null && (
-                <div className="text-[9px] opacity-60 pl-11">TEMP · <span style={{color: gpu.temp >= 85 ? "rgb(var(--status-danger))" : gpu.temp >= 70 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>{gpu.temp}°C</span></div>
+            {open && gpu.temp != null && (
+                <div className="text-[9px] opacity-60 pl-2">
+                    TEMP · <span style={{color: gpu.temp >= 85 ? "rgb(var(--status-danger))" : gpu.temp >= 70 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>{gpu.temp}°C</span>
+                </div>
             )}
         </div>
     );
 });
 
-const TelRow = React.memo(function TelRow({label, value, bar, danger, warn}: {label: string; value: string; bar: number; danger?: number; warn?: number}) {
-    const color = danger != null && bar >= danger ? "248,80,80" : warn != null && bar >= warn ? "245,150,40" : "var(--hud)";
+const TelRow = React.memo(function TelRow({label, value, bar, danger, warn, invertColor}: {label: string; value: string; bar: number; danger?: number; warn?: number; invertColor?: boolean}) {
+    let color: string;
+    if (invertColor) {
+        // battery: low is bad
+        color = danger != null && bar <= danger ? "248,80,80" : warn != null && bar <= warn ? "245,150,40" : "var(--hud)";
+    } else {
+        color = danger != null && bar >= danger ? "248,80,80" : warn != null && bar >= warn ? "245,150,40" : "var(--hud)";
+    }
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
     return (
         <div className="flex items-center gap-2">
-            <span className="w-9">{label}</span>
+            <span className="w-9 shrink-0">{label}</span>
             <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
                 <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${bar}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
             </div>
-            <span className="tabular-nums w-12 text-right" style={{color: fill}}>{value}</span>
+            <span className="tabular-nums w-14 text-right" style={{color: fill}}>{value}</span>
         </div>
     );
 });

@@ -4,7 +4,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import ChatHistorySidebar from "./components/ChatHistorySidebar";
 import CommandPalette from "./components/CommandPalette";
 import {useVoice, type VoiceMode} from "./hooks/useVoice";
-import type {Telemetry, Weather, AppSettings} from "./electron.d";
+import type {Telemetry, Weather, AppSettings, TelemetryWidget} from "./electron.d";
 import HologramSkin from "./components/skins/HologramSkin";
 import MinimalSkin from "./components/skins/MinimalSkin";
 import TerminalSkin from "./components/skins/TerminalSkin";
@@ -82,6 +82,9 @@ export default function App() {
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
     const [lang, setLang] = useState<Lang>("tr");
+    const [telemetryWidgets, setTelemetryWidgets] = useState<TelemetryWidget[]>([
+        "cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow",
+    ]);
 
     useEffect(() => {
         window.jarvis.settingsGet().then((s) => {
@@ -92,6 +95,7 @@ export default function App() {
             applyFont(s.font ?? "jetbrains");
             applyCustomCss(s.customCss ?? "");
             setLang((s.language ?? "tr") as Lang);
+            if (s.telemetryWidgets) setTelemetryWidgets(s.telemetryWidgets);
         });
     }, []);
 
@@ -268,6 +272,7 @@ export default function App() {
             applyFont(s.font ?? "jetbrains");
             applyCustomCss(s.customCss ?? "");
             setLang((s.language ?? "tr") as Lang);
+            if (s.telemetryWidgets) setTelemetryWidgets(s.telemetryWidgets);
         });
     };
 
@@ -283,10 +288,10 @@ export default function App() {
         mode, setMode, listening, activated, capturing, placeholder,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
-        feedRef, layout,
+        feedRef, layout, telemetryWidgets,
     }), [feed, input, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
-        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout]);
+        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets]);
 
     return (
         <>
@@ -298,6 +303,7 @@ export default function App() {
                 onFontChange={(f) => { applyFont(f); }}
                 onLayoutChange={setLayout}
                 onCustomCssChange={applyCustomCss}
+                onTelemetryWidgetsChange={setTelemetryWidgets}
             />
             <ChatHistorySidebar
                 open={historyOpen}

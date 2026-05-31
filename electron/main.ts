@@ -143,59 +143,144 @@ function createWindow(): void {
 }
 
 // ---- System telemetry ----
-let lastCpu = os.cpus();
+let lastCpuTimes = os.cpus().map((c) => ({...c.times}));
+let lastCoreSnapshot = os.cpus().map((c) => ({...c.times}));
 
-function cpuUsage(): number {
+function cpuUsageAll(): {total: number; cores: number[]} {
     const now = os.cpus();
-    let idleDiff = 0;
-    let totalDiff = 0;
+    let idleTotal = 0, totalTotal = 0;
+    const cores: number[] = [];
     for (let i = 0; i < now.length; i++) {
-        const a = lastCpu[i].times;
+        const a = lastCpuTimes[i] ?? now[i].times;
         const b = now[i].times;
         const idle = b.idle - a.idle;
-        const total = b.user - a.user + (b.nice - a.nice) + (b.sys - a.sys) + (b.irq - a.irq) + idle;
-        idleDiff += idle;
-        totalDiff += total;
+        const total = (b.user - a.user) + (b.nice - a.nice) + (b.sys - a.sys) + (b.irq - a.irq) + idle;
+        idleTotal += idle;
+        totalTotal += total;
+        cores.push(total === 0 ? 0 : Math.min(100, Math.max(0, Math.round((1 - idle / total) * 100))));
     }
-    lastCpu = now;
-    if (totalDiff === 0) return 0;
-    return Math.min(100, Math.max(0, Math.round((1 - idleDiff / totalDiff) * 100)));
+    lastCpuTimes = now.map((c) => ({...c.times}));
+    const total = totalTotal === 0 ? 0 : Math.min(100, Math.max(0, Math.round((1 - idleTotal / totalTotal) * 100)));
+    return {total, cores};
 }
 
-let diskPct = 0;
-function refreshDisk(): void {
-    const drive = (process.env.SystemDrive ?? "C:").replace(/\\$/, "");
+// Per-core snapshot for the slow interval (shown in expand panel)
+let coreUsages: number[] = [];
+function refreshCoreUsages(): void {
+    const now = os.cpus();
+    const cores: number[] = [];
+    for (let i = 0; i < now.length; i++) {
+        const a = lastCoreSnapshot[i] ?? now[i].times;
+        const b = now[i].times;
+        const idle = b.idle - a.idle;
+        const total = (b.user - a.user) + (b.nice - a.nice) + (b.sys - a.sys) + (b.irq - a.irq) + idle;
+        cores.push(total === 0 ? 0 : Math.min(100, Math.max(0, Math.round((1 - idle / total) * 100))));
+    }
+    lastCoreSnapshot = now.map((c) => ({...c.times}));
+    coreUsages = cores;
+}
+
+// CPU model adı — başlangıçta bir kez
+let cpuModel = os.cpus()[0]?.model?.trim() ?? "CPU";
+// Truncate after @ (freq info) for display
+const atIdx = cpuModel.indexOf(" @");
+if (atIdx > 0) cpuModel = cpuModel.slice(0, atIdx).trim();
+
+// Disk — tüm sürücüler
+type DiskInfo = {drive: string; usedPct: number; usedGB: number; totalGB: number};
+let disks: DiskInfo[] = [];
+function refreshDisks(): void {
     exec(
-        `powershell -NoProfile -Command "$d=Get-PSDrive ${drive.replace(":", "")} -ErrorAction SilentlyContinue; if($d){[math]::Round($d.Used/($d.Used+$d.Free)*100)}"`,
-        {windowsHide: true, timeout: 8000},
+        `powershell -NoProfile -Command "` +
+        `Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | ` +
+        `Where-Object {$_.Used -ne $null -and ($_.Used+$_.Free) -gt 0} | ` +
+        `Select-Object Name,Used,Free | ConvertTo-Json -Compress` +
+        `"`,
+        {windowsHide: true, timeout: 10000},
         (_e, stdout) => {
-            const n = parseInt((stdout ?? "").trim(), 10);
-            if (!isNaN(n)) diskPct = n;
+            try {
+                const raw = JSON.parse((stdout ?? "").trim());
+                const arr = Array.isArray(raw) ? raw : [raw];
+                disks = arr.map((d: {Name?: string; Used?: number; Free?: number}) => {
+                    const used = d.Used ?? 0;
+                    const free = d.Free ?? 0;
+                    const total = used + free;
+                    return {
+                        drive: (d.Name ?? "?") + ":",
+                        usedPct: total > 0 ? Math.round((used / total) * 100) : 0,
+                        usedGB: Math.round(used / 1073741824 * 10) / 10,
+                        totalGB: Math.round(total / 1073741824 * 10) / 10,
+                    };
+                });
+            } catch {}
         },
     );
 }
 
-let battery: number | null = null;
-function refreshBattery(): void {
-    exec(`powershell -NoProfile -Command "(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).EstimatedChargeRemaining"`, {windowsHide: true, timeout: 8000}, (_e, stdout) => {
-        const n = parseInt((stdout ?? "").trim(), 10);
-        battery = isNaN(n) ? null : n;
-    });
+// Backward-compat: primary disk % (C: or first)
+function primaryDiskPct(): number {
+    const c = disks.find((d) => d.drive === "C:") ?? disks[0];
+    return c?.usedPct ?? 0;
 }
 
+let battery: number | null = null;
+let batteryCharging: boolean | null = null;
+function refreshBattery(): void {
+    exec(
+        `powershell -NoProfile -Command "` +
+        `$b=Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1; ` +
+        `if($b){''+$b.EstimatedChargeRemaining+'|'+$b.BatteryStatus} else {'null'}` +
+        `"`,
+        {windowsHide: true, timeout: 8000},
+        (_e, stdout) => {
+            const s = (stdout ?? "").trim();
+            if (s === "null") { battery = null; batteryCharging = null; return; }
+            const parts = s.split("|");
+            const n = parseInt(parts[0], 10);
+            battery = isNaN(n) ? null : n;
+            // BatteryStatus: 2=Charging, 6=Charging, 1=Discharging
+            const st = parseInt(parts[1] ?? "", 10);
+            batteryCharging = !isNaN(st) ? (st === 2 || st === 6) : null;
+        },
+    );
+}
+
+// Network — adapter adı + up/down
+type NetInfo = {name: string; up: number; down: number};
+let netAdapters: NetInfo[] = [];
 let netUp = 0;
 let netDown = 0;
 function refreshNetwork(): void {
     exec(
-        `powershell -NoProfile -Command "$s=Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | Measure-Object -Property BytesSentPersec,BytesReceivedPersec -Sum; ''+($s | Where-Object{$_.Property -eq 'BytesSentPersec'}).Sum+'|'+($s | Where-Object{$_.Property -eq 'BytesReceivedPersec'}).Sum"`,
+        `powershell -NoProfile -Command "` +
+        `Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | ` +
+        `Where-Object {$_.BytesSentPersec -gt 0 -or $_.BytesReceivedPersec -gt 0 -or $_.Name -match 'Ethernet|Wi-Fi|Wireless|LAN'} | ` +
+        `Select-Object Name,BytesSentPersec,BytesReceivedPersec | ConvertTo-Json -Compress` +
+        `"`,
         {windowsHide: true, timeout: 8000},
         (_e, stdout) => {
-            const [up, down] = (stdout ?? "")
-                .trim()
-                .split("|")
-                .map((x) => parseInt(x, 10));
-            if (!isNaN(up)) netUp = up;
-            if (!isNaN(down)) netDown = down;
+            try {
+                const raw = JSON.parse((stdout ?? "").trim());
+                const arr = (Array.isArray(raw) ? raw : [raw]) as {Name?: string; BytesSentPersec?: number; BytesReceivedPersec?: number}[];
+                netAdapters = arr.map((a) => ({
+                    name: (a.Name ?? "").slice(0, 32),
+                    up: a.BytesSentPersec ?? 0,
+                    down: a.BytesReceivedPersec ?? 0,
+                }));
+                netUp = netAdapters.reduce((s, a) => s + a.up, 0);
+                netDown = netAdapters.reduce((s, a) => s + a.down, 0);
+            } catch {
+                // fallback: sum only
+                exec(
+                    `powershell -NoProfile -Command "$s=Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | Measure-Object -Property BytesSentPersec,BytesReceivedPersec -Sum; ''+($s | Where-Object{$_.Property -eq 'BytesSentPersec'}).Sum+'|'+($s | Where-Object{$_.Property -eq 'BytesReceivedPersec'}).Sum"`,
+                    {windowsHide: true, timeout: 8000},
+                    (_e2, stdout2) => {
+                        const [up, down] = (stdout2 ?? "").trim().split("|").map((x) => parseInt(x, 10));
+                        if (!isNaN(up)) netUp = up;
+                        if (!isNaN(down)) netDown = down;
+                    },
+                );
+            }
         },
     );
 }
@@ -205,7 +290,6 @@ type GpuInfo = {name: string; load: number; vramUsed: number; vramTotal: number;
 let gpuInfo: GpuInfo[] = [];
 
 function initGpuStatic(): void {
-    // GPU adı ve toplam VRAM — sadece başlangıçta bir kez çekilir
     exec(
         `powershell -NoProfile -Command "Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object Name,AdapterRAM | ConvertTo-Json -Compress"`,
         {windowsHide: true, timeout: 8000},
@@ -226,10 +310,6 @@ function initGpuStatic(): void {
 }
 
 function refreshGpu(): void {
-    // Use Get-Counter for the 3D engine % — matches Task Manager exactly.
-    // nvidia-smi utilization.gpu on WDDM reports total engine utilization across
-    // ALL processes (incl. Wallpaper Engine, desktop compositing) which inflates
-    // the number to 100% even when the app itself is idle.
     exec(
         `powershell -NoProfile -Command "` +
         `$c=(Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples | ` +
@@ -244,7 +324,6 @@ function refreshGpu(): void {
         (_e, stdout) => {
             if (!stdout) return;
             const raw = stdout.trim();
-            // format: "3d_pct|vramUsedMB|temp,vramUsed2,vramTotal"
             const pipeIdx = raw.indexOf("|");
             const pipeIdx2 = raw.indexOf("|", pipeIdx + 1);
             if (pipeIdx < 0) return;
@@ -255,7 +334,6 @@ function refreshGpu(): void {
             const vramTotal = isNaN(smiParts[2]) ? (gpuInfo[0]?.vramTotal ?? 0) : smiParts[2];
             if (!gpuInfo[0]) gpuInfo[0] = {name: "GPU 0", load: 0, vramUsed: 0, vramTotal: 0, temp: null};
             gpuInfo[0].load = isNaN(load3d) ? 0 : Math.min(100, load3d);
-            // Prefer nvidia-smi VRAM (dedicated only); fall back to Get-Counter sum
             gpuInfo[0].vramUsed = isNaN(smiParts[1]) ? (isNaN(vramUsedMB) ? 0 : vramUsedMB) : smiParts[1];
             gpuInfo[0].vramTotal = vramTotal;
             gpuInfo[0].temp = temp;
@@ -263,32 +341,54 @@ function refreshGpu(): void {
     );
 }
 
-// CPU sıcaklığı
+// CPU sıcaklığı + frekans
 let cpuTemp: number | null = null;
+let cpuFreqMHz: number | null = null;
 function refreshCpuTemp(): void {
     exec(
-        `powershell -NoProfile -Command "Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentTemperature"`,
+        `powershell -NoProfile -Command "` +
+        `$t=Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentTemperature; ` +
+        `$f=(Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentClockSpeed); ` +
+        `''+$t+'|'+$f` +
+        `"`,
         {windowsHide: true, timeout: 8000},
         (_e, stdout) => {
-            const raw = parseInt((stdout ?? "").trim(), 10);
-            if (!isNaN(raw) && raw > 0) cpuTemp = Math.round(raw / 10 - 273.15);
+            const parts = (stdout ?? "").trim().split("|");
+            const rawT = parseInt(parts[0] ?? "", 10);
+            if (!isNaN(rawT) && rawT > 0) cpuTemp = Math.round(rawT / 10 - 273.15);
+            const rawF = parseInt(parts[1] ?? "", 10);
+            if (!isNaN(rawF) && rawF > 0) cpuFreqMHz = rawF;
         },
     );
 }
 
-// Top 5 process
-type ProcInfo = {name: string; cpu: number; ram: number};
+// Fan hızları (rpm) — sadece MSAcpi_FanSpeed destekleniyorsa gelir
+let fanSpeeds: number[] = [];
+function refreshFans(): void {
+    exec(
+        `powershell -NoProfile -Command "Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_FanSpeed -ErrorAction SilentlyContinue | Select-Object -ExpandProperty CurrentReading"`,
+        {windowsHide: true, timeout: 5000},
+        (_e, stdout) => {
+            const vals = (stdout ?? "").trim().split(/\r?\n/).map((l) => parseInt(l.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+            if (vals.length > 0) fanSpeeds = vals;
+        },
+    );
+}
+
+// Top 8 process — CPU% anlık + RAM MB + PID
+type ProcInfo = {name: string; cpu: number; ram: number; pid: number};
 let topProcs: ProcInfo[] = [];
 function refreshTopProcs(): void {
     exec(
-        `powershell -NoProfile -Command "Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 Name,@{N='CPU';E={[math]::Round($_.CPU,1)}},@{N='RAM';E={[math]::Round($_.WorkingSet64/1MB,0)}} | ConvertTo-Json -Compress"`,
+        `powershell -NoProfile -Command "Get-Process | Sort-Object CPU -Descending | Select-Object -First 8 Name,Id,@{N='CPU';E={[math]::Round($_.CPU,1)}},@{N='RAM';E={[math]::Round($_.WorkingSet64/1MB,0)}} | ConvertTo-Json -Compress"`,
         {windowsHide: true, timeout: 10000},
         (_e, stdout) => {
             try {
                 const raw = JSON.parse((stdout ?? "").trim());
                 const arr = Array.isArray(raw) ? raw : [raw];
-                topProcs = arr.map((p: {Name?: string; CPU?: number; RAM?: number}) => ({
-                    name: (p.Name ?? "?").slice(0, 20),
+                topProcs = arr.map((p: {Name?: string; Id?: number; CPU?: number; RAM?: number}) => ({
+                    name: (p.Name ?? "?").slice(0, 24),
+                    pid: p.Id ?? 0,
                     cpu: p.CPU ?? 0,
                     ram: p.RAM ?? 0,
                 }));
@@ -310,10 +410,30 @@ function refreshActiveWindow(): void {
     );
 }
 
+// Sistem bilgisi — model, BIOS, board (başlangıçta bir kez)
+let sysModel = "";
+let sysBoard = "";
+function initSysInfo(): void {
+    exec(
+        `powershell -NoProfile -Command "` +
+        `$cs=Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue; ` +
+        `$bb=Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue; ` +
+        `''+$cs.Manufacturer.Trim()+' '+$cs.Model.Trim()+'|'+$bb.Manufacturer.Trim()+' '+$bb.Product.Trim()` +
+        `"`,
+        {windowsHide: true, timeout: 10000},
+        (_e, stdout) => {
+            const parts = (stdout ?? "").trim().split("|");
+            sysModel = (parts[0] ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+            sysBoard = (parts[1] ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+        },
+    );
+}
+
 const telIntervals: NodeJS.Timeout[] = [];
 
 function startTelemetry(): void {
-    refreshDisk();
+    initSysInfo();
+    refreshDisks();
     refreshBattery();
     refreshNetwork();
     initGpuStatic();
@@ -321,31 +441,60 @@ function startTelemetry(): void {
     refreshCpuTemp();
     refreshTopProcs();
     refreshActiveWindow();
-    telIntervals.push(setInterval(refreshDisk, 15000));
+    refreshCoreUsages();
+    refreshFans();
+
+    telIntervals.push(setInterval(refreshDisks, 20000));
     telIntervals.push(setInterval(refreshBattery, 30000));
-    telIntervals.push(setInterval(refreshNetwork, 4000));
-    telIntervals.push(setInterval(refreshGpu, 8000));
+    telIntervals.push(setInterval(refreshNetwork, 3000));
+    telIntervals.push(setInterval(refreshGpu, 6000));
     telIntervals.push(setInterval(refreshCpuTemp, 8000));
-    telIntervals.push(setInterval(refreshTopProcs, 10000));
-    telIntervals.push(setInterval(refreshActiveWindow, 5000));
+    telIntervals.push(setInterval(refreshTopProcs, 8000));
+    telIntervals.push(setInterval(refreshActiveWindow, 4000));
+    telIntervals.push(setInterval(refreshCoreUsages, 3000));
+    telIntervals.push(setInterval(refreshFans, 15000));
 
     telIntervals.push(setInterval(() => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
+        const usedMem = totalMem - freeMem;
+        const {total: cpuTotal, cores} = cpuUsageAll();
         mainWindow.webContents.send("telemetry", {
-            cpu: cpuUsage(),
-            ram: Math.round(((totalMem - freeMem) / totalMem) * 100),
-            disk: diskPct,
+            // CPU
+            cpu: cpuTotal,
+            cpuCores: coreUsages.length > 0 ? coreUsages : cores,
+            cpuModel,
+            cpuTemp,
+            cpuFreqMHz,
+            cpuCoreCount: os.cpus().length,
+            // RAM
+            ram: Math.round((usedMem / totalMem) * 100),
+            ramUsedMB: Math.round(usedMem / 1048576),
+            ramTotalMB: Math.round(totalMem / 1048576),
+            ramFreeMB: Math.round(freeMem / 1048576),
+            // Disk
+            disk: primaryDiskPct(),
+            disks,
+            // Battery
             battery,
+            batteryCharging,
+            // Network
             netUp,
             netDown,
+            netAdapters,
+            // GPU
+            gpu: gpuInfo,
+            // Fans
+            fanSpeeds,
+            // Processes
+            topProcs,
+            // System
             uptime: Math.round(os.uptime()),
             host: os.hostname(),
             platform: `${os.type()} ${os.release()}`,
-            gpu: gpuInfo,
-            cpuTemp,
-            topProcs,
+            sysModel,
+            sysBoard,
             activeWindow,
         });
     }, 1500));

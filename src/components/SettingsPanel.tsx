@@ -79,7 +79,9 @@ const ACCENT_COLORS = [
     {id: "45,212,191",   label: "Teal",        hex: "#2dd4bf"},
 ];
 
-type Tab = "model" | "voice" | "appearance" | "keys";
+import type {TelemetryWidget} from "../electron.d";
+
+type Tab = "model" | "voice" | "appearance" | "keys" | "telemetry";
 
 interface Props {
     open: boolean;
@@ -89,9 +91,10 @@ interface Props {
     onFontChange: (font: AppSettings["font"]) => void;
     onLayoutChange: (layout: AppSettings["layout"]) => void;
     onCustomCssChange: (css: string) => void;
+    onTelemetryWidgetsChange: (widgets: TelemetryWidget[]) => void;
 }
 
-export default function SettingsPanel({open, onClose, onAccentChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
+export default function SettingsPanel({open, onClose, onAccentChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange}: Props) {
     const [tab, setTab] = useState<Tab>("model");
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [config, setConfig]     = useState<AegisConfig | null>(null);
@@ -224,15 +227,15 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                 </div>
 
                 {/* ── Tabs ── */}
-                <div className="shrink-0 flex border-b" style={{borderColor: `rgba(${a},0.1)`}}>
-                    {(["model", "voice", "appearance", "keys"] as Tab[]).map((t) => (
+                <div className="shrink-0 flex flex-wrap border-b" style={{borderColor: `rgba(${a},0.1)`}}>
+                    {(["model", "voice", "appearance", "keys", "telemetry"] as Tab[]).map((t) => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
                             className="flex-1 py-3 text-[10px] font-medium tracking-[0.2em] transition relative"
                             style={{color: tab === t ? ac : `rgba(${a},0.4)`}}
                         >
-                            {t === "model" ? "MODEL" : t === "voice" ? "SES" : t === "appearance" ? "GÖRÜNÜM" : "API KEYS"}
+                            {t === "model" ? "MODEL" : t === "voice" ? "SES" : t === "appearance" ? "GÖRÜNÜM" : t === "keys" ? "API KEYS" : "TELEMETRİ"}
                             {tab === t && (
                                 <span
                                     className="absolute bottom-0 left-0 right-0 h-px"
@@ -659,6 +662,93 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                             <KeyGroup label="TAVILY" hint="tvly-... (opsiyonel)" value={config.tavilyApiKey ?? ""} onSave={(v) => applyConfig({tavilyApiKey: v || undefined})} accent={a} />
                             <KeyGroup label="SERPER" hint="opsiyonel" value={config.serperApiKey ?? ""} onSave={(v) => applyConfig({serperApiKey: v || undefined})} accent={a} />
                             <KeyGroup label="ELEVENLABS" hint="sk_... (opsiyonel)" value={config.elevenlabsApiKey ?? ""} onSave={(v) => applyConfig({elevenlabsApiKey: v || undefined})} accent={a} />
+                        </div>
+                    )}
+
+                    {/* ════ TELEMETRY TAB ════ */}
+                    {tab === "telemetry" && (
+                        <div className="p-5 space-y-7">
+                            <Group label="GÖRÜNTÜLENECEK WIDGET'LAR" accent={a}>
+                                <p className="text-[11px] opacity-40 mb-3 leading-relaxed" style={{color: ac}}>
+                                    Sol panelde hangi telemetri bloklarının görüneceğini seç.
+                                </p>
+                                <div className="space-y-2">
+                                    {([
+                                        {id: "cpu",         label: "CPU",              sub: "Kullanım, sıcaklık, çekirdekler, frekans"},
+                                        {id: "ram",         label: "RAM",              sub: "Kullanım %, MB cinsinden detay"},
+                                        {id: "disk",        label: "Diskler",          sub: "Tüm sürücüler — kullanım + GB"},
+                                        {id: "battery",     label: "Batarya",          sub: "Şarj seviyesi ve şarj durumu"},
+                                        {id: "network",     label: "Ağ",               sub: "Upload / download hızı + adapter"},
+                                        {id: "gpu",         label: "GPU",              sub: "Yük %, VRAM, sıcaklık"},
+                                        {id: "fans",        label: "Fanlar",           sub: "Fan hızları RPM (destekleniyorsa)"},
+                                        {id: "processes",   label: "Top Process",      sub: "En çok RAM kullanan 8 process"},
+                                        {id: "system",      label: "Sistem Bilgisi",   sub: "Hostname, makine modeli"},
+                                        {id: "activeWindow",label: "Aktif Pencere",    sub: "Şu an odakta olan uygulama"},
+                                    ] as {id: TelemetryWidget; label: string; sub: string}[]).map((w) => {
+                                        const active = (settings.telemetryWidgets ?? []).includes(w.id);
+                                        return (
+                                            <button
+                                                key={w.id}
+                                                onClick={() => {
+                                                    const current = settings.telemetryWidgets ?? [];
+                                                    const next = active
+                                                        ? current.filter((x) => x !== w.id)
+                                                        : [...current, w.id];
+                                                    applySettings({telemetryWidgets: next});
+                                                    onTelemetryWidgetsChange(next);
+                                                }}
+                                                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span
+                                                    className="w-4 h-4 rounded shrink-0 border grid place-items-center text-[10px]"
+                                                    style={{
+                                                        borderColor: active ? ac : `rgba(${a},0.3)`,
+                                                        background: active ? `rgba(${a},0.2)` : "transparent",
+                                                        color: ac,
+                                                    }}
+                                                >
+                                                    {active ? "✓" : ""}
+                                                </span>
+                                                <span className="flex-1 min-w-0">
+                                                    <span className="block text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>
+                                                        {w.label}
+                                                    </span>
+                                                    <span className="block text-[10px] opacity-45 mt-0.5" style={{color: ac}}>
+                                                        {w.sub}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button
+                                        onClick={() => {
+                                            const all: TelemetryWidget[] = ["cpu","ram","disk","battery","network","gpu","fans","processes","system","activeWindow"];
+                                            applySettings({telemetryWidgets: all});
+                                            onTelemetryWidgetsChange(all);
+                                        }}
+                                        className="flex-1 py-2 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125"
+                                        style={{borderColor: `rgba(${a},0.25)`, color: `rgba(${a},0.7)`}}
+                                    >
+                                        TÜMÜNÜ SEÇ
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            applySettings({telemetryWidgets: []});
+                                            onTelemetryWidgetsChange([]);
+                                        }}
+                                        className="flex-1 py-2 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125"
+                                        style={{borderColor: `rgba(${a},0.25)`, color: `rgba(${a},0.7)`}}
+                                    >
+                                        TEMIZLE
+                                    </button>
+                                </div>
+                            </Group>
                         </div>
                     )}
                 </div>

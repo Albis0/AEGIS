@@ -2,21 +2,29 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
+export type TelemetryWidget =
+    | "cpu" | "ram" | "disk" | "battery" | "network"
+    | "gpu" | "fans" | "processes" | "system" | "activeWindow";
+
 export interface AppSettings {
     model: string;
     ttsVoice: string;
-    ttsRate: number; // 0.5 – 2.0
-    accentColor: string; // CSS rgb triplet e.g. "34,211,238"
-    ttsProvider: "edge" | "elevenlabs"; // TTS motoru
-    aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama"; // LLM sağlayıcı
-    aiApiKey: string; // groq dışındaki sağlayıcılar için key
-    ollamaUrl: string; // Ollama base URL, örn. http://localhost:11434
+    ttsRate: number;
+    accentColor: string;
+    ttsProvider: "edge" | "elevenlabs";
+    aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama";
+    aiApiKey: string;
+    ollamaUrl: string;
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
     language: "tr" | "en" | "de" | "fr" | "es";
+    telemetryWidgets: TelemetryWidget[];
+    telemetryUpdateMs: number;
 }
+
+const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
 
 const DEFAULTS: AppSettings = {
     model: "qwen/qwen3-32b",
@@ -32,6 +40,8 @@ const DEFAULTS: AppSettings = {
     layout: "normal",
     customCss: "",
     language: "tr",
+    telemetryWidgets: ALL_WIDGETS,
+    telemetryUpdateMs: 1500,
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");
