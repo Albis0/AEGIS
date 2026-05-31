@@ -605,12 +605,21 @@ async function bootApp(): Promise<void> {
 
     registerScreenshotCallback(async () => {
         try {
+            // Hide AEGIS window so it doesn't appear in the screenshot
+            const wasVisible = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
+            if (wasVisible) mainWindow!.hide();
+            // Small delay to let the OS repaint the desktop behind us
+            await new Promise<void>((r) => setTimeout(r, 300));
+
             const primaryDisplay = screen.getPrimaryDisplay();
             const {width, height} = primaryDisplay.size;
             const sources = await desktopCapturer.getSources({
                 types: ["screen"],
                 thumbnailSize: {width, height},
             });
+
+            if (wasVisible) mainWindow!.show();
+
             const source = sources[0];
             if (!source) return {error: "Ekran kaynağı bulunamadı."};
             const base64 = source.thumbnail.toDataURL().replace(/^data:image\/png;base64,/, "");
