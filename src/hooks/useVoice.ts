@@ -328,7 +328,15 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
             onSpeakEndRef.current = onEnd ?? null;
 
             try {
-                const result = await window.jarvis.tts(text.slice(0, 500));
+                const clean = text
+                    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+                    .replace(/\*\*([^*]+)\*\*/g, "$1")
+                    .replace(/\*([^*]+)\*/g, "$1")
+                    .replace(/#{1,6}\s+/g, "")
+                    .replace(/`[^`]+`/g, "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                const result = await window.jarvis.tts(clean.slice(0, 500));
                 if (result.error || !result.buffer) {
                     console.warn("TTS hatası:", result.error);
                     if (modeRef.current !== "off") setTimeout(() => resumeVAD(), 200);
