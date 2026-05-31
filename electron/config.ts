@@ -8,6 +8,7 @@ export interface AegisConfig {
     supabaseServiceKey: string;
     tavilyApiKey?: string;
     serperApiKey?: string;
+    elevenlabsApiKey?: string;
 }
 
 const CONFIG_PATH = path.join(os.homedir(), ".aegis", "config.json");

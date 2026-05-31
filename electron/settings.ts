@@ -7,6 +7,10 @@ export interface AppSettings {
     ttsVoice: string;
     ttsRate: number; // 0.5 – 2.0
     accentColor: string; // CSS rgb triplet e.g. "34,211,238"
+    ttsProvider: "edge" | "elevenlabs"; // TTS motoru
+    aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama"; // LLM sağlayıcı
+    aiApiKey: string; // groq dışındaki sağlayıcılar için key
+    ollamaUrl: string; // Ollama base URL, örn. http://localhost:11434
 }
 
 const DEFAULTS: AppSettings = {
@@ -14,6 +18,10 @@ const DEFAULTS: AppSettings = {
     ttsVoice: "tr-TR-EmelNeural",
     ttsRate: 1.0,
     accentColor: "34,211,238",
+    ttsProvider: "edge",
+    aiProvider: "groq",
+    aiApiKey: "",
+    ollamaUrl: "http://localhost:11434",
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

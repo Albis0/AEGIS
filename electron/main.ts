@@ -309,10 +309,84 @@ async function getWeather(): Promise<object> {
     }
 }
 
+// ---- Multi-provider AI client ----
+type OAIMessage = {role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string};
+type OAICompletion = {choices: [{message: {content: string | null; tool_calls?: {id: string; type: "function"; function: {name: string; arguments: string}}[]}}]};
+
+async function callAI(messages: OAIMessage[]): Promise<OAICompletion> {
+    const provider = currentSettings.aiProvider;
+    const key = (provider === "groq") ? (process.env.GROQ_API_KEY ?? "") : currentSettings.aiApiKey;
+
+    if (provider === "groq") {
+        const res = await groq.chat.completions.create({model: MODEL, messages: messages as ChatCompletionMessageParam[], tools: toolSchemas, stream: false});
+        return res as unknown as OAICompletion;
+    }
+
+    if (provider === "anthropic") {
+        // Anthropic Messages API — convert to Anthropic format
+        const system = messages.find((m) => m.role === "system")?.content ?? "";
+        const turns = messages.filter((m) => m.role !== "system");
+        const body = {
+            model: MODEL,
+            max_tokens: 4096,
+            system,
+            messages: turns.map((m) => ({role: m.role === "tool" ? "user" : m.role, content: m.role === "tool" ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: m.content}] : m.content ?? ""})),
+            tools: toolSchemas.map((t) => ({name: t.function?.name, description: t.function?.description, input_schema: t.function?.parameters})),
+        };
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
+        const data = await resp.json() as {content: {type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown>}[]};
+        const textBlock = data.content.find((b) => b.type === "text");
+        const toolBlocks = data.content.filter((b) => b.type === "tool_use");
+        return {choices: [{message: {
+            content: textBlock?.text ?? null,
+            tool_calls: toolBlocks.length > 0 ? toolBlocks.map((b) => ({id: b.id!, type: "function" as const, function: {name: b.name!, arguments: JSON.stringify(b.input ?? {})}})) : undefined,
+        }}]};
+    }
+
+    if (provider === "ollama") {
+        // Ollama — OpenAI-compatible endpoint, no auth needed, runs locally
+        const ollamaUrl = (currentSettings.ollamaUrl || "http://localhost:11434") + "/v1/chat/completions";
+        let resp: Response;
+        try {
+            resp = await fetch(ollamaUrl, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({model: MODEL, messages, tools: toolSchemas, stream: false}),
+            });
+        } catch {
+            throw new Error("Ollama bağlantı hatası. Ollama çalışıyor mu? (ollama serve)");
+        }
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => "");
+            throw new Error(`Ollama ${resp.status}: ${txt || "bilinmeyen hata"}`);
+        }
+        return await resp.json() as OAICompletion;
+    }
+
+    // OpenAI-compatible: openai, mistral
+    const endpoints: Record<string, string> = {
+        openai: "https://api.openai.com/v1/chat/completions",
+        mistral: "https://api.mistral.ai/v1/chat/completions",
+    };
+    const url = endpoints[provider] ?? endpoints.openai;
+    const resp = await fetch(url, {
+        method: "POST",
+        headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
+        body: JSON.stringify({model: MODEL, messages, tools: toolSchemas, stream: false}),
+    });
+    if (!resp.ok) throw new Error(`${provider} ${resp.status}: ${await resp.text()}`);
+    return await resp.json() as OAICompletion;
+}
+
 // ---- Agentic streaming chat ----
-async function runAgent(history: ChatCompletionMessageParam[], reqId: string): Promise<void> {
+async function runAgent(history: {role: string; content: string}[], reqId: string): Promise<void> {
     // Track messages for end-of-session summarization
-    sessionHistory = history.map((m) => ({role: m.role, content: typeof m.content === "string" ? m.content : ""}));
+    sessionHistory = history.map((m) => ({role: m.role, content: m.content}));
 
     const profile = await getUserProfile().catch(() => ({}) as Record<string, string>);
     const profileNote =
@@ -322,18 +396,13 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
                 .join(", ")}`
         :   "";
     const systemContent = SYSTEM_PROMPT + profileNote + memorySummaries;
-    const messages: ChatCompletionMessageParam[] = [{role: "system", content: systemContent}, ...history];
+    const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
     };
 
     for (let step = 0; step < 8; step++) {
-        const completion = await groq.chat.completions.create({
-            model: MODEL,
-            messages,
-            tools: toolSchemas,
-            stream: false,
-        });
+        const completion = await callAI(messages);
 
         const msg = completion.choices[0]?.message;
         const content = msg?.content ?? "";
@@ -347,7 +416,7 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
             return;
         }
 
-        messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as unknown as ChatCompletionMessageParam);
+        messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as OAIMessage);
 
         for (const call of toolCalls) {
             const name = call.function.name;
@@ -419,10 +488,10 @@ async function bootApp(): Promise<void> {
         }
     } catch {}
 
-    ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
+    ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string}[]; reqId: string}) => {
         try {
             const last = messages[messages.length - 1];
-            if (last?.role === "user" && typeof last.content === "string") {
+            if (last?.role === "user") {
                 await saveMessage("user", last.content).catch(() => {});
             }
             await runAgent(messages, reqId);
@@ -460,6 +529,32 @@ async function bootApp(): Promise<void> {
 
     ipcMain.handle("tts", async (_e, text: string) => {
         try {
+            const cfg = loadConfig();
+            const elKey = cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "";
+
+            if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
+                // ElevenLabs TTS — uses Multilingual v2 model, voice from ttsVoice field (voice_id)
+                const voiceId = currentSettings.ttsVoice.startsWith("el:") ?
+                    currentSettings.ttsVoice.slice(3) :
+                    "21m00Tcm4TlvDq8ikWAM"; // Rachel (default)
+                const resp = await fetch(
+                    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+                    {
+                        method: "POST",
+                        headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
+                        body: JSON.stringify({
+                            text,
+                            model_id: "eleven_multilingual_v2",
+                            voice_settings: {stability: 0.5, similarity_boost: 0.75, speed: currentSettings.ttsRate},
+                        }),
+                    },
+                );
+                if (!resp.ok) throw new Error(`ElevenLabs ${resp.status}: ${await resp.text()}`);
+                const ab = await resp.arrayBuffer();
+                return {buffer: Buffer.from(ab)};
+            }
+
+            // Edge TTS (default)
             const tts = new MsEdgeTTS();
             await tts.setMetadata(currentSettings.ttsVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
             const {audioStream} = await tts.toStream(text);

@@ -33,6 +33,10 @@ export interface AppSettings {
     ttsVoice: string;
     ttsRate: number;
     accentColor: string;
+    ttsProvider: "edge" | "elevenlabs";
+    aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama";
+    aiApiKey: string;
+    ollamaUrl: string;
 }
 
 export interface AegisConfig {
@@ -41,6 +45,7 @@ export interface AegisConfig {
     supabaseServiceKey: string;
     tavilyApiKey?: string;
     serperApiKey?: string;
+    elevenlabsApiKey?: string;
 }
 
 export interface Weather {
