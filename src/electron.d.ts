@@ -32,6 +32,15 @@ export interface AppSettings {
     model: string;
     ttsVoice: string;
     ttsRate: number;
+    accentColor: string;
+}
+
+export interface AegisConfig {
+    groqApiKey: string;
+    supabaseUrl: string;
+    supabaseServiceKey: string;
+    tavilyApiKey?: string;
+    serperApiKey?: string;
 }
 
 export interface Weather {
@@ -54,7 +63,9 @@ declare global {
             tts: (text: string) => Promise<{buffer?: Buffer; error?: string}>;
             settingsGet: () => Promise<AppSettings>;
             settingsSet: (patch: Partial<AppSettings>) => Promise<AppSettings>;
-            setupSave: (config: {groqApiKey: string; supabaseUrl: string; supabaseServiceKey: string; tavilyApiKey?: string; serperApiKey?: string}) => Promise<void>;
+            configGet: () => Promise<AegisConfig>;
+            configSet: (patch: Partial<AegisConfig>) => Promise<void>;
+            setupSave: (config: AegisConfig) => Promise<void>;
             minimize: () => void;
             maximize: () => void;
             fullscreen: () => void;

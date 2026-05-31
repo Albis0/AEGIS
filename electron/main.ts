@@ -475,6 +475,27 @@ async function bootApp(): Promise<void> {
         }
     });
 
+    ipcMain.handle("config-get", () => {
+        return {
+            groqApiKey: process.env.GROQ_API_KEY ?? "",
+            supabaseUrl: process.env.SUPABASE_URL ?? "",
+            supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
+            tavilyApiKey: process.env.TAVILY_API_KEY ?? "",
+            serperApiKey: process.env.SERPER_API_KEY ?? "",
+        };
+    });
+    ipcMain.handle("config-set", (_e, patch: Partial<AegisConfig>) => {
+        const existing = loadConfig() ?? {
+            groqApiKey: process.env.GROQ_API_KEY ?? "",
+            supabaseUrl: process.env.SUPABASE_URL ?? "",
+            supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
+        };
+        const updated: AegisConfig = {...existing, ...patch};
+        saveConfig(updated);
+        applyConfig(updated);
+        groq = new Groq({apiKey: updated.groqApiKey});
+    });
+
     ipcMain.handle("settings-get", () => currentSettings);
     ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
         currentSettings = {...currentSettings, ...patch};

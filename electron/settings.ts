@@ -6,12 +6,14 @@ export interface AppSettings {
     model: string;
     ttsVoice: string;
     ttsRate: number; // 0.5 – 2.0
+    accentColor: string; // CSS rgb triplet e.g. "34,211,238"
 }
 
 const DEFAULTS: AppSettings = {
     model: "qwen/qwen3-32b",
     ttsVoice: "tr-TR-EmelNeural",
     ttsRate: 1.0,
+    accentColor: "34,211,238",
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

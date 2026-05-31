@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("jarvis", {
 
     settingsGet: () => ipcRenderer.invoke("settings-get"),
     settingsSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("settings-set", patch),
+    configGet: () => ipcRenderer.invoke("config-get"),
+    configSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("config-set", patch),
     setupSave: (config: Record<string, string>) => ipcRenderer.invoke("setup-save", config),
 
     minimize: () => ipcRenderer.send("win-minimize"),

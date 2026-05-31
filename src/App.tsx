@@ -24,6 +24,15 @@ function parseSearchSource(detail?: string): string | null {
 }
 
 const HOSTNAME = "AEGIS-OS";
+
+function applyAccent(rgb: string) {
+    const [r, g, b] = rgb.split(",").map((x) => parseInt(x.trim(), 10));
+    const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;
+    const soft = `${Math.min(255, Math.round(r * 1.2))}, ${Math.min(255, Math.round(g * 1.1))}, ${Math.min(255, Math.round(b * 1.05))}`;
+    document.documentElement.style.setProperty("--hud", rgb);
+    document.documentElement.style.setProperty("--hud-deep", deep);
+    document.documentElement.style.setProperty("--hud-soft", soft);
+}
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const active = (s: CoreState) => s !== "idle";
 const fmtUptime = (s: number) => `${Math.floor(s / 3600)}s ${Math.floor((s % 3600) / 60)}d`;
@@ -45,7 +54,10 @@ export default function App() {
     const [ttsRate, setTtsRate] = useState(1.0);
 
     useEffect(() => {
-        window.jarvis.settingsGet().then((s) => setTtsRate(s.ttsRate));
+        window.jarvis.settingsGet().then((s) => {
+            setTtsRate(s.ttsRate);
+            applyAccent(s.accentColor);
+        });
     }, []);
 
     const historyRef = useRef<LLMMsg[]>([]);
@@ -215,6 +227,7 @@ export default function App() {
                     setSettingsOpen(false);
                     window.jarvis.settingsGet().then((s) => setTtsRate(s.ttsRate));
                 }}
+                onAccentChange={applyAccent}
             />
 
             {/* Title bar */}
