@@ -115,10 +115,18 @@ export default function App() {
                 stopSpeaking();
                 setState(modeRef.current !== "off" ? "listening" : "idle");
             }
+            if (e.key === "m" || e.key === "M") {
+                if (document.activeElement?.tagName === "INPUT") return;
+                const next: VoiceMode =
+                    modeRef.current === "off" ? "always-on"
+                    : modeRef.current === "always-on" ? "wake-word"
+                    : "off";
+                setMode(next);
+            }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [stopSpeaking]);
+    }, [stopSpeaking, setMode]);
 
     useEffect(() => {
         feedRef.current?.scrollTo({top: feedRef.current.scrollHeight, behavior: "smooth"});
