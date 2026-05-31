@@ -11,7 +11,7 @@ import {toolSchemas, executeTool} from "./tools";
 dotenv.config({path: path.join(__dirname, "../.env")});
 
 const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL = "llama3-groq-70b-8192-tool-use-preview";
 
 const SYSTEM_PROMPT = `Sen J.A.R.V.I.S. adında, Iron Man filmlerindeki gibi kişisel bir AI asistanısın. Kullanıcının sadık, zeki ve sakin yapay zekasısın.
 Türkçe konuş. Kısa, net ve kendinden emin ol. Gereksiz nezaket cümleleri kurma; bir İngiliz uşağı gibi zarif ama öz konuş.
