@@ -16,7 +16,13 @@ dotenv.config({path: path.join(__dirname, "../.env")});
 const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
 const MODEL = "qwen/qwen3-32b";
 
-const SYSTEM_PROMPT = `Sen JARVIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için run_command ile Start-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.`;
+const SYSTEM_PROMPT = `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için run_command ile Start-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
+
+GÜVENLİK KURALLARI:
+- Stop-Process, taskkill, Kill, Remove-Item, shutdown, restart gibi tehlikeli komutları ASLA doğrudan çalıştırma.
+- "Uygulamaları kapat", "programları kapat" gibi geniş kapsamlı isteklerde hangi uygulamayı kastettiğini mutlaka sor. Hepsini birden kapatma.
+- Silme, format, disk işlemleri için her zaman kullanıcıdan açık onay iste.
+- Şüpheli veya geri alınamaz bir işlem öncesi "Emin misin?" diye sor.`;
 
 let mainWindow: BrowserWindow | null = null;
 

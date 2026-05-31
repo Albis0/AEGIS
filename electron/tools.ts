@@ -98,8 +98,31 @@ export const toolSchemas: ChatCompletionTool[] = [
     },
 ];
 
+// Tehlikeli komut pattern'ları — bunlar LLM'in kendiliğinden çalıştırmasını engelle
+const DANGEROUS_PATTERNS = [
+    /Stop-Process/i,
+    /Kill/i,
+    /taskkill/i,
+    /Remove-Item/i,
+    /\brm\b/i,
+    /\bdel\b.*\/[fFsS]/i,
+    /Format-/i,
+    /shutdown/i,
+    /restart-computer/i,
+    /\brd\b.*\/s/i,
+    /Clear-Disk/i,
+    /Initialize-Disk/i,
+];
+
+function isDangerous(command: string): boolean {
+    return DANGEROUS_PATTERNS.some((p) => p.test(command));
+}
+
 const executors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {
     async run_command({command}) {
+        if (isDangerous(command)) {
+            return `ENGELLENDI: Bu komut potansiyel olarak tehlikeli (${command.slice(0, 80)}). Kullanıcıdan açık onay alınmadan çalıştırılamaz. Kullanıcıya ne yapmak istediğini sor ve kesin onay vermesini iste.`;
+        }
         return run(`powershell -NoProfile -Command "${command.replace(/"/g, '\\"')}"`);
     },
     async read_file({path: p}) {
