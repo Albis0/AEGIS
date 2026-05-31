@@ -111,10 +111,14 @@ export default function App() {
                 e.preventDefault();
                 window.jarvis.fullscreen();
             }
+            if (e.key === "Escape") {
+                stopSpeaking();
+                setState((s) => (s === "speaking" ? "idle" : s));
+            }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, []);
+    }, [stopSpeaking]);
 
     useEffect(() => {
         feedRef.current?.scrollTo({top: feedRef.current.scrollHeight, behavior: "smooth"});
@@ -430,6 +434,15 @@ export default function App() {
                         className="flex-1 bg-transparent outline-none text-sm font-mono disabled:opacity-50"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
+                    {state === "speaking" && (
+                        <button
+                            onClick={() => { stopSpeaking(); setState("idle"); }}
+                            className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125 flick"
+                            style={{fontFamily: "Orbitron, sans-serif", color: "rgb(248,120,120)", borderColor: "rgba(248,120,120,0.4)", background: "rgba(248,120,120,0.08)"}}
+                        >
+                            ⏹ DURDUR
+                        </button>
+                    )}
                     <button
                         onClick={send}
                         disabled={streaming || !input.trim()}
