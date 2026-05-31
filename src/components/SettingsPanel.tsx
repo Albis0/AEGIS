@@ -543,26 +543,31 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
 
                             {/* Font */}
                             <Group label="FONT" accent={a}>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-2">
                                     {([
-                                        {id: "jetbrains", label: "JetBrains Mono", sub: "Monospace · varsayılan"},
-                                        {id: "orbitron",  label: "Orbitron",       sub: "Sci-fi · display"},
-                                        {id: "rajdhani",  label: "Rajdhani",       sub: "Sans · modern"},
-                                        {id: "inter",     label: "Inter",          sub: "Sans · okunabilir"},
+                                        {id: "jetbrains",    label: "JetBrains",    sub: "Mono · varsayılan",  family: "'JetBrains Mono', monospace"},
+                                        {id: "sharetech",    label: "Share Tech",   sub: "Mono · retro",       family: "'Share Tech Mono', monospace"},
+                                        {id: "orbitron",     label: "Orbitron",     sub: "Sci-fi · display",   family: "Orbitron"},
+                                        {id: "oxanium",      label: "Oxanium",      sub: "Sci-fi · modern",    family: "Oxanium"},
+                                        {id: "syne",         label: "Syne",         sub: "Geometric · bold",   family: "Syne"},
+                                        {id: "rajdhani",     label: "Rajdhani",     sub: "Sans · sharp",       family: "Rajdhani"},
+                                        {id: "poppins",      label: "Poppins",      sub: "Sans · yuvarlak",    family: "Poppins"},
+                                        {id: "inter",        label: "Inter",        sub: "Sans · okunaklı",    family: "Inter"},
+                                        {id: "spacegrotesk", label: "Space Grotesk",sub: "Grotesque · techy",  family: "'Space Grotesk'"},
                                     ] as const).map((f) => {
                                         const active = (settings.font ?? "jetbrains") === f.id;
                                         return (
                                             <button
                                                 key={f.id}
                                                 onClick={() => applySettings({font: f.id})}
-                                                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-lg text-left transition"
+                                                className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg text-left transition"
                                                 style={{
                                                     background: active ? `rgba(${a},0.1)` : "transparent",
                                                     border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
                                                 }}
                                             >
-                                                <span className="text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>{f.label}</span>
-                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{f.sub}</span>
+                                                <span className="text-[13px] font-medium leading-tight" style={{color: active ? ac : `rgba(${a},0.65)`, fontFamily: f.family}}>{f.label}</span>
+                                                <span className="text-[10px] opacity-50 mt-0.5 leading-tight" style={{color: ac}}>{f.sub}</span>
                                             </button>
                                         );
                                     })}

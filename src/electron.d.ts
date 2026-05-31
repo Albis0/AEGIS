@@ -38,7 +38,7 @@ export interface AppSettings {
     aiApiKey: string;
     ollamaUrl: string;
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
-    font: "jetbrains" | "orbitron" | "rajdhani" | "inter";
+    font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
 }

@@ -12,7 +12,7 @@ export interface AppSettings {
     aiApiKey: string; // groq dışındaki sağlayıcılar için key
     ollamaUrl: string; // Ollama base URL, örn. http://localhost:11434
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
-    font: "jetbrains" | "orbitron" | "rajdhani" | "inter";
+    font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
 }

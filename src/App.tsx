@@ -13,10 +13,15 @@ type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type FeedItem = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
 const FONT_FAMILIES: Record<string, string> = {
-    jetbrains: "'JetBrains Mono', monospace",
-    orbitron:  "Orbitron, sans-serif",
-    rajdhani:  "Rajdhani, sans-serif",
-    inter:     "Inter, sans-serif",
+    jetbrains:    "'JetBrains Mono', monospace",
+    sharetech:    "'Share Tech Mono', monospace",
+    orbitron:     "Orbitron, sans-serif",
+    oxanium:      "Oxanium, sans-serif",
+    syne:         "Syne, sans-serif",
+    rajdhani:     "Rajdhani, sans-serif",
+    poppins:      "Poppins, sans-serif",
+    inter:        "Inter, sans-serif",
+    spacegrotesk: "'Space Grotesk', sans-serif",
 };
 
 function applyFont(font: string) {

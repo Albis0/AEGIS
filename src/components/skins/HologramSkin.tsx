@@ -64,7 +64,7 @@ export default function HologramSkin({
             <div className="absolute inset-0 grid-overlay pointer-events-none" />
 
             {/* Title bar */}
-            <div className="drag shrink-0 h-10 flex items-center justify-between px-5 z-30">
+            <div className="drag shrink-0 flex items-center justify-between z-30" style={{height: "var(--title-h)", paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)"}}>
                 <div className="flex items-center gap-2.5">
                     <span className="w-1.5 h-1.5 rounded-full glow-text flick" style={{background: "rgb(var(--hud))", boxShadow: "0 0 8px rgb(var(--hud))"}} />
                     <span className="text-[11px] tracking-[0.45em] glow-text" style={{fontFamily: "Orbitron, sans-serif"}}>
@@ -81,9 +81,9 @@ export default function HologramSkin({
             </div>
 
             {/* Main */}
-            <div className="flex-1 flex min-h-0 z-10 gap-4 px-5 pb-2">
+            <div className="flex-1 flex min-h-0 z-10 pb-2" style={{gap: "var(--gap)", paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)"}}>
                 {/* LEFT */}
-                <div className="shrink-0 w-[clamp(190px,17vw,230px)] flex flex-col gap-4 overflow-y-auto py-2 hud" style={{color: "rgb(var(--hud))"}}>
+                <div className="shrink-0 w-[clamp(190px,17vw,230px)] flex flex-col overflow-y-auto hud" style={{gap: "var(--gap)", paddingTop: "var(--pad-y)", color: "rgb(var(--hud))"}}>
                     <Section title="TIME">
                         <div className="text-3xl tabular-nums glow-text leading-none" style={{fontFamily: "Orbitron, sans-serif"}}>
                             {clock.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"})}
@@ -163,7 +163,7 @@ export default function HologramSkin({
                             {state.toUpperCase()}
                         </span>
                     </div>
-                    <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+                    <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{padding: "var(--feed-p)"}}>
                         {feed.length === 0 && (
                             <div className="text-[12px] opacity-50 space-y-1 hud" style={{color: "rgb(var(--hud))"}}>
                                 <div>SYS: JARVIS çevrimiçi.</div>
@@ -230,8 +230,8 @@ export default function HologramSkin({
             </div>
 
             {/* Input */}
-            <div className="shrink-0 px-5 pb-4 z-30">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm transition-colors" style={{borderColor: "rgba(var(--hud),0.3)", background: "rgba(var(--hud),0.04)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
+            <div className="shrink-0 z-30" style={{paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)", paddingBottom: "var(--gap)"}}>
+                <div className="flex items-center gap-3 rounded-xl border backdrop-blur-sm transition-colors" style={{padding: "var(--feed-p) calc(var(--feed-p) * 2)", borderColor: "rgba(var(--hud),0.3)", background: "rgba(var(--hud),0.04)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
                     <span className="text-sm" style={{color: "rgba(var(--hud),0.6)"}}>›</span>
                     <input
                         value={input}
