@@ -67,11 +67,11 @@
 ## Faz 3 — UI Temaları & Skinler 🖥️
 *Görsel kimlik. Herkes farklı bir AEGIS ister.*
 
-### 3.1 UI Tipi Değiştirme
-- [ ] Birden fazla hazır skin: **Hologram** (şu anki), **Minimal**, **Terminal**, **Dashboard**
-- [ ] Ayarlar'dan tek tıkla geçiş, canlı önizleme
-- [ ] Her skin kendi renk paleti, layout ve animasyonuyla gelir
-- [ ] Skin sistemi component bazlı — yeni skin eklemek mevcut kodu bozmaz
+### 3.1 UI Tipi Değiştirme ✅
+- ✅ Birden fazla hazır skin: **Hologram** (şu anki), **Minimal**, **Terminal**, **Dashboard**
+- ✅ Ayarlar'dan tek tıkla geçiş, canlı önizleme
+- ✅ Her skin kendi renk paleti, layout ve animasyonuyla gelir
+- ✅ Skin sistemi component bazlı — yeni skin eklemek mevcut kodu bozmaz
 
 ### 3.2 Görsel Özelleştirme
 - ✅ Accent rengi — 6 renk, ayarlar panelinden seçilir
@@ -192,7 +192,7 @@
 ```
 ✅  Faz 1    Hafıza & bağlam         ← TAMAMLANDI
 ✅  Faz 2    Ayarlar & model seçimi  ← TAMAMLANDI
-1.  Faz 3    UI temaları & skinler   ← görsel kimlik
+🔄  Faz 3    UI temaları & skinler   ← devam ediyor (3.1 ✅)
 2.  Faz 4    Dil desteği             ← erişilebilirlik
 3.  Faz 5.1  Screenshot + vision     ← güçlü AI hissi
 4.  Faz 5.2  Clipboard               ← hızlı veri alışverişi
