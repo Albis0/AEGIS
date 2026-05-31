@@ -9,7 +9,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
-import {startSession, saveMessage, getUserProfile} from "./db";
+import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries} from "./db";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
@@ -25,6 +25,10 @@ GÜVENLİK KURALLARI (SADECE BUNLAR):
 - Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap, onay isteme.`;
 
 let mainWindow: BrowserWindow | null = null;
+
+// Conversation memory
+let sessionHistory: {role: string; content: string}[] = [];
+let memorySummaries = ""; // injected into system prompt at session start
 
 function createWindow(): void {
     mainWindow = new BrowserWindow({
@@ -299,6 +303,9 @@ async function getWeather(): Promise<object> {
 
 // ---- Agentic streaming chat ----
 async function runAgent(history: ChatCompletionMessageParam[], reqId: string): Promise<void> {
+    // Track messages for end-of-session summarization
+    sessionHistory = history.map((m) => ({role: m.role, content: typeof m.content === "string" ? m.content : ""}));
+
     const profile = await getUserProfile().catch(() => ({}) as Record<string, string>);
     const profileNote =
         Object.keys(profile).length > 0 ?
@@ -306,7 +313,8 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const messages: ChatCompletionMessageParam[] = [{role: "system", content: SYSTEM_PROMPT + profileNote}, ...history];
+    const systemContent = SYSTEM_PROMPT + profileNote + memorySummaries;
+    const messages: ChatCompletionMessageParam[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
     };
@@ -360,9 +368,44 @@ app.on("second-instance", () => {
     }
 });
 
+async function summarizeAndSave(): Promise<void> {
+    if (sessionHistory.length < 2) return;
+    try {
+        const turns = sessionHistory
+            .filter((m) => m.role === "user" || m.role === "assistant")
+            .map((m) => `${m.role === "user" ? "Kullanıcı" : "AEGIS"}: ${m.content}`)
+            .join("\n");
+        const res = await groq.chat.completions.create({
+            model: MODEL,
+            messages: [
+                {role: "system", content: "Aşağıdaki konuşmayı 3-5 cümleyle özetle. Türkçe. Sadece özeti yaz, başka bir şey ekleme."},
+                {role: "user", content: turns.slice(0, 6000)},
+            ],
+            stream: false,
+        });
+        const summary = res.choices[0]?.message?.content?.trim() ?? "";
+        if (summary) await saveSessionSummary(summary);
+    } catch (e) {
+        console.error("Session summary error:", e);
+    }
+}
+
 app.whenReady().then(async () => {
     registerQuitCallback(() => app.quit());
     await startSession().catch(() => {});
+
+    // Load previous session summaries into system prompt context
+    try {
+        const summaries = await getRecentSummaries(5);
+        if (summaries.length > 0) {
+            const lines = summaries.map((s) => {
+                const date = s.ended_at ? new Date(s.ended_at).toLocaleDateString("tr-TR") : "?";
+                return `- ${date}: ${s.summary}`;
+            }).join("\n");
+            memorySummaries = `\n\nÖNCEKİ OTURUMLAR (hafıza):\n${lines}`;
+        }
+    } catch {}
+
 
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
@@ -437,6 +480,15 @@ app.whenReady().then(async () => {
     startTelemetry();
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+});
+
+app.on("before-quit", (e) => {
+    if (sessionHistory.length < 2) return;
+    e.preventDefault();
+    summarizeAndSave().finally(() => {
+        sessionHistory = [];
+        app.quit();
     });
 });
 

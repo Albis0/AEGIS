@@ -18,13 +18,28 @@ let currentSessionId: string | null = null
 export async function startSession(): Promise<string> {
     const { data, error } = await db()
         .from('sessions')
-        .insert({})
+        .insert({ summary: null })
         .select('id')
         .single()
 
     if (error) throw error
     currentSessionId = data.id
     return data.id
+}
+
+export async function saveSessionSummary(summary: string): Promise<void> {
+    if (!currentSessionId) return
+    await db().from('sessions').update({ summary, ended_at: new Date().toISOString() }).eq('id', currentSessionId)
+}
+
+export async function getRecentSummaries(limit = 5): Promise<{ id: string; summary: string; ended_at: string }[]> {
+    const { data } = await db()
+        .from('sessions')
+        .select('id, summary, ended_at')
+        .not('summary', 'is', null)
+        .order('ended_at', { ascending: false })
+        .limit(limit)
+    return (data ?? []).reverse() as { id: string; summary: string; ended_at: string }[]
 }
 
 export function getSessionId(): string | null {
