@@ -25,3 +25,6 @@ desktop.ini
 .vscode/settings.json
 .idea
 
+# Docs (local only)
+ROADMAP.md
+
