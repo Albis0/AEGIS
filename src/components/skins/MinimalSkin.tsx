@@ -1,0 +1,128 @@
+import React from "react";
+import type {SkinProps} from "./HologramSkin";
+import type {VoiceMode} from "../../hooks/useVoice";
+import VoiceModeToggle from "../VoiceModeToggle";
+
+const TOOL_VERB: Record<string, string> = {
+    run_command: "shell",
+    read_file: "read",
+    write_file: "write",
+    list_directory: "ls",
+    web_search: "search",
+};
+
+function parseSearchSource(detail?: string): string | null {
+    if (!detail) return null;
+    const m = detail.match(/^\[([^\]]+)\]/);
+    return m ? m[1] : null;
+}
+
+export default function MinimalSkin({
+    feed, input, setInput, state, streaming,
+    clock, mode, setMode, listening, activated, placeholder,
+    onSend, onStop, onSettingsOpen, feedRef,
+}: SkinProps) {
+    return (
+        <div
+            className="h-screen w-screen flex flex-col"
+            style={{background: "#03060c", color: "rgb(var(--hud))", fontFamily: "'JetBrains Mono', monospace", WebkitFontSmoothing: "antialiased"} as React.CSSProperties}
+        >
+            {/* Title bar */}
+            <div className="drag shrink-0 h-9 flex items-center justify-between px-5 border-b" style={{borderColor: "rgba(var(--hud),0.08)"}}>
+                <div className="flex items-center gap-3">
+                    <span className="w-1.5 h-1.5 rounded-full flick" style={{background: "rgb(var(--hud))"}} />
+                    <span className="text-[11px] tracking-[0.4em]" style={{fontFamily: "Orbitron, sans-serif", opacity: 0.7}}>AEGIS</span>
+                    <span className="text-[10px] opacity-30 ml-1">
+                        {clock.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"})}
+                    </span>
+                </div>
+                <div className="no-drag flex items-center gap-1">
+                    <span className="text-[10px] mr-2 opacity-40" style={{color: "rgb(var(--hud))"}}>
+                        {state === "thinking" ? "thinking…" : state === "speaking" ? "speaking…" : state === "listening" ? "listening…" : state === "error" ? "error" : ""}
+                    </span>
+                    <button onClick={onSettingsOpen} className="w-7 h-7 grid place-items-center opacity-30 hover:opacity-80 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
+                    <button onClick={() => window.jarvis.minimize()} className="w-7 h-7 grid place-items-center opacity-30 hover:opacity-80 transition" style={{color: "rgb(var(--hud))"}}>─</button>
+                    <button onClick={() => window.jarvis.close()} className="w-7 h-7 grid place-items-center opacity-30 hover:opacity-80 transition" style={{color: "rgb(var(--hud))"}}>✕</button>
+                </div>
+            </div>
+
+            {/* Feed */}
+            <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+                {feed.length === 0 && (
+                    <div className="text-[12px] leading-relaxed" style={{color: "rgba(var(--hud),0.35)"}}>
+                        Ready.
+                    </div>
+                )}
+                {feed.map((item) =>
+                    item.kind === "user" ? (
+                        <div key={item.id} className="rise flex gap-3">
+                            <span className="text-[11px] opacity-30 shrink-0 mt-0.5" style={{color: "rgb(var(--hud))"}}>you</span>
+                            <p className="text-[13px] leading-relaxed" style={{color: "rgb(var(--hud-soft))"}}>
+                                {item.text}
+                            </p>
+                        </div>
+                    ) : (
+                        <div key={item.id} className="rise flex gap-3">
+                            <span className="text-[11px] opacity-30 shrink-0 mt-0.5" style={{color: "rgb(var(--hud))"}}>ai</span>
+                            <div className="flex-1 min-w-0">
+                                {item.tools.map((t, i) => {
+                                    const source = t.name === "web_search" && t.status === "done" ? parseSearchSource(t.detail) : null;
+                                    return (
+                                        <div key={i} className="flex items-center gap-1.5 text-[11px] mb-1 opacity-50">
+                                            <span className={t.status === "running" ? "flick" : ""}>
+                                                {t.status === "running" ? "·" : "✓"}
+                                            </span>
+                                            <span>{TOOL_VERB[t.name] || t.name}</span>
+                                            {source && <span className="opacity-70">({source})</span>}
+                                        </div>
+                                    );
+                                })}
+                                {item.text && (
+                                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{color: "rgba(240,250,255,0.85)"}}>
+                                        {item.text}
+                                        {streaming && item.id === feed[feed.length - 1].id && (
+                                            <span className="inline-block w-1.5 h-[1em] ml-0.5 align-middle flick" style={{background: "rgb(var(--hud))"}} />
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )
+                )}
+            </div>
+
+            {/* Input */}
+            <div className="shrink-0 border-t px-5 py-3" style={{borderColor: "rgba(var(--hud),0.08)"}}>
+                <div className="flex items-center gap-3">
+                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
+                        const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
+                        setMode(next);
+                    }} />
+                    <input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && onSend()}
+                        placeholder={placeholder}
+                        disabled={streaming}
+                        autoFocus
+                        className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
+                        style={{color: "rgb(var(--hud-soft))"}}
+                    />
+                    {state === "speaking" && (
+                        <button onClick={onStop} className="text-[11px] opacity-60 hover:opacity-100 transition" style={{color: "rgb(var(--status-danger))"}}>
+                            ⏹
+                        </button>
+                    )}
+                    <button
+                        onClick={onSend}
+                        disabled={streaming || !input.trim()}
+                        className="text-[11px] opacity-40 hover:opacity-100 disabled:opacity-20 transition"
+                        style={{color: "rgb(var(--hud))"}}
+                    >
+                        ↵
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
