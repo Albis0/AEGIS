@@ -169,6 +169,21 @@ export const toolSchemas: ChatCompletionTool[] = [
     {
         type: "function",
         function: {
+            name: "screenshot",
+            description: "Ekranın anlık görüntüsünü al ve analiz et. 'Ekranımda ne var?', 'Bu hata ne?', 'Ekranı analiz et' gibi sorularda kullan. question parametresi ile ne sormak istediğini belirt.",
+            parameters: {
+                type: "object",
+                properties: {
+                    question: {type: "string", description: "Ekran hakkında sorulacak soru veya yapılacak analiz (örn: 'Ekranda ne var?', 'Bu hata mesajı ne anlama geliyor?', 'Hangi uygulama açık?')"},
+                },
+                required: ["question"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "set_language",
             description: "Switch the interface and response language. Call when user asks to change language (e.g. 'switch to English', 'Türkçeye geç', 'Auf Deutsch wechseln', 'en français', 'cambia a español').",
             parameters: {
@@ -203,6 +218,13 @@ export function registerQuitCallback(cb: () => void): void { _quitCallback = cb;
 
 let _setLanguageCallback: ((lang: string) => void) | null = null;
 export function registerSetLanguageCallback(cb: (lang: string) => void): void { _setLanguageCallback = cb; }
+
+// screenshot: () => Promise<{ base64: string; width: number; height: number } | { error: string }>
+// analyzeScreen: (base64, prompt) => Promise<string>
+let _screenshotCallback: (() => Promise<{base64: string; width: number; height: number} | {error: string}>) | null = null;
+let _analyzeScreenCallback: ((base64: string, prompt: string) => Promise<string>) | null = null;
+export function registerScreenshotCallback(cb: typeof _screenshotCallback): void { _screenshotCallback = cb; }
+export function registerAnalyzeScreenCallback(cb: typeof _analyzeScreenCallback): void { _analyzeScreenCallback = cb; }
 
 function isDangerous(command: string): string | null {
     for (const {pattern, reason} of SYSTEM_DESTROY_PATTERNS) {
@@ -274,6 +296,13 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async done_note({id}) {
         await markNoteDone(id);
         return `Not tamamlandı: ${id}`;
+    },
+    async screenshot({question}) {
+        if (!_screenshotCallback) return "HATA: Screenshot callback kayıtlı değil.";
+        if (!_analyzeScreenCallback) return "HATA: Vision callback kayıtlı değil.";
+        const result = await _screenshotCallback();
+        if ("error" in result) return `HATA: ${result.error}`;
+        return await _analyzeScreenCallback(result.base64, question);
     },
     async set_language({language}) {
         _setLanguageCallback?.(language);

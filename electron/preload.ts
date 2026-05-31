@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("jarvis", {
     configSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("config-set", patch),
     setupSave: (config: Record<string, string>) => ipcRenderer.invoke("setup-save", config),
 
+    screenshot: () => ipcRenderer.invoke("screenshot"),
+
     minimize: () => ipcRenderer.send("win-minimize"),
     maximize: () => ipcRenderer.send("win-maximize"),
     fullscreen: () => ipcRenderer.send("win-fullscreen"),

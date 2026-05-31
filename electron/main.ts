@@ -1,4 +1,4 @@
-import {app, shell, BrowserWindow, ipcMain} from "electron";
+import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen} from "electron";
 import * as path from "path";
 import * as os from "os";
 import {exec} from "child_process";
@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback} from "./tools";
+import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
@@ -602,6 +602,48 @@ const LANG_DEFAULT_VOICE: Record<string, string> = {
 
 async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
+
+    registerScreenshotCallback(async () => {
+        try {
+            const primaryDisplay = screen.getPrimaryDisplay();
+            const {width, height} = primaryDisplay.size;
+            const sources = await desktopCapturer.getSources({
+                types: ["screen"],
+                thumbnailSize: {width, height},
+            });
+            const source = sources[0];
+            if (!source) return {error: "Ekran kaynağı bulunamadı."};
+            const base64 = source.thumbnail.toDataURL().replace(/^data:image\/png;base64,/, "");
+            return {base64, width, height};
+        } catch (e) {
+            return {error: (e as Error).message ?? String(e)};
+        }
+    });
+
+    registerAnalyzeScreenCallback(async (base64: string, prompt: string) => {
+        const visionGroq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
+        const resp = await visionGroq.chat.completions.create({
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "image_url",
+                            image_url: {url: `data:image/png;base64,${base64}`},
+                        },
+                        {
+                            type: "text",
+                            text: prompt,
+                        },
+                    ] as any,
+                },
+            ],
+            stream: false,
+        } as any);
+        return (resp as any).choices[0]?.message?.content ?? "(yanıt alınamadı)";
+    });
+
     registerSetLanguageCallback((lang) => {
         const voice = LANG_DEFAULT_VOICE[lang] ?? LANG_DEFAULT_VOICE.tr;
         currentSettings = {...currentSettings, language: lang as AppSettings["language"], ttsVoice: voice};
