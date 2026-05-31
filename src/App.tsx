@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState, type ReactNode} from "react";
 import ArcReactor, {type CoreState} from "./components/ArcReactor";
 import VoiceModeToggle from "./components/VoiceModeToggle";
+import SettingsPanel from "./components/SettingsPanel";
 import {useVoice, type VoiceMode} from "./hooks/useVoice";
 import type {Telemetry, Weather} from "./electron.d";
 
@@ -40,6 +41,12 @@ export default function App() {
     const [tel, setTel] = useState<Telemetry | null>(null);
     const [weather, setWeather] = useState<Weather | null>(null);
     const [clock, setClock] = useState(new Date());
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [ttsRate, setTtsRate] = useState(1.0);
+
+    useEffect(() => {
+        window.jarvis.settingsGet().then((s) => setTtsRate(s.ttsRate));
+    }, []);
 
     const historyRef = useRef<LLMMsg[]>([]);
     const accRef = useRef("");
@@ -73,6 +80,7 @@ export default function App() {
     const {mode, setMode, listening, activated, capturing, speak, stopSpeaking} = useVoice({
         onTranscript: sendText,
         isBusyRef,
+        ttsRate,
     });
 
     // Keep refs in sync so IPC closures always read current values
@@ -201,6 +209,13 @@ export default function App() {
     return (
         <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col`}>
             <div className="absolute inset-0 grid-overlay pointer-events-none" />
+            <SettingsPanel
+                open={settingsOpen}
+                onClose={() => {
+                    setSettingsOpen(false);
+                    window.jarvis.settingsGet().then((s) => setTtsRate(s.ttsRate));
+                }}
+            />
 
             {/* Title bar */}
             <div className="drag shrink-0 h-10 flex items-center justify-between px-5 z-30">
@@ -211,6 +226,14 @@ export default function App() {
                     </span>
                 </div>
                 <div className="no-drag flex gap-1">
+                    <button
+                        onClick={() => setSettingsOpen(true)}
+                        title="Ayarlar"
+                        className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm"
+                        style={{color: "rgb(var(--hud))"}}
+                    >
+                        ⚙
+                    </button>
                     <button
                         onClick={() => window.jarvis.minimize()}
                         title="Küçült"

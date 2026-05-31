@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("jarvis", {
     transcribe: (audioBuffer: ArrayBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
     tts: (text: string) => ipcRenderer.invoke("tts", text),
 
+    settingsGet: () => ipcRenderer.invoke("settings-get"),
+    settingsSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("settings-set", patch),
+
     minimize: () => ipcRenderer.send("win-minimize"),
     maximize: () => ipcRenderer.send("win-maximize"),
     fullscreen: () => ipcRenderer.send("win-fullscreen"),

@@ -10,11 +10,13 @@ import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
+import {loadSettings, saveSettings, type AppSettings} from "./settings";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
 const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
-const MODEL = "qwen/qwen3-32b";
+let currentSettings = loadSettings();
+let MODEL = currentSettings.model;
 
 const SYSTEM_PROMPT = `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
 
@@ -460,7 +462,7 @@ app.whenReady().then(async () => {
     ipcMain.handle("tts", async (_e, text: string) => {
         try {
             const tts = new MsEdgeTTS();
-            await tts.setMetadata("tr-TR-EmelNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+            await tts.setMetadata(currentSettings.ttsVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
             const {audioStream} = await tts.toStream(text);
             const chunks: Buffer[] = [];
             await new Promise<void>((resolve, reject) => {
@@ -472,6 +474,14 @@ app.whenReady().then(async () => {
         } catch (e) {
             return {error: (e as Error).message ?? String(e)};
         }
+    });
+
+    ipcMain.handle("settings-get", () => currentSettings);
+    ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
+        currentSettings = {...currentSettings, ...patch};
+        MODEL = currentSettings.model;
+        saveSettings(currentSettings);
+        return currentSettings;
     });
 
     ipcMain.on("win-minimize", () => mainWindow?.minimize());

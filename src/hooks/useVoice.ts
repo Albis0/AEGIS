@@ -8,13 +8,15 @@ const MIN_RECORD_MS = 800; // ignore clips shorter than this (Whisper needs real
 const NOISE_ADAPT_RATE = 0.015; // how fast baseline noise adapts (slower = more stable)
 const SPEECH_RATIO = 5.0; // speech = rms > baseline * this ratio (higher = less false triggers)
 
-export function useVoice({onTranscript, isBusyRef}: {onTranscript: (text: string) => void; isBusyRef: React.MutableRefObject<boolean>}) {
+export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript: (text: string) => void; isBusyRef: React.MutableRefObject<boolean>; ttsRate?: number}) {
     const [mode, setModeState] = useState<VoiceMode>("off");
     const [listening, setListening] = useState(false);
     const [activated, setActivated] = useState(false);
     const [capturing, setCapturing] = useState(false); // true while mic is actively recording speech
 
     const modeRef = useRef<VoiceMode>("off");
+    const ttsRateRef = useRef(ttsRate);
+    useEffect(() => { ttsRateRef.current = ttsRate; }, [ttsRate]);
     const activatedRef = useRef(false);
     const activationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -345,6 +347,7 @@ export function useVoice({onTranscript, isBusyRef}: {onTranscript: (text: string
 
                 const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
+                source.playbackRate.value = ttsRateRef.current;
                 source.connect(audioCtx.destination);
                 ttsSourceRef.current = source;
 

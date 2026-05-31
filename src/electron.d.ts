@@ -28,6 +28,12 @@ export interface Telemetry {
     activeWindow: string;
 }
 
+export interface AppSettings {
+    model: string;
+    ttsVoice: string;
+    ttsRate: number;
+}
+
 export interface Weather {
     city?: string;
     country?: string;
@@ -46,6 +52,8 @@ declare global {
             weather: () => Promise<Weather>;
             transcribe: (audioBuffer: ArrayBuffer) => Promise<{text?: string; error?: string}>;
             tts: (text: string) => Promise<{buffer?: Buffer; error?: string}>;
+            settingsGet: () => Promise<AppSettings>;
+            settingsSet: (patch: Partial<AppSettings>) => Promise<AppSettings>;
             minimize: () => void;
             maximize: () => void;
             fullscreen: () => void;
