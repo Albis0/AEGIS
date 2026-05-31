@@ -3,3 +3,10 @@ dist
 dist-electron
 .env
 .claude
+
+# Junk
+electron-out.log
+main.js
+test-electron.js
+test-tts.mp3
+*.mp3
