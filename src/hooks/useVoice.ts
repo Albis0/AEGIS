@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export type VoiceMode = 'off' | 'always-on' | 'wake-word'
 
 const WAKE_RE = /\bjarvis[',!?.]*\b/i
-const SILENCE_MS = 1800    // ms of silence after speech ends → send
-const SPEECH_THRESHOLD = 12 // RMS amplitude threshold to detect speech
-const MIN_RECORD_MS = 300   // ignore clips shorter than this
+const SILENCE_MS = 1400    // ms of silence after speech ends → send
+const MIN_RECORD_MS = 400   // ignore clips shorter than this
+const NOISE_ADAPT_RATE = 0.02  // how fast baseline noise adapts
+const SPEECH_RATIO = 4.0       // speech = rms > baseline * this ratio
 
 export function useVoice({
     onTranscript,
@@ -17,6 +18,7 @@ export function useVoice({
     const [mode, setModeState] = useState<VoiceMode>('off')
     const [listening, setListening] = useState(false)
     const [activated, setActivated] = useState(false)
+    const [capturing, setCapturing] = useState(false)  // true while mic is actively recording speech
 
     const modeRef = useRef<VoiceMode>('off')
     const activatedRef = useRef(false)
@@ -116,6 +118,7 @@ export function useVoice({
         chunksRef.current = []
         recordStartRef.current = Date.now()
         isRecordingRef.current = true
+        setCapturing(true)
 
         recorder.ondataavailable = (e) => {
             if (e.data.size > 0) chunksRef.current.push(e.data)
@@ -124,18 +127,21 @@ export function useVoice({
         recorder.onstop = async () => {
             isRecordingRef.current = false
             recorderRef.current = null
+            setCapturing(false)
             await sendAudio()
         }
 
-        recorder.onerror = () => { isRecordingRef.current = false }
+        recorder.onerror = () => { isRecordingRef.current = false; setCapturing(false) }
         recorder.start(100)
-    }, [sendAudio])
+    }, [sendAudio, setCapturing])
 
-    // VAD loop — watches RMS and triggers recording start/stop
+    // VAD loop with adaptive noise baseline
     const startVAD = useCallback(() => {
         if (!analyserRef.current) return
         const analyser = analyserRef.current
         const buf = new Uint8Array(analyser.fftSize)
+        let noiseBaseline = 1.5  // initial guess, adapts quickly
+        let logThrottle = 0
 
         const tick = () => {
             if (!isActiveRef.current) return
@@ -148,30 +154,39 @@ export function useVoice({
                 sum += v * v
             }
             const rms = Math.sqrt(sum / buf.length)
-            const hasSpeech = rms > SPEECH_THRESHOLD
+            const threshold = noiseBaseline * SPEECH_RATIO
+            const hasSpeech = rms > threshold
+
+            // Adapt baseline only during silence (not during speech)
+            if (!isRecordingRef.current) {
+                noiseBaseline = noiseBaseline * (1 - NOISE_ADAPT_RATE) + rms * NOISE_ADAPT_RATE
+                // Floor the baseline so it never goes to 0
+                if (noiseBaseline < 0.3) noiseBaseline = 0.3
+            }
+
+            if (++logThrottle % 90 === 0) {
+                console.log(`[VAD] RMS:${rms.toFixed(1)} base:${noiseBaseline.toFixed(1)} thr:${threshold.toFixed(1)}${hasSpeech ? ' ← KONUŞMA' : ''}`)
+            }
 
             if (hasSpeech) {
-                if (!speakingRef.current) {
-                    speakingRef.current = true
-                    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
-                    if (!isRecordingRef.current) startRecording()
+                if (silenceTimerRef.current) {
+                    clearTimeout(silenceTimerRef.current)
+                    silenceTimerRef.current = null
                 }
+                if (!isRecordingRef.current) startRecording()
             } else {
-                if (speakingRef.current) {
-                    speakingRef.current = false
-                    // wait for silence before sending
-                    if (!silenceTimerRef.current) {
-                        silenceTimerRef.current = setTimeout(() => {
-                            silenceTimerRef.current = null
-                            stopRecording()
-                        }, SILENCE_MS)
-                    }
+                if (isRecordingRef.current && !silenceTimerRef.current) {
+                    silenceTimerRef.current = setTimeout(() => {
+                        silenceTimerRef.current = null
+                        stopRecording()
+                    }, SILENCE_MS)
                 }
             }
         }
         vadRafRef.current = requestAnimationFrame(tick)
     }, [startRecording, stopRecording])
 
+    // Fully tear down mic + AudioContext (used when mode goes off)
     const stopListening = useCallback(() => {
         isActiveRef.current = false
         cancelAnimationFrame(vadRafRef.current)
@@ -198,6 +213,25 @@ export function useVoice({
         if (activationTimerRef.current) { clearTimeout(activationTimerRef.current); activationTimerRef.current = null }
     }, [])
 
+    // Pause VAD + recorder without closing the mic stream (used during TTS)
+    const pauseVAD = useCallback(() => {
+        cancelAnimationFrame(vadRafRef.current)
+        speakingRef.current = false
+        if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
+        if (recorderRef.current && isRecordingRef.current) {
+            try { recorderRef.current.stop() } catch { /* ignore */ }
+        }
+        recorderRef.current = null
+        isRecordingRef.current = false
+        chunksRef.current = []
+    }, [])
+
+    // Resume VAD on existing stream (after TTS ends)
+    const resumeVAD = useCallback(() => {
+        if (!isActiveRef.current || !analyserRef.current) return
+        startVAD()
+    }, [startVAD])
+
     const startListening = useCallback(async () => {
         if (modeRef.current === 'off') return
         if (isActiveRef.current) return
@@ -207,7 +241,6 @@ export function useVoice({
             streamRef.current = stream
             isActiveRef.current = true
 
-            // Set up AudioContext for VAD
             const audioCtx = new AudioContext()
             audioCtxRef.current = audioCtx
             const source = audioCtx.createMediaStreamSource(stream)
@@ -219,7 +252,7 @@ export function useVoice({
             setListening(true)
             startVAD()
         } catch (e: any) {
-            console.warn('Mikrofon erişimi reddedildi:', e.message ?? e)
+            console.error('[VAD] Mikrofon hatası:', e.name, e.message ?? e)
             modeRef.current = 'off'
             setModeState('off')
             setListening(false)
@@ -243,10 +276,11 @@ export function useVoice({
     }, [])
 
     const speak = useCallback((text: string) => {
-        stopListening()
+        // Pause VAD (keep stream open) to avoid echo
+        pauseVAD()
         window.speechSynthesis.cancel()
 
-        const sentence = text.match(/^[^.!?]+[.!?]/)?.[0] ?? text.slice(0, 220)
+        const sentence = text.slice(0, 500)
         const utt = new SpeechSynthesisUtterance(sentence)
         utt.lang = 'tr-TR'
         utt.rate = 1.05
@@ -257,12 +291,13 @@ export function useVoice({
 
         utt.onend = () => {
             synthRef.current = null
-            if (modeRef.current !== 'off') setTimeout(() => startListening(), 200)
+            // Resume VAD on same stream — no new getUserMedia needed
+            if (modeRef.current !== 'off') setTimeout(() => resumeVAD(), 200)
         }
 
         synthRef.current = utt
         window.speechSynthesis.speak(utt)
-    }, [startListening, stopListening])
+    }, [pauseVAD, resumeVAD])
 
     useEffect(() => {
         return () => {
@@ -272,5 +307,6 @@ export function useVoice({
         }
     }, [stopListening])
 
-    return { mode, setMode, listening, activated, speak, stopSpeaking }
+    return { mode, setMode, listening, activated, capturing, speak, stopSpeaking }
+
 }

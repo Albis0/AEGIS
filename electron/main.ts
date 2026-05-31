@@ -50,7 +50,7 @@ function createWindow(): void {
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
         mainWindow.loadURL("http://127.0.0.1:5173");
-        mainWindow.webContents.openDevTools({mode: "detach"});
+        mainWindow.webContents.openDevTools({mode: "detach", activate: false});
     } else {
         mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
     }
@@ -250,6 +250,7 @@ app.whenReady().then(() => {
                 file: Object.assign(fs.createReadStream(tmpPath), {name: "audio.webm"}),
                 model: "whisper-large-v3-turbo",
                 language: "tr",
+                prompt: "Türkçe konuşma. Steam, Discord, YouTube, PowerShell gibi teknik kelimeler içerebilir.",
                 response_format: "json",
             });
             fs.unlinkSync(tmpPath);

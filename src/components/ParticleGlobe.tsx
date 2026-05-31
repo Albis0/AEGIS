@@ -22,10 +22,12 @@ function readHud(): [number, number, number] {
   return parts.length === 3 && parts.every((n) => !isNaN(n)) ? (parts as [number, number, number]) : [34, 211, 238]
 }
 
-export default function ParticleGlobe({ state }: { state: CoreState }) {
+export default function ParticleGlobe({ state, capturing }: { state: CoreState; capturing?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stateRef = useRef<CoreState>(state)
+  const capturingRef = useRef(capturing)
   stateRef.current = state
+  capturingRef.current = capturing
 
   useEffect(() => {
     const canvas = canvasRef.current!
@@ -59,15 +61,15 @@ export default function ParticleGlobe({ state }: { state: CoreState }) {
       const dt = Math.min((now - last) / 16.67, 3)
       last = now
       const st = stateRef.current
-      const speed = st === 'thinking' ? 0.012 : st === 'listening' ? 0.008 : st === 'speaking' ? 0.006 : 0.0035
+      const cap = capturingRef.current
+      const speed = st === 'thinking' ? 0.012 : cap ? 0.014 : st === 'listening' ? 0.008 : st === 'speaking' ? 0.006 : 0.0035
       rotY += speed * dt
-      if (st === 'listening') pulse += 0.04 * dt
+      if (st === 'listening' || cap) pulse += (cap ? 0.10 : 0.04) * dt
 
       const [r, g, b] = readHud()
       const cx = size / 2
       const cy = size / 2
-      // Listening: radius pulses in and out
-      const pulseScale = st === 'listening' ? 1 + Math.sin(pulse) * 0.06 : 1
+      const pulseScale = cap ? 1 + Math.sin(pulse) * 0.12 : st === 'listening' ? 1 + Math.sin(pulse) * 0.06 : 1
       const radius = size * 0.4 * pulseScale
 
       ctx.clearRect(0, 0, size, size)
@@ -118,9 +120,12 @@ export default function ParticleGlobe({ state }: { state: CoreState }) {
       for (const i of order) {
         const pt = proj[i]
         const isNode = nodeIdx.includes(i)
-        const sizeBoost = isListening ? 1 + Math.abs(Math.sin(pulse + i * 0.05)) * 0.5 : 1
+        const sizeBoost = cap ? 1 + Math.abs(Math.sin(pulse + i * 0.05)) * 1.2
+            : isListening ? 1 + Math.abs(Math.sin(pulse + i * 0.05)) * 0.5 : 1
         const dotR = (isNode ? 1.8 : 1.0) * (0.4 + pt.depth * 0.9) * sizeBoost
-        const alpha = isListening
+        const alpha = cap
+          ? 0.3 + pt.depth * 1.0 + Math.abs(Math.sin(pulse + i * 0.03)) * 0.25
+          : isListening
           ? 0.2 + pt.depth * 0.9 + Math.abs(Math.sin(pulse + i * 0.03)) * 0.15
           : 0.12 + pt.depth * 0.85
         if (isNode) {

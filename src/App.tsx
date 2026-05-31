@@ -64,7 +64,7 @@ export default function App() {
         setInput("");
     };
 
-    const {mode, setMode, listening, activated, speak, stopSpeaking} = useVoice({
+    const {mode, setMode, listening, activated, capturing, speak, stopSpeaking} = useVoice({
         onTranscript: sendText,
         isBusyRef,
     });
@@ -277,7 +277,7 @@ export default function App() {
                 {/* CENTER — globe */}
                 <div className="flex-1 min-w-0 grid place-items-center relative">
                     <div className="aspect-square h-full max-h-[72vh] max-w-full">
-                        <ArcReactor state={state} />
+                        <ArcReactor state={state} capturing={capturing} />
                     </div>
                 </div>
 

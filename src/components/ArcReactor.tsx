@@ -10,7 +10,7 @@ const LABEL: Record<CoreState, string> = {
   error: 'ERROR',
 }
 
-export default function ArcReactor({ state }: { state: CoreState }) {
+export default function ArcReactor({ state, capturing }: { state: CoreState; capturing?: boolean }) {
   const active = state !== 'idle'
   const midSpin = state === 'thinking' ? 'spin-fast' : state === 'listening' ? 'breathe-fast' : 'spin-3'
 
@@ -58,7 +58,7 @@ export default function ArcReactor({ state }: { state: CoreState }) {
 
       {/* Particle globe — the centerpiece */}
       <div className="absolute w-[70%] h-[70%]">
-        <ParticleGlobe state={state} />
+        <ParticleGlobe state={state} capturing={capturing} />
       </div>
 
       {/* State label */}
