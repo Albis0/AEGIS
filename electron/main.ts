@@ -9,6 +9,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {toolSchemas, executeTool} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
+import {startSession, saveMessage, getUserProfile} from "./db";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
@@ -174,7 +175,11 @@ async function getWeather(): Promise<object> {
 
 // ---- Agentic streaming chat ----
 async function runAgent(history: ChatCompletionMessageParam[], reqId: string): Promise<void> {
-    const messages: ChatCompletionMessageParam[] = [{role: "system", content: SYSTEM_PROMPT}, ...history];
+    const profile = await getUserProfile().catch(() => ({} as Record<string, string>))
+    const profileNote = Object.keys(profile).length > 0
+        ? `\nKullanıcı profili: ${Object.entries(profile).map(([k, v]) => `${k}=${v}`).join(', ')}`
+        : ''
+    const messages: ChatCompletionMessageParam[] = [{role: "system", content: SYSTEM_PROMPT + profileNote}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
     };
@@ -194,6 +199,7 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
         if (content) send("chat-delta", {text: content});
 
         if (toolCalls.length === 0) {
+            if (content) await saveMessage('assistant', content).catch(() => {})
             send("chat-done", {});
             return;
         }
@@ -206,6 +212,7 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
             send("tool-event", {phase: "start", name, args: argsJson});
             const result = await executeTool(name, argsJson);
             send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
+            await saveMessage('tool', String(result).slice(0, 1000), name).catch(() => {})
             messages.push({role: "tool", tool_call_id: call.id, content: String(result)});
         }
     }
@@ -226,9 +233,16 @@ app.on("second-instance", () => {
     }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+    await startSession().catch(() => {});
+
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
+            // Save the last user message
+            const last = messages[messages.length - 1]
+            if (last?.role === 'user' && typeof last.content === 'string') {
+                await saveMessage('user', last.content).catch(() => {})
+            }
             await runAgent(messages, reqId);
         } catch (e) {
             const msg = (e as Error).message ?? String(e);
