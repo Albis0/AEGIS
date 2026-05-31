@@ -98,30 +98,20 @@ export const toolSchemas: ChatCompletionTool[] = [
     },
 ];
 
-// Spesifik hedef olmadan toplu process öldürme veya geri alınamaz sistem komutları
-const BULK_KILL_PATTERNS = [
-    /Get-Process\s*\|.*Stop-Process/i,         // Get-Process | Stop-Process
-    /Stop-Process\s+-Id\s+\*/i,                // Stop-Process -Id *
-    /taskkill\s*\/f(?!\s*\/im\s+\S)/i,         // taskkill /f ama /im <isim> yoksa
-    /kill\s+-9\s+-1/i,                         // kill -9 -1 (hepsini öldür)
-];
-
-const SYSTEM_DESTROY_PATTERNS = [
-    /Remove-Item.*-Recurse.*C:\\/i,
-    /Format-/i,
-    /shutdown/i,
-    /restart-computer/i,
-    /Clear-Disk/i,
-    /Initialize-Disk/i,
-    /\brd\b.*\/s.*[A-Za-z]:\\/i,
+// Sadece geri alınamaz sistem yıkımı — process öldürme, uygulama kapatma SERBEST
+const SYSTEM_DESTROY_PATTERNS: {pattern: RegExp; reason: string}[] = [
+    {pattern: /Format-Volume/i,         reason: "Disk formatlamak geri alınamaz."},
+    {pattern: /Clear-Disk/i,            reason: "Disk silmek geri alınamaz."},
+    {pattern: /Initialize-Disk/i,       reason: "Disk başlatmak geri alınamaz."},
+    {pattern: /shutdown\s+\/[sr]/i,     reason: "Sistemi kapatmak/yeniden başlatmak."},
+    {pattern: /Restart-Computer/i,      reason: "Sistemi yeniden başlatmak."},
+    {pattern: /Stop-Computer/i,         reason: "Sistemi kapatmak."},
+    {pattern: /Remove-Item.*-Recurse.*[A-Za-z]:\\/i, reason: "Toplu dosya/klasör silmek geri alınamaz."},
 ];
 
 function isDangerous(command: string): string | null {
-    for (const p of BULK_KILL_PATTERNS) {
-        if (p.test(command)) return "Toplu uygulama kapatma komutu tespit edildi. Hangi uygulamayı kapatmak istediğini söyle, ona göre yapayım.";
-    }
-    for (const p of SYSTEM_DESTROY_PATTERNS) {
-        if (p.test(command)) return "Bu komut geri alınamaz sistem değişikliği yapabilir. Emin misin?";
+    for (const {pattern, reason} of SYSTEM_DESTROY_PATTERNS) {
+        if (pattern.test(command)) return reason;
     }
     return null;
 }
