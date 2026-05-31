@@ -81,19 +81,19 @@
 
 ---
 
-## Faz 4 — Dil Desteği 🌍
+## Faz 4 — Dil Desteği 🌍 ✅
 *AEGIS dil bilmez, kullanıcı dil seçer.*
 
-### 4.1 Tam Çok Dil
-- [ ] Arayüz dili: TR / EN / DE / ... dropdown'dan seç
-- [ ] Konuşma dili: Whisper otomatik algılar, TTS aynı dilde yanıt verir
-- [ ] Yazışma dili: kullanıcı hangi dilde yazarsa AEGIS aynı dilde cevaplar
-- [ ] LLM system prompt seçilen dile göre dinamik güncellenir
+### 4.1 Tam Çok Dil ✅
+- ✅ Arayüz dili: TR / EN / DE / FR / ES dropdown'dan seç
+- ✅ Konuşma dili: Whisper seçilen dili kullanır, TTS aynı dilde yanıt verir
+- ✅ Yazışma dili: LLM system prompt seçilen dile göre dinamik güncellenir
+- ✅ LLM system prompt seçilen dile göre dinamik güncellenir
 
-### 4.2 Dil Başına Yapılandırma
-- [ ] Her dil için varsayılan TTS sesi (TR → EmelNeural, EN → AriaNeural...)
-- [ ] Dil değişince VAD, Whisper ve TTS senkron değişir
-- [ ] "Switch to English / Türkçeye geç" sesli komutla da çalışır
+### 4.2 Dil Başına Yapılandırma ✅
+- ✅ Her dil için varsayılan TTS sesi (TR → EmelNeural, EN → AriaNeural, DE → KatjaNeural...)
+- ✅ Dil değişince Whisper ve TTS senkron değişir
+- ✅ "Switch to English / Türkçeye geç" sesli komutla da çalışır (`set_language` tool)
 
 ---
 
@@ -193,7 +193,7 @@
 ✅  Faz 1    Hafıza & bağlam         ← TAMAMLANDI
 ✅  Faz 2    Ayarlar & model seçimi  ← TAMAMLANDI
 ✅  Faz 3    UI temaları & skinler   ← TAMAMLANDI
-2.  Faz 4    Dil desteği             ← erişilebilirlik
+✅  Faz 4    Dil desteği             ← TAMAMLANDI
 3.  Faz 5.1  Screenshot + vision     ← güçlü AI hissi
 4.  Faz 5.2  Clipboard               ← hızlı veri alışverişi
 5.  Faz 6    Sistem kontrolü         ← günlük otomasyon

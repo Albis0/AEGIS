@@ -15,6 +15,7 @@ export interface AppSettings {
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
+    language: "tr" | "en" | "de" | "fr" | "es";
 }
 
 const DEFAULTS: AppSettings = {
@@ -30,6 +31,7 @@ const DEFAULTS: AppSettings = {
     font: "jetbrains",
     layout: "normal",
     customCss: "",
+    language: "tr",
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

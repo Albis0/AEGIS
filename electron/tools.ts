@@ -166,6 +166,25 @@ export const toolSchemas: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "set_language",
+            description: "Switch the interface and response language. Call when user asks to change language (e.g. 'switch to English', 'Türkçeye geç', 'Auf Deutsch wechseln', 'en français', 'cambia a español').",
+            parameters: {
+                type: "object",
+                properties: {
+                    language: {
+                        type: "string",
+                        enum: ["tr", "en", "de", "fr", "es"],
+                        description: "Language code: tr=Turkish, en=English, de=German, fr=French, es=Spanish",
+                    },
+                },
+                required: ["language"],
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 // Sadece geri alınamaz sistem yıkımı — process öldürme, uygulama kapatma SERBEST
@@ -181,6 +200,9 @@ const SYSTEM_DESTROY_PATTERNS: {pattern: RegExp; reason: string}[] = [
 
 let _quitCallback: (() => void) | null = null;
 export function registerQuitCallback(cb: () => void): void { _quitCallback = cb; }
+
+let _setLanguageCallback: ((lang: string) => void) | null = null;
+export function registerSetLanguageCallback(cb: (lang: string) => void): void { _setLanguageCallback = cb; }
 
 function isDangerous(command: string): string | null {
     for (const {pattern, reason} of SYSTEM_DESTROY_PATTERNS) {
@@ -252,6 +274,10 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async done_note({id}) {
         await markNoteDone(id);
         return `Not tamamlandı: ${id}`;
+    },
+    async set_language({language}) {
+        _setLanguageCallback?.(language);
+        return `Language switched to ${language}.`;
     },
     async web_search({query}) {
         // Fallback zinciri: Tavily → Serper → DuckDuckGo

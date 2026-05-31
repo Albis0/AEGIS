@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
+import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
@@ -24,7 +24,8 @@ let groq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
 let currentSettings = loadSettings();
 let MODEL = currentSettings.model;
 
-const SYSTEM_PROMPT = `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
+const SYSTEM_PROMPTS: Record<string, string> = {
+    tr: `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
 
 FORMAT KURALLARI:
 - Düz metin yaz. Markdown kullanma: **, *, #, backtick, --- gibi sembolleri kullanma.
@@ -35,7 +36,64 @@ GÜVENLİK KURALLARI (SADECE BUNLAR):
 - Format-Volume, Clear-Disk, Initialize-Disk gibi disk yıkım komutlarını çalıştırma.
 - shutdown /s, shutdown /r, Restart-Computer, Stop-Computer gibi sistemi kapatma/yeniden başlatma komutlarını çalıştırma.
 - Remove-Item -Recurse ile tüm disk/sürücü silme işlemi yapma.
-- Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap, onay isteme.`;
+- Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap, onay isteme.`,
+
+    en: `You are AEGIS, a personal AI assistant. Speak English, be short and precise. Running on Windows 11. Use PowerShell syntax. Use Start-Process to open apps, Stop-Process to close them. Use tools when needed — act first, summarize after.
+
+FORMAT RULES:
+- Write plain text. No markdown: no **, *, #, backticks, or ---.
+- No emoji.
+- Keep it short, 1-3 sentences is enough.
+
+SECURITY RULES (ONLY THESE):
+- Do not run disk-destruction commands: Format-Volume, Clear-Disk, Initialize-Disk.
+- Do not run shutdown/restart commands: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
+- Do not use Remove-Item -Recurse on entire drives.
+- Everything NOT on the list above — do it directly if the user asks, no confirmation needed.`,
+
+    de: `Du bist AEGIS, ein persönlicher KI-Assistent. Sprich Deutsch, sei kurz und präzise. Läuft unter Windows 11. Verwende PowerShell-Syntax. Start-Process zum Öffnen, Stop-Process zum Schließen von Apps. Verwende Tools wenn nötig — handele zuerst, dann fasse zusammen.
+
+FORMAT-REGELN:
+- Schreibe reinen Text. Kein Markdown: kein **, *, #, Backticks oder ---.
+- Keine Emojis.
+- Kurz halten, 1-3 Sätze reichen.
+
+SICHERHEITSREGELN (NUR DIESE):
+- Keine Befehle: Format-Volume, Clear-Disk, Initialize-Disk.
+- Kein Herunterfahren/Neustart: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
+- Kein Remove-Item -Recurse auf ganzen Laufwerken.
+- Alles, was nicht auf der Liste steht — direkt ausführen.`,
+
+    fr: `Tu es AEGIS, un assistant IA personnel. Parle français, sois bref et précis. Fonctionne sous Windows 11. Utilise la syntaxe PowerShell. Start-Process pour ouvrir, Stop-Process pour fermer. Utilise les outils si nécessaire — agis d'abord, résume ensuite.
+
+RÈGLES DE FORMAT:
+- Texte simple uniquement. Pas de markdown: **, *, #, backticks, ---.
+- Pas d'emojis.
+- Court, 1-3 phrases suffisent.
+
+RÈGLES DE SÉCURITÉ (UNIQUEMENT CES COMMANDES):
+- Ne pas exécuter: Format-Volume, Clear-Disk, Initialize-Disk.
+- Ne pas exécuter: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
+- Ne pas utiliser Remove-Item -Recurse sur des lecteurs entiers.
+- Tout le reste — exécute-le directement si l'utilisateur le demande.`,
+
+    es: `Eres AEGIS, un asistente IA personal. Habla español, sé breve y preciso. Funciona en Windows 11. Usa sintaxis PowerShell. Start-Process para abrir apps, Stop-Process para cerrarlas. Usa herramientas cuando sea necesario — actúa primero, resume después.
+
+REGLAS DE FORMATO:
+- Solo texto plano. Sin markdown: **, *, #, backticks, ---.
+- Sin emojis.
+- Breve, 1-3 frases son suficientes.
+
+REGLAS DE SEGURIDAD (SOLO ESTAS):
+- No ejecutar: Format-Volume, Clear-Disk, Initialize-Disk.
+- No ejecutar: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
+- No usar Remove-Item -Recurse en unidades enteras.
+- Todo lo demás — ejecútalo directamente si el usuario lo pide.`,
+};
+
+function getSystemPrompt(lang: string): string {
+    return SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr;
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -437,7 +495,7 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const systemContent = SYSTEM_PROMPT + profileNote + memorySummaries;
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr") + profileNote + memorySummaries;
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
@@ -517,8 +575,24 @@ async function summarizeAndSave(): Promise<void> {
     }
 }
 
+const LANG_DEFAULT_VOICE: Record<string, string> = {
+    tr: "tr-TR-EmelNeural",
+    en: "en-US-AriaNeural",
+    de: "de-DE-KatjaNeural",
+    fr: "fr-FR-DeniseNeural",
+    es: "es-ES-ElviraNeural",
+};
+
 async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
+    registerSetLanguageCallback((lang) => {
+        const voice = LANG_DEFAULT_VOICE[lang] ?? LANG_DEFAULT_VOICE.tr;
+        currentSettings = {...currentSettings, language: lang as AppSettings["language"], ttsVoice: voice};
+        saveSettings(currentSettings);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("language-changed", {language: lang, ttsVoice: voice});
+        }
+    });
     await startSession().catch(() => {});
 
     // Load previous session summaries + pending reminders into system prompt context
@@ -563,11 +637,19 @@ async function bootApp(): Promise<void> {
             const tmpPath = path.join(os.tmpdir(), `jarvis-audio-${Date.now()}.webm`);
             const fs = await import("fs");
             fs.writeFileSync(tmpPath, buffer);
+            const whisperLang = currentSettings.language ?? "tr";
+            const whisperPrompts: Record<string, string> = {
+                tr: "Türkçe konuşma. Steam, Discord, YouTube, PowerShell gibi teknik kelimeler içerebilir.",
+                en: "English speech. May contain technical terms like Steam, Discord, YouTube, PowerShell.",
+                de: "Deutsche Sprache. Kann technische Begriffe wie Steam, Discord, YouTube, PowerShell enthalten.",
+                fr: "Discours français. Peut contenir des termes techniques comme Steam, Discord, YouTube, PowerShell.",
+                es: "Habla en español. Puede contener términos técnicos como Steam, Discord, YouTube, PowerShell.",
+            };
             const result = await groq.audio.transcriptions.create({
                 file: Object.assign(fs.createReadStream(tmpPath), {name: "audio.webm"}),
                 model: "whisper-large-v3-turbo",
-                language: "tr",
-                prompt: "Türkçe konuşma. Steam, Discord, YouTube, PowerShell gibi teknik kelimeler içerebilir.",
+                language: whisperLang,
+                prompt: whisperPrompts[whisperLang] ?? whisperPrompts.tr,
                 response_format: "json",
             });
             fs.unlinkSync(tmpPath);
@@ -643,9 +725,20 @@ async function bootApp(): Promise<void> {
 
     ipcMain.handle("settings-get", () => currentSettings);
     ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
+        const langChanged = patch.language && patch.language !== currentSettings.language;
         currentSettings = {...currentSettings, ...patch};
+        // Auto-update TTS voice when language changes via settings panel
+        if (langChanged && !patch.ttsVoice) {
+            currentSettings.ttsVoice = LANG_DEFAULT_VOICE[currentSettings.language] ?? currentSettings.ttsVoice;
+        }
         MODEL = currentSettings.model;
         saveSettings(currentSettings);
+        if (langChanged && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("language-changed", {
+                language: currentSettings.language,
+                ttsVoice: currentSettings.ttsVoice,
+            });
+        }
         return currentSettings;
     });
 

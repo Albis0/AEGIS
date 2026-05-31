@@ -7,6 +7,7 @@ import HologramSkin from "./components/skins/HologramSkin";
 import MinimalSkin from "./components/skins/MinimalSkin";
 import TerminalSkin from "./components/skins/TerminalSkin";
 import DashboardSkin from "./components/skins/DashboardSkin";
+import {UI, type Lang} from "./i18n";
 
 type LLMMsg = {role: "user" | "assistant"; content: string};
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
@@ -77,6 +78,7 @@ export default function App() {
     const [ttsRate, setTtsRate] = useState(1.0);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
+    const [lang, setLang] = useState<Lang>("tr");
 
     useEffect(() => {
         window.jarvis.settingsGet().then((s) => {
@@ -86,6 +88,7 @@ export default function App() {
             setLayout(s.layout ?? "normal");
             applyFont(s.font ?? "jetbrains");
             applyCustomCss(s.customCss ?? "");
+            setLang((s.language ?? "tr") as Lang);
         });
     }, []);
 
@@ -218,11 +221,18 @@ export default function App() {
         return () => offs.forEach((off) => off());
     }, [speak, stopSpeaking]);
 
+    const t = UI[lang] ?? UI.tr;
     const placeholder =
-        streaming ? "JARVIS işliyor…"
-        : activated ? "Dinliyorum, efendim…"
-        : listening ? "Sesli komut bekleniyor…"
-        : "Komutunuzu verin, efendim…";
+        streaming ? t.processing
+        : activated ? t.listening
+        : listening ? t.waitingVoice
+        : t.idle;
+
+    useEffect(() => {
+        return window.jarvis.on("language-changed", ({language}: {language: Lang}) => {
+            setLang(language);
+        });
+    }, []);
 
     const handleSettingsClose = () => {
         setSettingsOpen(false);
@@ -232,6 +242,7 @@ export default function App() {
             setLayout(s.layout ?? "normal");
             applyFont(s.font ?? "jetbrains");
             applyCustomCss(s.customCss ?? "");
+            setLang((s.language ?? "tr") as Lang);
         });
     };
 

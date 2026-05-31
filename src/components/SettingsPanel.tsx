@@ -35,12 +35,26 @@ const AI_PROVIDERS = [
 ] as const;
 
 const EDGE_VOICES = [
-    {id: "tr-TR-EmelNeural",  label: "Emel",  meta: "TR · Kadın"},
-    {id: "tr-TR-AhmetNeural", label: "Ahmet", meta: "TR · Erkek"},
-    {id: "en-US-AriaNeural",  label: "Aria",  meta: "EN · Kadın"},
-    {id: "en-US-GuyNeural",   label: "Guy",   meta: "EN · Erkek"},
-    {id: "en-GB-SoniaNeural", label: "Sonia", meta: "EN-GB · Kadın"},
+    {id: "tr-TR-EmelNeural",  label: "Emel",   meta: "TR · Kadın"},
+    {id: "tr-TR-AhmetNeural", label: "Ahmet",  meta: "TR · Erkek"},
+    {id: "en-US-AriaNeural",  label: "Aria",   meta: "EN · Kadın"},
+    {id: "en-US-GuyNeural",   label: "Guy",    meta: "EN · Erkek"},
+    {id: "en-GB-SoniaNeural", label: "Sonia",  meta: "EN-GB · Kadın"},
+    {id: "de-DE-KatjaNeural", label: "Katja",  meta: "DE · Kadın"},
+    {id: "de-DE-ConradNeural",label: "Conrad", meta: "DE · Erkek"},
+    {id: "fr-FR-DeniseNeural",label: "Denise", meta: "FR · Kadın"},
+    {id: "fr-FR-HenriNeural", label: "Henri",  meta: "FR · Erkek"},
+    {id: "es-ES-ElviraNeural",label: "Elvira", meta: "ES · Kadın"},
+    {id: "es-ES-AlvaroNeural",label: "Alvaro", meta: "ES · Erkek"},
 ];
+
+const LANGUAGES = [
+    {id: "tr", flag: "🇹🇷", label: "Türkçe"},
+    {id: "en", flag: "🇬🇧", label: "English"},
+    {id: "de", flag: "🇩🇪", label: "Deutsch"},
+    {id: "fr", flag: "🇫🇷", label: "Français"},
+    {id: "es", flag: "🇪🇸", label: "Español"},
+] as const;
 const EL_VOICES = [
     {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel", meta: "EN · Kadın"},
     {id: "el:AZnzlk1XvdvUeBnXmlld", label: "Domi",   meta: "EN · Kadın"},
@@ -422,6 +436,30 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                     {/* ════ VOICE TAB ════ */}
                     {tab === "voice" && (
                         <div className="p-5 space-y-7">
+
+                            {/* Language */}
+                            <Group label="DİL / LANGUAGE" accent={a}>
+                                <div className="grid grid-cols-5 gap-1.5">
+                                    {LANGUAGES.map((l) => {
+                                        const active = (settings.language ?? "tr") === l.id;
+                                        return (
+                                            <button
+                                                key={l.id}
+                                                onClick={() => applySettings({language: l.id})}
+                                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.12)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.4)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-base leading-none">{l.flag}</span>
+                                                <span className="text-[10px] font-medium leading-tight" style={{color: active ? ac : `rgba(${a},0.5)`}}>{l.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <Hint accent={a}>Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir. Sesli: "Switch to English" veya "Türkçeye geç".</Hint>
+                            </Group>
 
                             {/* TTS Motor */}
                             <Group label="TTS MOTORU" accent={a}>

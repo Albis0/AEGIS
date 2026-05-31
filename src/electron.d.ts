@@ -41,6 +41,7 @@ export interface AppSettings {
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
+    language: "tr" | "en" | "de" | "fr" | "es";
 }
 
 export interface AegisConfig {

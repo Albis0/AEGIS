@@ -1,12 +1,17 @@
 node_modules
 dist
 dist-electron
-.env
 .claude
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
 
 # Build & cache
 *.tsbuildinfo
 .vite
+coverage/
 
 # Junk / test dosyaları
 electron-out.log
@@ -15,13 +20,22 @@ test-electron.js
 test-tts.mp3
 *.mp3
 *.log
+*.pid
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
+$RECYCLE.BIN/
 
-# Editor
-.vscode/settings.json
+# Editor — share launch/extensions configs, ignore personal settings
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
