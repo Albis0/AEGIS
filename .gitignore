@@ -10,3 +10,6 @@ main.js
 test-electron.js
 test-tts.mp3
 *.mp3
+
+# Docs
+ROADMAP.md
