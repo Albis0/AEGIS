@@ -27,6 +27,7 @@ declare global {
       on: (channel: string, cb: (payload: any) => void) => () => void
       weather: () => Promise<Weather>
       transcribe: (audioBuffer: ArrayBuffer) => Promise<{ text?: string; error?: string }>
+      tts: (text: string) => Promise<{ buffer?: Buffer; error?: string }>
       minimize: () => void
       maximize: () => void
       fullscreen: () => void

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "groq-sdk": "^0.9.1"
+    "groq-sdk": "^1.2.1",
+    "msedge-tts": "^2.0.5"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

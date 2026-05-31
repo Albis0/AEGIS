@@ -3,10 +3,12 @@ import * as path from "path";
 import * as os from "os";
 import {exec} from "child_process";
 import * as dotenv from "dotenv";
-// @ts-ignore — groq-sdk has no bundled types for CJS default import
+// @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {toolSchemas, executeTool} from "./tools";
+// @ts-ignore
+import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
@@ -255,6 +257,23 @@ app.whenReady().then(() => {
             });
             fs.unlinkSync(tmpPath);
             return {text: result.text};
+        } catch (e) {
+            return {error: (e as Error).message ?? String(e)};
+        }
+    });
+
+    ipcMain.handle("tts", async (_e, text: string) => {
+        try {
+            const tts = new MsEdgeTTS();
+            await tts.setMetadata("tr-TR-EmelNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+            const {audioStream} = await tts.toStream(text);
+            const chunks: Buffer[] = [];
+            await new Promise<void>((resolve, reject) => {
+                audioStream.on("data", (d: Buffer) => chunks.push(d));
+                audioStream.on("close", resolve);
+                audioStream.on("error", reject);
+            });
+            return {buffer: Buffer.concat(chunks)};
         } catch (e) {
             return {error: (e as Error).message ?? String(e)};
         }

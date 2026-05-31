@@ -23,8 +23,7 @@ export function useVoice({
     const modeRef = useRef<VoiceMode>('off')
     const activatedRef = useRef(false)
     const activationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const voicesRef = useRef<SpeechSynthesisVoice[]>([])
-    const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
+
 
     // Recording state
     const streamRef = useRef<MediaStream | null>(null)
@@ -41,12 +40,6 @@ export function useVoice({
     const vadRafRef = useRef<number>(0)
     const speakingRef = useRef(false)
 
-    useEffect(() => {
-        const load = () => { voicesRef.current = window.speechSynthesis.getVoices() }
-        load()
-        window.speechSynthesis.addEventListener('voiceschanged', load)
-        return () => window.speechSynthesis.removeEventListener('voiceschanged', load)
-    }, [])
 
     const processTranscript = useCallback((text: string) => {
         const lower = text.toLowerCase()
@@ -274,42 +267,62 @@ export function useVoice({
         }
     }, [startListening, stopListening])
 
+    const ttsSourceRef = useRef<AudioBufferSourceNode | null>(null)
+    const ttsAudioCtxRef = useRef<AudioContext | null>(null)
+
     const stopSpeaking = useCallback(() => {
-        window.speechSynthesis.cancel()
-        synthRef.current = null
+        try { ttsSourceRef.current?.stop() } catch { /* ignore */ }
+        ttsSourceRef.current = null
+        ttsAudioCtxRef.current?.close().catch(() => {})
+        ttsAudioCtxRef.current = null
     }, [])
 
-    const speak = useCallback((text: string) => {
-        // Pause VAD (keep stream open) to avoid echo
+    const speak = useCallback(async (text: string) => {
         pauseVAD()
-        window.speechSynthesis.cancel()
+        stopSpeaking()
 
-        const sentence = text.slice(0, 500)
-        const utt = new SpeechSynthesisUtterance(sentence)
-        utt.lang = 'tr-TR'
-        utt.rate = 1.05
-        utt.pitch = 0.9
+        try {
+            const result = await window.jarvis.tts(text.slice(0, 500))
+            if (result.error || !result.buffer) {
+                console.warn('TTS hatası:', result.error)
+                if (modeRef.current !== 'off') setTimeout(() => resumeVAD(), 200)
+                return
+            }
 
-        const trVoice = voicesRef.current.find(v => v.lang.startsWith('tr'))
-        if (trVoice) utt.voice = trVoice
+            const audioCtx = new AudioContext()
+            ttsAudioCtxRef.current = audioCtx
 
-        utt.onend = () => {
-            synthRef.current = null
-            // Resume VAD on same stream — no new getUserMedia needed
+            // result.buffer is a plain object from IPC, rebuild as Uint8Array
+            const raw = result.buffer as unknown as {data: number[]}
+            const bytes = raw.data ? new Uint8Array(raw.data) : new Uint8Array(result.buffer as unknown as ArrayBuffer)
+            const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer)
+
+            const source = audioCtx.createBufferSource()
+            source.buffer = audioBuffer
+            source.connect(audioCtx.destination)
+            ttsSourceRef.current = source
+
+            source.onended = () => {
+                ttsSourceRef.current = null
+                audioCtx.close().catch(() => {})
+                ttsAudioCtxRef.current = null
+                if (modeRef.current !== 'off') setTimeout(() => resumeVAD(), 200)
+            }
+
+            source.start()
+        } catch (e) {
+            console.warn('TTS oynatma hatası:', e)
             if (modeRef.current !== 'off') setTimeout(() => resumeVAD(), 200)
         }
-
-        synthRef.current = utt
-        window.speechSynthesis.speak(utt)
-    }, [pauseVAD, resumeVAD])
+    }, [pauseVAD, resumeVAD, stopSpeaking])
 
     useEffect(() => {
         return () => {
             modeRef.current = 'off'
             stopListening()
-            window.speechSynthesis.cancel()
+            stopSpeaking()
         }
-    }, [stopListening])
+    }, [stopListening, stopSpeaking])
 
     return { mode, setMode, listening, activated, capturing, speak, stopSpeaking }
 
