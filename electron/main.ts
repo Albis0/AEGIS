@@ -224,22 +224,39 @@ function initGpuStatic(): void {
 }
 
 function refreshGpu(): void {
-    // Sadece dinamik veriler: load, VRAM kullanımı, sıcaklık
+    // Use Get-Counter for the 3D engine % — matches Task Manager exactly.
+    // nvidia-smi utilization.gpu on WDDM reports total engine utilization across
+    // ALL processes (incl. Wallpaper Engine, desktop compositing) which inflates
+    // the number to 100% even when the app itself is idle.
     exec(
-        `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits`,
-        {windowsHide: true, timeout: 5000},
+        `powershell -NoProfile -Command "` +
+        `$c=(Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples | ` +
+        `Where-Object {$_.InstanceName -match 'engtype_3D'} | ` +
+        `Measure-Object -Property CookedValue -Sum; ` +
+        `$m=(Get-Counter '\\GPU Process Memory(*)\\Dedicated Usage' -ErrorAction SilentlyContinue).CounterSamples | ` +
+        `Measure-Object -Property CookedValue -Sum; ` +
+        `$t=nvidia-smi --query-gpu=temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>$null; ` +
+        `[math]::Round($c.Sum),'|',([math]::Round($m.Sum/1MB)),'|',$t -join ''` +
+        `"`,
+        {windowsHide: true, timeout: 8000},
         (_e, stdout) => {
             if (!stdout) return;
-            stdout.trim().split("\n").forEach((line, i) => {
-                const parts = line.split(",").map((s) => parseInt(s.trim(), 10));
-                if (parts.length >= 4) {
-                    if (!gpuInfo[i]) gpuInfo[i] = {name: `GPU ${i}`, load: 0, vramUsed: 0, vramTotal: 0, temp: null};
-                    gpuInfo[i].load = isNaN(parts[0]) ? 0 : parts[0];
-                    gpuInfo[i].vramUsed = isNaN(parts[1]) ? 0 : parts[1];
-                    gpuInfo[i].vramTotal = isNaN(parts[2]) ? gpuInfo[i].vramTotal : parts[2];
-                    gpuInfo[i].temp = isNaN(parts[3]) ? null : parts[3];
-                }
-            });
+            const raw = stdout.trim();
+            // format: "3d_pct|vramUsedMB|temp,vramUsed2,vramTotal"
+            const pipeIdx = raw.indexOf("|");
+            const pipeIdx2 = raw.indexOf("|", pipeIdx + 1);
+            if (pipeIdx < 0) return;
+            const load3d = parseInt(raw.slice(0, pipeIdx).trim(), 10);
+            const vramUsedMB = parseInt(raw.slice(pipeIdx + 1, pipeIdx2).trim(), 10);
+            const smiParts = raw.slice(pipeIdx2 + 1).trim().split(",").map((s: string) => parseInt(s.trim(), 10));
+            const temp = isNaN(smiParts[0]) ? null : smiParts[0];
+            const vramTotal = isNaN(smiParts[2]) ? (gpuInfo[0]?.vramTotal ?? 0) : smiParts[2];
+            if (!gpuInfo[0]) gpuInfo[0] = {name: "GPU 0", load: 0, vramUsed: 0, vramTotal: 0, temp: null};
+            gpuInfo[0].load = isNaN(load3d) ? 0 : Math.min(100, load3d);
+            // Prefer nvidia-smi VRAM (dedicated only); fall back to Get-Counter sum
+            gpuInfo[0].vramUsed = isNaN(smiParts[1]) ? (isNaN(vramUsedMB) ? 0 : vramUsedMB) : smiParts[1];
+            gpuInfo[0].vramTotal = vramTotal;
+            gpuInfo[0].temp = temp;
         },
     );
 }
