@@ -1,22 +1,22 @@
 # AEGIS — Personal AI Assistant
 
-Electron + React masaüstü AI asistanı. Konuşur, dinler, PowerShell çalıştırır, web'de arar.
+Electron + React desktop AI assistant. Talks, listens, runs PowerShell, searches the web.
 
 **Built with:** Electron · React · TypeScript · Vite · Tailwind CSS · Groq SDK · Supabase
 
 ---
 
-## Gereksinimler
+## Requirements
 
 - **Node.js 18+** — https://nodejs.org
-- **Windows 10/11** (msedge-tts Windows'a özel)
-- NVIDIA GPU — opsiyonel, yoksa GPU telemetri boş görünür
+- **Windows 10/11** (msedge-tts is Windows-only)
+- NVIDIA GPU — optional, GPU telemetry shows empty without one
 
 ---
 
-## Kurulum
+## Setup
 
-### 1. Repoyu klonla
+### 1. Clone the repo
 
 ```bash
 git clone https://github.com/Albis0/AEGIS.git
@@ -24,48 +24,48 @@ cd AEGIS
 npm install
 ```
 
-### 2. API key'leri al
+### 2. Get API keys
 
-#### Groq (ZORUNLU — ücretsiz)
-1. https://console.groq.com adresine git
-2. Kayıt ol → **API Keys** → **Create API Key**
-3. Key'i kopyala
+#### Groq (REQUIRED — free)
+1. Go to https://console.groq.com
+2. Sign up → **API Keys** → **Create API Key**
+3. Copy the key
 
-#### Supabase (ZORUNLU — ücretsiz)
-1. https://supabase.com → **New Project** oluştur
-2. **Settings → API** sayfasını aç
-3. **Project URL** ve **service_role** key'ini kopyala (`anon` key değil, `service_role`)
+#### Supabase (REQUIRED — free)
+1. https://supabase.com → Create a **New Project**
+2. Open **Settings → API**
+3. Copy the **Project URL** and **service_role** key (not `anon`, use `service_role`)
 
-#### Web Arama (opsiyonel)
-- Tavily: https://app.tavily.com → API Keys (ücretsiz tier var)
-- Serper: https://serper.dev → API Key (ücretsiz tier var)
-- İkisi de yoksa DuckDuckGo fallback'i kullanılır
+#### Web Search (optional)
+- Tavily: https://app.tavily.com → API Keys (free tier available)
+- Serper: https://serper.dev → API Key (free tier available)
+- Falls back to DuckDuckGo if neither is configured
 
-### 3. .env dosyası oluştur
+### 3. Create .env file
 
-`.env.example` dosyasını kopyala ve key'leri doldur:
+Copy `.env.example` and fill in your keys:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` içeriği:
+`.env` contents:
 
 ```
 GROQ_API_KEY=gsk_...
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...
-TAVILY_API_KEY=tvly-...   # opsiyonel
-SERPER_API_KEY=...        # opsiyonel
+TAVILY_API_KEY=tvly-...   # optional
+SERPER_API_KEY=...        # optional
 ```
 
-### 4. Supabase tablolarını oluştur
+### 4. Create Supabase tables
 
 1. Supabase Dashboard → **SQL Editor**
-2. `supabase/schema.sql` dosyasının içeriğini yapıştır
-3. **Run** butonuna bas
+2. Paste the contents of `supabase/schema.sql`
+3. Hit **Run**
 
-### 5. Çalıştır
+### 5. Run
 
 ```bash
 npm run dev
@@ -73,23 +73,23 @@ npm run dev
 
 ---
 
-## Kullanım
+## Usage
 
-| Kısayol | Eylem |
+| Shortcut | Action |
 |---|---|
-| `M` | Mikrofon: Kapalı → Always-on → Wake-word → Kapalı |
-| `ESC` | Konuşmayı durdur |
-| `F11` | Tam ekran |
-| ⚙ (title bar) | Ayarlar paneli |
+| `M` | Mic: Off → Always-on → Wake-word → Off |
+| `ESC` | Stop speaking |
+| `F11` | Fullscreen |
+| ⚙ (title bar) | Settings panel |
 
-**Wake-word modu:** "Jarvis, hava nasıl?" veya sadece "Jarvis" de, sonra konuş.
+**Wake-word mode:** Say "Jarvis, what's the weather?" or just "Jarvis", then speak.
 
 ---
 
-## Ayarlar (⚙)
+## Settings (⚙)
 
-- **AI Modeli** — Groq modelleri arasında geçiş (anında aktif)
-- **TTS Sesi** — Türkçe/İngilizce ses seçimi
-- **Konuşma Hızı** — 0.5x – 2.0x
+- **AI Model** — Switch between Groq models (takes effect immediately)
+- **TTS Voice** — Turkish/English voice selection
+- **Speech Rate** — 0.5x – 2.0x
 
-Ayarlar `~/.aegis/settings.json` dosyasında saklanır.
+Settings are stored in `~/.aegis/settings.json`.
