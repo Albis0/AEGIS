@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+:root {
+  /* Default = idle (cyan). JS swaps these per state. */
+  --hud: 34, 211, 238;
+  --hud-deep: 8, 145, 178;
+  --hud-soft: 56, 189, 248;
+}
+
+body {
+  background: #03060c;
+  color: rgb(var(--hud));
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* State theming — applied to the root container, transitions smoothly */
+.state-idle {
+  --hud: 34, 211, 238;
+  --hud-deep: 8, 145, 178;
+  --hud-soft: 56, 189, 248;
+}
+.state-listening {
+  --hud: 56, 189, 248;
+  --hud-deep: 14, 116, 144;
+  --hud-soft: 125, 211, 252;
+}
+.state-thinking {
+  /* gold / amber — "processing" like the real JARVIS */
+  --hud: 245, 185, 60;
+  --hud-deep: 180, 120, 20;
+  --hud-soft: 253, 224, 130;
+}
+.state-error {
+  --hud: 248, 80, 80;
+  --hud-deep: 160, 30, 30;
+  --hud-soft: 252, 140, 140;
+}
+
+.hud {
+  transition: color 0.6s ease;
+}
+
+.backdrop {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(var(--hud), 0.1), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(var(--hud-soft), 0.06), transparent 55%),
+    #03060c;
+  transition: background 0.6s ease;
+}
+
+.grid-overlay {
+  background-image:
+    linear-gradient(rgba(var(--hud), 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--hud), 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 50%, black 25%, transparent 72%);
+  transition: background-image 0.6s ease;
+}
+
+.glow-text {
+  text-shadow: 0 0 8px rgba(var(--hud), 0.7), 0 0 22px rgba(var(--hud), 0.35);
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+input::placeholder {
+  color: rgba(var(--hud), 0.35);
+}
+
+@keyframes spin-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes spin-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+@keyframes breathe-fast {
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+@keyframes flick {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.spin-1 { animation: spin-cw 20s linear infinite; }
+.spin-2 { animation: spin-ccw 14s linear infinite; }
+.spin-3 { animation: spin-cw 9s linear infinite; }
+.spin-fast { animation: spin-ccw 5s linear infinite; }
+.breathe { animation: breathe 3.4s ease-in-out infinite; }
+.breathe-fast { animation: breathe-fast 0.85s ease-in-out infinite; }
+.flick { animation: flick 1.3s ease-in-out infinite; }
+.rise { animation: rise 0.4s ease-out; }
