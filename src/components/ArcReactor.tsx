@@ -12,7 +12,7 @@ const LABEL: Record<CoreState, string> = {
 
 export default function ArcReactor({ state }: { state: CoreState }) {
   const active = state !== 'idle'
-  const midSpin = state === 'thinking' ? 'spin-fast' : 'spin-3'
+  const midSpin = state === 'thinking' ? 'spin-fast' : state === 'listening' ? 'breathe-fast' : 'spin-3'
 
   return (
     <div className="relative grid place-items-center w-full h-full hud" style={{ color: 'rgb(var(--hud))' }}>

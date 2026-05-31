@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import ArcReactor, { type CoreState } from './components/ArcReactor'
+import VoiceModeToggle from './components/VoiceModeToggle'
+import { useVoice, type VoiceMode } from './hooks/useVoice'
 import type { Telemetry, Weather } from './electron.d'
 
 type LLMMsg = { role: 'user' | 'assistant'; content: string }
@@ -41,6 +43,44 @@ export default function App() {
   const activeIdRef = useRef<string | null>(null)
   const reqIdRef = useRef<string | null>(null)
   const feedRef = useRef<HTMLDivElement>(null)
+  const isBusyRef = useRef(false)
+  const modeRef = useRef<VoiceMode>('off')
+
+  // sendText defined early so useVoice can reference it
+  const sendText = useCallback((text: string) => {
+    if (!text.trim() || isBusyRef.current) return
+    const reqId = uid()
+    const aId = uid()
+    reqIdRef.current = reqId
+    activeIdRef.current = aId
+    accRef.current = ''
+    historyRef.current = [...historyRef.current, { role: 'user', content: text.trim() }]
+    setFeed((prev) => [...prev, { id: uid(), kind: 'user', text: text.trim() }, { id: aId, kind: 'assistant', text: '', tools: [] }])
+    setStreaming(true)
+    setState('thinking')
+    window.jarvis.sendChat(historyRef.current, reqId)
+  }, [])
+
+  const send = () => {
+    if (!input.trim() || streaming) return
+    sendText(input)
+    setInput('')
+  }
+
+  const { mode, setMode, listening, activated, speak, stopSpeaking } = useVoice({
+    onTranscript: sendText,
+    isBusyRef,
+  })
+
+  // Keep refs in sync so IPC closures always read current values
+  useEffect(() => { isBusyRef.current = streaming }, [streaming])
+  useEffect(() => { modeRef.current = mode }, [mode])
+
+  // Sync listening state → CoreState
+  useEffect(() => {
+    if (listening && state === 'idle') setState('listening')
+    else if (!listening && state === 'listening') setState('idle')
+  }, [listening, state])
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000)
@@ -109,7 +149,8 @@ export default function App() {
 
       window.jarvis.on('chat-done', ({ reqId }: any) => {
         if (reqId !== reqIdRef.current) return
-        historyRef.current = [...historyRef.current, { role: 'assistant', content: accRef.current }]
+        const responseText = accRef.current
+        historyRef.current = [...historyRef.current, { role: 'assistant', content: responseText }]
         setStreaming(false)
         setState((s) => {
           if (s === 'error') {
@@ -118,26 +159,22 @@ export default function App() {
           }
           return 'idle'
         })
+        if (responseText && modeRef.current !== 'off') {
+          stopSpeaking()
+          speak(responseText)
+        }
       }),
     ]
     return () => offs.forEach((off) => off())
-  }, [])
+  }, [speak, stopSpeaking])
 
-  const send = () => {
-    const text = input.trim()
-    if (!text || streaming) return
-    const reqId = uid()
-    const aId = uid()
-    reqIdRef.current = reqId
-    activeIdRef.current = aId
-    accRef.current = ''
-    historyRef.current = [...historyRef.current, { role: 'user', content: text }]
-    setFeed((prev) => [...prev, { id: uid(), kind: 'user', text }, { id: aId, kind: 'assistant', text: '', tools: [] }])
-    setInput('')
-    setStreaming(true)
-    setState('thinking')
-    window.jarvis.sendChat(historyRef.current, reqId)
-  }
+  const placeholder = streaming
+    ? 'JARVIS işliyor…'
+    : activated
+    ? 'Dinliyorum, efendim…'
+    : listening
+    ? 'Sesli komut bekleniyor…'
+    : 'Komutunuzu verin, efendim…'
 
   return (
     <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col`}>
@@ -264,7 +301,17 @@ export default function App() {
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgb(110,231,160)', boxShadow: '0 0 6px rgb(110,231,160)' }} /> CANLI
         </span>
         <span className="opacity-40">·</span>
-        <span style={{ color: 'rgb(var(--hud))' }}>{state === 'thinking' ? 'İŞLENİYOR' : state === 'speaking' ? 'YANIT VERİYOR' : state === 'error' ? 'HATA' : 'HAZIR'}</span>
+        <span style={{ color: 'rgb(var(--hud))' }}>{state === 'thinking' ? 'İŞLENİYOR' : state === 'speaking' ? 'YANIT VERİYOR' : state === 'listening' ? 'DİNLİYOR' : state === 'error' ? 'HATA' : 'HAZIR'}</span>
+        <span className="opacity-40">·</span>
+        <VoiceModeToggle
+          mode={mode}
+          listening={listening}
+          activated={activated}
+          onToggle={() => {
+            const next: VoiceMode = mode === 'off' ? 'always-on' : mode === 'always-on' ? 'wake-word' : 'off'
+            setMode(next)
+          }}
+        />
         <span className="opacity-40">·</span>
         <button onClick={() => window.jarvis.close()} className="flex items-center gap-1.5 hover:brightness-125 transition" style={{ color: 'rgb(248,120,120)' }}>
           ⏻ KAPAT
@@ -279,7 +326,7 @@ export default function App() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && send()}
-            placeholder={streaming ? 'JARVIS işliyor…' : 'Komutunuzu verin, efendim…'}
+            placeholder={placeholder}
             disabled={streaming}
             autoFocus
             className="flex-1 bg-transparent outline-none text-sm font-mono disabled:opacity-50"
@@ -299,11 +346,9 @@ export default function App() {
   )
 }
 
-// HUD panel with bracket corners
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="relative px-3 py-3 hud" style={{ color: 'rgb(var(--hud))' }}>
-      {/* bracket corners */}
       <span className="absolute top-0 left-0 w-3 h-3 border-t border-l" style={{ borderColor: 'rgba(var(--hud),0.5)' }} />
       <span className="absolute top-0 right-0 w-3 h-3 border-t border-r" style={{ borderColor: 'rgba(var(--hud),0.5)' }} />
       <span className="absolute bottom-0 left-0 w-3 h-3 border-b border-l" style={{ borderColor: 'rgba(var(--hud),0.5)' }} />

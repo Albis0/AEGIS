@@ -47,6 +47,11 @@ body {
   --hud-deep: 180, 120, 20;
   --hud-soft: 253, 224, 130;
 }
+.state-speaking {
+  --hud: 34, 211, 238;
+  --hud-deep: 8, 145, 178;
+  --hud-soft: 56, 189, 248;
+}
 .state-error {
   --hud: 248, 80, 80;
   --hud-deep: 160, 30, 30;
