@@ -4,9 +4,9 @@ export type VoiceMode = 'off' | 'always-on' | 'wake-word'
 
 const WAKE_RE = /\bjarvis[',!?.]*\b/i
 const SILENCE_MS = 1400    // ms of silence after speech ends → send
-const MIN_RECORD_MS = 400   // ignore clips shorter than this
-const NOISE_ADAPT_RATE = 0.02  // how fast baseline noise adapts
-const SPEECH_RATIO = 4.0       // speech = rms > baseline * this ratio
+const MIN_RECORD_MS = 800   // ignore clips shorter than this (Whisper needs real audio)
+const NOISE_ADAPT_RATE = 0.015 // how fast baseline noise adapts (slower = more stable)
+const SPEECH_RATIO = 5.0       // speech = rms > baseline * this ratio (higher = less false triggers)
 
 export function useVoice({
     onTranscript,
@@ -141,6 +141,7 @@ export function useVoice({
         const analyser = analyserRef.current
         const buf = new Uint8Array(analyser.fftSize)
         let noiseBaseline = 1.5  // initial guess, adapts quickly
+        let adaptPause = 0       // frames to skip baseline adaptation after recording stops
         let logThrottle = 0
 
         const tick = () => {
@@ -157,10 +158,13 @@ export function useVoice({
             const threshold = noiseBaseline * SPEECH_RATIO
             const hasSpeech = rms > threshold
 
-            // Adapt baseline only during silence (not during speech)
-            if (!isRecordingRef.current) {
+            // Adapt baseline only during silence, with a cooldown after recording stops
+            if (isRecordingRef.current) {
+                adaptPause = 30 // skip ~500ms of adaptation after clip ends
+            } else if (adaptPause > 0) {
+                adaptPause--
+            } else {
                 noiseBaseline = noiseBaseline * (1 - NOISE_ADAPT_RATE) + rms * NOISE_ADAPT_RATE
-                // Floor the baseline so it never goes to 0
                 if (noiseBaseline < 0.3) noiseBaseline = 0.3
             }
 
