@@ -21,7 +21,6 @@ jobs:
 
       - name: Build
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run electron:build
 
@@ -29,3 +28,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
