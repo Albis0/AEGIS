@@ -1,16 +1,22 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-)
+let _supabase: SupabaseClient | null = null
+function db(): SupabaseClient {
+    if (!_supabase) {
+        const url = process.env.SUPABASE_URL
+        const key = process.env.SUPABASE_SERVICE_KEY
+        if (!url || !key) throw new Error('SUPABASE_URL veya SUPABASE_SERVICE_KEY eksik — .env kontrol et')
+        _supabase = createClient(url, key)
+    }
+    return _supabase
+}
 
 export type Role = 'user' | 'assistant' | 'tool'
 
 let currentSessionId: string | null = null
 
 export async function startSession(): Promise<string> {
-    const { data, error } = await supabase
+    const { data, error } = await db()
         .from('sessions')
         .insert({})
         .select('id')
@@ -27,7 +33,7 @@ export function getSessionId(): string | null {
 
 export async function saveMessage(role: Role, content: string, toolName?: string): Promise<void> {
     if (!currentSessionId) return
-    await supabase.from('messages').insert({
+    await db().from('messages').insert({
         session_id: currentSessionId,
         role,
         content,
@@ -36,7 +42,7 @@ export async function saveMessage(role: Role, content: string, toolName?: string
 }
 
 export async function getRecentMessages(limit = 50): Promise<{ role: Role; content: string; tool_name?: string; created_at: string }[]> {
-    const { data } = await supabase
+    const { data } = await db()
         .from('messages')
         .select('role, content, tool_name, created_at')
         .order('created_at', { ascending: false })
@@ -46,14 +52,14 @@ export async function getRecentMessages(limit = 50): Promise<{ role: Role; conte
 }
 
 export async function saveNote(content: string, remindAt?: Date): Promise<void> {
-    await supabase.from('notes').insert({
+    await db().from('notes').insert({
         content,
         remind_at: remindAt?.toISOString() ?? null,
     })
 }
 
 export async function getPendingNotes(): Promise<{ id: string; content: string; remind_at: string | null }[]> {
-    const { data } = await supabase
+    const { data } = await db()
         .from('notes')
         .select('id, content, remind_at')
         .eq('done', false)
@@ -63,15 +69,15 @@ export async function getPendingNotes(): Promise<{ id: string; content: string; 
 }
 
 export async function markNoteDone(id: string): Promise<void> {
-    await supabase.from('notes').update({ done: true }).eq('id', id)
+    await db().from('notes').update({ done: true }).eq('id', id)
 }
 
 export async function setUserProfile(key: string, value: string): Promise<void> {
-    await supabase.from('user_profile').upsert({ key, value, updated_at: new Date().toISOString() })
+    await db().from('user_profile').upsert({ key, value, updated_at: new Date().toISOString() })
 }
 
 export async function getUserProfile(): Promise<Record<string, string>> {
-    const { data } = await supabase.from('user_profile').select('key, value')
+    const { data } = await db().from('user_profile').select('key, value')
     const profile: Record<string, string> = {}
     for (const row of data ?? []) profile[(row as { key: string; value: string }).key] = (row as { key: string; value: string }).value
     return profile

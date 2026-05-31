@@ -126,31 +126,68 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             const full = resolvePath(p ?? "");
             const items = fs.readdirSync(full, {withFileTypes: true});
             if (items.length === 0) return "(boş klasör)";
-            return items
-                .map((d: fs.Dirent) => (d.isDirectory() ? `📁 ${d.name}` : `📄 ${d.name}`))
-                .join("\n");
+            return items.map((d: fs.Dirent) => (d.isDirectory() ? `📁 ${d.name}` : `📄 ${d.name}`)).join("\n");
         } catch (e) {
             return `HATA: ${(e as Error).message}`;
         }
     },
     async web_search({query}) {
-        const key = process.env.TAVILY_API_KEY;
-        if (!key) return "HATA: TAVILY_API_KEY ayarlanmamış.";
-        try {
-            const res = await fetch("https://api.tavily.com/search", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({api_key: key, query, max_results: 5, include_answer: true}),
-            });
-            const data = await res.json() as {answer?: string; results?: {title: string; url: string; content?: string}[]};
-            let out = data.answer ? `Özet: ${data.answer}\n\n` : "";
-            out += (data.results ?? [])
-                .map((r) => `• ${r.title}\n  ${r.url}\n  ${(r.content ?? "").slice(0, 200)}`)
-                .join("\n\n");
+        // Fallback zinciri: Tavily → Serper → DuckDuckGo
+        const formatResults = (source: string, results: {title: string; url: string; content?: string}[], answer?: string) => {
+            let out = `[${source}]\n`;
+            out += answer ? `Özet: ${answer}\n\n` : "";
+            out += results.map((r) => `• ${r.title}\n  ${r.url}\n  ${(r.content ?? "").slice(0, 200)}`).join("\n\n");
             return out || "(sonuç bulunamadı)";
-        } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+        };
+
+        // 1. Tavily
+        const tavilyKey = process.env.TAVILY_API_KEY;
+        if (tavilyKey) {
+            try {
+                const res = await fetch("https://api.tavily.com/search", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({api_key: tavilyKey, query, max_results: 5, include_answer: true}),
+                });
+                if (res.ok) {
+                    const data = (await res.json()) as {answer?: string; results?: {title: string; url: string; content?: string}[]};
+                    return formatResults("Tavily", data.results ?? [], data.answer);
+                }
+            } catch {}
         }
+
+        // 2. Serper (Google)
+        const serperKey = process.env.SERPER_API_KEY;
+        if (serperKey) {
+            try {
+                const res = await fetch("https://google.serper.dev/search", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json", "X-API-KEY": serperKey},
+                    body: JSON.stringify({q: query, num: 5}),
+                });
+                if (res.ok) {
+                    const data = (await res.json()) as {answerBox?: {answer?: string}; organic?: {title: string; link: string; snippet?: string}[]};
+                    const results = (data.organic ?? []).map((r) => ({title: r.title, url: r.link, content: r.snippet}));
+                    return formatResults("Serper · Google", results, data.answerBox?.answer);
+                }
+            } catch {}
+        }
+
+        // 3. DuckDuckGo Instant Answer (key gerektirmiyor, sınırlı)
+        try {
+            const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`);
+            if (res.ok) {
+                const data = (await res.json()) as {AbstractText?: string; AbstractURL?: string; RelatedTopics?: {Text?: string; FirstURL?: string}[]};
+                const results: {title: string; url: string; content?: string}[] = [];
+                if (data.AbstractText) results.push({title: "Özet", url: data.AbstractURL ?? "", content: data.AbstractText});
+                for (const t of (data.RelatedTopics ?? []).slice(0, 4)) {
+                    if (t.Text && t.FirstURL) results.push({title: t.Text.slice(0, 60), url: t.FirstURL, content: t.Text});
+                }
+                if (results.length > 0) return formatResults("DuckDuckGo", results);
+            }
+        } catch {}
+
+        return "HATA: Tüm arama servisleri başarısız.";
     },
 };
 

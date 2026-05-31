@@ -16,6 +16,12 @@ const TOOL_VERB: Record<string, string> = {
     web_search: "AĞ TARANIYOR",
 };
 
+function parseSearchSource(detail?: string): string | null {
+    if (!detail) return null;
+    const m = detail.match(/^\[([^\]]+)\]/);
+    return m ? m[1] : null;
+}
+
 const HOSTNAME = "AEGIS-OS";
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const active = (s: CoreState) => s !== "idle";
@@ -258,20 +264,45 @@ export default function App() {
                     <Section title="SİSTEM DURUMU">
                         <div className="text-[9px] tracking-widest opacity-60 mb-1.5">UPTIME · {tel ? fmtUptime(tel.uptime) : "—"}</div>
                         <div className="space-y-1.5 text-[10px] tracking-widest">
-                            <TelRow label="CPU" value={`${tel?.cpu ?? 0}%`} bar={tel?.cpu ?? 0} warn={70} danger={90} />
+                            <CpuRow cpu={tel?.cpu ?? 0} temp={tel?.cpuTemp ?? null} />
                             <TelRow label="RAM" value={`${tel?.ram ?? 0}%`} bar={tel?.ram ?? 0} warn={75} danger={88} />
                             <TelRow label="DISK" value={`${tel?.disk ?? 0}%`} bar={tel?.disk ?? 0} warn={70} danger={90} />
                             <TelRow label="BAT" value={tel?.battery != null ? `${tel.battery}%` : "N/A"} bar={tel?.battery ?? 0} />
                         </div>
+                        {(tel?.gpu ?? []).length > 0 && (
+                            <div className="mt-2 space-y-1.5 text-[10px] tracking-widest">
+                                {(tel?.gpu ?? []).map((g, i) => (
+                                    <GpuRow key={i} gpu={g} />
+                                ))}
+                            </div>
+                        )}
                         <div className="flex justify-between gap-2 pt-2 text-[10px] opacity-70">
                             <span>▲ {fmtRate(tel?.netUp)}</span>
                             <span>▼ {fmtRate(tel?.netDown)}</span>
                         </div>
+                        {tel?.activeWindow && (
+                            <div className="pt-1 text-[9px] opacity-50 truncate" title={tel.activeWindow}>
+                                ◈ {tel.activeWindow}
+                            </div>
+                        )}
                         <div className="flex justify-between gap-2 pt-1 text-[10px] opacity-60">
                             <span>HOST</span>
                             <span>{HOSTNAME}</span>
                         </div>
                     </Section>
+
+                    {(tel?.topProcs ?? []).length > 0 && (
+                        <Section title="TOP PROCESS">
+                            <div className="space-y-1 text-[9px] tracking-widest">
+                                {(tel?.topProcs ?? []).map((p, i) => (
+                                    <div key={i} className="flex justify-between gap-1 opacity-80">
+                                        <span className="truncate flex-1" title={p.name}>{p.name}</span>
+                                        <span className="tabular-nums opacity-60">{p.ram}MB</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    )}
                 </div>
 
                 {/* CENTER — globe */}
@@ -311,17 +342,25 @@ export default function App() {
                                     </div>
                                 </div>
                             :   <div key={item.id} className="rise">
-                                    {item.tools.map((t, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
-                                            <span className={t.status === "running" ? "flick" : ""} style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(110,231,160)"}}>
-                                                {t.status === "running" ? "▸" : "✓"}
-                                            </span>
-                                            <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgba(110,231,160,0.7)"}}>
-                                                {TOOL_VERB[t.name] || t.name.toUpperCase()}
-                                                {t.status === "running" ? "…" : ""}
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {item.tools.map((t, i) => {
+                                        const source = t.name === "web_search" && t.status === "done" ? parseSearchSource(t.detail) : null;
+                                        return (
+                                            <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
+                                                <span className={t.status === "running" ? "flick" : ""} style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(110,231,160)"}}>
+                                                    {t.status === "running" ? "▸" : "✓"}
+                                                </span>
+                                                <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgba(110,231,160,0.7)"}}>
+                                                    {TOOL_VERB[t.name] || t.name.toUpperCase()}
+                                                    {t.status === "running" ? "…" : ""}
+                                                </span>
+                                                {source && (
+                                                    <span className="text-[9px] px-1.5 py-0.5 rounded tracking-widest" style={{background: "rgba(110,231,160,0.12)", color: "rgb(110,231,160)", border: "1px solid rgba(110,231,160,0.25)"}}>
+                                                        {source}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                     {item.text && (
                                         <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap break-words text-cyan-50/90">
                                             {item.text}
@@ -414,6 +453,66 @@ function Section({title, children}: {title: string; children: ReactNode}) {
             <span className="absolute bottom-0 right-0 w-3 h-3 border-b border-r" style={{borderColor: "rgba(var(--hud),0.5)"}} />
             <div className="text-[9px] tracking-[0.3em] opacity-60 mb-2 glow-text">{title}</div>
             {children}
+        </div>
+    );
+}
+
+function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
+    const [open, setOpen] = useState(false);
+    const color =
+        cpu >= 90 ? "248,80,80"
+        : cpu >= 70 ? "245,150,40"
+        : "var(--hud)";
+    const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
+    return (
+        <div>
+            <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setOpen((o) => !o)}>
+                <span className="w-9">CPU</span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{width: `${cpu}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
+                </div>
+                <span className="tabular-nums w-12 text-right" style={{color: fill}}>{cpu}%</span>
+                <span className="opacity-40 text-[9px]">{open ? "▴" : "▾"}</span>
+            </div>
+            {open && (
+                <div className="mt-1 pl-9 space-y-0.5 text-[9px] opacity-70">
+                    {temp != null && <div>TEMP · <span style={{color: temp >= 90 ? "rgb(248,80,80)" : temp >= 75 ? "rgb(245,150,40)" : "rgb(var(--hud))"}}>{temp}°C</span></div>}
+                    <div>CORES · {navigator.hardwareConcurrency ?? "—"}</div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null}}) {
+    const color =
+        gpu.load >= 90 ? "248,80,80"
+        : gpu.load >= 70 ? "245,150,40"
+        : "var(--hud)";
+    const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
+    const vramPct = gpu.vramTotal > 0 ? Math.round((gpu.vramUsed / gpu.vramTotal) * 100) : 0;
+    return (
+        <div className="space-y-1">
+            <div className="text-[9px] opacity-50 truncate" title={gpu.name}>{gpu.name.toUpperCase()}</div>
+            <div className="flex items-center gap-2">
+                <span className="w-9">GPU</span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{width: `${gpu.load}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
+                </div>
+                <span className="tabular-nums w-12 text-right" style={{color: fill}}>{gpu.load}%</span>
+            </div>
+            {gpu.vramTotal > 0 && (
+                <div className="flex items-center gap-2">
+                    <span className="w-9">VRAM</span>
+                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                        <div className="h-full rounded-full transition-all duration-700" style={{width: `${vramPct}%`, background: "rgb(var(--hud))", boxShadow: "0 0 6px rgb(var(--hud))"}} />
+                    </div>
+                    <span className="tabular-nums w-12 text-right opacity-80">{gpu.vramUsed}/{gpu.vramTotal}MB</span>
+                </div>
+            )}
+            {gpu.temp != null && (
+                <div className="text-[9px] opacity-60 pl-11">TEMP · <span style={{color: gpu.temp >= 85 ? "rgb(248,80,80)" : gpu.temp >= 70 ? "rgb(245,150,40)" : "rgb(var(--hud))"}}>{gpu.temp}°C</span></div>
+            )}
         </div>
     );
 }

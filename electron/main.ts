@@ -88,20 +88,16 @@ function refreshDisk(): void {
         (_e, stdout) => {
             const n = parseInt((stdout ?? "").trim(), 10);
             if (!isNaN(n)) diskPct = n;
-        }
+        },
     );
 }
 
 let battery: number | null = null;
 function refreshBattery(): void {
-    exec(
-        `powershell -NoProfile -Command "(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).EstimatedChargeRemaining"`,
-        {windowsHide: true, timeout: 8000},
-        (_e, stdout) => {
-            const n = parseInt((stdout ?? "").trim(), 10);
-            battery = isNaN(n) ? null : n;
-        }
-    );
+    exec(`powershell -NoProfile -Command "(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).EstimatedChargeRemaining"`, {windowsHide: true, timeout: 8000}, (_e, stdout) => {
+        const n = parseInt((stdout ?? "").trim(), 10);
+        battery = isNaN(n) ? null : n;
+    });
 }
 
 let netUp = 0;
@@ -111,10 +107,100 @@ function refreshNetwork(): void {
         `powershell -NoProfile -Command "$s=Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | Measure-Object -Property BytesSentPersec,BytesReceivedPersec -Sum; ''+($s | Where-Object{$_.Property -eq 'BytesSentPersec'}).Sum+'|'+($s | Where-Object{$_.Property -eq 'BytesReceivedPersec'}).Sum"`,
         {windowsHide: true, timeout: 8000},
         (_e, stdout) => {
-            const [up, down] = (stdout ?? "").trim().split("|").map((x) => parseInt(x, 10));
+            const [up, down] = (stdout ?? "")
+                .trim()
+                .split("|")
+                .map((x) => parseInt(x, 10));
             if (!isNaN(up)) netUp = up;
             if (!isNaN(down)) netDown = down;
-        }
+        },
+    );
+}
+
+// GPU
+type GpuInfo = {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null};
+let gpuInfo: GpuInfo[] = [];
+function refreshGpu(): void {
+    exec(
+        `powershell -NoProfile -Command "Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object Name,AdapterRAM | ConvertTo-Json -Compress"`,
+        {windowsHide: true, timeout: 8000},
+        (_e, stdout) => {
+            try {
+                const raw = JSON.parse((stdout ?? "").trim());
+                const arr = Array.isArray(raw) ? raw : [raw];
+                gpuInfo = arr.map((g: {Name?: string; AdapterRAM?: number}) => ({
+                    name: (g.Name ?? "GPU").slice(0, 40),
+                    load: 0,
+                    vramUsed: 0,
+                    vramTotal: Math.round((g.AdapterRAM ?? 0) / 1024 / 1024),
+                    temp: null,
+                }));
+            } catch {}
+        },
+    );
+    // NVIDIA GPU load + VRAM + temp via nvidia-smi
+    exec(
+        `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits`,
+        {windowsHide: true, timeout: 5000},
+        (_e, stdout) => {
+            if (!stdout) return;
+            stdout.trim().split("\n").forEach((line, i) => {
+                const parts = line.split(",").map((s) => parseInt(s.trim(), 10));
+                if (parts.length >= 4 && gpuInfo[i]) {
+                    gpuInfo[i].load = isNaN(parts[0]) ? 0 : parts[0];
+                    gpuInfo[i].vramUsed = isNaN(parts[1]) ? 0 : parts[1];
+                    gpuInfo[i].vramTotal = isNaN(parts[2]) ? gpuInfo[i].vramTotal : parts[2];
+                    gpuInfo[i].temp = isNaN(parts[3]) ? null : parts[3];
+                }
+            });
+        },
+    );
+}
+
+// CPU sıcaklığı
+let cpuTemp: number | null = null;
+function refreshCpuTemp(): void {
+    exec(
+        `powershell -NoProfile -Command "Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentTemperature"`,
+        {windowsHide: true, timeout: 8000},
+        (_e, stdout) => {
+            const raw = parseInt((stdout ?? "").trim(), 10);
+            if (!isNaN(raw) && raw > 0) cpuTemp = Math.round(raw / 10 - 273.15);
+        },
+    );
+}
+
+// Top 5 process
+type ProcInfo = {name: string; cpu: number; ram: number};
+let topProcs: ProcInfo[] = [];
+function refreshTopProcs(): void {
+    exec(
+        `powershell -NoProfile -Command "Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 Name,@{N='CPU';E={[math]::Round($_.CPU,1)}},@{N='RAM';E={[math]::Round($_.WorkingSet64/1MB,0)}} | ConvertTo-Json -Compress"`,
+        {windowsHide: true, timeout: 10000},
+        (_e, stdout) => {
+            try {
+                const raw = JSON.parse((stdout ?? "").trim());
+                const arr = Array.isArray(raw) ? raw : [raw];
+                topProcs = arr.map((p: {Name?: string; CPU?: number; RAM?: number}) => ({
+                    name: (p.Name ?? "?").slice(0, 20),
+                    cpu: p.CPU ?? 0,
+                    ram: p.RAM ?? 0,
+                }));
+            } catch {}
+        },
+    );
+}
+
+// Aktif pencere
+let activeWindow = "";
+function refreshActiveWindow(): void {
+    exec(
+        `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $h=[System.Windows.Forms.Form]::ActiveForm; if($h){$h.Text}else{$w=Get-Process | Where-Object {$_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -ne ''} | Sort-Object CPU -Descending | Select-Object -First 1; $w.MainWindowTitle}"`,
+        {windowsHide: true, timeout: 5000},
+        (_e, stdout) => {
+            const t = (stdout ?? "").trim();
+            if (t) activeWindow = t.slice(0, 60);
+        },
     );
 }
 
@@ -122,9 +208,17 @@ function startTelemetry(): void {
     refreshDisk();
     refreshBattery();
     refreshNetwork();
+    refreshGpu();
+    refreshCpuTemp();
+    refreshTopProcs();
+    refreshActiveWindow();
     setInterval(refreshDisk, 15000);
     setInterval(refreshBattery, 30000);
     setInterval(refreshNetwork, 3000);
+    setInterval(refreshGpu, 4000);
+    setInterval(refreshCpuTemp, 5000);
+    setInterval(refreshTopProcs, 5000);
+    setInterval(refreshActiveWindow, 2000);
 
     setInterval(() => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -140,6 +234,10 @@ function startTelemetry(): void {
             uptime: Math.round(os.uptime()),
             host: os.hostname(),
             platform: `${os.type()} ${os.release()}`,
+            gpu: gpuInfo,
+            cpuTemp,
+            topProcs,
+            activeWindow,
         });
     }, 1500);
 }
@@ -147,18 +245,31 @@ function startTelemetry(): void {
 // ---- Weather ----
 async function getWeather(): Promise<object> {
     try {
-        const geo = await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json() as {city: string; country: string; lat: number; lon: number};
-        const w = await (
-            await fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`
-            )
-        ).json() as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number}};
+        const geo = (await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json()) as {city: string; country: string; lat: number; lon: number};
+        const w = (await (
+            await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`)
+        ).json()) as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number}};
         const c = w.current;
         const CODES: Record<number, string> = {
-            0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
-            45: "sisli", 48: "sisli", 51: "çiseliyor", 53: "çiseliyor", 55: "çiseliyor",
-            61: "yağmurlu", 63: "yağmurlu", 65: "kuvvetli yağmur", 71: "karlı", 73: "karlı",
-            75: "yoğun kar", 80: "sağanak", 81: "sağanak", 82: "kuvvetli sağanak", 95: "gök gürültülü",
+            0: "açık",
+            1: "az bulutlu",
+            2: "parçalı bulutlu",
+            3: "bulutlu",
+            45: "sisli",
+            48: "sisli",
+            51: "çiseliyor",
+            53: "çiseliyor",
+            55: "çiseliyor",
+            61: "yağmurlu",
+            63: "yağmurlu",
+            65: "kuvvetli yağmur",
+            71: "karlı",
+            73: "karlı",
+            75: "yoğun kar",
+            80: "sağanak",
+            81: "sağanak",
+            82: "kuvvetli sağanak",
+            95: "gök gürültülü",
         };
         return {
             city: geo.city,
@@ -175,10 +286,13 @@ async function getWeather(): Promise<object> {
 
 // ---- Agentic streaming chat ----
 async function runAgent(history: ChatCompletionMessageParam[], reqId: string): Promise<void> {
-    const profile = await getUserProfile().catch(() => ({} as Record<string, string>))
-    const profileNote = Object.keys(profile).length > 0
-        ? `\nKullanıcı profili: ${Object.entries(profile).map(([k, v]) => `${k}=${v}`).join(', ')}`
-        : ''
+    const profile = await getUserProfile().catch(() => ({}) as Record<string, string>);
+    const profileNote =
+        Object.keys(profile).length > 0 ?
+            `\nKullanıcı profili: ${Object.entries(profile)
+                .map(([k, v]) => `${k}=${v}`)
+                .join(", ")}`
+        :   "";
     const messages: ChatCompletionMessageParam[] = [{role: "system", content: SYSTEM_PROMPT + profileNote}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
@@ -199,7 +313,7 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
         if (content) send("chat-delta", {text: content});
 
         if (toolCalls.length === 0) {
-            if (content) await saveMessage('assistant', content).catch(() => {})
+            if (content) await saveMessage("assistant", content).catch(() => {});
             send("chat-done", {});
             return;
         }
@@ -212,7 +326,7 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
             send("tool-event", {phase: "start", name, args: argsJson});
             const result = await executeTool(name, argsJson);
             send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
-            await saveMessage('tool', String(result).slice(0, 1000), name).catch(() => {})
+            await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
             messages.push({role: "tool", tool_call_id: call.id, content: String(result)});
         }
     }
@@ -239,9 +353,9 @@ app.whenReady().then(async () => {
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
             // Save the last user message
-            const last = messages[messages.length - 1]
-            if (last?.role === 'user' && typeof last.content === 'string') {
-                await saveMessage('user', last.content).catch(() => {})
+            const last = messages[messages.length - 1];
+            if (last?.role === "user" && typeof last.content === "string") {
+                await saveMessage("user", last.content).catch(() => {});
             }
             await runAgent(messages, reqId);
         } catch (e) {
