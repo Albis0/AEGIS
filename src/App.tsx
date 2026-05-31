@@ -73,7 +73,6 @@ export default function App() {
     const [streaming, setStreaming] = useState(false);
     const [tel, setTel] = useState<Telemetry | null>(null);
     const [weather, setWeather] = useState<Weather | null>(null);
-    const [clock, setClock] = useState(new Date());
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
@@ -133,11 +132,6 @@ export default function App() {
         if (listening && state === "idle") setState("listening");
         else if (!listening && state === "listening") setState("idle");
     }, [listening, state]);
-
-    useEffect(() => {
-        const t = setInterval(() => setClock(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
 
     useEffect(() => {
         const load = () => window.jarvis.weather().then(setWeather).catch(() => {});
@@ -254,11 +248,11 @@ export default function App() {
     const handleSettingsOpen = useCallback(() => setSettingsOpen(true), []);
 
     const skinProps = useMemo(() => ({
-        feed, input, setInput, state, streaming, tel, weather, clock,
+        feed, input, setInput, state, streaming, tel, weather,
         mode, setMode, listening, activated, capturing, placeholder,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         feedRef, layout,
-    }), [feed, input, state, streaming, tel, weather, clock,
+    }), [feed, input, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
         send, handleStop, handleSettingsOpen, layout]);
 

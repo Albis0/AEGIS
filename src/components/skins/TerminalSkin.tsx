@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -20,11 +20,16 @@ function parseSearchSource(detail?: string): string | null {
 const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit", second: "2-digit"});
 
 export default function TerminalSkin({
-    feed, input, setInput, state, streaming, tel, clock,
+    feed, input, setInput, state, streaming, tel,
     mode, setMode, listening, activated, placeholder,
     onSend, onStop, onSettingsOpen, feedRef,
 }: SkinProps) {
     const promptColor = state === "error" ? "rgb(var(--status-danger))" : state === "thinking" ? "rgb(var(--status-warn))" : "rgb(var(--hud))";
+    const [clock, setClock] = useState(new Date());
+    useEffect(() => {
+        const t = setInterval(() => setClock(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
 
     return (
         <div

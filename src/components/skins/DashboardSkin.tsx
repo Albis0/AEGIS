@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -30,7 +30,7 @@ function Bar({value, warn, danger}: {value: number; warn?: number; danger?: numb
         : "rgb(var(--hud))";
     return (
         <div className="h-1.5 rounded-full overflow-hidden w-full" style={{background: "rgba(var(--hud),0.12)"}}>
-            <div className="h-full rounded-full transition-all duration-700" style={{width: `${Math.min(value, 100)}%`, background: color, boxShadow: `0 0 6px ${color}`}} />
+            <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${Math.min(value, 100)}%`, background: color}} />
         </div>
     );
 }
@@ -48,10 +48,15 @@ function Widget({title, children, className = ""}: {title: string; children: Rea
 }
 
 export default function DashboardSkin({
-    feed, input, setInput, state, streaming, tel, weather, clock,
+    feed, input, setInput, state, streaming, tel, weather,
     mode, setMode, listening, activated, placeholder,
     onSend, onStop, onSettingsOpen, feedRef,
 }: SkinProps) {
+    const [clock, setClock] = useState(new Date());
+    useEffect(() => {
+        const t = setInterval(() => setClock(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
     const lastMsg = feed.filter((f) => f.kind === "assistant").at(-1);
     const statusColor =
         state === "error" ? "rgb(var(--status-danger))"

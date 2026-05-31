@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -19,9 +19,14 @@ function parseSearchSource(detail?: string): string | null {
 
 export default function MinimalSkin({
     feed, input, setInput, state, streaming,
-    clock, mode, setMode, listening, activated, placeholder,
+    mode, setMode, listening, activated, placeholder,
     onSend, onStop, onSettingsOpen, feedRef,
 }: SkinProps) {
+    const [clock, setClock] = useState(new Date());
+    useEffect(() => {
+        const t = setInterval(() => setClock(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
     return (
         <div
             className="h-screen w-screen flex flex-col"

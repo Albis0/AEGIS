@@ -1,4 +1,4 @@
-import React, {type ReactNode} from "react";
+import React, {type ReactNode, useState, useEffect} from "react";
 import type {CoreState} from "../ArcReactor";
 import type {Telemetry, Weather} from "../../electron.d";
 import type {VoiceMode} from "../../hooks/useVoice";
@@ -25,7 +25,6 @@ export interface SkinProps {
     streaming: boolean;
     tel: Telemetry | null;
     weather: Weather | null;
-    clock: Date;
     mode: VoiceMode;
     setMode: (m: VoiceMode) => void;
     listening: boolean;
@@ -40,12 +39,19 @@ export interface SkinProps {
 }
 
 export default function HologramSkin({
-    feed, input, setInput, state, streaming, tel, weather, clock,
+    feed, input, setInput, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
     onSend, onStop, onSettingsOpen, feedRef, layout,
 }: SkinProps) {
     const compact = layout === "compact";
     const active = (s: CoreState) => s !== "idle";
+
+    // Clock lives here — ticking every second must not bust the parent memo
+    const [clock, setClock] = useState(new Date());
+    useEffect(() => {
+        const t = setInterval(() => setClock(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
 
     return (
         <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col${compact ? " compact" : ""}`}>
@@ -239,7 +245,7 @@ const CpuRow = React.memo(function CpuRow({cpu, temp}: {cpu: number; temp: numbe
             <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setOpen((o) => !o)}>
                 <span className="w-9">CPU</span>
                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{width: `${cpu}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
+                    <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${cpu}%`, background: fill, boxShadow: `0 0 4px ${fill}`}} />
                 </div>
                 <span className="tabular-nums w-12 text-right" style={{color: fill}}>{cpu}%</span>
                 <span className="opacity-40 text-[9px]">{open ? "▴" : "▾"}</span>
@@ -264,7 +270,7 @@ const GpuRow = React.memo(function GpuRow({gpu}: {gpu: {name: string; load: numb
             <div className="flex items-center gap-2">
                 <span className="w-9">GPU</span>
                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{width: `${gpu.load}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
+                    <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${gpu.load}%`, background: fill, boxShadow: `0 0 4px ${fill}`}} />
                 </div>
                 <span className="tabular-nums w-12 text-right" style={{color: fill}}>{gpu.load}%</span>
             </div>
@@ -272,7 +278,7 @@ const GpuRow = React.memo(function GpuRow({gpu}: {gpu: {name: string; load: numb
                 <div className="flex items-center gap-2">
                     <span className="w-9">VRAM</span>
                     <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
-                        <div className="h-full rounded-full transition-all duration-700" style={{width: `${vramPct}%`, background: "rgb(var(--hud))", boxShadow: "0 0 6px rgb(var(--hud))"}} />
+                        <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${vramPct}%`, background: "rgb(var(--hud))", boxShadow: "0 0 6px rgb(var(--hud))"}} />
                     </div>
                     <span className="tabular-nums w-12 text-right opacity-80">{gpu.vramUsed}/{gpu.vramTotal}MB</span>
                 </div>
@@ -291,7 +297,7 @@ const TelRow = React.memo(function TelRow({label, value, bar, danger, warn}: {la
         <div className="flex items-center gap-2">
             <span className="w-9">{label}</span>
             <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
-                <div className="h-full rounded-full transition-all duration-700" style={{width: `${bar}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
+                <div className="h-full rounded-full transition-[width] duration-700" style={{width: `${bar}%`, background: fill, boxShadow: `0 0 6px ${fill}`}} />
             </div>
             <span className="tabular-nums w-12 text-right" style={{color: fill}}>{value}</span>
         </div>
