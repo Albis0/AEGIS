@@ -53,17 +53,22 @@ export default function ParticleGlobe({ state }: { state: CoreState }) {
     let raf = 0
     let last = performance.now()
 
+    let pulse = 0  // listening pulse phase
+
     const draw = (now: number) => {
       const dt = Math.min((now - last) / 16.67, 3)
       last = now
       const st = stateRef.current
-      const speed = st === 'thinking' ? 0.012 : st === 'speaking' ? 0.006 : 0.0035
+      const speed = st === 'thinking' ? 0.012 : st === 'listening' ? 0.008 : st === 'speaking' ? 0.006 : 0.0035
       rotY += speed * dt
+      if (st === 'listening') pulse += 0.04 * dt
 
       const [r, g, b] = readHud()
       const cx = size / 2
       const cy = size / 2
-      const radius = size * 0.4
+      // Listening: radius pulses in and out
+      const pulseScale = st === 'listening' ? 1 + Math.sin(pulse) * 0.06 : 1
+      const radius = size * 0.4 * pulseScale
 
       ctx.clearRect(0, 0, size, size)
 
@@ -108,16 +113,20 @@ export default function ParticleGlobe({ state }: { state: CoreState }) {
       }
 
       // dots (sorted by depth: back first)
+      const isListening = st === 'listening'
       const order = proj.map((_, i) => i).sort((i, j) => proj[i].depth - proj[j].depth)
       for (const i of order) {
         const pt = proj[i]
         const isNode = nodeIdx.includes(i)
-        const dotR = (isNode ? 1.8 : 1.0) * (0.4 + pt.depth * 0.9)
-        const alpha = 0.12 + pt.depth * 0.85
+        const sizeBoost = isListening ? 1 + Math.abs(Math.sin(pulse + i * 0.05)) * 0.5 : 1
+        const dotR = (isNode ? 1.8 : 1.0) * (0.4 + pt.depth * 0.9) * sizeBoost
+        const alpha = isListening
+          ? 0.2 + pt.depth * 0.9 + Math.abs(Math.sin(pulse + i * 0.03)) * 0.15
+          : 0.12 + pt.depth * 0.85
         if (isNode) {
-          ctx.fillStyle = `rgba(180,220,255,${alpha})`
+          ctx.fillStyle = `rgba(180,220,255,${Math.min(alpha, 1)})`
         } else {
-          ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
+          ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(alpha, 1)})`
         }
         ctx.beginPath()
         ctx.arc(pt.sx, pt.sy, dotR, 0, Math.PI * 2)

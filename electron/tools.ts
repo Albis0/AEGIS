@@ -38,18 +38,7 @@ export const toolSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {command: {type: "string", description: "Çalıştırılacak PowerShell komutu"}},
                 required: ["command"],
-            },
-        },
-    },
-    {
-        type: "function",
-        function: {
-            name: "open_app",
-            description: "Bir uygulamayı, dosyayı, klasörü veya URL'yi varsayılan programla aç.",
-            parameters: {
-                type: "object",
-                properties: {target: {type: "string", description: "Açılacak uygulama adı, dosya yolu veya URL"}},
-                required: ["target"],
+                additionalProperties: false,
             },
         },
     },
@@ -62,6 +51,7 @@ export const toolSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {path: {type: "string", description: "Okunacak dosya yolu"}},
                 required: ["path"],
+                additionalProperties: false,
             },
         },
     },
@@ -77,6 +67,7 @@ export const toolSchemas: ChatCompletionTool[] = [
                     content: {type: "string", description: "Dosyaya yazılacak içerik"},
                 },
                 required: ["path", "content"],
+                additionalProperties: false,
             },
         },
     },
@@ -88,6 +79,7 @@ export const toolSchemas: ChatCompletionTool[] = [
             parameters: {
                 type: "object",
                 properties: {path: {type: "string", description: "Listelenecek klasör yolu (opsiyonel)"}},
+                additionalProperties: false,
             },
         },
     },
@@ -100,6 +92,7 @@ export const toolSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {query: {type: "string", description: "Arama sorgusu"}},
                 required: ["query"],
+                additionalProperties: false,
             },
         },
     },
@@ -108,10 +101,6 @@ export const toolSchemas: ChatCompletionTool[] = [
 const executors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {
     async run_command({command}) {
         return run(`powershell -NoProfile -Command "${command.replace(/"/g, '\\"')}"`);
-    },
-    async open_app({target}) {
-        await run(`powershell -NoProfile -Command "Start-Process '${target.replace(/'/g, "''")}'"`)
-        return `Açıldı: ${target}`;
     },
     async read_file({path: p}) {
         try {

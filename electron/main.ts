@@ -11,15 +11,9 @@ import {toolSchemas, executeTool} from "./tools";
 dotenv.config({path: path.join(__dirname, "../.env")});
 
 const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
-const MODEL = "llama3-groq-70b-8192-tool-use-preview";
+const MODEL = "qwen/qwen3-32b";
 
-const SYSTEM_PROMPT = `Sen J.A.R.V.I.S. adında, Iron Man filmlerindeki gibi kişisel bir AI asistanısın. Kullanıcının sadık, zeki ve sakin yapay zekasısın.
-Türkçe konuş. Kısa, net ve kendinden emin ol. Gereksiz nezaket cümleleri kurma; bir İngiliz uşağı gibi zarif ama öz konuş.
-Kullanıcının Windows 11 bilgisayarında çalışıyorsun ve onun adına GERÇEK işler yapabilirsin.
-Elindeki araçları (run_command, open_app, read_file, write_file, list_directory, web_search) GEREKTİĞİNDE kullan.
-Bir şey yapman istendiğinde önce uzun uzun konuşma — doğrudan aracı çağırıp yap, sonra sonucu tek-iki cümleyle özetle.
-Komutlar için PowerShell sözdizimi kullan. Yıkıcı/geri dönüşü olmayan işlemlerde önce kullanıcıyı uyar.
-Kullanıcıya "efendim" diye hitap edebilirsin ama abartma.`;
+const SYSTEM_PROMPT = `Sen JARVIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için run_command ile Start-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.`;
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -40,6 +34,12 @@ function createWindow(): void {
             contextIsolation: true,
             nodeIntegration: false,
         },
+    });
+
+    // Grant microphone permission automatically
+    mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, callback) => {
+        if (permission === "media") callback(true);
+        else callback(false);
     });
 
     mainWindow.webContents.setWindowOpenHandler(({url}) => {
@@ -178,36 +178,18 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
     };
 
     for (let step = 0; step < 8; step++) {
-        const stream = await groq.chat.completions.create({
+        const completion = await groq.chat.completions.create({
             model: MODEL,
             messages,
             tools: toolSchemas,
-            tool_choice: "auto",
-            stream: true,
+            stream: false,
         });
 
-        let content = "";
-        const toolCalls: {id: string; type: "function"; function: {name: string; arguments: string}}[] = [];
+        const msg = completion.choices[0]?.message;
+        const content = msg?.content ?? "";
+        const toolCalls = (msg?.tool_calls ?? []) as {id: string; type: "function"; function: {name: string; arguments: string}}[];
 
-        for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta;
-            if (!delta) continue;
-
-            if (delta.content) {
-                content += delta.content;
-                send("chat-delta", {text: delta.content});
-            }
-
-            if (delta.tool_calls) {
-                for (const tc of delta.tool_calls) {
-                    const idx = tc.index as number;
-                    if (!toolCalls[idx]) toolCalls[idx] = {id: tc.id ?? "", type: "function", function: {name: "", arguments: ""}};
-                    if (tc.id) toolCalls[idx].id = tc.id;
-                    if (tc.function?.name) toolCalls[idx].function.name = tc.function.name;
-                    if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
-                }
-            }
-        }
+        if (content) send("chat-delta", {text: content});
 
         if (toolCalls.length === 0) {
             send("chat-done", {});
@@ -230,6 +212,18 @@ async function runAgent(history: ChatCompletionMessageParam[], reqId: string): P
     send("chat-done", {});
 }
 
+// Ensure only one instance runs
+if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    process.exit(0);
+}
+app.on("second-instance", () => {
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+    }
+});
+
 app.whenReady().then(() => {
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
@@ -245,6 +239,25 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle("weather", () => getWeather());
+
+    ipcMain.handle("transcribe", async (_e, audioBuffer: ArrayBuffer) => {
+        try {
+            const buffer = Buffer.from(audioBuffer);
+            const tmpPath = path.join(os.tmpdir(), `jarvis-audio-${Date.now()}.webm`);
+            const fs = await import("fs");
+            fs.writeFileSync(tmpPath, buffer);
+            const result = await groq.audio.transcriptions.create({
+                file: Object.assign(fs.createReadStream(tmpPath), {name: "audio.webm"}),
+                model: "whisper-large-v3-turbo",
+                language: "tr",
+                response_format: "json",
+            });
+            fs.unlinkSync(tmpPath);
+            return {text: result.text};
+        } catch (e) {
+            return {error: (e as Error).message ?? String(e)};
+        }
+    });
 
     ipcMain.on("win-minimize", () => mainWindow?.minimize());
     ipcMain.on("win-close", () => mainWindow?.close());

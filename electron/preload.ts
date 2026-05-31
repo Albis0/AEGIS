@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld("jarvis", {
 
     weather: () => ipcRenderer.invoke("weather"),
 
+    // Transcribe audio buffer via Groq Whisper; returns { text: string } or { error: string }
+    transcribe: (audioBuffer: ArrayBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
+
     minimize: () => ipcRenderer.send("win-minimize"),
     maximize: () => ipcRenderer.send("win-maximize"),
     fullscreen: () => ipcRenderer.send("win-fullscreen"),
