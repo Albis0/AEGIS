@@ -113,7 +113,7 @@ export default function App() {
             }
             if (e.key === "Escape") {
                 stopSpeaking();
-                setState((s) => (s === "speaking" ? "idle" : s));
+                setState(modeRef.current !== "off" ? "listening" : "idle");
             }
         };
         window.addEventListener("keydown", onKey);
@@ -176,7 +176,8 @@ export default function App() {
                 });
                 if (responseText && modeRef.current !== "off") {
                     stopSpeaking();
-                    speak(responseText);
+                    setState("speaking");
+                    speak(responseText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
                 }
             }),
         ];
@@ -436,7 +437,7 @@ export default function App() {
                     />
                     {state === "speaking" && (
                         <button
-                            onClick={() => { stopSpeaking(); setState("idle"); }}
+                            onClick={() => { stopSpeaking(); setState(modeRef.current !== "off" ? "listening" : "idle"); }}
                             className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125 flick"
                             style={{fontFamily: "Orbitron, sans-serif", color: "rgb(248,120,120)", borderColor: "rgba(248,120,120,0.4)", background: "rgba(248,120,120,0.08)"}}
                         >
