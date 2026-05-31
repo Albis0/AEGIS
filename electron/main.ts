@@ -9,7 +9,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
-import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries} from "./db";
+import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
@@ -394,15 +394,25 @@ app.whenReady().then(async () => {
     registerQuitCallback(() => app.quit());
     await startSession().catch(() => {});
 
-    // Load previous session summaries into system prompt context
+    // Load previous session summaries + pending reminders into system prompt context
     try {
-        const summaries = await getRecentSummaries(5);
+        const [summaries, notes] = await Promise.all([getRecentSummaries(5), getPendingNotes()]);
+
         if (summaries.length > 0) {
             const lines = summaries.map((s) => {
                 const date = s.ended_at ? new Date(s.ended_at).toLocaleDateString("tr-TR") : "?";
                 return `- ${date}: ${s.summary}`;
             }).join("\n");
             memorySummaries = `\n\nÖNCEKİ OTURUMLAR (hafıza):\n${lines}`;
+        }
+
+        const dueNotes = notes.filter((n) => {
+            if (!n.remind_at) return false;
+            return new Date(n.remind_at) <= new Date();
+        });
+        if (dueNotes.length > 0) {
+            const noteLines = dueNotes.map((n) => `- [${n.id.slice(0, 8)}] ${n.content}`).join("\n");
+            memorySummaries += `\n\nBEKLEYEN HATIRLATICILAR (kullanıcıya bildir):\n${noteLines}`;
         }
     } catch {}
 

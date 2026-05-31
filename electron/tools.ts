@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
+import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 
 type ToolResult = string;
 
@@ -104,6 +105,67 @@ export const toolSchemas: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "set_profile",
+            description: "Kullanıcı hakkında bir bilgi kaydet. Örn: isim, meslek, tercihler, alışkanlıklar.",
+            parameters: {
+                type: "object",
+                properties: {
+                    key: {type: "string", description: "Bilgi anahtarı (örn: 'isim', 'meslek', 'kahve_tercihi')"},
+                    value: {type: "string", description: "Bilgi değeri"},
+                },
+                required: ["key", "value"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_profile",
+            description: "Kaydedilmiş kullanıcı bilgilerini getir.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "save_note",
+            description: "Bir not veya hatırlatıcı kaydet. Tarih/saat belirtilirse o zaman hatırlatır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    content: {type: "string", description: "Not içeriği"},
+                    remind_at: {type: "string", description: "ISO 8601 tarih/saat (opsiyonel, örn: '2026-06-01T09:00:00')"},
+                },
+                required: ["content"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_notes",
+            description: "Bekleyen notları ve hatırlatıcıları listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "done_note",
+            description: "Bir notu tamamlandı olarak işaretle.",
+            parameters: {
+                type: "object",
+                properties: {id: {type: "string", description: "Not ID'si"}},
+                required: ["id"],
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 // Sadece geri alınamaz sistem yıkımı — process öldürme, uygulama kapatma SERBEST
@@ -167,6 +229,29 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         } catch (e) {
             return `HATA: ${(e as Error).message}`;
         }
+    },
+    async set_profile({key, value}) {
+        await setUserProfile(key, value);
+        return `Kaydedildi: ${key} = ${value}`;
+    },
+    async get_profile() {
+        const profile = await getUserProfile();
+        if (Object.keys(profile).length === 0) return "Henüz kayıtlı bilgi yok.";
+        return Object.entries(profile).map(([k, v]) => `${k}: ${v}`).join("\n");
+    },
+    async save_note({content, remind_at}) {
+        const remindDate = remind_at ? new Date(remind_at) : undefined;
+        await saveNote(content, remindDate);
+        return remind_at ? `Not kaydedildi. Hatırlatma: ${remind_at}` : `Not kaydedildi.`;
+    },
+    async list_notes() {
+        const notes = await getPendingNotes();
+        if (notes.length === 0) return "Bekleyen not yok.";
+        return notes.map((n) => `[${n.id.slice(0, 8)}] ${n.content}${n.remind_at ? ` (${n.remind_at})` : ""}`).join("\n");
+    },
+    async done_note({id}) {
+        await markNoteDone(id);
+        return `Not tamamlandı: ${id}`;
     },
     async web_search({query}) {
         // Fallback zinciri: Tavily → Serper → DuckDuckGo
