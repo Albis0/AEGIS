@@ -32,6 +32,14 @@ export const toolSchemas: ChatCompletionTool[] = [
     {
         type: "function",
         function: {
+            name: "quit_self",
+            description: "AEGIS uygulamasını kapat. Kullanıcı 'kendini kapat', 'uygulamayı kapat', 'çık' gibi bir şey dediğinde kullan.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "run_command",
             description: "Windows PowerShell komutu çalıştır.",
             parameters: {
@@ -109,6 +117,9 @@ const SYSTEM_DESTROY_PATTERNS: {pattern: RegExp; reason: string}[] = [
     {pattern: /Remove-Item.*-Recurse.*[A-Za-z]:\\/i, reason: "Toplu dosya/klasör silmek geri alınamaz."},
 ];
 
+let _quitCallback: (() => void) | null = null;
+export function registerQuitCallback(cb: () => void): void { _quitCallback = cb; }
+
 function isDangerous(command: string): string | null {
     for (const {pattern, reason} of SYSTEM_DESTROY_PATTERNS) {
         if (pattern.test(command)) return reason;
@@ -117,6 +128,10 @@ function isDangerous(command: string): string | null {
 }
 
 const executors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {
+    async quit_self() {
+        setTimeout(() => _quitCallback?.(), 500);
+        return "Uygulama kapatılıyor…";
+    },
     async run_command({command}) {
         const danger = isDangerous(command);
         if (danger) {

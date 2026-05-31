@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {toolSchemas, executeTool} from "./tools";
+import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile} from "./db";
@@ -354,6 +354,7 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+    registerQuitCallback(() => app.quit());
     await startSession().catch(() => {});
 
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
