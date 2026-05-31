@@ -1,11 +1,12 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const {app, shell, BrowserWindow, ipcMain} = require("electron");
-const path = require("path");
-const os = require("os");
-const {exec} = require("child_process");
-const dotenv = require("dotenv");
-const Groq = require("groq-sdk");
-const {toolSchemas, executeTool} = require("./tools");
+import {app, shell, BrowserWindow, ipcMain} from "electron";
+import * as path from "path";
+import * as os from "os";
+import {exec} from "child_process";
+import * as dotenv from "dotenv";
+// @ts-ignore — groq-sdk has no bundled types for CJS default import
+import Groq from "groq-sdk";
+import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
+import {toolSchemas, executeTool} from "./tools";
 
 dotenv.config({path: path.join(__dirname, "../.env")});
 
@@ -20,9 +21,9 @@ Bir şey yapman istendiğinde önce uzun uzun konuşma — doğrudan aracı ça�
 Komutlar için PowerShell sözdizimi kullan. Yıkıcı/geri dönüşü olmayan işlemlerde önce kullanıcıyı uyar.
 Kullanıcıya "efendim" diye hitap edebilirsin ama abartma.`;
 
-let mainWindow: any = null;
+let mainWindow: BrowserWindow | null = null;
 
-function createWindow() {
+function createWindow(): void {
     mainWindow = new BrowserWindow({
         width: 1100,
         height: 760,
@@ -41,7 +42,7 @@ function createWindow() {
         },
     });
 
-    mainWindow.webContents.setWindowOpenHandler(({url}: {url: string}) => {
+    mainWindow.webContents.setWindowOpenHandler(({url}) => {
         shell.openExternal(url);
         return {action: "deny"};
     });
@@ -55,8 +56,9 @@ function createWindow() {
     }
 }
 
-// ---- System telemetry (CPU/RAM) pushed to the HUD ----
+// ---- System telemetry ----
 let lastCpu = os.cpus();
+
 function cpuUsage(): number {
     const now = os.cpus();
     let idleDiff = 0;
@@ -74,49 +76,46 @@ function cpuUsage(): number {
     return Math.min(100, Math.max(0, Math.round((1 - idleDiff / totalDiff) * 100)));
 }
 
-// Disk usage (system drive) via PowerShell — refreshed occasionally, cached.
 let diskPct = 0;
-function refreshDisk() {
-    const drive = (process.env.SystemDrive || "C:").replace(/\\$/, "");
+function refreshDisk(): void {
+    const drive = (process.env.SystemDrive ?? "C:").replace(/\\$/, "");
     exec(
         `powershell -NoProfile -Command "$d=Get-PSDrive ${drive.replace(":", "")} -ErrorAction SilentlyContinue; if($d){[math]::Round($d.Used/($d.Used+$d.Free)*100)}"`,
         {windowsHide: true, timeout: 8000},
-        (_e: any, stdout: string) => {
-            const n = parseInt((stdout || "").trim(), 10);
+        (_e, stdout) => {
+            const n = parseInt((stdout ?? "").trim(), 10);
             if (!isNaN(n)) diskPct = n;
         }
     );
 }
 
-// Battery via PowerShell WMI (N/A on desktops).
 let battery: number | null = null;
-function refreshBattery() {
+function refreshBattery(): void {
     exec(
         `powershell -NoProfile -Command "(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).EstimatedChargeRemaining"`,
         {windowsHide: true, timeout: 8000},
-        (_e: any, stdout: string) => {
-            const n = parseInt((stdout || "").trim(), 10);
+        (_e, stdout) => {
+            const n = parseInt((stdout ?? "").trim(), 10);
             battery = isNaN(n) ? null : n;
         }
     );
 }
 
-// Network throughput from os network counters is not available; estimate via PowerShell perf counters.
 let netUp = 0;
 let netDown = 0;
-function refreshNetwork() {
+function refreshNetwork(): void {
     exec(
         `powershell -NoProfile -Command "$s=Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | Measure-Object -Property BytesSentPersec,BytesReceivedPersec -Sum; ''+($s | Where-Object{$_.Property -eq 'BytesSentPersec'}).Sum+'|'+($s | Where-Object{$_.Property -eq 'BytesReceivedPersec'}).Sum"`,
         {windowsHide: true, timeout: 8000},
-        (_e: any, stdout: string) => {
-            const [up, down] = (stdout || "").trim().split("|").map((x) => parseInt(x, 10));
+        (_e, stdout) => {
+            const [up, down] = (stdout ?? "").trim().split("|").map((x) => parseInt(x, 10));
             if (!isNaN(up)) netUp = up;
             if (!isNaN(down)) netDown = down;
         }
     );
 }
 
-function startTelemetry() {
+function startTelemetry(): void {
     refreshDisk();
     refreshBattery();
     refreshNetwork();
@@ -142,15 +141,15 @@ function startTelemetry() {
     }, 1500);
 }
 
-// ---- Weather (free, no key) via open-meteo + ip geolocation ----
-async function getWeather() {
+// ---- Weather ----
+async function getWeather(): Promise<object> {
     try {
-        const geo: any = await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json();
-        const w: any = await (
+        const geo = await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json() as {city: string; country: string; lat: number; lon: number};
+        const w = await (
             await fetch(
                 `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`
             )
-        ).json();
+        ).json() as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number}};
         const c = w.current;
         const CODES: Record<number, string> = {
             0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
@@ -166,15 +165,15 @@ async function getWeather() {
             humidity: c.relative_humidity_2m,
             desc: CODES[c.weather_code] ?? "—",
         };
-    } catch (e: any) {
-        return {error: e.message || String(e)};
+    } catch (e) {
+        return {error: (e as Error).message ?? String(e)};
     }
 }
 
 // ---- Agentic streaming chat ----
-async function runAgent(history: any[], reqId: string): Promise<void> {
-    const messages: any[] = [{role: "system", content: SYSTEM_PROMPT}, ...history];
-    const send = (channel: string, payload: any) => {
+async function runAgent(history: ChatCompletionMessageParam[], reqId: string): Promise<void> {
+    const messages: ChatCompletionMessageParam[] = [{role: "system", content: SYSTEM_PROMPT}, ...history];
+    const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
     };
 
@@ -188,7 +187,7 @@ async function runAgent(history: any[], reqId: string): Promise<void> {
         });
 
         let content = "";
-        const toolCalls: any[] = [];
+        const toolCalls: {id: string; type: "function"; function: {name: string; arguments: string}}[] = [];
 
         for await (const chunk of stream) {
             const delta = chunk.choices[0]?.delta;
@@ -201,8 +200,8 @@ async function runAgent(history: any[], reqId: string): Promise<void> {
 
             if (delta.tool_calls) {
                 for (const tc of delta.tool_calls) {
-                    const idx = tc.index;
-                    if (!toolCalls[idx]) toolCalls[idx] = {id: tc.id, type: "function", function: {name: "", arguments: ""}};
+                    const idx = tc.index as number;
+                    if (!toolCalls[idx]) toolCalls[idx] = {id: tc.id ?? "", type: "function", function: {name: "", arguments: ""}};
                     if (tc.id) toolCalls[idx].id = tc.id;
                     if (tc.function?.name) toolCalls[idx].function.name = tc.function.name;
                     if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
@@ -215,8 +214,7 @@ async function runAgent(history: any[], reqId: string): Promise<void> {
             return;
         }
 
-        // The assistant turn that requested tools
-        messages.push({role: "assistant", content: content || null, tool_calls: toolCalls});
+        messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as unknown as ChatCompletionMessageParam);
 
         for (const call of toolCalls) {
             const name = call.function.name;
@@ -233,29 +231,26 @@ async function runAgent(history: any[], reqId: string): Promise<void> {
 }
 
 app.whenReady().then(() => {
-    ipcMain.on("chat-stream", async (_e: unknown, {messages, reqId}: {messages: any[]; reqId: string}) => {
+    ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
             await runAgent(messages, reqId);
-        } catch (e: any) {
+        } catch (e) {
+            const msg = (e as Error).message ?? String(e);
             if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("chat-error", {reqId, message: e.message || String(e)});
-                mainWindow.webContents.send("chat-delta", {reqId, text: `\n\n[Sistem hatası: ${e.message || e}]`});
+                mainWindow.webContents.send("chat-error", {reqId, message: msg});
+                mainWindow.webContents.send("chat-delta", {reqId, text: `\n\n[Sistem hatası: ${msg}]`});
                 mainWindow.webContents.send("chat-done", {reqId});
             }
         }
     });
 
-    // Weather (invoke/return)
     ipcMain.handle("weather", () => getWeather());
 
-    // Window controls (custom frame)
     ipcMain.on("win-minimize", () => mainWindow?.minimize());
     ipcMain.on("win-close", () => mainWindow?.close());
     ipcMain.on("win-fullscreen", () => {
         if (!mainWindow) return;
-        const fs = !mainWindow.isFullScreen();
-        mainWindow.setFullScreen(fs);
-        mainWindow.webContents.send("fullscreen-changed", fs);
+        mainWindow.setFullScreen(!mainWindow.isFullScreen());
     });
     ipcMain.on("win-maximize", () => {
         if (!mainWindow) return;
