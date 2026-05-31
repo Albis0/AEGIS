@@ -134,21 +134,20 @@
 
 ---
 
-## Faz 7 — Web & İletişim 🌐
+## Faz 7 — Web & İletişim 🌐 ✅
 
-### 7.1 Web İçerik Okuma
-- [ ] URL ver → sayfa içeriğini çek ve özetle
-- [ ] "Bu haberi özetle", "Şu sayfada ne yazıyor?"
-- [ ] RSS feed takibi
+### 7.1 Web İçerik Okuma ✅
+- ✅ `fetch_url` tool: URL ver → sayfa HTML'ini çek, düz metne dönüştür, özetle
+- ✅ "Bu haberi özetle", "Şu sayfada ne yazıyor?" soruları çalışır
+- ✅ 12sn timeout, redirect takibi, HTML tag sıyırma
 
-### 7.2 Bildirim Sistemi
-- [ ] Windows toast bildirimleri
-- [ ] Görev bitince / hata olunca bildirim
-- [ ] AEGIS kapalıyken de bildirim (background service)
+### 7.2 Bildirim Sistemi ✅
+- ✅ `show_notification`: Electron Notification API ile Windows toast bildirimi
+- ✅ "Bildirim gönder başlık: X mesaj: Y" komutu çalışır
+- [ ] AEGIS kapalıyken bildirim (background service) — Faz 10 kapsamı
 
 ### 7.3 Email & Takvim *(opsiyonel)*
-- [ ] Gmail / Outlook entegrasyonu
-- [ ] "Bugün toplantım var mı?", "Şuna mail at"
+- [ ] Gmail / Outlook entegrasyonu — OAuth gerektiriyor, ileride
 
 ---
 
@@ -158,25 +157,27 @@
 - ✅ ESC tuşu veya ⏹ DURDUR butonu ile TTS kesilir
 - ✅ Kesince mic otomatik açılır, dinlemeye geçer
 
-### 8.2 Chat Geçmişi UI
-- [ ] Session bazlı konuşma listesi (sidebar)
-- [ ] Geçmiş konuşmayı aç, devam et
-- [ ] Konuşmayı dışa aktar (MD / TXT)
+### 8.2 Chat Geçmişi UI ✅
+- ✅ Session bazlı konuşma listesi (◷ butonu → slide-in sidebar)
+- ✅ Geçmiş konuşmayı aç, "DEVAM ET" ile historyRef'e yükle
+- ✅ "DIŞA AKTAR" ile .md dosyası olarak indir
 
-### 8.3 Command Palette
-- [ ] `Ctrl+Space` ile hızlı komut çubuğu
-- [ ] `/screenshot`, `/note`, `/profil` slash komutları
-- [ ] Araç sonuçları görselleştirme: dosya ağacı, arama kartları, sparkline
+### 8.3 Command Palette ✅
+- ✅ `Ctrl+Space` ile hızlı komut paleti (HologramSkin'de)
+- ✅ 19 built-in komut, arama/filtreleme, ↑↓ klavye navigasyonu
+- ✅ ANLIK (direkt gönder) / DÜZENLE (input'a yaz) modları
 
 ---
 
-## Faz 9 — Plugin Sistemi 🔌
+## Faz 9 — Plugin Sistemi 🔌 ✅
 *Uzun vadeli genişleme katmanı.*
 
-### 9.1 Dinamik Tool Yükleme
-- [ ] `~/.aegis/plugins/` klasöründen tool'ları yükle
-- [ ] Her plugin: `manifest.json` + `tool.ts`
-- [ ] Yeniden derleme gerektirmesin
+### 9.1 Dinamik Tool Yükleme ✅
+- ✅ `~/.aegis/plugins/<name>/` klasöründen otomatik yükle
+- ✅ Her plugin: `manifest.json` (şema) + `index.js` (executor)
+- ✅ Yeniden derleme gerektirmez — runtime `require()` ile yüklenir
+- ✅ `list_plugins` / `reload_plugins` tool'ları: AEGIS'e "plugin'leri listele" diyerek yönet
+- ✅ `require.cache` temizlenerek hot-reload desteklenir
 
 ### 9.2 Hazır Plugin'ler
 - [ ] **Spotify** — çal, durdur, atla, ne çalıyor
@@ -195,8 +196,10 @@
 ✅  Faz 4    Dil desteği             ← TAMAMLANDI
 ✅  Faz 5    Görme & ekran           ← TAMAMLANDI
 ✅  Faz 6    Sistem kontrolü         ← TAMAMLANDI
-3.  Faz 7    Web & iletişim          ← genişleme
-7.  Faz 8.2  Chat geçmişi UI         ← session listesi
-8.  Faz 8.3  Command palette         ← hız & polish
-9.  Faz 9    Plugin sistemi          ← uzun vadeli
+✅  Faz 7    Web & iletişim          ← TAMAMLANDI
+✅  Faz 8.1  Sözünü kesme            ← TAMAMLANDI
+✅  Faz 8.2  Chat geçmişi UI         ← TAMAMLANDI
+✅  Faz 8.3  Command palette         ← TAMAMLANDI
+✅  Faz 9    Plugin sistemi          ← TAMAMLANDI
+    Faz 10   Gelişmiş bildirimler    ← sıradaki
 ```

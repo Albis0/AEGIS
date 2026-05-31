@@ -97,3 +97,21 @@ export async function getUserProfile(): Promise<Record<string, string>> {
     for (const row of data ?? []) profile[(row as { key: string; value: string }).key] = (row as { key: string; value: string }).value
     return profile
 }
+
+export async function getSessions(limit = 20): Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]> {
+    const {data} = await db()
+        .from("sessions")
+        .select("id, summary, ended_at, created_at")
+        .order("created_at", {ascending: false})
+        .limit(limit);
+    return (data ?? []) as {id: string; summary: string | null; ended_at: string | null; created_at: string}[];
+}
+
+export async function getSessionMessages(sessionId: string): Promise<{role: string; content: string; tool_name: string | null; created_at: string}[]> {
+    const {data} = await db()
+        .from("messages")
+        .select("role, content, tool_name, created_at")
+        .eq("session_id", sessionId)
+        .order("created_at", {ascending: true});
+    return (data ?? []) as {role: string; content: string; tool_name: string | null; created_at: string}[];
+}

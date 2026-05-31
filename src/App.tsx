@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import type {CoreState} from "./components/ArcReactor";
 import SettingsPanel from "./components/SettingsPanel";
+import ChatHistorySidebar from "./components/ChatHistorySidebar";
+import CommandPalette from "./components/CommandPalette";
 import {useVoice, type VoiceMode} from "./hooks/useVoice";
 import type {Telemetry, Weather, AppSettings} from "./electron.d";
 import HologramSkin from "./components/skins/HologramSkin";
@@ -74,6 +76,8 @@ export default function App() {
     const [tel, setTel] = useState<Telemetry | null>(null);
     const [weather, setWeather] = useState<Weather | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [paletteOpen, setPaletteOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
@@ -144,6 +148,7 @@ export default function App() {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "F11") { e.preventDefault(); window.jarvis.fullscreen(); }
             if (e.key === "Escape") { stopSpeaking(); setState(modeRef.current !== "off" ? "listening" : "idle"); }
+            if (e.ctrlKey && e.key === " ") { e.preventDefault(); if (!isBusyRef.current) setPaletteOpen(true); return; }
             if (e.key === "m" || e.key === "M") {
                 if (document.activeElement?.tagName === "INPUT") return;
                 const next: VoiceMode = modeRef.current === "off" ? "always-on" : modeRef.current === "always-on" ? "wake-word" : "off";
@@ -239,6 +244,21 @@ export default function App() {
         });
     }, []);
 
+    const handleHistoryOpen = useCallback(() => setHistoryOpen(true), []);
+
+    const handleLoadSession = useCallback((messages: {role: string; content: string}[]) => {
+        historyRef.current = messages as LLMMsg[];
+        const newFeed: FeedItem[] = messages.map((m) => {
+            if (m.role === "user") return {id: uid(), kind: "user" as const, text: m.content};
+            return {id: uid(), kind: "assistant" as const, text: m.content, tools: []};
+        });
+        setFeed(newFeed);
+    }, []);
+
+    const handlePaletteSelect = useCallback((text: string, direct: boolean) => {
+        if (direct) { sendText(text); } else { setInput(text); }
+    }, [sendText]);
+
     const handleSettingsClose = () => {
         setSettingsOpen(false);
         window.jarvis.settingsGet().then((s) => {
@@ -262,10 +282,11 @@ export default function App() {
         feed, input, setInput, state, streaming, tel, weather,
         mode, setMode, listening, activated, capturing, placeholder,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
+        onHistoryOpen: handleHistoryOpen,
         feedRef, layout,
     }), [feed, input, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
-        send, handleStop, handleSettingsOpen, layout]);
+        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout]);
 
     return (
         <>
@@ -277,6 +298,16 @@ export default function App() {
                 onFontChange={(f) => { applyFont(f); }}
                 onLayoutChange={setLayout}
                 onCustomCssChange={applyCustomCss}
+            />
+            <ChatHistorySidebar
+                open={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+                onLoadSession={handleLoadSession}
+            />
+            <CommandPalette
+                open={paletteOpen}
+                onClose={() => setPaletteOpen(false)}
+                onSelect={handlePaletteSelect}
             />
             {skin === "minimal"   ? <MinimalSkin   {...skinProps} /> :
              skin === "terminal"  ? <TerminalSkin  {...skinProps} /> :

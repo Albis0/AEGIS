@@ -1,4 +1,4 @@
-import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen} from "electron";
+import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification} from "electron";
 import * as path from "path";
 import * as os from "os";
 import {exec} from "child_process";
@@ -6,7 +6,9 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback} from "./tools";
+import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback} from "./tools";
+import {loadPlugins} from "./plugins";
+import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
@@ -399,11 +401,13 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const provider = currentSettings.aiProvider;
     const key = (provider === "groq") ? (process.env.GROQ_API_KEY ?? "") : currentSettings.aiApiKey;
 
+    const activeSchemas = getAllToolSchemas();
+
     if (provider === "groq") {
         const stream = await groq.chat.completions.create({
             model: MODEL,
             messages: messages as ChatCompletionMessageParam[],
-            tools: toolSchemas,
+            tools: activeSchemas,
             stream: true,
         });
         let fullContent = "";
@@ -440,7 +444,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             max_tokens: 4096,
             system,
             messages: turns.map((m) => ({role: m.role === "tool" ? "user" : m.role, content: m.role === "tool" ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: m.content}] : m.content ?? ""})),
-            tools: toolSchemas.map((t) => ({name: t.function?.name, description: t.function?.description, input_schema: t.function?.parameters})),
+            tools: activeSchemas.map((t) => ({name: t.function?.name, description: t.function?.description, input_schema: t.function?.parameters})),
         };
         const resp = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -465,7 +469,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             resp = await fetch(ollamaUrl, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({model: MODEL, messages, tools: toolSchemas, stream: false}),
+                body: JSON.stringify({model: MODEL, messages, tools: activeSchemas, stream: false}),
             });
         } catch {
             throw new Error("Ollama bağlantı hatası. Ollama çalışıyor mu? (ollama serve)");
@@ -486,7 +490,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const resp = await fetch(url, {
         method: "POST",
         headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
-        body: JSON.stringify({model: MODEL, messages, tools: toolSchemas, stream: false}),
+        body: JSON.stringify({model: MODEL, messages, tools: activeSchemas, stream: false}),
     });
     if (!resp.ok) throw new Error(`${provider} ${resp.status}: ${await resp.text()}`);
     return await resp.json() as OAICompletion;
@@ -600,6 +604,15 @@ const LANG_DEFAULT_VOICE: Record<string, string> = {
     es: "es-ES-ElviraNeural",
 };
 
+function activatePlugins(): string {
+    const {schemas, executors, plugins} = loadPlugins();
+    extraSchemas.length = 0;
+    extraSchemas.push(...schemas);
+    registerPluginExecutors(executors);
+    setPluginList(plugins);
+    return `${plugins.length} plugin yüklendi.`;
+}
+
 async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
 
@@ -608,6 +621,15 @@ async function bootApp(): Promise<void> {
             mainWindow.webContents.send("reminder-fired", {message});
         }
     });
+
+    registerNotificationCallback((title, body) => {
+        if (ElectronNotification.isSupported()) {
+            new ElectronNotification({title, body}).show();
+        }
+    });
+
+    activatePlugins();
+    registerReloadPluginsCallback(async () => activatePlugins());
 
     registerScreenshotCallback(async () => {
         try {
@@ -815,6 +837,11 @@ async function bootApp(): Promise<void> {
         }
         return currentSettings;
     });
+
+    ipcMain.handle("sessions-list", async () => getSessions(25).catch(() => []));
+    ipcMain.handle("session-messages", async (_e, {sessionId}: {sessionId: string}) =>
+        getSessionMessages(sessionId).catch(() => []),
+    );
 
     ipcMain.on("win-minimize", () => mainWindow?.minimize());
     ipcMain.on("win-close", () => mainWindow?.close());

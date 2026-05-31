@@ -321,6 +321,53 @@ export const toolSchemas: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "fetch_url",
+            description: "Bir web sayfasının içeriğini getir ve düz metin olarak döndür. 'Bu sayfada ne yazıyor?', 'URL'yi oku', 'Haberi özetle' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {type: "string", description: "Okunacak web sayfasının URL'si (örn: https://example.com)"},
+                },
+                required: ["url"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "show_notification",
+            description: "Windows'ta sistem bildirim balonu göster. 'Bildirim gönder', 'Bana bildir', 'Toast bildirim' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    title: {type: "string", description: "Bildirim başlığı"},
+                    body: {type: "string", description: "Bildirim içeriği / mesaj"},
+                },
+                required: ["title", "body"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_plugins",
+            description: "Yüklü plugin'leri ve sağladıkları araçları listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "reload_plugins",
+            description: "Plugin'leri ~/.aegis/plugins/ klasöründen yeniden yükle. Yeni plugin eklendikten sonra kullan.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
 ];
 
 // Sadece geri alınamaz sistem yıkımı — process öldürme, uygulama kapatma SERBEST
@@ -349,6 +396,25 @@ export function registerAnalyzeScreenCallback(cb: typeof _analyzeScreenCallback)
 
 let _remindCallback: ((message: string) => void) | null = null;
 export function registerRemindCallback(cb: (message: string) => void): void { _remindCallback = cb; }
+
+let _notificationCallback: ((title: string, body: string) => void) | null = null;
+export function registerNotificationCallback(cb: (title: string, body: string) => void): void { _notificationCallback = cb; }
+
+// Plugin infrastructure — populated by main.ts after loadPlugins()
+const _pluginExecutors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {};
+export function registerPluginExecutors(executors: Record<string, (args: Record<string, unknown>) => Promise<string>>): void {
+    for (const key of Object.keys(_pluginExecutors)) delete _pluginExecutors[key];
+    Object.assign(_pluginExecutors, executors);
+}
+
+export const extraSchemas: ChatCompletionTool[] = [];
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...extraSchemas]; }
+
+let _pluginList: {name: string; tools: string[]}[] = [];
+export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
+
+let _reloadPluginsCallback: (() => Promise<string>) | null = null;
+export function registerReloadPluginsCallback(cb: () => Promise<string>): void { _reloadPluginsCallback = cb; }
 
 function runScript(content: string, timeoutMs = 15000): Promise<ToolResult> {
     const tmpPath = path.join(os.tmpdir(), `aegis-${Date.now()}.ps1`);
@@ -538,6 +604,44 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         _setLanguageCallback?.(language);
         return `Language switched to ${language}.`;
     },
+    async fetch_url({url}) {
+        try { new URL(url); } catch { return "HATA: Geçersiz URL."; }
+        try {
+            const ac = new AbortController();
+            const tid = setTimeout(() => ac.abort(), 12000);
+            const resp = await fetch(url, {
+                headers: {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+                signal: ac.signal,
+                redirect: "follow",
+            } as RequestInit & {redirect: string}).finally(() => clearTimeout(tid));
+            if (!resp.ok) return `HATA: HTTP ${resp.status} — ${url}`;
+            const html = await resp.text();
+            const text = html
+                .replace(/<script[\s\S]*?<\/script>/gi, " ")
+                .replace(/<style[\s\S]*?<\/style>/gi, " ")
+                .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                .replace(/\s+/g, " ").trim();
+            return text.slice(0, 6000) + (text.length > 6000 ? "\n…(kısaltıldı, ilk 6000 karakter)" : "");
+        } catch (e) {
+            return `HATA: ${(e as Error).message}`;
+        }
+    },
+    async show_notification({title, body}) {
+        if (!_notificationCallback) return "HATA: Bildirim callback kayıtlı değil.";
+        _notificationCallback(title || "AEGIS", body || "");
+        return `Bildirim gösterildi: "${title}"`;
+    },
+    async list_plugins() {
+        if (_pluginList.length === 0) return "Yüklü plugin yok. ~/.aegis/plugins/ klasörüne ekleyebilirsiniz.";
+        return _pluginList.map((p) => `• ${p.name}: ${p.tools.join(", ")}`).join("\n");
+    },
+    async reload_plugins() {
+        if (!_reloadPluginsCallback) return "HATA: Plugin reload callback kayıtlı değil.";
+        return await _reloadPluginsCallback();
+    },
     async web_search({query}) {
         // Fallback zinciri: Tavily → Serper → DuckDuckGo
         const formatResults = (source: string, results: {title: string; url: string; content?: string}[], answer?: string) => {
@@ -608,7 +712,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
 };
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
-    const fn = executors[name];
+    const fn = executors[name] ?? _pluginExecutors[name];
     if (!fn) return `HATA: bilinmeyen araç "${name}"`;
     let args: Record<string, string> = {};
     try {

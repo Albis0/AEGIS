@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("jarvis", {
 
     screenshot: () => ipcRenderer.invoke("screenshot"),
 
+    sessionsList: () => ipcRenderer.invoke("sessions-list"),
+    sessionMessages: (sessionId: string) => ipcRenderer.invoke("session-messages", {sessionId}),
+
     minimize: () => ipcRenderer.send("win-minimize"),
     maximize: () => ipcRenderer.send("win-maximize"),
     fullscreen: () => ipcRenderer.send("win-fullscreen"),

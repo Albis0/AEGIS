@@ -34,6 +34,7 @@ export interface SkinProps {
     onSend: () => void;
     onStop: () => void;
     onSettingsOpen: () => void;
+    onHistoryOpen?: () => void;
     feedRef: React.RefObject<HTMLDivElement>;
     layout: "normal" | "compact";
 }
@@ -41,7 +42,7 @@ export interface SkinProps {
 export default function HologramSkin({
     feed, input, setInput, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
-    onSend, onStop, onSettingsOpen, feedRef, layout,
+    onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, layout,
 }: SkinProps) {
     const compact = layout === "compact";
     const active = (s: CoreState) => s !== "idle";
@@ -66,6 +67,9 @@ export default function HologramSkin({
                     </span>
                 </div>
                 <div className="no-drag flex gap-1">
+                    {onHistoryOpen && (
+                        <button onClick={onHistoryOpen} title="Konuşma geçmişi" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>◷</button>
+                    )}
                     <button onClick={onSettingsOpen} title="Ayarlar" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
                     <button onClick={() => window.jarvis.minimize()} title="Küçült" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>─</button>
                     <button onClick={() => window.jarvis.maximize()} title="Büyüt" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>▢</button>

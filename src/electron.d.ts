@@ -76,6 +76,9 @@ declare global {
             configGet: () => Promise<AegisConfig>;
             configSet: (patch: Partial<AegisConfig>) => Promise<void>;
             setupSave: (config: AegisConfig) => Promise<void>;
+            screenshot: () => Promise<void>;
+            sessionsList: () => Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]>;
+            sessionMessages: (sessionId: string) => Promise<{role: string; content: string; tool_name: string | null; created_at: string}[]>;
             minimize: () => void;
             maximize: () => void;
             fullscreen: () => void;
