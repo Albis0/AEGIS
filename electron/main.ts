@@ -11,10 +11,16 @@ import {toolSchemas, executeTool, registerQuitCallback} from "./tools";
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
+import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 
+// .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
 
-const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
+// config.json varsa env'yi override et
+const savedConfig = loadConfig();
+if (savedConfig) applyConfig(savedConfig);
+
+let groq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
 let currentSettings = loadSettings();
 let MODEL = currentSettings.model;
 
@@ -392,14 +398,13 @@ async function summarizeAndSave(): Promise<void> {
     }
 }
 
-app.whenReady().then(async () => {
+async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
     await startSession().catch(() => {});
 
     // Load previous session summaries + pending reminders into system prompt context
     try {
         const [summaries, notes] = await Promise.all([getRecentSummaries(5), getPendingNotes()]);
-
         if (summaries.length > 0) {
             const lines = summaries.map((s) => {
                 const date = s.ended_at ? new Date(s.ended_at).toLocaleDateString("tr-TR") : "?";
@@ -407,21 +412,15 @@ app.whenReady().then(async () => {
             }).join("\n");
             memorySummaries = `\n\nÖNCEKİ OTURUMLAR (hafıza):\n${lines}`;
         }
-
-        const dueNotes = notes.filter((n) => {
-            if (!n.remind_at) return false;
-            return new Date(n.remind_at) <= new Date();
-        });
+        const dueNotes = notes.filter((n) => n.remind_at && new Date(n.remind_at) <= new Date());
         if (dueNotes.length > 0) {
             const noteLines = dueNotes.map((n) => `- [${n.id.slice(0, 8)}] ${n.content}`).join("\n");
             memorySummaries += `\n\nBEKLEYEN HATIRLATICILAR (kullanıcıya bildir):\n${noteLines}`;
         }
     } catch {}
 
-
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: ChatCompletionMessageParam[]; reqId: string}) => {
         try {
-            // Save the last user message
             const last = messages[messages.length - 1];
             if (last?.role === "user" && typeof last.content === "string") {
                 await saveMessage("user", last.content).catch(() => {});
@@ -498,9 +497,60 @@ app.whenReady().then(async () => {
 
     createWindow();
     startTelemetry();
-    app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+}
+
+function createSetupWindow(): void {
+    const win = new BrowserWindow({
+        width: 560,
+        height: 680,
+        resizable: false,
+        autoHideMenuBar: true,
+        frame: false,
+        backgroundColor: "#04070d",
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true,
+            nodeIntegration: false,
+        },
     });
+
+    const isDev = process.env.NODE_ENV === "development";
+    if (isDev) {
+        win.loadURL("http://127.0.0.1:5173?setup=1");
+    } else {
+        win.loadFile(path.join(__dirname, "../dist/index.html"), {query: {setup: "1"}});
+    }
+
+    // Setup form submit
+    ipcMain.handleOnce("setup-save", async (_e, config: AegisConfig) => {
+        saveConfig(config);
+        applyConfig(config);
+        groq = new Groq({apiKey: config.groqApiKey});
+        win.close();
+        mainWindow = null;
+        await bootApp();
+        app.on("activate", () => {
+            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        });
+    });
+
+    ipcMain.on("win-close", () => win.close());
+    ipcMain.on("win-minimize", () => win.minimize());
+}
+
+app.whenReady().then(async () => {
+    const hasConfig =
+        (loadConfig() !== null) ||
+        (!!process.env.GROQ_API_KEY && !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_KEY);
+
+    if (!hasConfig) {
+        createSetupWindow();
+    } else {
+        await bootApp();
+        app.on("activate", () => {
+            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        });
+    }
 });
 
 let isQuitting = false;

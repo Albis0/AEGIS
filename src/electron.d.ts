@@ -54,6 +54,7 @@ declare global {
             tts: (text: string) => Promise<{buffer?: Buffer; error?: string}>;
             settingsGet: () => Promise<AppSettings>;
             settingsSet: (patch: Partial<AppSettings>) => Promise<AppSettings>;
+            setupSave: (config: {groqApiKey: string; supabaseUrl: string; supabaseServiceKey: string; tavilyApiKey?: string; serperApiKey?: string}) => Promise<void>;
             minimize: () => void;
             maximize: () => void;
             fullscreen: () => void;

@@ -37,14 +37,18 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.jarvis",
-    "productName": "Jarvis",
+    "appId": "com.aegis",
+    "productName": "AEGIS",
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
     ],
     "win": {
-      "target": "portable"
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   }
 }
