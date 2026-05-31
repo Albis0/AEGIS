@@ -16,13 +16,13 @@ dotenv.config({path: path.join(__dirname, "../.env")});
 const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
 const MODEL = "qwen/qwen3-32b";
 
-const SYSTEM_PROMPT = `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için run_command ile Start-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
+const SYSTEM_PROMPT = `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
 
-GÜVENLİK KURALLARI:
-- Stop-Process, taskkill, Kill, Remove-Item, shutdown, restart gibi tehlikeli komutları ASLA doğrudan çalıştırma.
-- "Uygulamaları kapat", "programları kapat" gibi geniş kapsamlı isteklerde hangi uygulamayı kastettiğini mutlaka sor. Hepsini birden kapatma.
-- Silme, format, disk işlemleri için her zaman kullanıcıdan açık onay iste.
-- Şüpheli veya geri alınamaz bir işlem öncesi "Emin misin?" diye sor.`;
+GÜVENLİK KURALLARI (SADECE BUNLAR):
+- Format-Volume, Clear-Disk, Initialize-Disk gibi disk yıkım komutlarını çalıştırma.
+- shutdown /s, shutdown /r, Restart-Computer, Stop-Computer gibi sistemi kapatma/yeniden başlatma komutlarını çalıştırma.
+- Remove-Item -Recurse ile tüm disk/sürücü silme işlemi yapma.
+- Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap, onay isteme.`;
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -126,7 +126,9 @@ function refreshNetwork(): void {
 // GPU
 type GpuInfo = {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null};
 let gpuInfo: GpuInfo[] = [];
-function refreshGpu(): void {
+
+function initGpuStatic(): void {
+    // GPU adı ve toplam VRAM — sadece başlangıçta bir kez çekilir
     exec(
         `powershell -NoProfile -Command "Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object Name,AdapterRAM | ConvertTo-Json -Compress"`,
         {windowsHide: true, timeout: 8000},
@@ -144,7 +146,10 @@ function refreshGpu(): void {
             } catch {}
         },
     );
-    // NVIDIA GPU load + VRAM + temp via nvidia-smi
+}
+
+function refreshGpu(): void {
+    // Sadece dinamik veriler: load, VRAM kullanımı, sıcaklık
     exec(
         `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits`,
         {windowsHide: true, timeout: 5000},
@@ -152,7 +157,8 @@ function refreshGpu(): void {
             if (!stdout) return;
             stdout.trim().split("\n").forEach((line, i) => {
                 const parts = line.split(",").map((s) => parseInt(s.trim(), 10));
-                if (parts.length >= 4 && gpuInfo[i]) {
+                if (parts.length >= 4) {
+                    if (!gpuInfo[i]) gpuInfo[i] = {name: `GPU ${i}`, load: 0, vramUsed: 0, vramTotal: 0, temp: null};
                     gpuInfo[i].load = isNaN(parts[0]) ? 0 : parts[0];
                     gpuInfo[i].vramUsed = isNaN(parts[1]) ? 0 : parts[1];
                     gpuInfo[i].vramTotal = isNaN(parts[2]) ? gpuInfo[i].vramTotal : parts[2];
@@ -201,7 +207,7 @@ function refreshTopProcs(): void {
 let activeWindow = "";
 function refreshActiveWindow(): void {
     exec(
-        `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $h=[System.Windows.Forms.Form]::ActiveForm; if($h){$h.Text}else{$w=Get-Process | Where-Object {$_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -ne ''} | Sort-Object CPU -Descending | Select-Object -First 1; $w.MainWindowTitle}"`,
+        `powershell -NoProfile -Command "Get-Process | Where-Object {$_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -ne ''} | Sort-Object -Property StartTime -Descending | Select-Object -First 1 -ExpandProperty MainWindowTitle"`,
         {windowsHide: true, timeout: 5000},
         (_e, stdout) => {
             const t = (stdout ?? "").trim();
@@ -214,17 +220,18 @@ function startTelemetry(): void {
     refreshDisk();
     refreshBattery();
     refreshNetwork();
+    initGpuStatic();
     refreshGpu();
     refreshCpuTemp();
     refreshTopProcs();
     refreshActiveWindow();
     setInterval(refreshDisk, 15000);
     setInterval(refreshBattery, 30000);
-    setInterval(refreshNetwork, 3000);
-    setInterval(refreshGpu, 4000);
-    setInterval(refreshCpuTemp, 5000);
-    setInterval(refreshTopProcs, 5000);
-    setInterval(refreshActiveWindow, 2000);
+    setInterval(refreshNetwork, 4000);
+    setInterval(refreshGpu, 8000);
+    setInterval(refreshCpuTemp, 8000);
+    setInterval(refreshTopProcs, 10000);
+    setInterval(refreshActiveWindow, 5000);
 
     setInterval(() => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
