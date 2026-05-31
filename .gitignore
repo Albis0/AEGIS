@@ -4,12 +4,26 @@ dist-electron
 .env
 .claude
 
-# Junk
+# Build & cache
+*.tsbuildinfo
+.vite
+
+# Junk / test dosyaları
 electron-out.log
 main.js
 test-electron.js
 test-tts.mp3
 *.mp3
+*.log
 
-# Docs
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+.idea
+
+# Docs (local only)
 ROADMAP.md
