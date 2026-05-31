@@ -1,66 +1,68 @@
 import {useEffect, useRef, useState} from "react";
 import type {AppSettings, AegisConfig} from "../electron.d";
 
+// ── Model catalogs ──────────────────────────────────────────────────────────
 const GROQ_MODELS = [
-    {id: "qwen/qwen3-32b",           label: "Qwen3 32B (varsayılan)"},
-    {id: "llama-3.3-70b-versatile",  label: "Llama 3.3 70B"},
-    {id: "llama3-70b-8192",          label: "Llama 3 70B"},
-    {id: "mixtral-8x7b-32768",       label: "Mixtral 8x7B"},
-    {id: "gemma2-9b-it",             label: "Gemma2 9B"},
+    {id: "qwen/qwen3-32b",          label: "Qwen3 32B",         tag: "varsayılan"},
+    {id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B",     tag: ""},
+    {id: "llama3-70b-8192",         label: "Llama 3 70B",        tag: ""},
+    {id: "mixtral-8x7b-32768",      label: "Mixtral 8×7B",       tag: ""},
+    {id: "gemma2-9b-it",            label: "Gemma2 9B",          tag: "hızlı"},
 ];
-
 const OPENAI_MODELS = [
-    {id: "gpt-4o",       label: "GPT-4o"},
-    {id: "gpt-4o-mini",  label: "GPT-4o Mini"},
-    {id: "gpt-4-turbo",  label: "GPT-4 Turbo"},
-    {id: "gpt-3.5-turbo",label: "GPT-3.5 Turbo"},
+    {id: "gpt-4o",        label: "GPT-4o",       tag: "önerilen"},
+    {id: "gpt-4o-mini",   label: "GPT-4o Mini",  tag: "hızlı"},
+    {id: "gpt-4-turbo",   label: "GPT-4 Turbo",  tag: ""},
+    {id: "gpt-3.5-turbo", label: "GPT-3.5",       tag: "ucuz"},
 ];
-
 const ANTHROPIC_MODELS = [
-    {id: "claude-opus-4-8",      label: "Claude Opus 4"},
-    {id: "claude-sonnet-4-6",    label: "Claude Sonnet 4"},
-    {id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4"},
+    {id: "claude-opus-4-8",           label: "Claude Opus 4",   tag: "güçlü"},
+    {id: "claude-sonnet-4-6",         label: "Claude Sonnet 4", tag: "önerilen"},
+    {id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4",  tag: "hızlı"},
 ];
-
 const MISTRAL_MODELS = [
-    {id: "mistral-large-latest",  label: "Mistral Large"},
-    {id: "mistral-small-latest",  label: "Mistral Small"},
-    {id: "codestral-latest",      label: "Codestral"},
+    {id: "mistral-large-latest", label: "Mistral Large",  tag: "önerilen"},
+    {id: "mistral-small-latest", label: "Mistral Small",  tag: "hızlı"},
+    {id: "codestral-latest",     label: "Codestral",      tag: "kod"},
 ];
 
 const AI_PROVIDERS = [
-    {id: "groq",      label: "Groq",      desc: "Ücretsiz, hızlı"},
-    {id: "openai",    label: "OpenAI",    desc: "GPT-4o vb."},
-    {id: "anthropic", label: "Anthropic", desc: "Claude"},
-    {id: "mistral",   label: "Mistral",   desc: "Mistral Large vb."},
-    {id: "ollama",    label: "Ollama",    desc: "İnternet yok, local"},
+    {id: "groq",      icon: "⚡", label: "Groq",       sub: "Ücretsiz · hızlı"},
+    {id: "openai",    icon: "◎",  label: "OpenAI",     sub: "GPT-4o serisi"},
+    {id: "anthropic", icon: "◈",  label: "Anthropic",  sub: "Claude serisi"},
+    {id: "mistral",   icon: "✦",  label: "Mistral",    sub: "EU tabanlı"},
+    {id: "ollama",    icon: "◉",  label: "Ollama",     sub: "Yerel · offline"},
 ] as const;
 
 const EDGE_VOICES = [
-    {id: "tr-TR-EmelNeural",  label: "Emel (TR, Kadın)"},
-    {id: "tr-TR-AhmetNeural", label: "Ahmet (TR, Erkek)"},
-    {id: "en-US-AriaNeural",  label: "Aria (EN, Kadın)"},
-    {id: "en-US-GuyNeural",   label: "Guy (EN, Erkek)"},
-    {id: "en-GB-SoniaNeural", label: "Sonia (EN-GB, Kadın)"},
+    {id: "tr-TR-EmelNeural",  label: "Emel",  meta: "TR · Kadın"},
+    {id: "tr-TR-AhmetNeural", label: "Ahmet", meta: "TR · Erkek"},
+    {id: "en-US-AriaNeural",  label: "Aria",  meta: "EN · Kadın"},
+    {id: "en-US-GuyNeural",   label: "Guy",   meta: "EN · Erkek"},
+    {id: "en-GB-SoniaNeural", label: "Sonia", meta: "EN-GB · Kadın"},
 ];
-
-// ElevenLabs popüler sesler (voice_id → label). "el:" prefix ile saklanır.
 const EL_VOICES = [
-    {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel (EN, Kadın)"},
-    {id: "el:AZnzlk1XvdvUeBnXmlld", label: "Domi (EN, Kadın)"},
-    {id: "el:EXAVITQu4vr4xnSDxMaL", label: "Bella (EN, Kadın)"},
-    {id: "el:ErXwobaYiN019PkySvjV", label: "Antoni (EN, Erkek)"},
-    {id: "el:VR6AewLTigWG4xSOukaG", label: "Arnold (EN, Erkek)"},
-    {id: "el:pNInz6obpgDQGcFmaJgB", label: "Adam (EN, Erkek)"},
+    {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel", meta: "EN · Kadın"},
+    {id: "el:AZnzlk1XvdvUeBnXmlld", label: "Domi",   meta: "EN · Kadın"},
+    {id: "el:EXAVITQu4vr4xnSDxMaL", label: "Bella",  meta: "EN · Kadın"},
+    {id: "el:ErXwobaYiN019PkySvjV",  label: "Antoni", meta: "EN · Erkek"},
+    {id: "el:VR6AewLTigWG4xSOukaG",  label: "Arnold", meta: "EN · Erkek"},
+    {id: "el:pNInz6obpgDQGcFmaJgB",  label: "Adam",   meta: "EN · Erkek"},
 ];
 
 const ACCENT_COLORS = [
-    {id: "34,211,238",   label: "Cyan",   hex: "#22d3ee"},
-    {id: "139,92,246",   label: "Purple", hex: "#8b5cf6"},
-    {id: "110,231,183",  label: "Green",  hex: "#6ee7b7"},
-    {id: "251,146,60",   label: "Orange", hex: "#fb923c"},
-    {id: "248,113,113",  label: "Red",    hex: "#f87171"},
-    {id: "250,204,21",   label: "Yellow", hex: "#facc15"},
+    {id: "34,211,238",   label: "Cyan",        hex: "#22d3ee"},
+    {id: "56,189,248",   label: "Sky",         hex: "#38bdf8"},
+    {id: "99,102,241",   label: "Indigo",      hex: "#6366f1"},
+    {id: "139,92,246",   label: "Purple",      hex: "#8b5cf6"},
+    {id: "232,121,249",  label: "Fuchsia",     hex: "#e879f9"},
+    {id: "251,113,133",  label: "Rose",        hex: "#fb7185"},
+    {id: "248,113,113",  label: "Red",         hex: "#f87171"},
+    {id: "251,146,60",   label: "Orange",      hex: "#fb923c"},
+    {id: "250,204,21",   label: "Yellow",      hex: "#facc15"},
+    {id: "163,230,53",   label: "Lime",        hex: "#a3e635"},
+    {id: "110,231,183",  label: "Emerald",     hex: "#6ee7b7"},
+    {id: "45,212,191",   label: "Teal",        hex: "#2dd4bf"},
 ];
 
 type Tab = "model" | "voice" | "keys";
@@ -74,9 +76,9 @@ interface Props {
 export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
     const [tab, setTab] = useState<Tab>("model");
     const [settings, setSettings] = useState<AppSettings | null>(null);
-    const [config, setConfig] = useState<AegisConfig | null>(null);
-    const [saved, setSaved] = useState(false);
-    const [testing, setTesting] = useState(false);
+    const [config, setConfig]     = useState<AegisConfig | null>(null);
+    const [saved, setSaved]       = useState(false);
+    const [testing, setTesting]   = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -93,10 +95,7 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
         return () => window.removeEventListener("keydown", onKey);
     }, [open, onClose]);
 
-    function flash() {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1800);
-    }
+    function flash() { setSaved(true); setTimeout(() => setSaved(false), 1800); }
 
     async function applySettings(patch: Partial<AppSettings>) {
         const updated = await window.jarvis.settingsSet(patch);
@@ -116,16 +115,22 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
         setTesting(true);
         try {
             const res = await window.jarvis.tts("Merhaba, ben AEGIS. Sesinizi duyuyorum.");
-            if (res.buffer) {
-                const ctx = new AudioContext();
-                const ab = res.buffer instanceof Buffer ? res.buffer.buffer : res.buffer as unknown as ArrayBuffer;
-                const decoded = await ctx.decodeAudioData(ab as ArrayBuffer);
-                const source = ctx.createBufferSource();
-                source.buffer = decoded;
-                source.connect(ctx.destination);
-                source.start();
-                source.onended = () => ctx.close();
+            if (res.error || !res.buffer) {
+                console.error("TTS error:", res.error ?? "no buffer");
+                return;
             }
+            const ctx = new AudioContext();
+            // IPC serialises Node Buffer as {type:"Buffer", data:[...]}
+            const raw = res.buffer as unknown as {data?: number[]};
+            const bytes = raw.data ? new Uint8Array(raw.data) : new Uint8Array(res.buffer as unknown as ArrayBuffer);
+            const decoded = await ctx.decodeAudioData(bytes.buffer);
+            const src = ctx.createBufferSource();
+            src.buffer = decoded;
+            src.connect(ctx.destination);
+            src.start();
+            src.onended = () => ctx.close();
+        } catch (err) {
+            console.error("testVoice:", err);
         } finally {
             setTesting(false);
         }
@@ -133,373 +138,426 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
 
     if (!open || !settings) return null;
 
-    const accent = settings.accentColor;
-    const accentRgb = `rgb(${accent})`;
-
+    const a = settings.accentColor;
+    const ac = `rgb(${a})`;
     const modelList =
-        settings.aiProvider === "openai" ? OPENAI_MODELS :
+        settings.aiProvider === "openai"    ? OPENAI_MODELS    :
         settings.aiProvider === "anthropic" ? ANTHROPIC_MODELS :
-        settings.aiProvider === "mistral" ? MISTRAL_MODELS :
+        settings.aiProvider === "mistral"   ? MISTRAL_MODELS   :
         GROQ_MODELS;
-
-    const ttsVoices = settings.ttsProvider === "elevenlabs" ? EL_VOICES : EDGE_VOICES;
+    const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES : EDGE_VOICES;
+    const currentProvider = AI_PROVIDERS.find((p) => p.id === settings.aiProvider);
 
     return (
         <div
-            className="absolute inset-0 z-50 flex items-center justify-center"
-            style={{background: "rgba(3,6,12,0.75)", backdropFilter: "blur(4px)"}}
+            className="absolute inset-0 z-50 flex items-end justify-end"
+            style={{background: "rgba(3,6,12,0.6)", backdropFilter: "blur(6px)"}}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             <div
                 ref={panelRef}
-                className="relative flex flex-col rounded-xl border overflow-hidden"
+                className="relative flex flex-col h-full"
                 style={{
-                    width: "clamp(360px,42vw,520px)",
-                    maxHeight: "84vh",
-                    borderColor: `rgba(${accent},0.25)`,
-                    background: "rgba(4,10,20,0.97)",
-                    boxShadow: `0 0 60px rgba(${accent},0.08)`,
+                    width: "clamp(300px, 36vw, 440px)",
+                    background: "rgba(4,8,18,0.98)",
+                    borderLeft: `1px solid rgba(${a},0.18)`,
+                    boxShadow: `-20px 0 60px rgba(${a},0.06)`,
+                    WebkitFontSmoothing: "antialiased",
+                    MozOsxFontSmoothing: "grayscale",
                 }}
             >
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-3 border-b shrink-0" style={{borderColor: `rgba(${accent},0.15)`}}>
-                    <span className="text-[11px] tracking-[0.4em]" style={{fontFamily: "Orbitron, sans-serif", color: accentRgb}}>
-                        AYARLAR
-                    </span>
+                {/* ── Header ── */}
+                <div
+                    className="shrink-0 flex items-center justify-between px-5 py-4 border-b"
+                    style={{borderColor: `rgba(${a},0.12)`}}
+                >
+                    <div>
+                        <div
+                            className="text-[13px] tracking-[0.45em] font-medium"
+                            style={{fontFamily: "Orbitron, sans-serif", color: ac}}
+                        >
+                            AYARLAR
+                        </div>
+                        <div className="text-[11px] mt-0.5 opacity-50" style={{color: ac}}>
+                            AEGIS yapılandırması
+                        </div>
+                    </div>
                     <div className="flex items-center gap-3">
-                        {saved && <span className="text-[10px] tracking-widest" style={{color: "rgb(110,231,160)"}}>✓ KAYDEDİLDİ</span>}
-                        <button onClick={onClose} className="opacity-50 hover:opacity-100 transition text-sm" style={{color: accentRgb}}>✕</button>
+                        {saved && (
+                            <span
+                                className="text-[10px] tracking-widest px-2 py-0.5 rounded"
+                                style={{color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)"}}
+                            >
+                                ✓ KAYDEDİLDİ
+                            </span>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="w-7 h-7 grid place-items-center rounded opacity-40 hover:opacity-100 transition text-sm"
+                            style={{color: ac, border: `1px solid rgba(${a},0.2)`}}
+                        >
+                            ✕
+                        </button>
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b shrink-0" style={{borderColor: `rgba(${accent},0.1)`}}>
+                {/* ── Tabs ── */}
+                <div className="shrink-0 flex border-b" style={{borderColor: `rgba(${a},0.1)`}}>
                     {(["model", "voice", "keys"] as Tab[]).map((t) => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
-                            className="flex-1 py-2 text-[10px] tracking-[0.25em] transition"
-                            style={{
-                                color: tab === t ? accentRgb : `rgba(${accent},0.4)`,
-                                borderBottom: tab === t ? `1px solid ${accentRgb}` : "1px solid transparent",
-                            }}
+                            className="flex-1 py-3 text-[11px] font-medium tracking-[0.25em] transition relative"
+                            style={{color: tab === t ? ac : `rgba(${a},0.4)`}}
                         >
-                            {t === "model" ? "MODEL & TEMA" : t === "voice" ? "SES" : "API KEYS"}
+                            {t === "model" ? "MODEL" : t === "voice" ? "SES" : "API KEYS"}
+                            {tab === t && (
+                                <span
+                                    className="absolute bottom-0 left-0 right-0 h-px"
+                                    style={{background: `linear-gradient(90deg, transparent, ${ac}, transparent)`}}
+                                />
+                            )}
                         </button>
                     ))}
                 </div>
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+                {/* ── Body ── */}
+                <div className="flex-1 overflow-y-auto">
 
-                    {/* ── TAB: MODEL & TEMA ── */}
-                    {tab === "model" && <>
-                        <Section title="AI SAĞLAYICI" accent={accent}>
-                            <div className="grid grid-cols-2 gap-2">
-                                {AI_PROVIDERS.map((p) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => {
-                                            const defaultModel =
-                                                p.id === "openai" ? "gpt-4o" :
-                                                p.id === "anthropic" ? "claude-sonnet-4-6" :
-                                                p.id === "mistral" ? "mistral-large-latest" :
-                                                p.id === "ollama" ? "llama3.2" :
-                                                "qwen/qwen3-32b";
-                                            applySettings({aiProvider: p.id as AppSettings["aiProvider"], model: defaultModel});
-                                        }}
-                                        className="flex flex-col items-start px-3 py-2.5 rounded-lg border transition"
-                                        style={{
-                                            background: settings.aiProvider === p.id ? `rgba(${accent},0.1)` : "transparent",
-                                            borderColor: settings.aiProvider === p.id ? `rgba(${accent},0.4)` : `rgba(${accent},0.1)`,
-                                        }}
-                                    >
-                                        <span className="text-[12px] font-medium" style={{color: settings.aiProvider === p.id ? accentRgb : `rgba(${accent},0.6)`}}>{p.label}</span>
-                                        <span className="text-[10px] opacity-40" style={{color: accentRgb}}>{p.desc}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </Section>
+                    {/* ════ MODEL TAB ════ */}
+                    {tab === "model" && (
+                        <div className="p-5 space-y-7">
 
-                        {settings.aiProvider !== "groq" && (
-                            <Section title={`${AI_PROVIDERS.find(p => p.id === settings.aiProvider)?.label?.toUpperCase()} API KEY`} accent={accent}>
-                                <KeyField
-                                    value={settings.aiApiKey}
-                                    placeholder={settings.aiProvider === "openai" ? "sk-..." : settings.aiProvider === "anthropic" ? "sk-ant-..." : "..."}
-                                    onSave={(v) => applySettings({aiApiKey: v})}
-                                    accent={accent}
-                                />
-                                <p className="text-[10px] opacity-35 mt-2 pl-1">Bu key settings.json'da saklanır (config.json değil).</p>
-                            </Section>
-                        )}
-
-                        {settings.aiProvider === "ollama" ? (
-                            <>
-                                <Section title="OLLAMA SUNUCU URL" accent={accent}>
-                                    <OllamaField
-                                        label="URL"
-                                        value={settings.ollamaUrl || "http://localhost:11434"}
-                                        placeholder="http://localhost:11434"
-                                        onSave={(v) => applySettings({ollamaUrl: v})}
-                                        accent={accent}
-                                    />
-                                    <p className="text-[10px] opacity-35 mt-2 pl-1">Ollama çalışmıyorsa: <code style={{color: `rgba(${accent},0.6)`}}>ollama serve</code></p>
-                                </Section>
-                                <Section title="MODEL ADI" accent={accent}>
-                                    <OllamaField
-                                        label="Model"
-                                        value={settings.model}
-                                        placeholder="llama3.2, mistral, gemma2..."
-                                        onSave={(v) => applySettings({model: v})}
-                                        accent={accent}
-                                    />
-                                    <p className="text-[10px] opacity-35 mt-2 pl-1">Yüklü modeller için: <code style={{color: `rgba(${accent},0.6)`}}>ollama list</code></p>
-                                </Section>
-                            </>
-                        ) : (
-                            <Section title="AI MODELİ" accent={accent}>
-                                <div className="space-y-1.5">
-                                    {modelList.map((m) => (
-                                        <RadioRow
-                                            key={m.id}
-                                            label={m.label}
-                                            checked={settings.model === m.id}
-                                            accent={accent}
-                                            onChange={() => applySettings({model: m.id})}
-                                        />
-                                    ))}
+                            {/* AI Provider */}
+                            <Group label="AI SAĞLAYICI" accent={a}>
+                                <div className="grid grid-cols-1 gap-1.5">
+                                    {AI_PROVIDERS.map((p) => {
+                                        const active = settings.aiProvider === p.id;
+                                        return (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                    const defaultModel =
+                                                        p.id === "openai"    ? "gpt-4o" :
+                                                        p.id === "anthropic" ? "claude-sonnet-4-6" :
+                                                        p.id === "mistral"   ? "mistral-large-latest" :
+                                                        p.id === "ollama"    ? "llama3.2" :
+                                                        "qwen/qwen3-32b";
+                                                    applySettings({aiProvider: p.id as AppSettings["aiProvider"], model: defaultModel});
+                                                }}
+                                                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-base w-5 text-center shrink-0" style={{color: active ? ac : `rgba(${a},0.4)`}}>
+                                                    {p.icon}
+                                                </span>
+                                                <span className="flex-1 min-w-0">
+                                                    <span className="block text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.7)`}}>
+                                                        {p.label}
+                                                    </span>
+                                                    <span className="block text-[11px] opacity-50 mt-0.5" style={{color: ac}}>
+                                                        {p.sub}
+                                                    </span>
+                                                </span>
+                                                {active && (
+                                                    <span className="text-[10px] shrink-0" style={{color: ac}}>●</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                {settings.aiProvider === "groq" && (
-                                    <p className="text-[10px] opacity-35 mt-2 pl-1">Groq API üzerinden çalışır. Değişiklik anında aktif olur.</p>
-                                )}
-                            </Section>
-                        )}
+                            </Group>
 
-                        <Section title="TEMA RENGİ" accent={accent}>
-                            <div className="flex flex-wrap gap-2 pt-1">
-                                {ACCENT_COLORS.map((c) => (
-                                    <button
-                                        key={c.id}
-                                        onClick={() => applySettings({accentColor: c.id})}
-                                        title={c.label}
-                                        className="w-8 h-8 rounded-full border-2 transition hover:scale-110"
-                                        style={{
-                                            background: c.hex,
-                                            borderColor: settings.accentColor === c.id ? "white" : "transparent",
-                                            boxShadow: settings.accentColor === c.id ? `0 0 10px ${c.hex}` : "none",
-                                        }}
+                            {/* API Key for non-Groq */}
+                            {settings.aiProvider !== "groq" && settings.aiProvider !== "ollama" && (
+                                <Group label={`${currentProvider?.label?.toUpperCase()} API KEY`} accent={a}>
+                                    <KeyField
+                                        value={settings.aiApiKey}
+                                        placeholder={
+                                            settings.aiProvider === "openai" ? "sk-..." :
+                                            settings.aiProvider === "anthropic" ? "sk-ant-..." : "..."}
+                                        onSave={(v) => applySettings({aiApiKey: v})}
+                                        accent={a}
                                     />
-                                ))}
-                            </div>
-                        </Section>
-                    </>}
+                                    <Hint accent={a}>settings.json içinde saklanır.</Hint>
+                                </Group>
+                            )}
 
-                    {/* ── TAB: SES ── */}
-                    {tab === "voice" && <>
-                        <Section title="TTS MOTORU" accent={accent}>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    {id: "edge",       label: "Edge TTS",    desc: "Ücretsiz, offline"},
-                                    {id: "elevenlabs", label: "ElevenLabs",  desc: "API key gerekli"},
-                                ].map((p) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => {
-                                            const defaultVoice = p.id === "elevenlabs" ? "el:21m00Tcm4TlvDq8ikWAM" : "tr-TR-EmelNeural";
-                                            applySettings({ttsProvider: p.id as "edge" | "elevenlabs", ttsVoice: defaultVoice});
-                                        }}
-                                        className="flex flex-col items-start px-3 py-2.5 rounded-lg border transition"
-                                        style={{
-                                            background: settings.ttsProvider === p.id ? `rgba(${accent},0.1)` : "transparent",
-                                            borderColor: settings.ttsProvider === p.id ? `rgba(${accent},0.4)` : `rgba(${accent},0.1)`,
-                                        }}
+                            {/* Ollama config */}
+                            {settings.aiProvider === "ollama" && (
+                                <Group label="OLLAMA" accent={a}>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <Label accent={a}>Sunucu URL</Label>
+                                            <PlainField
+                                                value={settings.ollamaUrl || "http://localhost:11434"}
+                                                placeholder="http://localhost:11434"
+                                                onSave={(v) => applySettings({ollamaUrl: v})}
+                                                accent={a}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label accent={a}>Model adı</Label>
+                                            <PlainField
+                                                value={settings.model}
+                                                placeholder="llama3.2, mistral, gemma2..."
+                                                onSave={(v) => applySettings({model: v})}
+                                                accent={a}
+                                            />
+                                        </div>
+                                    </div>
+                                    <Hint accent={a}>Ollama kapalıysa terminalde <code style={{color: `rgba(${a},0.7)`}}>ollama serve</code> çalıştır.</Hint>
+                                </Group>
+                            )}
+
+                            {/* Model list for non-Ollama */}
+                            {settings.aiProvider !== "ollama" && (
+                                <Group label="MODEL" accent={a}>
+                                    <div className="space-y-1">
+                                        {modelList.map((m) => {
+                                            const active = settings.model === m.id;
+                                            return (
+                                                <button
+                                                    key={m.id}
+                                                    onClick={() => applySettings({model: m.id})}
+                                                    className="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-left transition"
+                                                    style={{
+                                                        background: active ? `rgba(${a},0.08)` : "transparent",
+                                                        border: `1px solid ${active ? `rgba(${a},0.25)` : "transparent"}`,
+                                                    }}
+                                                >
+                                                    <span
+                                                        className="w-2 h-2 rounded-full shrink-0 border"
+                                                        style={{
+                                                            borderColor: active ? `rgb(${a})` : `rgba(${a},0.3)`,
+                                                            background: active ? `rgb(${a})` : "transparent",
+                                                        }}
+                                                    />
+                                                    <span className="flex-1 text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>
+                                                        {m.label}
+                                                    </span>
+                                                    {"tag" in m && m.tag && (
+                                                        <span
+                                                            className="text-[10px] px-1.5 py-0.5 rounded tracking-wider shrink-0"
+                                                            style={{
+                                                                color: active ? ac : `rgba(${a},0.5)`,
+                                                                background: active ? `rgba(${a},0.15)` : `rgba(${a},0.06)`,
+                                                            }}
+                                                        >
+                                                            {m.tag}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </Group>
+                            )}
+
+                            {/* Accent color */}
+                            <Group label="TEMA RENGİ" accent={a}>
+                                <div className="grid grid-cols-6 gap-2.5 pt-1">
+                                    {ACCENT_COLORS.map((c) => {
+                                        const active = settings.accentColor === c.id;
+                                        return (
+                                            <button
+                                                key={c.id}
+                                                onClick={() => applySettings({accentColor: c.id})}
+                                                title={c.label}
+                                                className="w-full aspect-square rounded-full transition hover:scale-110"
+                                                style={{
+                                                    background: c.hex,
+                                                    boxShadow: active
+                                                        ? `0 0 0 2px #0a0f1e, 0 0 0 3.5px ${c.hex}, 0 0 14px ${c.hex}99`
+                                                        : `inset 0 0 0 1px rgba(255,255,255,0.1)`,
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+                        </div>
+                    )}
+
+                    {/* ════ VOICE TAB ════ */}
+                    {tab === "voice" && (
+                        <div className="p-5 space-y-7">
+
+                            {/* TTS Motor */}
+                            <Group label="TTS MOTORU" accent={a}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        {id: "edge",       icon: "◎", label: "Edge TTS",   sub: "Ücretsiz · offline"},
+                                        {id: "elevenlabs", icon: "♬", label: "ElevenLabs", sub: "API key gerekli"},
+                                    ].map((p) => {
+                                        const active = settings.ttsProvider === p.id;
+                                        return (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                    const dv = p.id === "elevenlabs" ? "el:21m00Tcm4TlvDq8ikWAM" : "tr-TR-EmelNeural";
+                                                    applySettings({ttsProvider: p.id as "edge" | "elevenlabs", ttsVoice: dv});
+                                                }}
+                                                className="flex flex-col gap-0.5 px-3.5 py-3 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.1)`}`,
+                                                }}
+                                            >
+                                                <span className="text-xl" style={{color: active ? ac : `rgba(${a},0.35)`}}>{p.icon}</span>
+                                                <span className="text-[13px] font-medium mt-1" style={{color: active ? ac : `rgba(${a},0.65)`}}>{p.label}</span>
+                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{p.sub}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+
+                            {/* ElevenLabs key */}
+                            {settings.ttsProvider === "elevenlabs" && (
+                                <Group label="ELEVENLABS API KEY" accent={a}>
+                                    <KeyField
+                                        value={config?.elevenlabsApiKey ?? ""}
+                                        placeholder="sk_..."
+                                        onSave={(v) => applyConfig({elevenlabsApiKey: v || undefined})}
+                                        accent={a}
+                                    />
+                                </Group>
+                            )}
+
+                            {/* Voice picker */}
+                            <Group label="SES" accent={a}>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {voices.map((v) => {
+                                        const active = settings.ttsVoice === v.id;
+                                        return (
+                                            <button
+                                                key={v.id}
+                                                onClick={() => applySettings({ttsVoice: v.id})}
+                                                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.3)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.7)`}}>{v.label}</span>
+                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{v.meta}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+
+                            {/* Speed */}
+                            <Group label="KONUŞMA HIZI" accent={a}>
+                                <div className="flex items-center gap-3 px-1">
+                                    <span className="text-[10px] opacity-40 w-7" style={{color: ac}}>0.5x</span>
+                                    <input
+                                        type="range" min={0.5} max={2.0} step={0.1}
+                                        value={settings.ttsRate}
+                                        onChange={(e) => setSettings((s) => s ? {...s, ttsRate: parseFloat(e.target.value)} : s)}
+                                        onMouseUp={(e) => applySettings({ttsRate: parseFloat((e.target as HTMLInputElement).value)})}
+                                        onTouchEnd={(e) => applySettings({ttsRate: parseFloat((e.target as HTMLInputElement).value)})}
+                                        className="flex-1"
+                                        style={{accentColor: ac}}
+                                    />
+                                    <span className="text-[10px] opacity-40 w-7 text-right" style={{color: ac}}>2.0x</span>
+                                    <span
+                                        className="text-[13px] w-10 text-right tabular-nums"
+                                        style={{fontFamily: "Orbitron, sans-serif", color: ac}}
                                     >
-                                        <span className="text-[12px] font-medium" style={{color: settings.ttsProvider === p.id ? accentRgb : `rgba(${accent},0.6)`}}>{p.label}</span>
-                                        <span className="text-[10px] opacity-40" style={{color: accentRgb}}>{p.desc}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </Section>
+                                        {settings.ttsRate.toFixed(1)}x
+                                    </span>
+                                </div>
+                            </Group>
 
-                        {settings.ttsProvider === "elevenlabs" && (
-                            <Section title="ELEVENLABS API KEY" accent={accent}>
-                                <KeyField
-                                    value={config?.elevenlabsApiKey ?? ""}
-                                    placeholder="sk_..."
-                                    onSave={(v) => applyConfig({elevenlabsApiKey: v || undefined})}
-                                    accent={accent}
-                                />
-                            </Section>
-                        )}
+                            {/* Test button */}
+                            <Group label="SES TESTİ" accent={a}>
+                                <button
+                                    onClick={testVoice}
+                                    disabled={testing}
+                                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border text-[11px] tracking-widest transition hover:brightness-125 disabled:opacity-40"
+                                    style={{
+                                        color: ac,
+                                        borderColor: `rgba(${a},0.3)`,
+                                        background: `rgba(${a},0.07)`,
+                                    }}
+                                >
+                                    {testing ? (
+                                        <>
+                                            <span className="w-2 h-2 rounded-full animate-pulse" style={{background: ac}} />
+                                            ÇALINIYOR…
+                                        </>
+                                    ) : (
+                                        <>▶ MERHABA, BEN AEGIS</>
+                                    )}
+                                </button>
+                                <Hint accent={a}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Edge TTS"} motoru kullanılır.</Hint>
+                            </Group>
+                        </div>
+                    )}
 
-                        <Section title="SES" accent={accent}>
-                            <div className="space-y-1.5">
-                                {ttsVoices.map((v) => (
-                                    <RadioRow
-                                        key={v.id}
-                                        label={v.label}
-                                        checked={settings.ttsVoice === v.id}
-                                        accent={accent}
-                                        onChange={() => applySettings({ttsVoice: v.id})}
-                                    />
-                                ))}
-                            </div>
-                        </Section>
-
-                        <Section title="KONUŞMA HIZI" accent={accent}>
-                            <div className="flex items-center gap-4 px-1">
-                                <span className="text-[11px] opacity-50 w-8">0.5x</span>
-                                <input
-                                    type="range" min={0.5} max={2.0} step={0.1}
-                                    value={settings.ttsRate}
-                                    onChange={(e) => setSettings((s) => s ? {...s, ttsRate: parseFloat(e.target.value)} : s)}
-                                    onMouseUp={(e) => applySettings({ttsRate: parseFloat((e.target as HTMLInputElement).value)})}
-                                    onTouchEnd={(e) => applySettings({ttsRate: parseFloat((e.target as HTMLInputElement).value)})}
-                                    className="flex-1 accent-cyan-400"
-                                />
-                                <span className="text-[11px] opacity-50 w-8 text-right">2.0x</span>
-                                <span className="text-[13px] w-10 text-right tabular-nums" style={{color: accentRgb, fontFamily: "Orbitron, sans-serif"}}>
-                                    {settings.ttsRate.toFixed(1)}x
-                                </span>
-                            </div>
-                        </Section>
-
-                        <Section title="SES TESTİ" accent={accent}>
-                            <button
-                                onClick={testVoice}
-                                disabled={testing}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-[11px] tracking-widest transition hover:brightness-125 disabled:opacity-40"
-                                style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.08)`, color: accentRgb}}
-                            >
-                                {testing ? (
-                                    <>
-                                        <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{background: accentRgb}} />
-                                        ÇALINIYOR...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>▶</span>
-                                        TEST ET
-                                    </>
-                                )}
-                            </button>
-                            <p className="text-[10px] opacity-35 mt-2 pl-1">
-                                {settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Edge TTS"} ile "Merhaba, ben AEGIS" çalar.
-                            </p>
-                        </Section>
-                    </>}
-
-                    {/* ── TAB: API KEYS ── */}
-                    {tab === "keys" && config && <>
-                        <Section title="GROQ API KEY" accent={accent}>
-                            <KeyField
-                                value={config.groqApiKey}
-                                placeholder="gsk_..."
-                                onSave={(v) => applyConfig({groqApiKey: v})}
-                                accent={accent}
-                            />
-                        </Section>
-                        <Section title="SUPABASE URL" accent={accent}>
-                            <KeyField
-                                value={config.supabaseUrl}
-                                placeholder="https://xxxx.supabase.co"
-                                onSave={(v) => applyConfig({supabaseUrl: v})}
-                                accent={accent}
-                            />
-                        </Section>
-                        <Section title="SUPABASE SERVICE_ROLE KEY" accent={accent}>
-                            <KeyField
-                                value={config.supabaseServiceKey}
-                                placeholder="eyJ..."
-                                onSave={(v) => applyConfig({supabaseServiceKey: v})}
-                                accent={accent}
-                            />
-                        </Section>
-                        <Section title="TAVILY API KEY (opsiyonel)" accent={accent}>
-                            <KeyField
-                                value={config.tavilyApiKey ?? ""}
-                                placeholder="tvly-..."
-                                onSave={(v) => applyConfig({tavilyApiKey: v || undefined})}
-                                accent={accent}
-                            />
-                        </Section>
-                        <Section title="SERPER API KEY (opsiyonel)" accent={accent}>
-                            <KeyField
-                                value={config.serperApiKey ?? ""}
-                                placeholder=""
-                                onSave={(v) => applyConfig({serperApiKey: v || undefined})}
-                                accent={accent}
-                            />
-                        </Section>
-                        <Section title="ELEVENLABS API KEY (opsiyonel)" accent={accent}>
-                            <KeyField
-                                value={config.elevenlabsApiKey ?? ""}
-                                placeholder="sk_..."
-                                onSave={(v) => applyConfig({elevenlabsApiKey: v || undefined})}
-                                accent={accent}
-                            />
-                        </Section>
-                    </>}
+                    {/* ════ KEYS TAB ════ */}
+                    {tab === "keys" && config && (
+                        <div className="p-5 space-y-5">
+                            <KeyGroup label="GROQ" hint="gsk_..." value={config.groqApiKey} onSave={(v) => applyConfig({groqApiKey: v})} accent={a} />
+                            <KeyGroup label="SUPABASE URL" hint="https://xxxx.supabase.co" value={config.supabaseUrl} onSave={(v) => applyConfig({supabaseUrl: v})} accent={a} />
+                            <KeyGroup label="SUPABASE SERVICE ROLE KEY" hint="eyJ..." value={config.supabaseServiceKey} onSave={(v) => applyConfig({supabaseServiceKey: v})} accent={a} />
+                            <KeyGroup label="TAVILY" hint="tvly-... (opsiyonel)" value={config.tavilyApiKey ?? ""} onSave={(v) => applyConfig({tavilyApiKey: v || undefined})} accent={a} />
+                            <KeyGroup label="SERPER" hint="opsiyonel" value={config.serperApiKey ?? ""} onSave={(v) => applyConfig({serperApiKey: v || undefined})} accent={a} />
+                            <KeyGroup label="ELEVENLABS" hint="sk_... (opsiyonel)" value={config.elevenlabsApiKey ?? ""} onSave={(v) => applyConfig({elevenlabsApiKey: v || undefined})} accent={a} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
 
-function Section({title, accent, children}: {title: string; accent: string; children: React.ReactNode}) {
+// ── Primitive helpers ────────────────────────────────────────────────────────
+
+function Group({label, accent, children}: {label: string; accent: string; children: React.ReactNode}) {
     return (
-        <div>
-            <div className="text-[9px] tracking-[0.35em] mb-3 pb-1 border-b" style={{color: `rgba(${accent},0.5)`, borderColor: `rgba(${accent},0.1)`}}>
-                {title}
+        <div className="space-y-3">
+            <div
+                className="text-[10px] font-medium tracking-[0.35em] flex items-center gap-2"
+                style={{color: `rgba(${accent},0.55)`}}
+            >
+                <span className="flex-1 border-t" style={{borderColor: `rgba(${accent},0.1)`}} />
+                {label}
+                <span className="flex-1 border-t" style={{borderColor: `rgba(${accent},0.1)`}} />
             </div>
             {children}
         </div>
     );
 }
 
-function RadioRow({label, checked, accent, onChange}: {label: string; checked: boolean; accent: string; onChange: () => void}) {
+function Label({accent, children}: {accent: string; children: React.ReactNode}) {
     return (
-        <label
-            className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition"
-            style={{
-                background: checked ? `rgba(${accent},0.08)` : "transparent",
-                border: `1px solid ${checked ? `rgba(${accent},0.3)` : `rgba(${accent},0.06)`}`,
-            }}
-        >
-            <div className="w-3 h-3 rounded-full border shrink-0 flex items-center justify-center" style={{borderColor: checked ? `rgb(${accent})` : `rgba(${accent},0.3)`}}>
-                {checked && <div className="w-1.5 h-1.5 rounded-full" style={{background: `rgb(${accent})`}} />}
-            </div>
-            <span className="text-[12px] tracking-wide" style={{color: checked ? `rgb(${accent})` : `rgba(${accent},0.6)`}}>
-                {label}
-            </span>
-            <input type="radio" className="sr-only" checked={checked} onChange={onChange} />
-        </label>
+        <div className="text-[11px] mb-1.5 opacity-50" style={{color: `rgb(${accent})`}}>
+            {children}
+        </div>
     );
 }
 
-function OllamaField({label, value, placeholder, onSave, accent}: {label: string; value: string; placeholder: string; onSave: (v: string) => void; accent: string}) {
-    const [val, setVal] = useState(value);
-    const changed = val !== value;
+function Hint({accent, children}: {accent: string; children: React.ReactNode}) {
     return (
-        <div className="flex gap-2">
-            <input
-                type="text"
-                value={val}
-                onChange={(e) => setVal(e.target.value)}
-                placeholder={placeholder}
-                className="flex-1 bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
-                style={{borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.15)`, color: `rgb(${accent})`}}
-                aria-label={label}
-            />
-            {changed && (
-                <button
-                    onClick={() => onSave(val)}
-                    className="px-3 rounded-lg border text-[10px] tracking-widest transition hover:brightness-125"
-                    style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.08)`, color: `rgb(${accent})`}}
-                >
-                    KAYDET
-                </button>
-            )}
+        <p className="text-[11px] mt-2 opacity-40 leading-relaxed" style={{color: `rgb(${accent})`}}>
+            {children}
+        </p>
+    );
+}
+
+function KeyGroup({label, hint, value, onSave, accent}: {label: string; hint: string; value: string; onSave: (v: string) => void; accent: string}) {
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium tracking-[0.2em] opacity-55" style={{color: `rgb(${accent})`}}>
+                {label}
+            </div>
+            <KeyField value={value} placeholder={hint} onSave={onSave} accent={accent} />
         </div>
     );
 }
@@ -508,6 +566,7 @@ function KeyField({value, placeholder, onSave, accent}: {value: string; placehol
     const [val, setVal] = useState(value);
     const [show, setShow] = useState(false);
     const changed = val !== value;
+    const ac = `rgb(${accent})`;
 
     return (
         <div className="flex gap-2">
@@ -516,23 +575,57 @@ function KeyField({value, placeholder, onSave, accent}: {value: string; placehol
                 value={val}
                 onChange={(e) => setVal(e.target.value)}
                 placeholder={placeholder}
-                className="flex-1 bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
-                style={{borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.15)`, color: `rgb(${accent})`}}
+                className="flex-1 min-w-0 bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
+                style={{
+                    borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.12)`,
+                    color: ac,
+                }}
             />
             <button
                 onClick={() => setShow((s) => !s)}
-                className="px-2.5 rounded-lg border text-[10px] transition opacity-50 hover:opacity-100"
-                style={{borderColor: `rgba(${accent},0.15)`, color: `rgb(${accent})`}}
+                className="px-2.5 rounded-lg border text-[9px] tracking-wider transition opacity-35 hover:opacity-80 shrink-0"
+                style={{borderColor: `rgba(${accent},0.15)`, color: ac}}
             >
-                {show ? "GİZLE" : "GÖSTER"}
+                {show ? "GİZLE" : "GÖR"}
             </button>
             {changed && (
                 <button
                     onClick={() => onSave(val)}
-                    className="px-3 rounded-lg border text-[10px] tracking-widest transition hover:brightness-125"
-                    style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.08)`, color: `rgb(${accent})`}}
+                    className="px-3 rounded-lg border text-[9px] tracking-widest transition hover:brightness-125 shrink-0"
+                    style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}
                 >
-                    KAYDET
+                    ✓
+                </button>
+            )}
+        </div>
+    );
+}
+
+function PlainField({value, placeholder, onSave, accent}: {value: string; placeholder: string; onSave: (v: string) => void; accent: string}) {
+    const [val, setVal] = useState(value);
+    const changed = val !== value;
+    const ac = `rgb(${accent})`;
+
+    return (
+        <div className="flex gap-2">
+            <input
+                type="text"
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 min-w-0 bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
+                style={{
+                    borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.12)`,
+                    color: ac,
+                }}
+            />
+            {changed && (
+                <button
+                    onClick={() => onSave(val)}
+                    className="px-3 rounded-lg border text-[9px] tracking-widest transition hover:brightness-125 shrink-0"
+                    style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}
+                >
+                    ✓
                 </button>
             )}
         </div>

@@ -8,6 +8,10 @@ interface Fields {
     serperApiKey: string;
 }
 
+const CYAN = "34,211,238";
+const ac = `rgb(${CYAN})`;
+const border = `rgba(${CYAN},0.15)`;
+
 export default function SetupScreen() {
     const [fields, setFields] = useState<Fields>({
         groqApiKey: "",
@@ -43,100 +47,196 @@ export default function SetupScreen() {
     }
 
     return (
-        <div className="h-screen w-screen flex flex-col" style={{background: "#03060c", color: "rgb(34,211,238)", fontFamily: "'JetBrains Mono', monospace"}}>
+        <div
+            className="h-screen w-screen flex flex-col"
+            style={{
+                background: "#03060c",
+                color: ac,
+                fontFamily: "'JetBrains Mono', monospace",
+                WebkitFontSmoothing: "antialiased",
+                MozOsxFontSmoothing: "grayscale",
+            } as React.CSSProperties}
+        >
             {/* Drag bar */}
-            <div className="drag h-8 shrink-0 flex items-center justify-between px-4">
-                <span className="text-[10px] tracking-[0.4em] opacity-50" style={{fontFamily: "Orbitron, sans-serif"}}>AEGIS SETUP</span>
-                <button className="no-drag opacity-40 hover:opacity-100 transition text-xs" style={{color: "rgb(248,120,120)"}} onClick={() => window.jarvis.close()}>✕</button>
+            <div className="drag h-9 shrink-0 flex items-center justify-between px-5">
+                <span
+                    className="text-[11px] tracking-[0.45em]"
+                    style={{fontFamily: "Orbitron, sans-serif", color: ac, opacity: 0.6}}
+                >
+                    AEGIS · KURULUM
+                </span>
+                <button
+                    className="no-drag w-7 h-7 grid place-items-center opacity-40 hover:opacity-100 transition text-sm"
+                    style={{color: ac}}
+                    onClick={() => window.jarvis.close()}
+                >
+                    ✕
+                </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-7 py-2 flex flex-col gap-5">
-                {/* Header */}
+            <div className="flex-1 overflow-y-auto px-7 py-4 flex flex-col gap-6">
+
+                {/* Title */}
                 <div>
-                    <div className="text-[22px] glow-text" style={{fontFamily: "Orbitron, sans-serif"}}>İlk Kurulum</div>
-                    <p className="text-[11px] opacity-50 mt-1">API key'leri gir, ayarlar <code>~/.aegis/config.json</code>'a kaydedilir.</p>
+                    <div
+                        className="text-2xl"
+                        style={{fontFamily: "Orbitron, sans-serif", color: ac}}
+                    >
+                        İlk Kurulum
+                    </div>
+                    <p className="text-[12px] mt-1.5 leading-relaxed" style={{color: ac, opacity: 0.5}}>
+                        API key'leri gir — ayarlar <code style={{opacity: 0.8}}>~/.aegis/config.json</code>'a kaydedilir.
+                    </p>
                 </div>
 
-                {/* Groq */}
-                <Section title="GROQ API KEY" required hint="console.groq.com → API Keys → Create API Key (ücretsiz)">
-                    <Field type="password" value={fields.groqApiKey} onChange={set("groqApiKey")} placeholder="gsk_..." />
-                </Section>
-
-                {/* Supabase */}
-                <Section title="SUPABASE URL" required hint="Supabase Dashboard → Settings → API → Project URL">
-                    <Field type="text" value={fields.supabaseUrl} onChange={set("supabaseUrl")} placeholder="https://xxxx.supabase.co" />
-                </Section>
-
-                <Section title="SUPABASE SERVICE_ROLE KEY" required hint="Settings → API → service_role (anon key değil)">
-                    <Field type="password" value={fields.supabaseServiceKey} onChange={set("supabaseServiceKey")} placeholder="eyJ..." />
-                </Section>
+                {/* Zorunlu alanlar */}
+                <div className="space-y-5">
+                    <Field
+                        label="GROQ API KEY"
+                        required
+                        hint="console.groq.com → API Keys → Create (ücretsiz)"
+                        type="password"
+                        value={fields.groqApiKey}
+                        onChange={set("groqApiKey")}
+                        placeholder="gsk_..."
+                    />
+                    <Field
+                        label="SUPABASE URL"
+                        required
+                        hint="Supabase Dashboard → Settings → API → Project URL"
+                        type="text"
+                        value={fields.supabaseUrl}
+                        onChange={set("supabaseUrl")}
+                        placeholder="https://xxxx.supabase.co"
+                    />
+                    <Field
+                        label="SUPABASE SERVICE_ROLE KEY"
+                        required
+                        hint="Settings → API → service_role (anon key değil)"
+                        type="password"
+                        value={fields.supabaseServiceKey}
+                        onChange={set("supabaseServiceKey")}
+                        placeholder="eyJ..."
+                    />
+                </div>
 
                 {/* Opsiyonel */}
                 <div>
-                    <div className="text-[9px] tracking-[0.3em] opacity-40 mb-3 border-b pb-1" style={{borderColor: "rgba(34,211,238,0.1)"}}>
-                        OPSİYONEL — Web Arama (yoksa DuckDuckGo kullanılır)
+                    <div
+                        className="text-[10px] tracking-[0.35em] mb-4 pb-2 border-b flex items-center gap-2"
+                        style={{color: `rgba(${CYAN},0.4)`, borderColor: `rgba(${CYAN},0.1)`}}
+                    >
+                        <span className="flex-1 border-t" style={{borderColor: `rgba(${CYAN},0.1)`}} />
+                        OPSİYONEL — WEB ARAMA
+                        <span className="flex-1 border-t" style={{borderColor: `rgba(${CYAN},0.1)`}} />
                     </div>
-                    <div className="space-y-3">
-                        <Section title="TAVILY API KEY" hint="app.tavily.com → API Keys (ücretsiz tier var)">
-                            <Field type="password" value={fields.tavilyApiKey} onChange={set("tavilyApiKey")} placeholder="tvly-..." />
-                        </Section>
-                        <Section title="SERPER API KEY (Google arama)" hint="serper.dev → API Key (ücretsiz tier var)">
-                            <Field type="password" value={fields.serperApiKey} onChange={set("serperApiKey")} placeholder="" />
-                        </Section>
+                    <div className="space-y-5">
+                        <Field
+                            label="TAVILY API KEY"
+                            hint="app.tavily.com → API Keys (ücretsiz tier)"
+                            type="password"
+                            value={fields.tavilyApiKey}
+                            onChange={set("tavilyApiKey")}
+                            placeholder="tvly-..."
+                        />
+                        <Field
+                            label="SERPER API KEY"
+                            hint="serper.dev → API Key (ücretsiz tier)"
+                            type="password"
+                            value={fields.serperApiKey}
+                            onChange={set("serperApiKey")}
+                            placeholder=""
+                        />
                     </div>
                 </div>
 
-                {/* Supabase schema reminder */}
-                <div className="text-[10px] rounded-lg px-3 py-2.5 border" style={{borderColor: "rgba(245,185,60,0.25)", background: "rgba(245,185,60,0.04)", color: "rgb(245,185,60)"}}>
-                    ⚠ Supabase tablolarını oluşturdun mu? Repodan <code>supabase/schema.sql</code> dosyasını Supabase SQL Editor'da çalıştır.
+                {/* Supabase uyarısı */}
+                <div
+                    className="text-[12px] rounded-lg px-4 py-3 leading-relaxed"
+                    style={{
+                        borderLeft: "2px solid rgba(245,185,60,0.5)",
+                        background: "rgba(245,185,60,0.05)",
+                        color: "rgb(245,185,60)",
+                    }}
+                >
+                    ⚠ Supabase tablolarını oluşturdun mu? <code style={{opacity: 0.85}}>supabase/schema.sql</code> dosyasını Supabase SQL Editor'da çalıştır.
                 </div>
 
+                {/* Hata */}
                 {error && (
-                    <div className="text-[11px] px-3 py-2 rounded border" style={{color: "rgb(248,120,120)", borderColor: "rgba(248,120,120,0.3)", background: "rgba(248,120,120,0.06)"}}>
+                    <div
+                        className="text-[12px] px-4 py-2.5 rounded-lg"
+                        style={{
+                            color: "#f87171",
+                            background: "rgba(248,113,113,0.07)",
+                            border: "1px solid rgba(248,113,113,0.25)",
+                        }}
+                    >
                         {error}
                     </div>
                 )}
 
+                {/* Kaydet */}
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-3 rounded-xl border text-[12px] tracking-[0.3em] disabled:opacity-40 transition hover:brightness-125"
-                    style={{fontFamily: "Orbitron, sans-serif", color: "rgb(34,211,238)", borderColor: "rgba(34,211,238,0.4)", background: "rgba(34,211,238,0.06)"}}
+                    className="w-full py-3 rounded-xl border text-[13px] tracking-[0.3em] disabled:opacity-40 transition hover:brightness-125"
+                    style={{
+                        fontFamily: "Orbitron, sans-serif",
+                        color: ac,
+                        borderColor: `rgba(${CYAN},0.4)`,
+                        background: `rgba(${CYAN},0.07)`,
+                    }}
                 >
                     {saving ? "KAYDEDİLİYOR…" : "KAYDET VE BAŞLAT"}
                 </button>
 
-                <div className="pb-4" />
+                <div className="pb-2" />
             </div>
         </div>
     );
 }
 
-function Section({title, required, hint, children}: {title: string; required?: boolean; hint?: string; children: React.ReactNode}) {
+function Field({
+    label, required, hint, type, value, onChange, placeholder,
+}: {
+    label: string;
+    required?: boolean;
+    hint?: string;
+    type: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    placeholder: string;
+}) {
     return (
-        <div>
-            <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-[9px] tracking-[0.25em] opacity-60">{title}</span>
-                {required && <span className="text-[9px]" style={{color: "rgb(248,120,120)"}}>*</span>}
+        <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+                <span
+                    className="text-[11px] tracking-[0.25em]"
+                    style={{color: `rgba(${CYAN},0.6)`}}
+                >
+                    {label}
+                </span>
+                {required && (
+                    <span className="text-[11px]" style={{color: "#f87171"}}>*</span>
+                )}
             </div>
-            {children}
-            {hint && <p className="text-[9px] opacity-35 mt-1 pl-0.5">{hint}</p>}
+            <input
+                type={type}
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                className="w-full bg-transparent rounded-lg px-3 py-2.5 text-[13px] outline-none border transition"
+                style={{
+                    borderColor: value ? `rgba(${CYAN},0.4)` : border,
+                    color: ac,
+                }}
+            />
+            {hint && (
+                <p className="text-[11px] leading-relaxed" style={{color: `rgba(${CYAN},0.4)`}}>
+                    {hint}
+                </p>
+            )}
         </div>
-    );
-}
-
-function Field({type, value, onChange, placeholder}: {type: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder: string}) {
-    return (
-        <input
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className="w-full bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
-            style={{
-                borderColor: value ? "rgba(34,211,238,0.35)" : "rgba(34,211,238,0.12)",
-                color: "rgb(34,211,238)",
-            }}
-        />
     );
 }

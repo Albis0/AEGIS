@@ -16,10 +16,16 @@ body,
 }
 
 :root {
-    /* Default = idle (cyan). JS swaps these per state. */
+    /* Default = idle (cyan). JS swaps these per state + accent. */
     --hud: 34, 211, 238;
     --hud-deep: 8, 145, 178;
     --hud-soft: 56, 189, 248;
+
+    /* Status palette — derived from accent by applyAccent() */
+    --status-ok: 74, 222, 128;       /* green-400 equivalent */
+    --status-warn: 251, 146, 60;     /* orange-400 */
+    --status-danger: 248, 113, 113;  /* red-400 */
+    --status-pending: var(--hud);    /* thinking/running → accent */
 }
 
 body {
@@ -31,29 +37,13 @@ body {
 }
 
 /* State theming — applied to the root container, transitions smoothly */
-.state-idle {
-    --hud: 34, 211, 238;
-    --hud-deep: 8, 145, 178;
-    --hud-soft: 56, 189, 248;
-}
-
-.state-listening {
-    --hud: 56, 189, 248;
-    --hud-deep: 14, 116, 144;
-    --hud-soft: 125, 211, 252;
-}
-
+/* State overrides are only applied by App.tsx via applyAccent() + state class.
+   The accent color is the user-chosen base; states shift brightness/saturation only. */
 .state-thinking {
-    /* gold / amber — "processing" like the real JARVIS */
     --hud: 245, 185, 60;
     --hud-deep: 180, 120, 20;
     --hud-soft: 253, 224, 130;
-}
-
-.state-speaking {
-    --hud: 34, 211, 238;
-    --hud-deep: 8, 145, 178;
-    --hud-soft: 56, 189, 248;
+    --status-pending: 245, 185, 60;
 }
 
 .state-error {

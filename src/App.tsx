@@ -29,9 +29,42 @@ function applyAccent(rgb: string) {
     const [r, g, b] = rgb.split(",").map((x) => parseInt(x.trim(), 10));
     const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;
     const soft = `${Math.min(255, Math.round(r * 1.2))}, ${Math.min(255, Math.round(g * 1.1))}, ${Math.min(255, Math.round(b * 1.05))}`;
+
+    // Derive palette-aware status colors from the accent hue
+    // ok  → shift toward complementary green-ish tone
+    // warn → warm orange derived from hue
+    // danger → red-ish, always distinct
+    const hue = rgbToHue(r, g, b);
+    const ok = hslToRgbStr((hue + 150) % 360, 70, 60);
+    const warn = hslToRgbStr((hue + 40) % 360, 90, 65);
+    const danger = hslToRgbStr((hue + 180) % 360, 85, 60);
+
     document.documentElement.style.setProperty("--hud", rgb);
     document.documentElement.style.setProperty("--hud-deep", deep);
     document.documentElement.style.setProperty("--hud-soft", soft);
+    document.documentElement.style.setProperty("--status-ok", ok);
+    document.documentElement.style.setProperty("--status-warn", warn);
+    document.documentElement.style.setProperty("--status-danger", danger);
+    document.documentElement.style.setProperty("--status-pending", rgb);
+}
+
+function rgbToHue(r: number, g: number, b: number): number {
+    const rn = r / 255, gn = g / 255, bn = b / 255;
+    const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+    const d = max - min;
+    if (d === 0) return 0;
+    let h = max === rn ? ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
+          : max === gn ? ((bn - rn) / d + 2) / 6
+          :              ((rn - gn) / d + 4) / 6;
+    return Math.round(h * 360);
+}
+
+function hslToRgbStr(h: number, s: number, l: number): string {
+    s /= 100; l /= 100;
+    const k = (n: number) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => Math.round((l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))) * 255);
+    return `${f(0)}, ${f(8)}, ${f(4)}`;
 }
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const active = (s: CoreState) => s !== "idle";
@@ -368,7 +401,7 @@ export default function App() {
                 >
                     <div className="flex items-center justify-between px-3 py-2 border-b text-[10px] tracking-[0.25em]" style={{borderColor: "rgba(var(--hud),0.15)", color: "rgb(var(--hud))"}}>
                         <span className="glow-text">KONUŞMA</span>
-                        <span className="opacity-70" style={{color: state === "error" ? "rgb(248,80,80)" : "rgb(var(--hud))"}}>
+                        <span className="opacity-70" style={{color: state === "error" ? "rgb(var(--status-danger))" : "rgb(var(--hud))"}}>
                             {state.toUpperCase()}
                         </span>
                     </div>
@@ -395,15 +428,15 @@ export default function App() {
                                         const source = t.name === "web_search" && t.status === "done" ? parseSearchSource(t.detail) : null;
                                         return (
                                             <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
-                                                <span className={t.status === "running" ? "flick" : ""} style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(110,231,160)"}}>
+                                                <span className={t.status === "running" ? "flick" : ""} style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}>
                                                     {t.status === "running" ? "▸" : "✓"}
                                                 </span>
-                                                <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgba(110,231,160,0.7)"}}>
+                                                <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
                                                     {TOOL_VERB[t.name] || t.name.toUpperCase()}
                                                     {t.status === "running" ? "…" : ""}
                                                 </span>
                                                 {source && (
-                                                    <span className="text-[9px] px-1.5 py-0.5 rounded tracking-widest" style={{background: "rgba(110,231,160,0.12)", color: "rgb(110,231,160)", border: "1px solid rgba(110,231,160,0.25)"}}>
+                                                    <span className="text-[9px] px-1.5 py-0.5 rounded tracking-widest" style={{background: "rgb(var(--status-ok) / 0.12)", color: "rgb(var(--status-ok))", border: "1px solid rgb(var(--status-ok) / 0.25)"}}>
                                                         {source}
                                                     </span>
                                                 )}
@@ -426,8 +459,8 @@ export default function App() {
 
             {/* Control bar */}
             <div className="shrink-0 flex items-center justify-center gap-6 pb-1 z-20 text-[11px] tracking-[0.2em]">
-                <span className="flex items-center gap-1.5" style={{color: active(state) ? "rgb(110,231,160)" : "rgba(110,231,160,0.5)"}}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{background: "rgb(110,231,160)", boxShadow: "0 0 6px rgb(110,231,160)"}} /> CANLI
+                <span className="flex items-center gap-1.5" style={{color: active(state) ? "rgb(var(--status-ok))" : "rgb(var(--status-ok) / 0.5)"}}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{background: "rgb(var(--status-ok))", boxShadow: "0 0 6px rgb(var(--status-ok))"}} /> CANLI
                 </span>
                 <span className="opacity-40">·</span>
                 <span style={{color: "rgb(var(--hud))"}}>
@@ -455,7 +488,7 @@ export default function App() {
                     }}
                 />
                 <span className="opacity-40">·</span>
-                <button onClick={() => window.jarvis.close()} className="flex items-center gap-1.5 hover:brightness-125 transition" style={{color: "rgb(248,120,120)"}}>
+                <button onClick={() => window.jarvis.close()} className="flex items-center gap-1.5 hover:brightness-125 transition" style={{color: "rgb(var(--status-danger))"}}>
                     ⏻ KAPAT
                 </button>
             </div>
@@ -483,7 +516,7 @@ export default function App() {
                         <button
                             onClick={() => { stopSpeaking(); setState(modeRef.current !== "off" ? "listening" : "idle"); }}
                             className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125 flick"
-                            style={{fontFamily: "Orbitron, sans-serif", color: "rgb(248,120,120)", borderColor: "rgba(248,120,120,0.4)", background: "rgba(248,120,120,0.08)"}}
+                            style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--status-danger))", borderColor: "rgb(var(--status-danger) / 0.4)", background: "rgb(var(--status-danger) / 0.08)"}}
                         >
                             ⏹ DURDUR
                         </button>
@@ -534,7 +567,7 @@ function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
             </div>
             {open && (
                 <div className="mt-1 pl-9 space-y-0.5 text-[9px] opacity-70">
-                    {temp != null && <div>TEMP · <span style={{color: temp >= 90 ? "rgb(248,80,80)" : temp >= 75 ? "rgb(245,150,40)" : "rgb(var(--hud))"}}>{temp}°C</span></div>}
+                    {temp != null && <div>TEMP · <span style={{color: temp >= 90 ? "rgb(var(--status-danger))" : temp >= 75 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>{temp}°C</span></div>}
                     <div>CORES · {navigator.hardwareConcurrency ?? "—"}</div>
                 </div>
             )}
@@ -569,7 +602,7 @@ function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vram
                 </div>
             )}
             {gpu.temp != null && (
-                <div className="text-[9px] opacity-60 pl-11">TEMP · <span style={{color: gpu.temp >= 85 ? "rgb(248,80,80)" : gpu.temp >= 70 ? "rgb(245,150,40)" : "rgb(var(--hud))"}}>{gpu.temp}°C</span></div>
+                <div className="text-[9px] opacity-60 pl-11">TEMP · <span style={{color: gpu.temp >= 85 ? "rgb(var(--status-danger))" : gpu.temp >= 70 ? "rgb(var(--status-warn))" : "rgb(var(--hud))"}}>{gpu.temp}°C</span></div>
             )}
         </div>
     );
