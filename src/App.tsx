@@ -12,6 +12,27 @@ type LLMMsg = {role: "user" | "assistant"; content: string};
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type FeedItem = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
+const FONT_FAMILIES: Record<string, string> = {
+    jetbrains: "'JetBrains Mono', monospace",
+    orbitron:  "Orbitron, sans-serif",
+    rajdhani:  "Rajdhani, sans-serif",
+    inter:     "Inter, sans-serif",
+};
+
+function applyFont(font: string) {
+    document.documentElement.style.setProperty("--ui-font", FONT_FAMILIES[font] ?? FONT_FAMILIES.jetbrains);
+}
+
+function applyCustomCss(css: string) {
+    let el = document.getElementById("aegis-custom-css") as HTMLStyleElement | null;
+    if (!el) {
+        el = document.createElement("style");
+        el.id = "aegis-custom-css";
+        document.head.appendChild(el);
+    }
+    el.textContent = css;
+}
+
 function applyAccent(rgb: string) {
     const [r, g, b] = rgb.split(",").map((x) => parseInt(x.trim(), 10));
     const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;
@@ -50,12 +71,16 @@ export default function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
+    const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
 
     useEffect(() => {
         window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
             applyAccent(s.accentColor);
             setSkin(s.skin ?? "hologram");
+            setLayout(s.layout ?? "normal");
+            applyFont(s.font ?? "jetbrains");
+            applyCustomCss(s.customCss ?? "");
         });
     }, []);
 
@@ -199,6 +224,9 @@ export default function App() {
         window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
             setSkin(s.skin ?? "hologram");
+            setLayout(s.layout ?? "normal");
+            applyFont(s.font ?? "jetbrains");
+            applyCustomCss(s.customCss ?? "");
         });
     };
 
@@ -211,7 +239,7 @@ export default function App() {
         feed, input, setInput, state, streaming, tel, weather, clock,
         mode, setMode, listening, activated, capturing, placeholder,
         onSend: send, onStop: handleStop, onSettingsOpen: () => setSettingsOpen(true),
-        feedRef,
+        feedRef, layout,
     };
 
     return (
@@ -221,6 +249,9 @@ export default function App() {
                 onClose={handleSettingsClose}
                 onAccentChange={applyAccent}
                 onSkinChange={setSkin}
+                onFontChange={(f) => { applyFont(f); }}
+                onLayoutChange={setLayout}
+                onCustomCssChange={applyCustomCss}
             />
             {skin === "minimal"   ? <MinimalSkin   {...skinProps} /> :
              skin === "terminal"  ? <TerminalSkin  {...skinProps} /> :

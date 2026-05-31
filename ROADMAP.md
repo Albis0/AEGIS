@@ -73,11 +73,11 @@
 - ✅ Her skin kendi renk paleti, layout ve animasyonuyla gelir
 - ✅ Skin sistemi component bazlı — yeni skin eklemek mevcut kodu bozmaz
 
-### 3.2 Görsel Özelleştirme
+### 3.2 Görsel Özelleştirme ✅
 - ✅ Accent rengi — 6 renk, ayarlar panelinden seçilir
-- [ ] Font seçimi (Orbitron, Rajdhani, monospace...)
-- [ ] Kompakt / geniş layout modu
-- [ ] Özel CSS inject (ileri seviye kullanıcılar için)
+- ✅ Font seçimi (JetBrains Mono, Orbitron, Rajdhani, Inter)
+- ✅ Kompakt / geniş layout modu
+- ✅ Özel CSS inject (ileri seviye kullanıcılar için)
 
 ---
 
@@ -192,7 +192,7 @@
 ```
 ✅  Faz 1    Hafıza & bağlam         ← TAMAMLANDI
 ✅  Faz 2    Ayarlar & model seçimi  ← TAMAMLANDI
-🔄  Faz 3    UI temaları & skinler   ← devam ediyor (3.1 ✅)
+✅  Faz 3    UI temaları & skinler   ← TAMAMLANDI
 2.  Faz 4    Dil desteği             ← erişilebilirlik
 3.  Faz 5.1  Screenshot + vision     ← güçlü AI hissi
 4.  Faz 5.2  Clipboard               ← hızlı veri alışverişi

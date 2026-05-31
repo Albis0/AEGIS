@@ -11,6 +11,10 @@ export interface AppSettings {
     aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama"; // LLM sağlayıcı
     aiApiKey: string; // groq dışındaki sağlayıcılar için key
     ollamaUrl: string; // Ollama base URL, örn. http://localhost:11434
+    skin: "hologram" | "minimal" | "terminal" | "dashboard";
+    font: "jetbrains" | "orbitron" | "rajdhani" | "inter";
+    layout: "normal" | "compact";
+    customCss: string;
 }
 
 const DEFAULTS: AppSettings = {
@@ -22,6 +26,10 @@ const DEFAULTS: AppSettings = {
     aiProvider: "groq",
     aiApiKey: "",
     ollamaUrl: "http://localhost:11434",
+    skin: "hologram",
+    font: "jetbrains",
+    layout: "normal",
+    customCss: "",
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

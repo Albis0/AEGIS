@@ -65,15 +65,19 @@ const ACCENT_COLORS = [
     {id: "45,212,191",   label: "Teal",        hex: "#2dd4bf"},
 ];
 
-type Tab = "model" | "voice" | "keys";
+type Tab = "model" | "voice" | "appearance" | "keys";
 
 interface Props {
     open: boolean;
     onClose: () => void;
     onAccentChange: (rgb: string) => void;
+    onSkinChange: (skin: AppSettings["skin"]) => void;
+    onFontChange: (font: AppSettings["font"]) => void;
+    onLayoutChange: (layout: AppSettings["layout"]) => void;
+    onCustomCssChange: (css: string) => void;
 }
 
-export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
+export default function SettingsPanel({open, onClose, onAccentChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
     const [tab, setTab] = useState<Tab>("model");
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [config, setConfig]     = useState<AegisConfig | null>(null);
@@ -101,6 +105,10 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
         const updated = await window.jarvis.settingsSet(patch);
         setSettings(updated);
         if (patch.accentColor) onAccentChange(patch.accentColor);
+        if (patch.skin) onSkinChange(patch.skin);
+        if (patch.font) onFontChange(patch.font);
+        if (patch.layout) onLayoutChange(patch.layout);
+        if (patch.customCss !== undefined) onCustomCssChange(patch.customCss);
         flash();
     }
 
@@ -203,14 +211,14 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
 
                 {/* ── Tabs ── */}
                 <div className="shrink-0 flex border-b" style={{borderColor: `rgba(${a},0.1)`}}>
-                    {(["model", "voice", "keys"] as Tab[]).map((t) => (
+                    {(["model", "voice", "appearance", "keys"] as Tab[]).map((t) => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
-                            className="flex-1 py-3 text-[11px] font-medium tracking-[0.25em] transition relative"
+                            className="flex-1 py-3 text-[10px] font-medium tracking-[0.2em] transition relative"
                             style={{color: tab === t ? ac : `rgba(${a},0.4)`}}
                         >
-                            {t === "model" ? "MODEL" : t === "voice" ? "SES" : "API KEYS"}
+                            {t === "model" ? "MODEL" : t === "voice" ? "SES" : t === "appearance" ? "GÖRÜNÜM" : "API KEYS"}
                             {tab === t && (
                                 <span
                                     className="absolute bottom-0 left-0 right-0 h-px"
@@ -357,6 +365,35 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
                                 </Group>
                             )}
 
+                            {/* UI Skin */}
+                            <Group label="UI SKIN" accent={a}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        {id: "hologram",  icon: "◎", label: "Hologram",  sub: "3D globe · HUD panels"},
+                                        {id: "minimal",   icon: "—", label: "Minimal",   sub: "Clean · text-only"},
+                                        {id: "terminal",  icon: ">", label: "Terminal",  sub: "CLI emülatörü"},
+                                        {id: "dashboard", icon: "▦", label: "Dashboard", sub: "Widget grid"},
+                                    ] as const).map((s) => {
+                                        const isActive = settings.skin === s.id;
+                                        return (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => applySettings({skin: s.id})}
+                                                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: isActive ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${isActive ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-base w-5" style={{color: isActive ? ac : `rgba(${a},0.35)`}}>{s.icon}</span>
+                                                <span className="text-[13px] font-medium mt-1" style={{color: isActive ? ac : `rgba(${a},0.65)`}}>{s.label}</span>
+                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{s.sub}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+
                             {/* Accent color */}
                             <Group label="TEMA RENGİ" accent={a}>
                                 <div className="grid grid-cols-6 gap-2.5 pt-1">
@@ -500,6 +537,76 @@ export default function SettingsPanel({open, onClose, onAccentChange}: Props) {
                         </div>
                     )}
 
+                    {/* ════ APPEARANCE TAB ════ */}
+                    {tab === "appearance" && (
+                        <div className="p-5 space-y-7">
+
+                            {/* Font */}
+                            <Group label="FONT" accent={a}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        {id: "jetbrains", label: "JetBrains Mono", sub: "Monospace · varsayılan"},
+                                        {id: "orbitron",  label: "Orbitron",       sub: "Sci-fi · display"},
+                                        {id: "rajdhani",  label: "Rajdhani",       sub: "Sans · modern"},
+                                        {id: "inter",     label: "Inter",          sub: "Sans · okunabilir"},
+                                    ] as const).map((f) => {
+                                        const active = (settings.font ?? "jetbrains") === f.id;
+                                        return (
+                                            <button
+                                                key={f.id}
+                                                onClick={() => applySettings({font: f.id})}
+                                                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>{f.label}</span>
+                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{f.sub}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+
+                            {/* Layout */}
+                            <Group label="LAYOUT" accent={a}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        {id: "normal",  label: "Normal",   sub: "Standart boşluklar"},
+                                        {id: "compact", label: "Kompakt",  sub: "Daha sık, daha fazla içerik"},
+                                    ] as const).map((l) => {
+                                        const active = (settings.layout ?? "normal") === l.id;
+                                        return (
+                                            <button
+                                                key={l.id}
+                                                onClick={() => applySettings({layout: l.id})}
+                                                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-lg text-left transition"
+                                                style={{
+                                                    background: active ? `rgba(${a},0.1)` : "transparent",
+                                                    border: `1px solid ${active ? `rgba(${a},0.35)` : `rgba(${a},0.08)`}`,
+                                                }}
+                                            >
+                                                <span className="text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>{l.label}</span>
+                                                <span className="text-[11px] opacity-50 mt-0.5" style={{color: ac}}>{l.sub}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Group>
+
+                            {/* Custom CSS */}
+                            <Group label="ÖZEL CSS" accent={a}>
+                                <CustomCssField
+                                    value={settings.customCss ?? ""}
+                                    onSave={(v) => applySettings({customCss: v})}
+                                    accent={a}
+                                />
+                                <Hint accent={a}>CSS değişkenlerini ve class'ları override edebilirsin. Örn: :root {"{ --hud: 255,100,50; }"}</Hint>
+                            </Group>
+                        </div>
+                    )}
+
                     {/* ════ KEYS TAB ════ */}
                     {tab === "keys" && config && (
                         <div className="p-5 space-y-5">
@@ -595,6 +702,38 @@ function KeyField({value, placeholder, onSave, accent}: {value: string; placehol
                     style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}
                 >
                     ✓
+                </button>
+            )}
+        </div>
+    );
+}
+
+function CustomCssField({value, onSave, accent}: {value: string; onSave: (v: string) => void; accent: string}) {
+    const [val, setVal] = useState(value);
+    const changed = val !== value;
+    const ac = `rgb(${accent})`;
+
+    return (
+        <div className="space-y-2">
+            <textarea
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                placeholder={".my-class { color: red; }"}
+                rows={6}
+                className="w-full bg-transparent rounded-lg px-3 py-2 text-[11px] outline-none border transition resize-none"
+                style={{
+                    borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.12)`,
+                    color: ac,
+                    fontFamily: "'JetBrains Mono', monospace",
+                }}
+            />
+            {changed && (
+                <button
+                    onClick={() => onSave(val)}
+                    className="px-3 py-1.5 rounded-lg border text-[9px] tracking-widest transition hover:brightness-125"
+                    style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}
+                >
+                    ✓ UYGULA
                 </button>
             )}
         </div>

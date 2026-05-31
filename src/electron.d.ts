@@ -37,6 +37,10 @@ export interface AppSettings {
     aiProvider: "groq" | "openai" | "anthropic" | "mistral" | "ollama";
     aiApiKey: string;
     ollamaUrl: string;
+    skin: "hologram" | "minimal" | "terminal" | "dashboard";
+    font: "jetbrains" | "orbitron" | "rajdhani" | "inter";
+    layout: "normal" | "compact";
+    customCss: string;
 }
 
 export interface AegisConfig {
