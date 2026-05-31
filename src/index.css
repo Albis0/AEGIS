@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap');
+/* Google Fonts loaded via <link> in index.html to avoid render-blocking @import */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -159,34 +159,42 @@ input::placeholder {
 
 .spin-1 {
     animation: spin-cw 20s linear infinite;
+    will-change: transform;
 }
 
 .spin-2 {
     animation: spin-ccw 14s linear infinite;
+    will-change: transform;
 }
 
 .spin-3 {
     animation: spin-cw 9s linear infinite;
+    will-change: transform;
 }
 
 .spin-fast {
     animation: spin-ccw 5s linear infinite;
+    will-change: transform;
 }
 
 .breathe {
     animation: breathe 3.4s ease-in-out infinite;
+    will-change: transform, opacity;
 }
 
 .breathe-fast {
     animation: breathe-fast 0.85s ease-in-out infinite;
+    will-change: transform, opacity;
 }
 
 .flick {
     animation: flick 1.3s ease-in-out infinite;
+    will-change: opacity;
 }
 
 .rise {
     animation: rise 0.4s ease-out;
+    will-change: transform, opacity;
 }
 
 /* ── Layout density CSS variables ── */

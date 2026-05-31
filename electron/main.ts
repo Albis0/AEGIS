@@ -233,6 +233,8 @@ function refreshActiveWindow(): void {
     );
 }
 
+const telIntervals: NodeJS.Timeout[] = [];
+
 function startTelemetry(): void {
     refreshDisk();
     refreshBattery();
@@ -242,15 +244,15 @@ function startTelemetry(): void {
     refreshCpuTemp();
     refreshTopProcs();
     refreshActiveWindow();
-    setInterval(refreshDisk, 15000);
-    setInterval(refreshBattery, 30000);
-    setInterval(refreshNetwork, 4000);
-    setInterval(refreshGpu, 8000);
-    setInterval(refreshCpuTemp, 8000);
-    setInterval(refreshTopProcs, 10000);
-    setInterval(refreshActiveWindow, 5000);
+    telIntervals.push(setInterval(refreshDisk, 15000));
+    telIntervals.push(setInterval(refreshBattery, 30000));
+    telIntervals.push(setInterval(refreshNetwork, 4000));
+    telIntervals.push(setInterval(refreshGpu, 8000));
+    telIntervals.push(setInterval(refreshCpuTemp, 8000));
+    telIntervals.push(setInterval(refreshTopProcs, 10000));
+    telIntervals.push(setInterval(refreshActiveWindow, 5000));
 
-    setInterval(() => {
+    telIntervals.push(setInterval(() => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
@@ -269,7 +271,7 @@ function startTelemetry(): void {
             topProcs,
             activeWindow,
         });
-    }, 1500);
+    }, 1500));
 }
 
 // ---- Weather ----
@@ -318,13 +320,40 @@ async function getWeather(): Promise<object> {
 type OAIMessage = {role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string};
 type OAICompletion = {choices: [{message: {content: string | null; tool_calls?: {id: string; type: "function"; function: {name: string; arguments: string}}[]}}]};
 
-async function callAI(messages: OAIMessage[]): Promise<OAICompletion> {
+async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = (provider === "groq") ? (process.env.GROQ_API_KEY ?? "") : currentSettings.aiApiKey;
 
     if (provider === "groq") {
-        const res = await groq.chat.completions.create({model: MODEL, messages: messages as ChatCompletionMessageParam[], tools: toolSchemas, stream: false});
-        return res as unknown as OAICompletion;
+        const stream = await groq.chat.completions.create({
+            model: MODEL,
+            messages: messages as ChatCompletionMessageParam[],
+            tools: toolSchemas,
+            stream: true,
+        });
+        let fullContent = "";
+        const tcMap = new Map<number, {id: string; name: string; args: string}>();
+        for await (const chunk of stream) {
+            const delta = chunk.choices[0]?.delta;
+            if (delta?.content) {
+                fullContent += delta.content;
+                onDelta?.(delta.content);
+            }
+            for (const tc of (delta as any)?.tool_calls ?? []) {
+                const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
+                tcMap.set(tc.index, {
+                    id: tc.id ?? ex.id,
+                    name: tc.function?.name ?? ex.name,
+                    args: ex.args + (tc.function?.arguments ?? ""),
+                });
+            }
+        }
+        return {choices: [{message: {
+            content: fullContent || null,
+            tool_calls: tcMap.size > 0
+                ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
+                : undefined,
+        }}]};
     }
 
     if (provider === "anthropic") {
@@ -388,15 +417,23 @@ async function callAI(messages: OAIMessage[]): Promise<OAICompletion> {
     return await resp.json() as OAICompletion;
 }
 
+// ---- User profile cache (avoid Supabase round-trip on every message) ----
+let cachedProfile: Record<string, string> = {};
+let profileCachedAt = 0;
+
 // ---- Agentic streaming chat ----
 async function runAgent(history: {role: string; content: string}[], reqId: string): Promise<void> {
     // Track messages for end-of-session summarization
     sessionHistory = history.map((m) => ({role: m.role, content: m.content}));
 
-    const profile = await getUserProfile().catch(() => ({}) as Record<string, string>);
+    // Refresh profile at most once per minute
+    if (Date.now() - profileCachedAt > 60_000) {
+        cachedProfile = await getUserProfile().catch(() => ({}));
+        profileCachedAt = Date.now();
+    }
     const profileNote =
-        Object.keys(profile).length > 0 ?
-            `\nKullanıcı profili: ${Object.entries(profile)
+        Object.keys(cachedProfile).length > 0 ?
+            `\nKullanıcı profili: ${Object.entries(cachedProfile)
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
@@ -407,13 +444,15 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
     };
 
     for (let step = 0; step < 8; step++) {
-        const completion = await callAI(messages);
+        // Groq: tokens stream via onDelta. Other providers: full response returned.
+        const completion = await callAI(messages, (text) => send("chat-delta", {text}));
 
         const msg = completion.choices[0]?.message;
         const content = msg?.content ?? "";
         const toolCalls = (msg?.tool_calls ?? []) as {id: string; type: "function"; function: {name: string; arguments: string}}[];
 
-        if (content) send("chat-delta", {text: content});
+        // Non-Groq providers send the full content at once (Groq already streamed it)
+        if (content && currentSettings.aiProvider !== "groq") send("chat-delta", {text: content});
 
         if (toolCalls.length === 0) {
             if (content) await saveMessage("assistant", content).catch(() => {});
@@ -423,14 +462,20 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
 
         messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as OAIMessage);
 
-        for (const call of toolCalls) {
-            const name = call.function.name;
-            const argsJson = call.function.arguments || "{}";
-            send("tool-event", {phase: "start", name, args: argsJson});
-            const result = await executeTool(name, argsJson);
-            send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
-            await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
-            messages.push({role: "tool", tool_call_id: call.id, content: String(result)});
+        // Run all tool calls in parallel
+        const toolResults = await Promise.all(
+            toolCalls.map(async (call) => {
+                const name = call.function.name;
+                const argsJson = call.function.arguments || "{}";
+                send("tool-event", {phase: "start", name, args: argsJson});
+                const result = await executeTool(name, argsJson);
+                send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
+                await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
+                return {id: call.id, content: String(result)};
+            })
+        );
+        for (const r of toolResults) {
+            messages.push({role: "tool", tool_call_id: r.id, content: r.content});
         }
     }
 
@@ -676,6 +721,7 @@ app.whenReady().then(async () => {
 
 let isQuitting = false;
 app.on("before-quit", (e) => {
+    telIntervals.forEach(clearInterval);
     if (isQuitting || sessionHistory.length < 2) return;
     e.preventDefault();
     isQuitting = true;

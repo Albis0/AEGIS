@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import type {CoreState} from "./components/ArcReactor";
 import SettingsPanel from "./components/SettingsPanel";
 import {useVoice, type VoiceMode} from "./hooks/useVoice";
@@ -235,17 +235,21 @@ export default function App() {
         });
     };
 
-    const handleStop = () => {
+    const handleStop = useCallback(() => {
         stopSpeaking();
         setState(modeRef.current !== "off" ? "listening" : "idle");
-    };
+    }, [stopSpeaking]);
 
-    const skinProps = {
+    const handleSettingsOpen = useCallback(() => setSettingsOpen(true), []);
+
+    const skinProps = useMemo(() => ({
         feed, input, setInput, state, streaming, tel, weather, clock,
         mode, setMode, listening, activated, capturing, placeholder,
-        onSend: send, onStop: handleStop, onSettingsOpen: () => setSettingsOpen(true),
+        onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         feedRef, layout,
-    };
+    }), [feed, input, state, streaming, tel, weather, clock,
+        mode, listening, activated, capturing, placeholder,
+        send, handleStop, handleSettingsOpen, layout]);
 
     return (
         <>

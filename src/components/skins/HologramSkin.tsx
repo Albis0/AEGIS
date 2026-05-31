@@ -4,23 +4,11 @@ import type {Telemetry, Weather} from "../../electron.d";
 import type {VoiceMode} from "../../hooks/useVoice";
 import ArcReactor from "../ArcReactor";
 import VoiceModeToggle from "../VoiceModeToggle";
+import FeedItem from "../FeedItem";
+import type {FeedItemType} from "../FeedItem";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type FeedItem = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
-
-const TOOL_VERB: Record<string, string> = {
-    run_command: "KOMUT YÜRÜTÜLÜYOR",
-    read_file: "DOSYA OKUNUYOR",
-    write_file: "DOSYA YAZILIYOR",
-    list_directory: "DİZİN TARANIYOR",
-    web_search: "AĞ TARANIYOR",
-};
-
-function parseSearchSource(detail?: string): string | null {
-    if (!detail) return null;
-    const m = detail.match(/^\[([^\]]+)\]/);
-    return m ? m[1] : null;
-}
+type FeedItemLocal = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
 const fmtUptime = (s: number) => `${Math.floor(s / 3600)}s ${Math.floor((s % 3600) / 60)}d`;
 const fmtRate = (bps?: number) => {
@@ -30,7 +18,7 @@ const fmtRate = (bps?: number) => {
 };
 
 export interface SkinProps {
-    feed: FeedItem[];
+    feed: FeedItemLocal[];
     input: string;
     setInput: (v: string) => void;
     state: CoreState;
@@ -171,42 +159,14 @@ export default function HologramSkin({
                                 <div>SYS: Emrinizi bekliyorum, efendim…</div>
                             </div>
                         )}
-                        {feed.map((item) =>
-                            item.kind === "user" ?
-                                <div key={item.id} className="flex justify-end rise">
-                                    <div className="max-w-[88%] px-3 py-1.5 rounded-lg rounded-br-sm text-[12.5px] leading-relaxed border break-words" style={{borderColor: "rgba(var(--hud),0.35)", background: "rgba(var(--hud),0.08)", color: "rgb(var(--hud-soft))"}}>
-                                        {item.text}
-                                    </div>
-                                </div>
-                            :   <div key={item.id} className="rise">
-                                    {item.tools.map((t, i) => {
-                                        const source = t.name === "web_search" && t.status === "done" ? parseSearchSource(t.detail) : null;
-                                        return (
-                                            <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
-                                                <span className={t.status === "running" ? "flick" : ""} style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}>
-                                                    {t.status === "running" ? "▸" : "✓"}
-                                                </span>
-                                                <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
-                                                    {TOOL_VERB[t.name] || t.name.toUpperCase()}{t.status === "running" ? "…" : ""}
-                                                </span>
-                                                {source && (
-                                                    <span className="text-[9px] px-1.5 py-0.5 rounded tracking-widest" style={{background: "rgb(var(--status-ok) / 0.12)", color: "rgb(var(--status-ok))", border: "1px solid rgb(var(--status-ok) / 0.25)"}}>
-                                                        {source}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                    {item.text && (
-                                        <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap break-words text-cyan-50/90">
-                                            {item.text}
-                                            {streaming && item.id === feed[feed.length - 1].id && (
-                                                <span className="inline-block w-1.5 h-4 ml-0.5 align-middle flick" style={{background: "rgb(var(--hud))"}} />
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                        )}
+                        {feed.map((item) => (
+                            <FeedItem
+                                key={item.id}
+                                item={item as FeedItemType}
+                                streaming={streaming}
+                                isLast={item.id === feed[feed.length - 1]?.id}
+                            />
+                        ))}
                     </div>
                 </div>
             </div>
@@ -270,7 +230,7 @@ function Section({title, children}: {title: string; children: ReactNode}) {
     );
 }
 
-function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
+const CpuRow = React.memo(function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
     const [open, setOpen] = React.useState(false);
     const color = cpu >= 90 ? "248,80,80" : cpu >= 70 ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
@@ -292,9 +252,9 @@ function CpuRow({cpu, temp}: {cpu: number; temp: number | null}) {
             )}
         </div>
     );
-}
+});
 
-function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null}}) {
+const GpuRow = React.memo(function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vramTotal: number; temp: number | null}}) {
     const color = gpu.load >= 90 ? "248,80,80" : gpu.load >= 70 ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
     const vramPct = gpu.vramTotal > 0 ? Math.round((gpu.vramUsed / gpu.vramTotal) * 100) : 0;
@@ -322,9 +282,9 @@ function GpuRow({gpu}: {gpu: {name: string; load: number; vramUsed: number; vram
             )}
         </div>
     );
-}
+});
 
-function TelRow({label, value, bar, danger, warn}: {label: string; value: string; bar: number; danger?: number; warn?: number}) {
+const TelRow = React.memo(function TelRow({label, value, bar, danger, warn}: {label: string; value: string; bar: number; danger?: number; warn?: number}) {
     const color = danger != null && bar >= danger ? "248,80,80" : warn != null && bar >= warn ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
     return (
@@ -336,5 +296,5 @@ function TelRow({label, value, bar, danger, warn}: {label: string; value: string
             <span className="tabular-nums w-12 text-right" style={{color: fill}}>{value}</span>
         </div>
     );
-}
+});
 

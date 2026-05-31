@@ -262,11 +262,17 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             return out || "(sonuç bulunamadı)";
         };
 
+        const fetchWithTimeout = (url: string, init: RequestInit, ms = 8000): Promise<Response> => {
+            const ac = new AbortController();
+            const tid = setTimeout(() => ac.abort(), ms);
+            return fetch(url, {...init, signal: ac.signal}).finally(() => clearTimeout(tid));
+        };
+
         // 1. Tavily
         const tavilyKey = process.env.TAVILY_API_KEY;
         if (tavilyKey) {
             try {
-                const res = await fetch("https://api.tavily.com/search", {
+                const res = await fetchWithTimeout("https://api.tavily.com/search", {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({api_key: tavilyKey, query, max_results: 5, include_answer: true}),
@@ -282,7 +288,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const serperKey = process.env.SERPER_API_KEY;
         if (serperKey) {
             try {
-                const res = await fetch("https://google.serper.dev/search", {
+                const res = await fetchWithTimeout("https://google.serper.dev/search", {
                     method: "POST",
                     headers: {"Content-Type": "application/json", "X-API-KEY": serperKey},
                     body: JSON.stringify({q: query, num: 5}),
@@ -297,7 +303,10 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
 
         // 3. DuckDuckGo Instant Answer (key gerektirmiyor, sınırlı)
         try {
-            const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`);
+            const res = await fetchWithTimeout(
+                `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`,
+                {},
+            );
             if (res.ok) {
                 const data = (await res.json()) as {AbstractText?: string; AbstractURL?: string; RelatedTopics?: {Text?: string; FirstURL?: string}[]};
                 const results: {title: string; url: string; content?: string}[] = [];
