@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback} from "./tools";
+import {toolSchemas, executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback} from "./tools";
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
@@ -602,6 +602,12 @@ const LANG_DEFAULT_VOICE: Record<string, string> = {
 
 async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
+
+    registerRemindCallback((message) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("reminder-fired", {message});
+        }
+    });
 
     registerScreenshotCallback(async () => {
         try {

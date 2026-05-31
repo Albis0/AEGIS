@@ -196,6 +196,17 @@ export default function App() {
                 setState("error");
             }),
 
+            window.jarvis.on("reminder-fired", ({message}: {message: string}) => {
+                const id = uid();
+                const reminderText = `Hatırlatıcı: ${message}`;
+                setFeed((prev) => [...prev, {id, kind: "assistant", text: reminderText, tools: []}]);
+                historyRef.current = [...historyRef.current, {role: "assistant", content: reminderText}];
+                if (modeRef.current !== "off") {
+                    speak(reminderText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+                    setState("speaking");
+                }
+            }),
+
             window.jarvis.on("chat-done", ({reqId}: any) => {
                 if (reqId !== reqIdRef.current) return;
                 const responseText = accRef.current;

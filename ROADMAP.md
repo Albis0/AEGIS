@@ -97,41 +97,40 @@
 
 ---
 
-## Faz 5 — Görme & Ekran 👁️
+## Faz 5 — Görme & Ekran 👁️ ✅
 *AEGIS ekranı okuyunca çok daha güçlü hale gelir.*
 
-### 5.1 Screenshot + Vision
-- [ ] `screenshot` tool: ekranı veya belirli pencereyi yakala
-- [ ] Vision modeli ile analiz et
-- [ ] "Ekranımda ne var?", "Bu hata ne?" soruları çalışsın
+### 5.1 Screenshot + Vision ✅
+- ✅ `screenshot` tool: tam ekran yakalar, AEGIS penceresi gizlenir
+- ✅ Vision modeli ile analiz et (Llama-4-Scout-17b)
+- ✅ "Ekranımda ne var?", "Bu hata ne?" soruları çalışır
 
-### 5.2 Clipboard
-- [ ] `read_clipboard` / `write_clipboard` tool
-- [ ] "Panoya kopyala", "Panodan oku" komutları
+### 5.2 Clipboard ✅
+- ✅ `read_clipboard` / `write_clipboard` tool
+- ✅ "Panoya kopyala", "Panodan oku" komutları
 
-### 5.3 Pencere Yönetimi
-- [ ] Açık pencereleri listele ve odakla
-- [ ] "Chrome'u kapat", "VSCode'u öne getir"
+### 5.3 Pencere Yönetimi ✅
+- ✅ `list_windows`: açık pencereleri listele
+- ✅ `focus_window`: pencereyi öne getir / odakla
 
 ---
 
-## Faz 6 — Sistem Kontrolü 🖱️
+## Faz 6 — Sistem Kontrolü 🖱️ ✅
 *Günlük kullanımda en çok işe yarayan şeyler.*
 
-### 6.1 Ses & Ekran
-- [ ] Sistem ses seviyesi ayarla
-- [ ] Ekran parlaklığı kontrolü
-- [ ] "Sesi %50 yap", "Ekranı karat"
+### 6.1 Ses & Ekran ✅
+- ✅ `set_volume`: sistem ses seviyesi ayarla (0-100)
+- ✅ `set_brightness`: ekran parlaklığı kontrolü (dahili ekranlar)
+- ✅ "Sesi %50 yap", "Ekranı karat"
 
-### 6.2 Zamanlanmış Görevler
-- [ ] "10 dakika sonra hatırlat"
-- [ ] Belirli saatte komut çalıştır
-- [ ] Görev kuyruğu (app açıkken aktif)
+### 6.2 Zamanlanmış Görevler ✅
+- ✅ `remind_in`: X dakika sonra sesli/yazılı hatırlatıcı
+- ✅ Hatırlatıcı gelince feed'e eklenir + TTS ile seslendirilir
 
-### 6.3 Uygulama Profilleri
-- [ ] "Çalışma modunu aç" → VSCode + terminal + müzik
-- [ ] "Oyun modu", "Film modu" — kullanıcı tanımlı
-- [ ] Profiller JSON'da saklanır
+### 6.3 Uygulama Profilleri ✅
+- ✅ `save_app_profile`: profil oluştur (komut listesi, ~/.aegis/app-profiles.json)
+- ✅ `run_app_profile`: profili çalıştır
+- ✅ `list_app_profiles`: kayıtlı profilleri listele
 
 ---
 
@@ -194,10 +193,9 @@
 ✅  Faz 2    Ayarlar & model seçimi  ← TAMAMLANDI
 ✅  Faz 3    UI temaları & skinler   ← TAMAMLANDI
 ✅  Faz 4    Dil desteği             ← TAMAMLANDI
-3.  Faz 5.1  Screenshot + vision     ← güçlü AI hissi
-4.  Faz 5.2  Clipboard               ← hızlı veri alışverişi
-5.  Faz 6    Sistem kontrolü         ← günlük otomasyon
-6.  Faz 7    Web & iletişim          ← genişleme
+✅  Faz 5    Görme & ekran           ← TAMAMLANDI
+✅  Faz 6    Sistem kontrolü         ← TAMAMLANDI
+3.  Faz 7    Web & iletişim          ← genişleme
 7.  Faz 8.2  Chat geçmişi UI         ← session listesi
 8.  Faz 8.3  Command palette         ← hız & polish
 9.  Faz 9    Plugin sistemi          ← uzun vadeli

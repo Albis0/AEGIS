@@ -169,6 +169,127 @@ export const toolSchemas: ChatCompletionTool[] = [
     {
         type: "function",
         function: {
+            name: "read_clipboard",
+            description: "Panodaki metni oku. 'Panoyu oku', 'Panoda ne var?' gibi.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "write_clipboard",
+            description: "Metni panoya kopyala. 'Bunu kopyala', 'Panoya yaz' gibi.",
+            parameters: {
+                type: "object",
+                properties: {text: {type: "string", description: "Panoya yazılacak metin"}},
+                required: ["text"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_windows",
+            description: "Şu an açık olan pencereleri listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "focus_window",
+            description: "Belirtilen pencereyi öne getir / odakla. 'Chrome'u öne getir', 'VSCode'u aç' gibi.",
+            parameters: {
+                type: "object",
+                properties: {title: {type: "string", description: "Pencere başlığı veya uygulama adı (kısmi eşleşme yeterli)"}},
+                required: ["title"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "set_volume",
+            description: "Sistem ses seviyesini ayarla (0-100). 'Sesi %50 yap', 'Sesi aç/kapat' gibi.",
+            parameters: {
+                type: "object",
+                properties: {level: {type: "number", description: "Ses seviyesi 0-100"}},
+                required: ["level"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "set_brightness",
+            description: "Ekran parlaklığını ayarla (0-100). Dahili ekranlarda çalışır.",
+            parameters: {
+                type: "object",
+                properties: {level: {type: "number", description: "Parlaklık 0-100"}},
+                required: ["level"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "remind_in",
+            description: "X dakika sonra kullanıcıya sesli/yazılı hatırlatıcı gönder. '10 dakika sonra hatırlat', 'Yarım saat sonra...' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    message: {type: "string", description: "Hatırlatıcı mesajı"},
+                    minutes: {type: "number", description: "Kaç dakika sonra (ondalık da olabilir, örn: 0.5 = 30 saniye)"},
+                },
+                required: ["message", "minutes"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "save_app_profile",
+            description: "Bir uygulama profili kaydet. Her satırda bir PowerShell komutu. 'Oyun modunu kaydet', 'Çalışma profili oluştur' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Profil adı (örn: oyun_modu, calisma_modu)"},
+                    commands: {type: "string", description: "Her satırda bir PowerShell komutu (örn: Start-Process chrome\\nStart-Process code)"},
+                },
+                required: ["name", "commands"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "run_app_profile",
+            description: "Kaydedilmiş uygulama profilini çalıştır. 'Oyun modunu aç', 'Çalışma moduna geç' gibi.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Çalıştırılacak profil adı"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_app_profiles",
+            description: "Kayıtlı uygulama profillerini listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "screenshot",
             description: "Ekranın anlık görüntüsünü al ve analiz et. 'Ekranımda ne var?', 'Bu hata ne?', 'Ekranı analiz et' gibi sorularda kullan. question parametresi ile ne sormak istediğini belirt.",
             parameters: {
@@ -225,6 +346,27 @@ let _screenshotCallback: (() => Promise<{base64: string; width: number; height: 
 let _analyzeScreenCallback: ((base64: string, prompt: string) => Promise<string>) | null = null;
 export function registerScreenshotCallback(cb: typeof _screenshotCallback): void { _screenshotCallback = cb; }
 export function registerAnalyzeScreenCallback(cb: typeof _analyzeScreenCallback): void { _analyzeScreenCallback = cb; }
+
+let _remindCallback: ((message: string) => void) | null = null;
+export function registerRemindCallback(cb: (message: string) => void): void { _remindCallback = cb; }
+
+function runScript(content: string, timeoutMs = 15000): Promise<ToolResult> {
+    const tmpPath = path.join(os.tmpdir(), `aegis-${Date.now()}.ps1`);
+    fs.writeFileSync(tmpPath, content, "utf-8");
+    return new Promise((resolve) => {
+        execCb(
+            `powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpPath}"`,
+            {timeout: timeoutMs, windowsHide: true, maxBuffer: 1024 * 1024},
+            (err, stdout, stderr) => {
+                try { fs.unlinkSync(tmpPath); } catch {}
+                const out = (stdout ?? "").trim();
+                const errOut = (stderr ?? "").trim();
+                if (err && !out) resolve(`HATA: ${err.message}${errOut ? "\n" + errOut : ""}`);
+                else resolve(out || errOut || "(çıktı yok, komut çalıştı)");
+            }
+        );
+    });
+}
 
 function isDangerous(command: string): string | null {
     for (const {pattern, reason} of SYSTEM_DESTROY_PATTERNS) {
@@ -296,6 +438,94 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async done_note({id}) {
         await markNoteDone(id);
         return `Not tamamlandı: ${id}`;
+    },
+    async read_clipboard() {
+        return run(`powershell -NoProfile -Command "Get-Clipboard"`, 5000);
+    },
+    async write_clipboard({text}) {
+        const tmpPath = path.join(os.tmpdir(), `aegis-clip-${Date.now()}.txt`);
+        fs.writeFileSync(tmpPath, text, "utf-8");
+        const result = await run(`powershell -NoProfile -Command "Get-Content '${tmpPath}' -Raw | Set-Clipboard"`, 5000);
+        try { fs.unlinkSync(tmpPath); } catch {}
+        if (result.startsWith("HATA")) return result;
+        return `Panoya kopyalandı (${text.length} karakter)`;
+    },
+    async list_windows() {
+        return run(
+            `powershell -NoProfile -Command "Get-Process | Where-Object {$_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -ne ''} | Sort-Object MainWindowTitle | Select-Object -ExpandProperty MainWindowTitle"`,
+            8000,
+        );
+    },
+    async focus_window({title}) {
+        return runScript(
+            `$wsh = New-Object -ComObject WScript.Shell\n` +
+            `$result = $wsh.AppActivate('${title.replace(/'/g, "''")}')\n` +
+            `if ($result) { Write-Output "Pencere odaklandı: ${title}" } else { Write-Output "Pencere bulunamadı: ${title}" }`,
+            5000,
+        );
+    },
+    async set_volume({level}) {
+        const vol = Math.max(0, Math.min(100, Math.round(parseFloat(String(level)))));
+        return runScript(
+            `Add-Type -TypeDefinition @"\nusing System.Runtime.InteropServices;\npublic class WinVol {\n    [DllImport("winmm.dll")]\n    public static extern int waveOutSetVolume(System.IntPtr h, uint v);\n}\n"@ -ErrorAction SilentlyContinue\n` +
+            `$v = [uint32][Math]::Round(${vol} / 100.0 * 65535)\n` +
+            `[WinVol]::waveOutSetVolume([System.IntPtr]::Zero, ($v -bor ($v -shl 16))) | Out-Null\n` +
+            `Write-Output "Ses seviyesi ${vol}% olarak ayarlandı"`,
+            10000,
+        );
+    },
+    async set_brightness({level}) {
+        const br = Math.max(0, Math.min(100, Math.round(parseFloat(String(level)))));
+        return runScript(
+            `$m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue\n` +
+            `if ($m) { $m.WmiSetBrightness(1, ${br}); Write-Output "Parlaklık ${br}% olarak ayarlandı" }\n` +
+            `else { Write-Output "Dahili ekran bulunamadı (harici monitörde desteklenmez)" }`,
+            8000,
+        );
+    },
+    async remind_in({message, minutes}) {
+        if (!_remindCallback) return "HATA: Hatırlatıcı callback kayıtlı değil.";
+        const ms = parseFloat(String(minutes)) * 60 * 1000;
+        if (isNaN(ms) || ms <= 0) return "HATA: Geçersiz süre.";
+        setTimeout(() => _remindCallback!(message), ms);
+        const label = ms < 60000 ? `${Math.round(ms / 1000)} saniye` : `${minutes} dakika`;
+        return `Hatırlatıcı ayarlandı: ${label} sonra "${message}"`;
+    },
+    async save_app_profile({name, commands}) {
+        const profilePath = path.join(os.homedir(), ".aegis", "app-profiles.json");
+        let profiles: Record<string, string[]> = {};
+        try {
+            if (fs.existsSync(profilePath)) profiles = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
+        } catch {}
+        const cmds = commands.split("\n").map((s: string) => s.trim()).filter(Boolean);
+        profiles[name] = cmds;
+        fs.mkdirSync(path.dirname(profilePath), {recursive: true});
+        fs.writeFileSync(profilePath, JSON.stringify(profiles, null, 2), "utf-8");
+        return `Profil kaydedildi: "${name}" (${cmds.length} komut)`;
+    },
+    async run_app_profile({name}) {
+        const profilePath = path.join(os.homedir(), ".aegis", "app-profiles.json");
+        try {
+            const profiles: Record<string, string[]> = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
+            const cmds = profiles[name];
+            if (!cmds || cmds.length === 0) return `Profil bulunamadı: "${name}"`;
+            const script = cmds.join("\n");
+            const result = await runScript(script, 30000);
+            return `Profil çalıştırıldı: "${name}"\n${result}`;
+        } catch (e) {
+            return `HATA: ${(e as Error).message}`;
+        }
+    },
+    async list_app_profiles() {
+        const profilePath = path.join(os.homedir(), ".aegis", "app-profiles.json");
+        try {
+            const profiles: Record<string, string[]> = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
+            const keys = Object.keys(profiles);
+            if (keys.length === 0) return "Kayıtlı profil yok.";
+            return keys.map((k) => `• ${k} (${profiles[k].length} komut)`).join("\n");
+        } catch {
+            return "Kayıtlı profil yok.";
+        }
     },
     async screenshot({question}) {
         if (!_screenshotCallback) return "HATA: Screenshot callback kayıtlı değil.";
