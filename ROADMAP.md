@@ -263,20 +263,20 @@
 ## Faz 13 — Bilgi Tabanı & RAG 📚
 *AEGIS kendi belgelerin üzerinde akıl yürütebilsin.*
 
-### 13.1 Yerel Belge İndeksleme
-- [ ] `index_folder` tool: klasör ver → dosyaları chunk'la, embedding'leri `~/.aegis/index/`'e kaydet
-- [ ] `.txt`, `.md`, `.pdf`, `.docx` formatları desteklenmeli
-- [ ] Değişen dosyalar incremental olarak güncellenmeli
+### 13.1 Yerel Belge İndeksleme ✅
+- ✅ `index_file` / `index_folder` tool: dosyaları 800-char chunk'lara böl, `~/.aegis/index/`'e kaydet
+- ✅ `.txt`, `.md`, `.ts`, `.js`, `.py`, `.json`, `.csv` desteği
+- ✅ SHA-256 hash ile değişen dosyalar incremental olarak güncellenir
+- ✅ `list_indexed_files` / `remove_from_index` tool'ları
 
-### 13.2 Semantik Arama
-- [ ] `search_knowledge` tool: doğal dil sorgu → en alakalı chunk'lar → LLM'e bağlam olarak ver
-- [ ] "Proje notlarımda X hakkında ne yazmışım?" sorusu çalışsın
-- [ ] Kaynak dosya + satır numarası yanıtta gösterilsin
+### 13.2 Semantik Arama ✅
+- ✅ `search_knowledge` tool: BM25-lite kelime eşleşmesi ile en alakalı chunk'ları bul
+- ✅ "Proje notlarımda X hakkında ne var?" sorusu çalışır
+- ✅ Kaynak dosya adı + skor yanıtta gösterilir
 
-### 13.3 Belge Sohbeti
-- [ ] `chat_with_file` tool: tek dosya ver → o dosyayla odaklı sohbet
-- [ ] PDF, Word, uzun markdown desteği
-- [ ] "Bu PDF'i özetle", "3. bölümde ne diyor?" soruları çalışsın
+### 13.3 Belge Sohbeti ✅
+- ✅ `chat_with_file` tool: dosya içeriğini LLM bağlamına yükle (maks 12K karakter)
+- ✅ "Bu dosyayı özetle", "Şu dosyada ne yazıyor?" soruları çalışır
 
 ---
 

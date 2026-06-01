@@ -7,6 +7,7 @@ import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone}
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
 import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
+import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 
 type ToolResult = string;
 
@@ -470,6 +471,94 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const knowledgeSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "index_file",
+            description: "Bir dosyayı bilgi tabanına indeksle. .txt, .md, .ts, .js, .py, .json, .csv desteklenir.",
+            parameters: {
+                type: "object",
+                properties: {
+                    file_path: {type: "string", description: "İndekslenecek dosya yolu (~ desteklenir)"},
+                },
+                required: ["file_path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "index_folder",
+            description: "Bir klasördeki tüm uygun dosyaları bilgi tabanına indeksle.",
+            parameters: {
+                type: "object",
+                properties: {
+                    folder_path: {type: "string", description: "Klasör yolu"},
+                    extensions:  {type: "string", description: "Virgülle ayrılmış uzantılar (varsayılan: .txt,.md,.ts,.js,.py)"},
+                },
+                required: ["folder_path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_knowledge",
+            description: "Bilgi tabanında semantik arama yap. 'Proje notlarımda X hakkında ne var?' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {type: "string", description: "Arama sorgusu"},
+                    top_k: {type: "number", description: "Döndürülecek sonuç sayısı (varsayılan 5)"},
+                },
+                required: ["query"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "chat_with_file",
+            description: "Bir dosyayla sohbet et — dosya içeriğini bağlam olarak yükle. 'Bu PDF ne diyor?', 'Şu dosyayı özetle' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    file_path: {type: "string", description: "Okunacak dosya yolu"},
+                },
+                required: ["file_path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_indexed_files",
+            description: "Bilgi tabanındaki indekslenmiş dosyaları listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "remove_from_index",
+            description: "Bir dosyayı bilgi tabanından kaldır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    file_path: {type: "string", description: "Kaldırılacak dosya yolu"},
+                },
+                required: ["file_path"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const automationSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -653,7 +742,7 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -1061,6 +1150,28 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async toggle_automation({id_or_condition}) {
         return toggleAutomation(id_or_condition ?? "");
+    },
+
+    async index_file({file_path}) {
+        return indexFile(file_path ?? "");
+    },
+    async index_folder({folder_path, extensions}) {
+        const exts = extensions ? String(extensions).split(",").map((e) => e.trim()) : undefined;
+        return indexFolder(folder_path ?? "", exts);
+    },
+    async search_knowledge({query, top_k}) {
+        return searchKnowledge(query ?? "", top_k ? parseInt(String(top_k)) : 5);
+    },
+    async chat_with_file({file_path}) {
+        const content = readFileForChat(file_path ?? "");
+        if (content.startsWith("HATA:")) return content;
+        return `Dosya içeriği (${file_path}):\n\n${content}\n\n[Yukarıdaki içeriği bağlam olarak kullanarak soruları yanıtla.]`;
+    },
+    async list_indexed_files() {
+        return listIndexedFiles();
+    },
+    async remove_from_index({file_path}) {
+        return removeFromIndex(file_path ?? "");
     },
 };
 
