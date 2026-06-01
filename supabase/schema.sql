@@ -89,3 +89,22 @@ create policy "user_configs_insert_own" on user_configs
 drop policy if exists "user_configs_update_own" on user_configs;
 create policy "user_configs_update_own" on user_configs
     for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- Atomik usage arttırma — chat-proxy Edge Function bunu çağırır.
+-- "satır yoksa oluştur, varsa arttır" işini tek işlemde yapar (race-condition'sız).
+-- security definer: service_role ile çağrılır, RLS'i bypass eder.
+create or replace function increment_usage(p_user_id uuid, p_day date, p_tokens bigint)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+    insert into usage (user_id, day, request_count, token_count, updated_at)
+    values (p_user_id, p_day, 1, p_tokens, now())
+    on conflict (user_id, day) do update
+        set request_count = usage.request_count + 1,
+            token_count   = usage.token_count + p_tokens,
+            updated_at    = now();
+end;
+$$;
