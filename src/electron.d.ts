@@ -96,6 +96,8 @@ export interface AppSettings {
     presencePenalty: number;
     frequencyPenalty: number;
     mistralSafeMode: boolean;
+    autoLaunch: boolean;
+    minimizeToTray: boolean;
 }
 
 export interface AegisConfig {

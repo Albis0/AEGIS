@@ -789,6 +789,30 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                                 <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applySettings({customCss: v})} accent={a} />
                                 <Hint accent={a}>CSS değişkenlerini ve class'ları override edebilirsin. Örn: :root {"{ --hud: 255,100,50; }"}</Hint>
                             </Group>
+
+                            <Group label="UYGULAMA" accent={a}>
+                                {([
+                                    {key: "minimizeToTray" as const, label: "Kapatınca sistem tepsisine küçült", sub: "Pencereyi kapatmak uygulamayı sonlandırmaz"},
+                                    {key: "autoLaunch"     as const, label: "Windows başlangıcında otomatik başlat", sub: "Oturum açılınca AEGIS arka planda başlar"},
+                                ] as const).map(({key, label, sub}) => {
+                                    const active = !!(settings as unknown as Record<string, unknown>)[key];
+                                    return (
+                                        <button key={key} onClick={() => applySettings({[key]: !active} as Partial<typeof settings>)}
+                                            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-left transition"
+                                            style={{background: active ? `rgba(${a},0.08)` : "transparent", border: `1px solid ${active ? `rgba(${a},0.3)` : `rgba(${a},0.08)`}`}}>
+                                            <span className="w-8 h-5 rounded-full shrink-0 relative transition-all duration-200"
+                                                style={{background: active ? `rgba(${a},0.55)` : `rgba(${a},0.1)`, border: `1px solid ${active ? `rgba(${a},0.7)` : `rgba(${a},0.2)`}`}}>
+                                                <span className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all duration-200"
+                                                    style={{background: active ? ac : `rgba(${a},0.35)`, left: active ? "calc(100% - 15px)" : "2px"}} />
+                                            </span>
+                                            <span className="flex-1 min-w-0">
+                                                <span className="block text-[13px] font-medium" style={{color: active ? ac : `rgba(${a},0.65)`}}>{label}</span>
+                                                <span className="block text-[10px] opacity-45 mt-0.5" style={{color: ac}}>{sub}</span>
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </Group>
                         </div>
                     )}
 

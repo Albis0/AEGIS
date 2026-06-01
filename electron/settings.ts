@@ -35,6 +35,8 @@ export interface AppSettings {
     presencePenalty: number;
     frequencyPenalty: number;
     mistralSafeMode: boolean;
+    autoLaunch: boolean;
+    minimizeToTray: boolean;
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -63,6 +65,8 @@ const DEFAULTS: AppSettings = {
     presencePenalty: 0,
     frequencyPenalty: 0,
     mistralSafeMode: false,
+    autoLaunch: false,
+    minimizeToTray: true,
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

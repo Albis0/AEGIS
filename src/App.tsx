@@ -248,6 +248,12 @@ export default function App() {
         });
     }, []);
 
+    useEffect(() => {
+        return window.jarvis.on("tray-mic-toggle", () => {
+            setMode(modeRef.current === "off" ? "always-on" : "off");
+        });
+    }, [setMode]);
+
     const handleHistoryOpen = useCallback(() => setHistoryOpen(true), []);
 
     const handleLoadSession = useCallback((messages: {role: string; content: string}[]) => {

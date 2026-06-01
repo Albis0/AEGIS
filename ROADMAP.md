@@ -192,11 +192,11 @@
 ## Faz 10 — Arka Plan Servisi & Bildirimler 🔔
 *AEGIS kapalıyken bile çalışsın.*
 
-### 10.1 Background Service
-- [ ] Windows'ta sistem tepsisinde (system tray) küçük ikon — AEGIS kapatılınca tamamen kapanmaz
-- [ ] Tray menüsü: "Aç", "Mikrofon Aç", "Çıkış"
-- [ ] `app.on("window-all-closed")` → `event.preventDefault()` ile gizle, kapat
-- [ ] Başlangıçta otomatik başlat seçeneği (`AutoLaunch` ile Windows registry)
+### 10.1 Background Service ✅
+- ✅ Windows'ta sistem tepsisinde (system tray) küçük ikon — AEGIS kapatılınca tamamen kapanmaz
+- ✅ Tray menüsü: "Göster", "Mikrofon Aç", "Çıkış"
+- ✅ Pencere kapatılınca gizle (`minimizeToTray` ayarı açıkken)
+- ✅ Başlangıçta otomatik başlat seçeneği (`app.setLoginItemSettings` ile Windows registry)
 
 ### 10.2 Zamanlanmış Görevler & Cron
 - [ ] `schedule_task` tool: cron ifadesiyle tekrarlayan görev (örn: "her sabah 9'da haber özetle")
