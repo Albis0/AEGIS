@@ -103,6 +103,11 @@ export interface AppSettings {
     alertRamPct: number | null;
     alertGpuPct: number | null;
     alertDiskPct: number | null;
+    telemetryHistorySec: number;
+    telemetryNotifyChannel: "feed" | "toast" | "both";
+    tempUnit: "C" | "F";
+    fullPcAccess: boolean;
+    disabledTools: string[];
 }
 
 export interface AegisConfig {

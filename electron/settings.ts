@@ -42,6 +42,11 @@ export interface AppSettings {
     alertRamPct: number | null;
     alertGpuPct: number | null;
     alertDiskPct: number | null;
+    telemetryHistorySec: number;
+    telemetryNotifyChannel: "feed" | "toast" | "both";
+    tempUnit: "C" | "F";
+    fullPcAccess: boolean;
+    disabledTools: string[];
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -77,6 +82,11 @@ const DEFAULTS: AppSettings = {
     alertRamPct: null,
     alertGpuPct: null,
     alertDiskPct: null,
+    telemetryHistorySec: 60,
+    telemetryNotifyChannel: "both",
+    tempUnit: "C",
+    fullPcAccess: false,
+    disabledTools: [],
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

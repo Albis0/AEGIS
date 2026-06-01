@@ -409,6 +409,12 @@ export function registerAnalyzeScreenCallback(cb: typeof _analyzeScreenCallback)
 let _remindCallback: ((message: string) => void) | null = null;
 export function registerRemindCallback(cb: (message: string) => void): void { _remindCallback = cb; }
 
+let _fullPcAccess = false;
+export function setFullPcAccess(enabled: boolean): void { _fullPcAccess = enabled; }
+
+let _disabledTools: Set<string> = new Set();
+export function setDisabledTools(names: string[]): void { _disabledTools = new Set(names); }
+
 let _notificationCallback: ((title: string, body: string) => void) | null = null;
 export function registerNotificationCallback(cb: (title: string, body: string) => void): void { _notificationCallback = cb; }
 
@@ -1032,8 +1038,20 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"model_route_list",description:"Mevcut model yönlendirme kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] {
-    return [
+const PROVIDER_TOOL_LIMITS: Record<string, number> = {
+    groq:       64,
+    openai:    128,
+    anthropic:  64,
+    mistral:    64,
+    gemini:    128,
+    xai:        64,
+    deepseek:   64,
+    ollama:     64,
+};
+
+export function getAllToolSchemas(provider?: string): ChatCompletionTool[] {
+    const limit = PROVIDER_TOOL_LIMITS[provider ?? "groq"] ?? 64;
+    const all = [
         ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
         ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
         ...agentSchemas, ...watchSchemas,
@@ -1042,6 +1060,10 @@ export function getAllToolSchemas(): ChatCompletionTool[] {
         ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
         ...extraSchemas,
     ];
+    const filtered = _disabledTools.size > 0
+        ? all.filter((t) => !_disabledTools.has(t.function?.name ?? ""))
+        : all;
+    return filtered.slice(0, limit);
 }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
@@ -1112,9 +1134,9 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return "Uygulama kapatılıyor…";
     },
     async run_command({command}) {
-        const danger = isDangerous(command);
-        if (danger) {
-            return `ENGELLENDI: ${danger}`;
+        if (!_fullPcAccess) {
+            const danger = isDangerous(command);
+            if (danger) return `ENGELLENDI: ${danger}`;
         }
         return run(`powershell -NoProfile -Command "${command.replace(/"/g, '\\"')}"`);
     },
@@ -1130,9 +1152,52 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async write_file({path: p, content}) {
         try {
             const full = resolvePath(p);
+            if (!_fullPcAccess && !full.startsWith(os.homedir())) {
+                return `ENGELLENDI: Tam PC erişimi kapalıyken sadece ev dizinine yazabilirsin (${os.homedir()}).`;
+            }
             fs.mkdirSync(path.dirname(full), {recursive: true});
             fs.writeFileSync(full, content, "utf-8");
             return `Yazıldı: ${full} (${content.length} karakter)`;
+        } catch (e) {
+            return `HATA: ${(e as Error).message}`;
+        }
+    },
+    async delete_file(args: Record<string, string>) {
+        const p = args.path;
+        const recursive = args.recursive;
+        if (!_fullPcAccess) return `ENGELLENDI: delete_file sadece Tam PC Erişimi açıkken kullanılabilir.`;
+        try {
+            const full = resolvePath(p);
+            if (!fs.existsSync(full)) return `HATA: Bulunamadı: ${full}`;
+            if (fs.statSync(full).isDirectory()) {
+                fs.rmSync(full, {recursive: recursive !== "false", force: true});
+                return `Silindi (klasör): ${full}`;
+            } else {
+                fs.unlinkSync(full);
+                return `Silindi: ${full}`;
+            }
+        } catch (e) {
+            return `HATA: ${(e as Error).message}`;
+        }
+    },
+    async move_file(args: Record<string, string>) {
+        const source = args.source;
+        const destination = args.destination;
+        if (!_fullPcAccess) return `ENGELLENDI: move_file sadece Tam PC Erişimi açıkken kullanılabilir.`;
+        try {
+            const src = resolvePath(source);
+            const dst = resolvePath(destination);
+            if (!fs.existsSync(src)) return `HATA: Kaynak bulunamadı: ${src}`;
+            fs.mkdirSync(path.dirname(dst), {recursive: true});
+            try {
+                fs.renameSync(src, dst);
+            } catch (e) {
+                if ((e as NodeJS.ErrnoException).code === "EXDEV") {
+                    fs.copyFileSync(src, dst);
+                    fs.unlinkSync(src);
+                } else throw e;
+            }
+            return `Taşındı: ${src} → ${dst}`;
         } catch (e) {
             return `HATA: ${(e as Error).message}`;
         }
@@ -1735,8 +1800,11 @@ try {
         }
         const files = getFiles(target);
         const hashMap = new Map<string, string[]>();
+        const SIZE_LIMIT = 50 * 1024 * 1024; // 50 MB — büyük dosyaları atla
         for (const f of files) {
             try {
+                const stat = fs.statSync(f);
+                if (stat.size > SIZE_LIMIT) continue;
                 const buf = fs.readFileSync(f);
                 const hash = createHash("md5").update(buf).digest("hex");
                 const arr = hashMap.get(hash) ?? [];
@@ -1751,7 +1819,13 @@ try {
     async bulk_rename({folder_path, pattern, replacement, extension}) {
         const target = resolvePath(folder_path ?? "");
         if (!fs.existsSync(target)) return `HATA: Klasör bulunamadı: ${target}`;
-        const regex = new RegExp(pattern ?? "", "g");
+        if (!pattern) return "HATA: Regex pattern gerekli.";
+        let regex: RegExp;
+        try {
+            regex = new RegExp(pattern, "g");
+        } catch {
+            return `HATA: Geçersiz regex pattern: ${pattern}`;
+        }
         let files = fs.readdirSync(target).filter((f) => {
             try { return fs.statSync(path.join(target, f)).isFile(); } catch { return false; }
         });
@@ -1958,6 +2032,7 @@ try {
                 return `${t}${rows.join("\n")}\nToplam: ${total}`;
             }
             if (chartType === "line") {
+                if (maxVal === 0) return `${t}(tüm değerler sıfır — grafik çizilemez)`;
                 const height = 10;
                 const grid: string[][] = Array.from({length: height}, () => Array(values.length).fill(" "));
                 values.forEach((v, i) => {
@@ -2155,6 +2230,7 @@ else{
 };
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
+    if (_disabledTools.has(name)) return `ENGELLENDI: "${name}" aracı ayarlardan devre dışı bırakılmış.`;
     const fn = executors[name] ?? _pluginExecutors[name];
     if (!fn) return `HATA: bilinmeyen araç "${name}"`;
     let args: Record<string, string> = {};

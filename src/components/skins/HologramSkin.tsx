@@ -8,7 +8,8 @@ import FeedItem from "../FeedItem";
 import type {FeedItemType} from "../FeedItem";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type FeedItemLocal = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
+type Attachment = {name: string; url: string; mime: string; data: string};
+type FeedItemLocal = {id: string; kind: "user"; text: string; attachments?: Attachment[]} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
 const fmtUptime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -31,6 +32,8 @@ export interface SkinProps {
     feed: FeedItemLocal[];
     input: string;
     setInput: (v: string) => void;
+    attachments: Attachment[];
+    setAttachments: (v: Attachment[]) => void;
     state: CoreState;
     streaming: boolean;
     tel: Telemetry | null;
@@ -53,7 +56,7 @@ export interface SkinProps {
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
 
 export default function HologramSkin({
-    feed, input, setInput, state, streaming, tel, weather,
+    feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
     onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, layout,
     telemetryWidgets,
@@ -266,6 +269,21 @@ export default function HologramSkin({
 
             {/* Input */}
             <div className="shrink-0 z-30" style={{paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)", paddingBottom: "var(--gap)"}}>
+                {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {attachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px]"
+                                style={{background: "rgba(var(--hud),0.08)", border: "1px solid rgba(var(--hud),0.2)", color: "rgba(var(--hud-soft),0.9)"}}>
+                                {att.mime.startsWith("image/")
+                                    ? <img src={att.url} alt={att.name} className="w-8 h-8 object-cover rounded" />
+                                    : <span style={{color: "rgba(var(--hud),0.7)"}}>📄</span>}
+                                <span className="max-w-[100px] truncate">{att.name}</span>
+                                <button onClick={() => setAttachments(attachments.filter((_, j) => j !== i))}
+                                    className="ml-1 hover:brightness-125" style={{color: "rgba(var(--hud),0.5)"}}>✕</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center gap-3 rounded-xl border transition-colors" style={{padding: "var(--feed-p) calc(var(--feed-p) * 2)", borderColor: "rgba(var(--hud),0.3)", background: "rgba(3,6,12,0.85)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
                     <span className="text-sm" style={{color: "rgba(var(--hud),0.6)"}}>›</span>
                     <input
@@ -278,12 +296,29 @@ export default function HologramSkin({
                         className="flex-1 bg-transparent outline-none text-sm font-mono disabled:opacity-50"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
+                    <label className="cursor-pointer hover:brightness-125 transition" title="Dosya ekle" style={{color: "rgba(var(--hud),0.5)"}}>
+                        <span className="text-[14px]">⊕</span>
+                        <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                Promise.all(files.map((f) => new Promise<Attachment>((res) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                        const result = reader.result as string;
+                                        res({name: f.name, url: result, mime: f.type || "application/octet-stream", data: result.split(",")[1] ?? ""});
+                                    };
+                                    reader.readAsDataURL(f);
+                                }))).then((atts) => setAttachments([...attachments, ...atts]));
+                                e.target.value = "";
+                            }}
+                        />
+                    </label>
                     {state === "speaking" && (
                         <button onClick={onStop} className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125 flick" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--status-danger))", borderColor: "rgb(var(--status-danger) / 0.4)", background: "rgb(var(--status-danger) / 0.08)"}}>
                             ⏹ DURDUR
                         </button>
                     )}
-                    <button onClick={onSend} disabled={streaming || !input.trim()} className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border disabled:opacity-30 transition hover:brightness-125" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.3)"}}>
+                    <button onClick={onSend} disabled={streaming || (!input.trim() && attachments.length === 0)} className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border disabled:opacity-30 transition hover:brightness-125" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.3)"}}>
                         GÖNDER
                     </button>
                 </div>

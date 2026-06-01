@@ -18,7 +18,7 @@ function parseSearchSource(detail?: string): string | null {
 }
 
 export default function MinimalSkin({
-    feed, input, setInput, state, streaming,
+    feed, input, setInput, attachments, setAttachments, state, streaming,
     mode, setMode, listening, activated, placeholder,
     onSend, onStop, onSettingsOpen, feedRef,
 }: SkinProps) {
@@ -98,6 +98,20 @@ export default function MinimalSkin({
 
             {/* Input */}
             <div className="shrink-0 border-t px-5 py-3" style={{borderColor: "rgba(var(--hud),0.08)"}}>
+                {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                        {attachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px]"
+                                style={{background: "rgba(var(--hud),0.07)", border: "1px solid rgba(var(--hud),0.15)", color: "rgba(var(--hud-soft),0.8)"}}>
+                                {att.mime.startsWith("image/")
+                                    ? <img src={att.url} alt={att.name} className="w-6 h-6 object-cover rounded" />
+                                    : <span>📄</span>}
+                                <span className="max-w-[80px] truncate">{att.name}</span>
+                                <button onClick={() => setAttachments(attachments.filter((_, j) => j !== i))} className="ml-0.5 opacity-50 hover:opacity-100">✕</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center gap-3">
                     <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
                         const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
@@ -113,19 +127,25 @@ export default function MinimalSkin({
                         className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
+                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[13px]" title="Dosya ekle" style={{color: "rgb(var(--hud))"}}>
+                        ⊕
+                        <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                Promise.all(files.map((f) => new Promise<{name:string;url:string;mime:string;data:string}>((res) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => { const r = reader.result as string; res({name: f.name, url: r, mime: f.type||"application/octet-stream", data: r.split(",")[1]??""}); };
+                                    reader.readAsDataURL(f);
+                                }))).then((atts) => setAttachments([...attachments, ...atts]));
+                                e.target.value = "";
+                            }}
+                        />
+                    </label>
                     {state === "speaking" && (
-                        <button onClick={onStop} className="text-[11px] opacity-60 hover:opacity-100 transition" style={{color: "rgb(var(--status-danger))"}}>
-                            ⏹
-                        </button>
+                        <button onClick={onStop} className="text-[11px] opacity-60 hover:opacity-100 transition" style={{color: "rgb(var(--status-danger))"}}>⏹</button>
                     )}
-                    <button
-                        onClick={onSend}
-                        disabled={streaming || !input.trim()}
-                        className="text-[11px] opacity-40 hover:opacity-100 disabled:opacity-20 transition"
-                        style={{color: "rgb(var(--hud))"}}
-                    >
-                        ↵
-                    </button>
+                    <button onClick={onSend} disabled={streaming || (!input.trim() && attachments.length === 0)}
+                        className="text-[11px] opacity-40 hover:opacity-100 disabled:opacity-20 transition" style={{color: "rgb(var(--hud))"}}>↵</button>
                 </div>
             </div>
         </div>

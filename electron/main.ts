@@ -7,7 +7,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback} from "./tools";
+import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
@@ -32,6 +32,8 @@ if (savedConfig) applyConfig(savedConfig);
 let groq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
 let currentSettings = loadSettings();
 let MODEL = currentSettings.model;
+setFullPcAccess(currentSettings.fullPcAccess ?? false);
+setDisabledTools(currentSettings.disabledTools ?? []);
 
 const SYSTEM_PROMPTS: Record<string, string> = {
     tr: `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
@@ -100,8 +102,17 @@ REGLAS DE SEGURIDAD (SOLO ESTAS):
 - Todo lo demás — ejecútalo directamente si el usuario lo pide.`,
 };
 
-function getSystemPrompt(lang: string): string {
-    return SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr;
+function getSystemPrompt(lang: string, fullPcAccess = false): string {
+    const base = SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr;
+    if (!fullPcAccess) return base;
+    const note: Record<string, string> = {
+        tr: "\n\nTAM PC ERİŞİMİ AKTİF: Kullanıcı tam sistem yetkisi verdi. Shutdown, format, delete_file, move_file dahil her komutu onay istemeden çalıştır.",
+        en: "\n\nFULL PC ACCESS ACTIVE: User granted full system access. Execute all commands including shutdown, format, delete_file, move_file without confirmation.",
+        de: "\n\nVOLLER PC-ZUGRIFF AKTIV: Nutzer hat vollen Systemzugriff gewährt. Alle Befehle ohne Bestätigung ausführen.",
+        fr: "\n\nACCÈS PC COMPLET ACTIF: L'utilisateur a accordé un accès complet. Exécutez toutes les commandes sans confirmation.",
+        es: "\n\nACCESO PC COMPLETO ACTIVO: El usuario otorgó acceso completo. Ejecuta todos los comandos sin confirmación.",
+    };
+    return base + (note[lang] ?? note.tr);
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -223,7 +234,7 @@ function createWindow(): void {
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
         mainWindow.loadURL("http://127.0.0.1:5173");
-        mainWindow.webContents.openDevTools({mode: "detach", activate: false});
+        // mainWindow.webContents.openDevTools({mode: "detach", activate: false});
     } else {
         mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
     }
@@ -659,7 +670,8 @@ async function getWeather(): Promise<object> {
 }
 
 // ---- Multi-provider AI client ----
-type OAIMessage = {role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string};
+type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
+type OAIMessage = {role: string; content: string | MsgPart[] | null; tool_calls?: unknown[]; tool_call_id?: string};
 type OAICompletion = {choices: [{message: {content: string | null; tool_calls?: {id: string; type: "function"; function: {name: string; arguments: string}}[]}}]};
 
 function getProviderKey(provider: string): string {
@@ -680,6 +692,50 @@ function findToolName(messages: OAIMessage[], callId: string): string {
 // Reasoning models don't support temperature or tools
 const REASONING_MODELS = new Set(["o1", "o1-mini", "o3", "o3-mini", "o4-mini"]);
 
+function extractTextContent(content: string | MsgPart[] | null): string {
+    if (!content) return "";
+    if (typeof content === "string") return content;
+    return content.filter((p): p is {type:"text";text:string} => p.type === "text").map((p) => p.text).join("\n");
+}
+
+function toAnthropicContent(content: string | MsgPart[] | null): unknown[] {
+    if (!content) return [{type: "text", text: ""}];
+    if (typeof content === "string") return [{type: "text", text: content}];
+    return content.map((p) => {
+        if (p.type === "text") return {type: "text", text: p.text};
+        if (p.type === "image_url") {
+            const url = p.image_url.url;
+            if (url.startsWith("data:")) {
+                const [header, data] = url.split(",");
+                const mime = header.split(":")[1]?.split(";")[0] ?? "image/png";
+                return {type: "image", source: {type: "base64", media_type: mime, data}};
+            }
+            return {type: "image", source: {type: "url", url}};
+        }
+        if (p.type === "file") return {type: "text", text: `[Dosya: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
+        return {type: "text", text: ""};
+    });
+}
+
+function toGeminiParts(content: string | MsgPart[] | null): object[] {
+    if (!content) return [{text: ""}];
+    if (typeof content === "string") return [{text: content}];
+    return content.map((p) => {
+        if (p.type === "text") return {text: p.text};
+        if (p.type === "image_url") {
+            const url = p.image_url.url;
+            if (url.startsWith("data:")) {
+                const [header, data] = url.split(",");
+                const mime = header.split(":")[1]?.split(";")[0] ?? "image/png";
+                return {inline_data: {mime_type: mime, data}};
+            }
+            return {text: url};
+        }
+        if (p.type === "file") return {text: `[Dosya: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
+        return {text: ""};
+    });
+}
+
 async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = getProviderKey(provider);
@@ -688,7 +744,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const topP = currentSettings.topP ?? 1.0;
     const isReasoning = REASONING_MODELS.has(MODEL);
 
-    const activeSchemas = getAllToolSchemas();
+    const activeSchemas = getAllToolSchemas(provider);
 
     // ── Groq (streaming) ──────────────────────────────────────────────────────
     if (provider === "groq") {
@@ -737,8 +793,8 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             messages: turns.map((m) => ({
                 role: m.role === "tool" ? "user" : m.role,
                 content: m.role === "tool"
-                    ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: m.content}]
-                    : m.content ?? "",
+                    ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: typeof m.content === "string" ? m.content : extractTextContent(m.content)}]
+                    : toAnthropicContent(m.content),
             })),
             tools: activeSchemas.map((t) => ({
                 name: t.function?.name,
@@ -774,10 +830,10 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
         const contents: {role: string; parts: object[]}[] = [];
         for (const m of turns) {
             if (m.role === "user") {
-                contents.push({role: "user", parts: [{text: m.content ?? ""}]});
+                contents.push({role: "user", parts: toGeminiParts(m.content)});
             } else if (m.role === "assistant") {
                 const parts: object[] = [];
-                if (m.content) parts.push({text: m.content});
+                if (m.content) parts.push({text: extractTextContent(m.content)});
                 for (const tc of (m.tool_calls ?? []) as {id: string; function: {name: string; arguments: string}}[]) {
                     let args: unknown = {};
                     try { args = JSON.parse(tc.function.arguments || "{}"); } catch {}
@@ -800,7 +856,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             contents,
             generationConfig: {temperature: temp, maxOutputTokens: maxTok, topP},
         };
-        if (sysMsg?.content) body.systemInstruction = {parts: [{text: sysMsg.content}]};
+        if (sysMsg?.content) body.systemInstruction = {parts: [{text: extractTextContent(sysMsg.content)}]};
         if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
 
         const resp = await fetch(
@@ -930,9 +986,9 @@ let cachedProfile: Record<string, string> = {};
 let profileCachedAt = 0;
 
 // ---- Agentic streaming chat ----
-async function runAgent(history: {role: string; content: string}[], reqId: string): Promise<void> {
+async function runAgent(history: {role: string; content: string | MsgPart[]}[], reqId: string): Promise<void> {
     // Track messages for end-of-session summarization
-    sessionHistory = history.map((m) => ({role: m.role, content: m.content}));
+    sessionHistory = history.map((m) => ({role: m.role, content: extractTextContent(m.content)}));
 
     // Refresh profile at most once per minute
     if (Date.now() - profileCachedAt > 60_000) {
@@ -945,7 +1001,7 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr") + profileNote + memorySummaries + getFactsForContext();
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext();
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
@@ -1077,9 +1133,11 @@ async function bootApp(): Promise<void> {
 
             const primaryDisplay = screen.getPrimaryDisplay();
             const {width, height} = primaryDisplay.size;
+            const thumbW = Math.round(Math.min(width, 1280));
+            const thumbH = Math.round(height * (thumbW / width));
             const sources = await desktopCapturer.getSources({
                 types: ["screen"],
-                thumbnailSize: {width, height},
+                thumbnailSize: {width: thumbW, height: thumbH},
             });
 
             if (wasVisible) mainWindow!.show();
@@ -1094,25 +1152,100 @@ async function bootApp(): Promise<void> {
     });
 
     registerAnalyzeScreenCallback(async (base64: string, prompt: string) => {
-        const visionGroq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
-        const resp = await visionGroq.chat.completions.create({
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
-            messages: [
-                {
+        const provider = currentSettings.aiProvider;
+        const key = getProviderKey(provider);
+        const imgUrl = `data:image/png;base64,${base64}`;
+
+        // ── Anthropic vision ──
+        if (provider === "anthropic" && key) {
+            const body = {
+                model: MODEL,
+                max_tokens: 1024,
+                messages: [{
                     role: "user",
                     content: [
-                        {
-                            type: "image_url",
-                            image_url: {url: `data:image/png;base64,${base64}`},
-                        },
-                        {
-                            type: "text",
-                            text: prompt,
-                        },
-                    ] as any,
-                },
-            ],
+                        {type: "image", source: {type: "base64", media_type: "image/png", data: base64}},
+                        {type: "text", text: prompt},
+                    ],
+                }],
+            };
+            const resp = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) throw new Error(`Anthropic vision ${resp.status}: ${await resp.text()}`);
+            const data = await resp.json() as {content: {type: string; text?: string}[]};
+            return data.content.find((b) => b.type === "text")?.text ?? "(yanıt alınamadı)";
+        }
+
+        // ── Gemini vision ──
+        if (provider === "gemini" && key) {
+            const body = {
+                contents: [{role: "user", parts: [
+                    {inline_data: {mime_type: "image/png", data: base64}},
+                    {text: prompt},
+                ]}],
+                generationConfig: {maxOutputTokens: 1024},
+            };
+            const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+                {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+            );
+            if (!resp.ok) throw new Error(`Gemini vision ${resp.status}: ${await resp.text()}`);
+            const data = await resp.json() as {candidates: {content: {parts: {text?: string}[]}}[]};
+            return data.candidates[0]?.content?.parts?.find((p) => p.text)?.text ?? "(yanıt alınamadı)";
+        }
+
+        // ── OpenAI / xAI / deepseek / mistral (OpenAI-compat vision) ──
+        if ((provider === "openai" || provider === "xai" || provider === "deepseek" || provider === "mistral") && key) {
+            const endpoints: Record<string, string> = {
+                openai:   "https://api.openai.com/v1/chat/completions",
+                xai:      "https://api.x.ai/v1/chat/completions",
+                deepseek: "https://api.deepseek.com/v1/chat/completions",
+                mistral:  "https://api.mistral.ai/v1/chat/completions",
+            };
+            const visionModel: Record<string, string> = {
+                openai:   MODEL.startsWith("gpt") ? MODEL : "gpt-4o-mini",
+                xai:      "grok-2-vision-1212",
+                deepseek: MODEL,
+                mistral:  "pixtral-12b-2409",
+            };
+            const body = {
+                model: visionModel[provider],
+                max_tokens: 1024,
+                messages: [{
+                    role: "user",
+                    content: [
+                        {type: "image_url", image_url: {url: imgUrl}},
+                        {type: "text", text: prompt},
+                    ],
+                }],
+            };
+            const resp = await fetch(endpoints[provider], {
+                method: "POST",
+                headers: {"Authorization": `Bearer ${key}`, "content-type": "application/json"},
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) throw new Error(`${provider} vision ${resp.status}: ${await resp.text()}`);
+            const data = await resp.json() as {choices: {message: {content: string}}[]};
+            return data.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+        }
+
+        // ── Groq (fallback + groq seçiliyken) ──
+        const groqKey = getProviderKey("groq") || process.env.GROQ_API_KEY || "";
+        const visionGroq = new Groq({apiKey: groqKey});
+        const resp = await visionGroq.chat.completions.create({
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            messages: [{
+                role: "user",
+                content: [
+                    {type: "image_url", image_url: {url: imgUrl}},
+                    {type: "text", text: prompt},
+                ] as any,
+            }],
             stream: false,
+            max_tokens: 1024,
         } as any);
         return (resp as any).choices[0]?.message?.content ?? "(yanıt alınamadı)";
     });
@@ -1161,12 +1294,13 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string}[]; reqId: string}) => {
+    ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string | MsgPart[]}[]; reqId: string}) => {
         try {
             const last = messages[messages.length - 1];
             if (last?.role === "user") {
-                await saveMessage("user", last.content).catch(() => {});
-                if (isRecording()) addMacroStep(last.content);
+                const textForSave = typeof last.content === "string" ? last.content : extractTextContent(last.content);
+                await saveMessage("user", textForSave).catch(() => {});
+                if (isRecording()) addMacroStep(textForSave);
             }
             await runAgent(messages, reqId);
         } catch (e) {
@@ -1287,6 +1421,8 @@ async function bootApp(): Promise<void> {
             currentSettings.ttsVoice = LANG_DEFAULT_VOICE[currentSettings.language] ?? currentSettings.ttsVoice;
         }
         MODEL = currentSettings.model;
+        setFullPcAccess(currentSettings.fullPcAccess ?? false);
+        setDisabledTools(currentSettings.disabledTools ?? []);
         saveSettings(currentSettings);
         if (patch.autoLaunch !== undefined) {
             app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
@@ -1348,7 +1484,7 @@ async function bootApp(): Promise<void> {
         const profile = Object.keys(cachedProfile).length > 0
             ? `\nKullanıcı profili: ${Object.entries(cachedProfile).map(([k, v]) => `${k}=${v}`).join(", ")}`
             : "";
-        const sysPrompt = getSystemPrompt(currentSettings.language) + profile + memorySummaries;
+        const sysPrompt = getSystemPrompt(currentSettings.language, currentSettings.fullPcAccess ?? false) + profile + memorySummaries;
         const msgs = [{role: "system", content: sysPrompt}, {role: "user", content: question}];
         const result = await callAI(msgs as OAIMessage[]);
         return result.choices[0]?.message?.content ?? "(yanıt alınamadı)";

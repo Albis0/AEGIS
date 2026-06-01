@@ -11,9 +11,11 @@ import TerminalSkin from "./components/skins/TerminalSkin";
 import DashboardSkin from "./components/skins/DashboardSkin";
 import {UI, type Lang} from "./i18n";
 
-type LLMMsg = {role: "user" | "assistant"; content: string};
+type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
+type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type FeedItem = {id: string; kind: "user"; text: string} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
+type Attachment = {name: string; url: string; mime: string; data: string};
+type FeedItem = {id: string; kind: "user"; text: string; attachments?: Attachment[]} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
 
 const FONT_FAMILIES: Record<string, string> = {
     jetbrains:    "'JetBrains Mono', monospace",
@@ -107,6 +109,8 @@ export default function App() {
     const isBusyRef = useRef(false);
     const modeRef = useRef<VoiceMode>("off");
 
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+
     const sendText = useCallback((text: string) => {
         if (!text.trim() || isBusyRef.current) return;
         const reqId = uid();
@@ -121,11 +125,41 @@ export default function App() {
         window.jarvis.sendChat(historyRef.current, reqId);
     }, []);
 
-    const send = () => {
-        if (!input.trim() || streaming) return;
-        sendText(input);
+    const sendWithAttachments = useCallback((text: string, atts: Attachment[]) => {
+        if (!text.trim() && atts.length === 0) return;
+        if (isBusyRef.current) return;
+        const reqId = uid();
+        const aId = uid();
+        reqIdRef.current = reqId;
+        activeIdRef.current = aId;
+        accRef.current = "";
+        const parts: MsgPart[] = [];
+        for (const att of atts) {
+            if (att.mime.startsWith("image/")) {
+                parts.push({type: "image_url", image_url: {url: att.url}, name: att.name});
+            } else {
+                parts.push({type: "file", data: att.data, name: att.name, mime: att.mime});
+            }
+        }
+        if (text.trim()) parts.push({type: "text", text: text.trim()});
+        const content: string | MsgPart[] = parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
+        historyRef.current = [...historyRef.current, {role: "user", content}];
+        setFeed((prev) => [...prev,
+            {id: uid(), kind: "user", text: text.trim(), attachments: atts},
+            {id: aId, kind: "assistant", text: "", tools: []},
+        ]);
+        setStreaming(true);
+        setState("thinking");
+        window.jarvis.sendChat(historyRef.current, reqId);
+    }, []);
+
+    const send = useCallback(() => {
+        if (!input.trim() && attachments.length === 0) return;
+        if (streaming) return;
+        sendWithAttachments(input, attachments);
         setInput("");
-    };
+        setAttachments([]);
+    }, [input, attachments, streaming, sendWithAttachments]);
 
     const {mode, setMode, listening, activated, capturing, speak, stopSpeaking} = useVoice({
         onTranscript: sendText,
@@ -298,10 +332,11 @@ export default function App() {
     const skinProps = useMemo(() => ({
         feed, input, setInput, state, streaming, tel, weather,
         mode, setMode, listening, activated, capturing, placeholder,
+        attachments, setAttachments,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
         feedRef, layout, telemetryWidgets,
-    }), [feed, input, state, streaming, tel, weather,
+    }), [feed, input, attachments, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
         send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets]);
 
