@@ -468,13 +468,77 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...extraSchemas]; }
+const watchSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "watch_condition",
+            description: "Bir sistem metriğini izle ve eşik aşılınca bildirim ver. 'GPU %90 geçerse uyar', 'RAM %80 üstüne çıkarsa bildir' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    metric:    {type: "string", description: "İzlenecek metrik: cpu, ram, gpu, disk"},
+                    threshold: {type: "number", description: "Eşik değeri (yüzde, 1-100)"},
+                    direction: {type: "string", description: "'above' (üstüne çıkarsa) veya 'below' (altına düşerse)"},
+                },
+                required: ["metric", "threshold"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_watch_conditions",
+            description: "Aktif eşik izlemelerini listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "remove_watch_condition",
+            description: "Bir eşik izlemesini kaldır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    metric: {type: "string", description: "Kaldırılacak metrik: cpu, ram, gpu, disk"},
+                },
+                required: ["metric"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
 
 let _reloadPluginsCallback: (() => Promise<string>) | null = null;
 export function registerReloadPluginsCallback(cb: () => Promise<string>): void { _reloadPluginsCallback = cb; }
+
+// ---- Watch conditions (eşik uyarıları) ----
+interface WatchCondition {threshold: number; direction: "above" | "below"}
+export const _watchConditions = new Map<string, WatchCondition>();
+const _alertCooldowns = new Map<string, number>(); // metric → last alert timestamp
+
+export function checkWatchConditions(
+    metrics: {cpu?: number; ram?: number; gpu?: number; disk?: number},
+    onAlert: (msg: string) => void,
+): void {
+    const now = Date.now();
+    for (const [metric, cond] of _watchConditions) {
+        const val = metrics[metric as keyof typeof metrics] ?? 0;
+        const triggered = cond.direction === "above" ? val >= cond.threshold : val <= cond.threshold;
+        if (!triggered) continue;
+        const lastAlert = _alertCooldowns.get(metric) ?? 0;
+        if (now - lastAlert < 60_000) continue; // 1 dakika cooldown
+        _alertCooldowns.set(metric, now);
+        onAlert(`UYARI: ${metric.toUpperCase()} ${cond.direction === "above" ? ">" : "<"} %${cond.threshold} (şu an %${Math.round(val)})`);
+    }
+}
 
 function runScript(content: string, timeoutMs = 15000): Promise<ToolResult> {
     const tmpPath = path.join(os.tmpdir(), `aegis-${Date.now()}.ps1`);
@@ -781,6 +845,31 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async toggle_scheduled_task({id_or_name}) {
         return toolToggleScheduledTask(id_or_name ?? "");
+    },
+
+    async watch_condition({metric, threshold, direction}) {
+        const m = (metric ?? "").toLowerCase();
+        const pct = parseInt(String(threshold ?? "90"), 10);
+        const dir = (direction ?? "above").toLowerCase() === "below" ? "below" : "above";
+        if (!["cpu", "ram", "gpu", "disk"].includes(m)) {
+            return "HATA: Geçersiz metrik. Desteklenenler: cpu, ram, gpu, disk";
+        }
+        if (isNaN(pct) || pct < 1 || pct > 100) return "HATA: Eşik 1-100 arasında olmalı.";
+        _watchConditions.set(m, {threshold: pct, direction: dir});
+        return `${m.toUpperCase()} ${dir === "above" ? ">" : "<"} %${pct} eşiği izleniyor. Tetiklenince bildirim gelir.`;
+    },
+
+    async list_watch_conditions() {
+        if (_watchConditions.size === 0) return "Aktif izleme koşulu yok.";
+        return [..._watchConditions.entries()].map(([m, c]) =>
+            `${m.toUpperCase()} ${c.direction === "above" ? ">" : "<"} %${c.threshold}`
+        ).join("\n");
+    },
+
+    async remove_watch_condition({metric}) {
+        const m = (metric ?? "").toLowerCase();
+        if (_watchConditions.delete(m)) return `${m.toUpperCase()} izlemesi kaldırıldı.`;
+        return `${m.toUpperCase()} için aktif izleme yok.`;
     },
 };
 

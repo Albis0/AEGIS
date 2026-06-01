@@ -204,10 +204,11 @@
 - ✅ Görevler `~/.aegis/scheduled-tasks.json`'da saklanır, uygulama açılışında yüklenir
 - ✅ Görev tetiklenince `chat-stream-inject` ile AEGIS'e komut gönderilir + Windows bildirimi
 
-### 10.3 Anlık Bildirim Tetikleyiciler
-- [ ] `watch_condition` tool: belirli koşul gerçekleşince bildir (örn: "GPU %90 geçerse uyar")
-- [ ] CPU/RAM/disk eşiği aşınca otomatik uyarı (ayarlardan açılabilir)
-- [ ] Windows toast bildirimi + isteğe bağlı TTS ile seslendir
+### 10.3 Anlık Bildirim Tetikleyiciler ✅
+- ✅ `watch_condition` tool: "GPU %90 geçerse uyar", "RAM %80 üstüne çıkarsa bildir" gibi
+- ✅ `list_watch_conditions` / `remove_watch_condition` tool'ları
+- ✅ CPU/RAM/GPU/Disk eşiği ayarlar panelinden (Telemetri sekmesi) de ayarlanabilir
+- ✅ Windows toast bildirimi + feed'e uyarı mesajı; 60sn cooldown ile spam engellenir
 
 ---
 

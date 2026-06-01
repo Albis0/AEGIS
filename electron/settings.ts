@@ -37,6 +37,10 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
+    alertCpuPct: number | null;
+    alertRamPct: number | null;
+    alertGpuPct: number | null;
+    alertDiskPct: number | null;
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -67,6 +71,10 @@ const DEFAULTS: AppSettings = {
     mistralSafeMode: false,
     autoLaunch: false,
     minimizeToTray: true,
+    alertCpuPct: null,
+    alertRamPct: null,
+    alertGpuPct: null,
+    alertDiskPct: null,
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

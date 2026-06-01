@@ -889,6 +889,45 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                                     </button>
                                 </div>
                             </Group>
+
+                            <Group label="EŞİK UYARILARI" accent={a}>
+                                <p className="text-[11px] opacity-40 mb-3 leading-relaxed" style={{color: ac}}>
+                                    Eşik aşılınca feed'e uyarı düşer + Windows bildirimi gelir. Boş bırakırsan izlenmez.
+                                </p>
+                                <div className="space-y-2">
+                                    {([
+                                        {key: "alertCpuPct"  as const, label: "CPU"},
+                                        {key: "alertRamPct"  as const, label: "RAM"},
+                                        {key: "alertGpuPct"  as const, label: "GPU"},
+                                        {key: "alertDiskPct" as const, label: "Disk"},
+                                    ]).map(({key, label: mLabel}) => {
+                                        const val = settings[key] ?? null;
+                                        return (
+                                            <div key={key} className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg"
+                                                style={{border: `1px solid rgba(${a},0.1)`, background: val !== null ? `rgba(${a},0.06)` : "transparent"}}>
+                                                <span className="text-[12px] w-10 font-medium" style={{color: val !== null ? ac : `rgba(${a},0.45)`}}>{mLabel}</span>
+                                                <input
+                                                    type="number" min={1} max={100} placeholder="—"
+                                                    value={val ?? ""}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value === "" ? null : Math.max(1, Math.min(100, parseInt(e.target.value)));
+                                                        applySettings({[key]: v} as Partial<typeof settings>);
+                                                    }}
+                                                    className="w-16 bg-transparent outline-none text-center text-[12px] border-b"
+                                                    style={{color: ac, borderColor: `rgba(${a},0.3)`}}
+                                                />
+                                                <span className="text-[11px] opacity-40" style={{color: ac}}>% üstünde uyar</span>
+                                                {val !== null && (
+                                                    <button onClick={() => applySettings({[key]: null} as Partial<typeof settings>)}
+                                                        className="ml-auto text-[10px] opacity-40 hover:opacity-80 transition"
+                                                        style={{color: ac}}>✕</button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <Hint accent={a}>AEGIS'e "GPU yüzde 90 geçince uyar" diyerek de ayarlayabilirsin.</Hint>
+                            </Group>
                         </div>
                     )}
                 </div>

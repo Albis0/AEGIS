@@ -98,6 +98,10 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
+    alertCpuPct: number | null;
+    alertRamPct: number | null;
+    alertGpuPct: number | null;
+    alertDiskPct: number | null;
 }
 
 export interface AegisConfig {

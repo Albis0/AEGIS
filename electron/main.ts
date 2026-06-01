@@ -7,7 +7,7 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback} from "./tools";
+import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions} from "./tools";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
@@ -579,6 +579,23 @@ function startTelemetry(): void {
             sysBoard,
             activeWindow,
         });
+
+        // Eşik uyarıları — her 1.5sn kontrol, 60sn cooldown
+        if (_watchConditions.size > 0) {
+            const ramPct = Math.round((usedMem / totalMem) * 100);
+            const gpuLoad = gpuInfo[0]?.load ?? 0;
+            checkWatchConditions(
+                {cpu: cpuTotal, ram: ramPct, gpu: gpuLoad, disk: primaryDiskPct()},
+                (msg) => {
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send("reminder-fired", {message: msg});
+                    }
+                    if (ElectronNotification.isSupported()) {
+                        new ElectronNotification({title: "AEGIS · Eşik Uyarısı", body: msg}).show();
+                    }
+                },
+            );
+        }
     }, 1500));
 }
 
@@ -1231,6 +1248,22 @@ async function bootApp(): Promise<void> {
         saveSettings(currentSettings);
         if (patch.autoLaunch !== undefined) {
             app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
+        }
+        // Sync settings-based watch conditions
+        const alertMap: Record<string, number | null> = {
+            cpu: currentSettings.alertCpuPct ?? null,
+            ram: currentSettings.alertRamPct ?? null,
+            gpu: currentSettings.alertGpuPct ?? null,
+            disk: currentSettings.alertDiskPct ?? null,
+        };
+        for (const [metric, pct] of Object.entries(alertMap)) {
+            if (pct !== null) {
+                _watchConditions.set(metric, {threshold: pct, direction: "above"});
+            } else {
+                // Only remove if it was set via settings (not via watch_condition tool)
+                const existing = _watchConditions.get(metric);
+                if (existing) _watchConditions.delete(metric);
+            }
         }
         if (langChanged && mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send("language-changed", {
