@@ -616,4 +616,95 @@
 ✅  Faz 27   Öğrenme & kişisel gelişim    ← TAMAMLANDI
 ✅  Faz 28   Fiziksel dünya & IoT         ← TAMAMLANDI
 ✅  Faz 29   Çoklu model orkestrasyonu    ← TAMAMLANDI
+⬜  Faz 30   Dağıtım: deneme modu + auth  ← SIRADA (alt fazlar sırayla)
 ```
+
+---
+
+## Faz 30 — Dağıtım Modeli: Deneme Modu + Kimlik + Proxy 🚀 ⬜
+*AEGIS'i son kullanıcıya dağıtılabilir hale getir. İki giriş yolu: senin sunucunla "Hızlı Başlangıç" (deneme, rate limited) veya "Gelişmiş Kurulum" (kullanıcının kendi anahtarları). Tüm kimlik doğrulama senin Supabase'ine bağlanır.*
+
+> **Neden gerekli:** Şu an son kullanıcı setup ekranında senin Groq + Supabase **service_role** key'ini girmek zorunda. service_role = DB'ye tam yetki; kimseye verilemez. Bu fazın amacı: sırları sunucuya (Supabase Edge Function secret) taşıyıp, client'ta yalnızca public-safe anon key bırakmak.
+
+> **Kararlaştırılan davranış:**
+> - **Hızlı Başlangıç (Deneme):** Giriş **zorunlu** → senin Supabase Auth. Chat → senin proxy'in → senin Groq key'in → **rate limited** (günlük istek + token). Kullanıcı isterse kendi Groq key'ini girip proxy'i bypass edip limitten kurtulabilir (istek direkt Groq'a gider).
+> - **Gelişmiş Kurulum (Kendi anahtarların):** AI sağlayıcıyı kullanıcı seçer (Groq/OpenAI/Anthropic/Mistral/Ollama). Chat direkt seçilen provider'a gider (senin sunucun devrede değil). Giriş **opsiyonel** — açarsa ayarları/key'leri cloud'a kaydeder (başka PC, yeni sürüm için sync).
+> - Her iki modun auth'u da **senin Supabase'inde** toplanır.
+
+> **⚠️ Güvenlik anayasası (repo ileride public olabilir — şimdiden buna göre yaz):**
+> | Sır | Nerede durur | Public olursa |
+> |---|---|---|
+> | Supabase **service_role** key | Yalnızca Edge Function secret | ❌ ASLA repo/bundle'da olmaz |
+> | **Groq** key (deneme) | Yalnızca Edge Function secret | ❌ ASLA repo/bundle'da olmaz |
+> | Supabase **anon** key + URL | Bundle/repo | ✅ Güvenli (RLS korur, public olması normal) |
+> | Proxy/Edge Function URL | Bundle/repo | ✅ Güvenli |
+>
+> Kural: tüm gerçek sırlar Edge Function tarafında; client'ta yalnızca anon key + RLS politikaları. `.aegis/config.json`'a artık service_role yazılmaz.
+
+### 30.1 Supabase backend temeli ⬜
+*Sunucu tarafı — bunsuz hiçbir şey çalışmaz. Önce bu.*
+- ⬜ Supabase projesinde **Auth** aç (email/şifre + Google OAuth opsiyonel)
+- ⬜ `usage` tablosu: `user_id, day (date), request_count int, token_count bigint`, PK `(user_id, day)`
+- ⬜ `user_configs` tablosu: `user_id, settings jsonb, encrypted_keys text, updated_at` (cloud sync için)
+- ⬜ **RLS politikaları:** her kullanıcı yalnızca kendi `usage` / `user_configs` satırını okur; `usage` yazımı yalnızca Edge Function'a (service_role) açık
+- ⬜ `supabase/schema.sql` güncelle — yeni tablolar + RLS + mevcut session/mesaj tabloları
+- ⬜ Supabase CLI kurulumu + `supabase link` (yerel → uzak proje)
+- ⬜ **Test:** SQL Editor'da tablolar görünür; RLS açık; anon key ile başka kullanıcının satırı okunamıyor
+
+### 30.2 Edge Function `chat-proxy` (deneme modu beyni) ⬜
+*Rate limit + Groq proxy aynı yerde. Sırlar burada yaşar.*
+- ⬜ Deno Edge Function: gelen JWT'yi doğrula (Supabase `auth.getUser`)
+- ⬜ `usage` tablosundan bugünkü `request_count` + `token_count` oku → limit aşıldıysa `429` + anlamlı mesaj döndür
+- ⬜ Limit OK → Edge secret'taki **senin Groq key'inle** Groq'a **streaming** istek; yanıtı client'a SSE/stream olarak geçir
+- ⬜ Yanıt sonunda `usage` satırını arttır (request +1, token += kullanılan)
+- ⬜ Tool-calling akışını proxy üzerinden taşı (mevcut `groq.chat.completions.create` ile aynı şema)
+- ⬜ Edge secret'lar: `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (`supabase secrets set`)
+- ⬜ **Test:** `curl` ile geçerli JWT → stream döner; limit aşımında 429; geçersiz JWT'de 401
+
+### 30.3 Electron — gömülü public config + sır temizliği ⬜
+*Client tarafını dağıtıma hazırla.*
+- ⬜ Build-time sabitler: `AEGIS_SUPABASE_URL`, `AEGIS_SUPABASE_ANON_KEY`, `AEGIS_PROXY_URL` (Vite `define` / env — anon key gömmek güvenli)
+- ⬜ `config.ts`'ten **service_role** alanını kaldır; `AegisConfig` artık deneme modunda sır tutmaz
+- ⬜ `@supabase/supabase-js` client'ı anon key ile kur (auth + cloud sync için)
+- ⬜ **Test:** anon key ile Supabase'e bağlanılıyor; service_role hiçbir yerde değil (grep ile doğrula)
+
+### 30.4 Mod seçim + kimlik ekranları (UI) ⬜
+*İlk açılış akışı. Backend hazır olduğu için gerçek auth'a bağlanır.*
+- ⬜ **Mod seçim ekranı**: "Hızlı Başlangıç (Deneme)" vs "Gelişmiş Kurulum (Kendi Anahtarların)" — iki kart
+- ⬜ **Auth ekranı**: email/şifre kayıt + giriş (Supabase Auth); Google OAuth opsiyonel buton
+- ⬜ Deneme → auth zorunlu; Gelişmiş → "Giriş yap (opsiyonel, sync için)" + "Atla" seçeneği
+- ⬜ Oturum token'ı güvenli sakla (safeStorage / vault); açılışta sessiz yenile
+- ⬜ Mevcut `SetupScreen.tsx`'i Gelişmiş Kurulum akışına dönüştür (provider seç + kendi key'i)
+- ⬜ `main.ts` ilk açılış mantığını güncelle: config yerine "mod + oturum var mı?" kontrolü
+- ⬜ **Test:** sıfır kurulumda mod seçimi çıkar; deneme girişsiz ilerleyemez; gelişmiş atlanabilir; restart'ta oturum hatırlanır
+
+### 30.5 Chat akışını moda göre yönlendir ⬜
+*İki yolu birleştir.*
+- ⬜ Deneme modu: `groq.chat.completions` → **proxy fetch + JWT header** ile değiştir (stream + tool-call korunur)
+- ⬜ Deneme + kullanıcının kendi Groq key'i: proxy'i bypass et, bugünkü direkt Groq yolu
+- ⬜ Gelişmiş mod: mevcut direkt-provider akışı (değişiklik yok)
+- ⬜ Vision/screenshot analizini de aynı yönlendirmeye sok (proxy vs direkt)
+- ⬜ 429 (limit) yanıtını UI'da anlamlı göster: "Günlük deneme limitin doldu — kendi Groq key'ini ekle veya yarın dön"
+- ⬜ **Test:** deneme modunda mesaj proxy'den geçer; limit dolunca UI uyarısı; kendi-key girince direkt gider
+
+### 30.6 Rate limit cilası & kötüye kullanım koruması ⬜
+- ⬜ Limitleri Edge Function'da yapılandırılabilir sabit yap (örn. 50 istek/gün, 100k token/gün)
+- ⬜ Kullanıcıya kalan kota göster (ayarlar veya küçük rozet) — `usage` tablosundan oku
+- ⬜ Aşırı uzun prompt / abuse için istek başına token tavanı
+- ⬜ (Opsiyonel) basit IP/cihaz parmak izi ile çoklu hesap suistimalini yavaşlat
+- ⬜ **Test:** limitler doğru sayılıyor; kalan kota UI'da doğru; tek istekte token tavanı çalışıyor
+
+### 30.7 Cloud sync (Gelişmiş mod, opsiyonel auth) ⬜
+*Giriş yapan kullanıcının ayarları/key'leri cihazlar arası taşınsın.*
+- ⬜ Ayarlar + (şifreli) API key'leri `user_configs.settings` / `encrypted_keys`'e yaz
+- ⬜ Şifreleme: kullanıcı parolasından türetilen anahtarla istemci tarafı (sunucu düz key görmesin)
+- ⬜ Açılışta cloud'dan çek → yerel `~/.aegis` ile birleştir (çakışmada en yeni kazanır)
+- ⬜ "Bu cihazı senkronla / senkronu kapat" toggle'ı
+- ⬜ **Test:** A cihazında ayar değiştir → B cihazında giriş yapınca gelir; key'ler sunucuda düz metin değil
+
+### 30.8 Dağıtım sertleştirme & yayın ⬜
+- ⬜ Repo'da sır taraması (grep + opsiyonel git hook): service_role / Groq key sızıntısı yok
+- ⬜ `electron-builder` ile imzalı build; `AEGIS_*` env'leri CI secret'tan enjekte (bundle'a anon-safe değerler girer)
+- ⬜ İlk-çalıştırma onboarding metinleri (TR/EN): deneme vs gelişmiş farkı net anlatılsın
+- ⬜ Hata durumları: proxy down, Supabase down, ağ yok → kullanıcıya anlamlı mesaj + gelişmiş moda düşme önerisi
+- ⬜ **Test:** temiz makinede installer → mod seç → deneme çalışır; gelişmiş çalışır; sır sızıntısı yok
