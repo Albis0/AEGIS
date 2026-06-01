@@ -9,7 +9,7 @@ import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
-import {getAccessToken, signUp, signIn, signOut, getCurrentUser} from "./auth";
+import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
@@ -1514,6 +1514,7 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());
+    ipcMain.handle("usage-get", () => getUsage());
 
     ipcMain.handle("config-get", () => {
         return {

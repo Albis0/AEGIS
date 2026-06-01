@@ -7,10 +7,12 @@ import KeysTab       from "./settings/tabs/KeysTab";
 import TelemetryTab  from "./settings/tabs/TelemetryTab";
 import ShortcutsTab  from "./settings/tabs/ShortcutsTab";
 import ToolsTab      from "./settings/tabs/ToolsTab";
+import AccountTab    from "./settings/tabs/AccountTab";
 
-type Tab = "model" | "voice" | "appearance" | "keys" | "telemetry" | "shortcuts" | "tools";
+type Tab = "account" | "model" | "voice" | "appearance" | "keys" | "telemetry" | "shortcuts" | "tools";
 
 const NAV_ITEMS: {id: Tab; icon: string; label: string; sub: string}[] = [
+    {id: "account",    icon: "◉",  label: "Hesap",      sub: "Mod, oturum & kota"},
     {id: "model",      icon: "◈",  label: "Model",      sub: "AI sağlayıcı & parametreler"},
     {id: "voice",      icon: "◎",  label: "Ses",        sub: "TTS motoru & dil"},
     {id: "appearance", icon: "▦",  label: "Görünüm",    sub: "Tema, skin, font"},
@@ -177,6 +179,9 @@ export default function SettingsPanel({
 
                     {/* Tab content */}
                     <div className="flex-1 overflow-y-auto px-8 py-6">
+                        {tab === "account" && (
+                            <AccountTab settings={settings} accent={a} ac={ac} onApply={applySettings} />
+                        )}
                         {tab === "model" && (
                             <ModelTab settings={settings} accent={a} ac={ac} onApply={applySettings} />
                         )}

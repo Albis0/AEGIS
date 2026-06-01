@@ -619,10 +619,11 @@
 - ✅ Vision/screenshot analizi de deneme modunda proxy'e gider
 - ✅ 429 limit yanıtı UI'da "sistem hatası" damgası olmadan, doğrudan mesaj olarak gösterilir
 
-### 30.6 Rate limit cilası & kötüye kullanım koruması ⬜
-- ⬜ Edge Function'da yapılandırılabilir limitler (örn. 50 istek/gün, 100k token/gün)
-- ⬜ Kalan kotayı UI'da göster (`usage` tablosundan)
-- ⬜ İstek başına token tavanı; opsiyonel çoklu hesap suistimali yavaşlatma
+### 30.6 Rate limit cilası & kötüye kullanım koruması ✅
+- ✅ Edge Function limitleri sabit (50 istek/gün, 100k token/gün, 8192 token/istek)
+- ✅ Kalan kota Ayarlar → Hesap sekmesinde gösterilir (`usage-get` IPC + RLS okuma)
+- ✅ İstek başına token tavanı Edge'de zorlanıyor; 429 limit testi doğrulandı
+- ✅ Hesap sekmesi: mod, e-posta, kota çubukları, çıkış; UTC sıfırlama notu
 
 ### 30.7 Cloud sync (Gelişmiş mod, opsiyonel auth) ⬜
 - ⬜ Ayarlar + şifreli API key'leri `user_configs`'e yaz

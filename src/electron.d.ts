@@ -147,6 +147,7 @@ declare global {
             authSignIn: (email: string, password: string) => Promise<{ok: boolean; error?: string; userId?: string; email?: string}>;
             authSignOut: () => Promise<void>;
             authCurrentUser: () => Promise<{userId: string; email?: string} | null>;
+            usageGet: () => Promise<{signedIn: boolean; usedRequests: number; usedTokens: number; limitRequests: number; limitTokens: number}>;
             onboardingComplete: (mode: "trial" | "own") => Promise<void>;
             screenshot: () => Promise<void>;
             sessionsList: () => Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]>;

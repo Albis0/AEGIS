@@ -98,3 +98,42 @@ export async function getCurrentUser(): Promise<{userId: string; email?: string}
     if (!session?.user) return null;
     return {userId: session.user.id, email: session.user.email};
 }
+
+// Deneme modu günlük kotası. Edge Function'daki limitlerle TUTARLI tutulmalı.
+export const TRIAL_DAILY_REQUEST_LIMIT = 50;
+export const TRIAL_DAILY_TOKEN_LIMIT = 100_000;
+
+export interface UsageInfo {
+    signedIn: boolean;
+    usedRequests: number;
+    usedTokens: number;
+    limitRequests: number;
+    limitTokens: number;
+}
+
+// Kullanıcının bugünkü (UTC) kullanımını döndürür. RLS sayesinde anon client
+// kendi satırını okuyabilir. Gün sınırı UTC'ye göredir (Edge Function ile aynı).
+export async function getUsage(): Promise<UsageInfo> {
+    const base: UsageInfo = {
+        signedIn: false,
+        usedRequests: 0,
+        usedTokens: 0,
+        limitRequests: TRIAL_DAILY_REQUEST_LIMIT,
+        limitTokens: TRIAL_DAILY_TOKEN_LIMIT,
+    };
+    const session = await getSession();
+    if (!session?.user) return base;
+    base.signedIn = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const {data} = await getAuthClient()
+        .from("usage")
+        .select("request_count, token_count")
+        .eq("user_id", session.user.id)
+        .eq("day", today)
+        .maybeSingle();
+    if (data) {
+        base.usedRequests = data.request_count ?? 0;
+        base.usedTokens = data.token_count ?? 0;
+    }
+    return base;
+}
