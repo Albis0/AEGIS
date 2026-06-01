@@ -73,6 +73,101 @@ let _ttsHandler:  TtsHandler  | null = null;
 export function registerAskHandler(fn: AskHandler):  void { _askHandler  = fn; }
 export function registerTtsHandler(fn: TtsHandler):  void { _ttsHandler  = fn; }
 
+// SSE clients
+const sseClients = new Set<http.ServerResponse>();
+
+export function broadcastFeedEvent(type: "delta" | "done" | "tool" | "user", data: unknown): void {
+    const payload = `data: ${JSON.stringify({type, data})}\n\n`;
+    for (const client of sseClients) {
+        try { client.write(payload); } catch { sseClients.delete(client); }
+    }
+}
+
+// Minimal web UI HTML
+function buildWebUI(ip: string, port: number): string {
+    return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AEGIS Web</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#04070d;color:#22d3ee;font-family:'JetBrains Mono',monospace;height:100dvh;display:flex;flex-direction:column}
+#hdr{padding:12px 16px;border-bottom:1px solid rgba(34,211,238,0.15);font-size:13px;letter-spacing:.2em;opacity:.7}
+#feed{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:90%;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.user{align-self:flex-end;background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25)}
+.ai{align-self:flex-start;background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1)}
+.tool{align-self:flex-start;font-size:11px;opacity:.5;padding:4px 10px;border:1px solid rgba(34,211,238,0.08);border-radius:6px}
+#bar{padding:12px;border-top:1px solid rgba(34,211,238,0.1);display:flex;gap:8px}
+#inp{flex:1;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);color:#22d3ee;padding:10px 14px;border-radius:8px;font-size:13px;outline:none}
+#btn{padding:10px 20px;background:rgba(34,211,238,0.15);border:1px solid rgba(34,211,238,0.35);color:#22d3ee;border-radius:8px;cursor:pointer;font-size:12px;letter-spacing:.1em}
+#tok{padding:8px 14px;font-size:11px;opacity:.4;border-top:1px solid rgba(34,211,238,0.06)}
+</style>
+</head>
+<body>
+<div id="hdr">AEGIS · Web Arayüzü</div>
+<div id="feed"></div>
+<div id="bar">
+  <input id="inp" type="text" placeholder="Mesajını yaz…" autocomplete="off"/>
+  <button id="btn" onclick="sendMsg()">GÖNDER</button>
+</div>
+<div id="tok">Token: <input id="tkf" type="password" placeholder="Bearer token" style="background:transparent;border:none;color:#22d3ee;font-size:11px;width:220px;outline:none"/></div>
+<script>
+const feed = document.getElementById('feed');
+const inp  = document.getElementById('inp');
+const tkf  = document.getElementById('tkf');
+let token = localStorage.getItem('aegis_token') || '';
+tkf.value = token;
+tkf.addEventListener('change', () => { token = tkf.value.trim(); localStorage.setItem('aegis_token', token); connectSSE(); });
+
+let curAI = null;
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  feed.appendChild(d);
+  feed.scrollTop = feed.scrollHeight;
+  return d;
+}
+
+function connectSSE() {
+  if (!token) return;
+  const es = new EventSource('/events?token=' + encodeURIComponent(token));
+  es.onmessage = e => {
+    try {
+      const {type, data} = JSON.parse(e.data);
+      if (type === 'user') addMsg('user', data.text);
+      else if (type === 'delta') {
+        if (!curAI) curAI = addMsg('ai', '');
+        curAI.textContent += data.text;
+        feed.scrollTop = feed.scrollHeight;
+      } else if (type === 'done') { curAI = null; }
+      else if (type === 'tool') addMsg('tool', '⚙ ' + data.name + ' ' + (data.phase === 'done' ? '✓' : '…'));
+    } catch {}
+  };
+  es.onerror = () => { setTimeout(connectSSE, 3000); es.close(); };
+}
+connectSSE();
+
+async function sendMsg() {
+  const text = inp.value.trim();
+  if (!text || !token) { alert('Mesaj ve token gerekli.'); return; }
+  inp.value = '';
+  try {
+    await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+      body: JSON.stringify({text})
+    });
+  } catch(e) { addMsg('ai', 'HATA: ' + e.message); }
+}
+inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
+</script>
+</body>
+</html>`;
+}
+
 let server: http.Server | null = null;
 
 export function startApiServer(port = DEFAULT_PORT): string {
@@ -88,11 +183,34 @@ export function startApiServer(port = DEFAULT_PORT): string {
             res.end(); return;
         }
 
-        const url = req.url ?? "/";
+        const url = (req.url ?? "/").split("?")[0];
+        const query = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+
+        // Web UI (no auth for HTML)
+        if ((url === "/" || url === "/index.html") && req.method === "GET") {
+            res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"});
+            res.end(buildWebUI(ip, port)); return;
+        }
 
         // Health check (no auth)
         if (url === "/api/status" && req.method === "GET") {
             send(res, 200, {ok: true, version: "1.0", ip, port}); return;
+        }
+
+        // SSE — auth via query param (browsers can't set headers on EventSource)
+        if (url === "/events" && req.method === "GET") {
+            const t = query.get("token") ?? "";
+            if (t !== token) { send(res, 401, {error: "Yetkisiz."}); return; }
+            res.writeHead(200, {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            });
+            res.write(": connected\n\n");
+            sseClients.add(res);
+            req.on("close", () => sseClients.delete(res));
+            return;
         }
 
         // Auth

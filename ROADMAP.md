@@ -304,15 +304,15 @@
 ## Faz 15 — Web Arayüzü 🌐
 *AEGIS'e başka cihazdan tarayıcıdan da erişilebilsin.*
 
-### 15.1 Tarayıcı Tabanlı UI
-- [ ] Faz 14'te açılan Express sunucusunda aynı React UI'ı statik olarak sun
-- [ ] Gerçek zamanlı mesajlaşma WebSocket üzerinden (Socket.io veya native WS)
-- [ ] Hologram skin'in tarayıcı uyumlu versiyonu
+### 15.1 Tarayıcı Tabanlı UI ✅
+- ✅ `GET /` → minimal AEGIS web arayüzü (saf HTML/CSS/JS, React gerekmez)
+- ✅ Kullanıcı mesaj gönderebilir, yanıtları görebilir
+- ✅ `GET /events?token=…` — SSE (Server-Sent Events) ile gerçek zamanlı delta/tool/done akışı
+- ✅ Token localStorage'da saklanır
 
-### 15.2 Çok Cihaz Senkronizasyonu
-- [ ] Masaüstü + web UI'ı aynı anda kullanılabilsin
-- [ ] Feed, iki tarafta da senkron güncellensin
-- [ ] Konuşma Supabase'de zaten saklandığı için senkronizasyon doğal
+### 15.2 Çok Cihaz Senkronizasyonu ✅
+- ✅ `runAgent` → `send()` → SSE broadcast: masaüstü + tarayıcı eş zamanlı güncellenir
+- ✅ `delta`, `done`, `tool` event tipleri her bağlı client'a iletilir
 
 ---
 

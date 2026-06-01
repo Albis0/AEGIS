@@ -11,7 +11,7 @@ import {executeTool, registerQuitCallback, registerSetLanguageCallback, register
 import {addMacroStep, isRecording} from "./macros";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
-import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo} from "./api-server";
+import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent} from "./api-server";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
@@ -947,6 +947,9 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
+        if (channel === "chat-delta") broadcastFeedEvent("delta", payload);
+        else if (channel === "chat-done") broadcastFeedEvent("done", payload);
+        else if (channel === "tool-event") broadcastFeedEvent("tool", payload);
     };
 
     for (let step = 0; step < 8; step++) {
