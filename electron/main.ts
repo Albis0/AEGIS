@@ -755,6 +755,9 @@ async function friendlyHttpError(providerLabel: string, resp: Response): Promise
     const s = resp.status;
     if (s === 401 || s === 403) return `${providerLabel}: API anahtarın geçersiz veya yetkisiz (${s}). Ayarlar → Model'den anahtarı kontrol et.`;
     if (s === 404) return `${providerLabel}: Model bulunamadı (404). Seçili model bu sağlayıcıda mevcut değil — Ayarlar → Model'den başka bir model seç.`;
+    if (s === 429 && /quota|billing|insufficient|credit|payment/i.test(detail)) {
+        return `${providerLabel}: Hesabında yeterli bakiye/kota yok. ${providerLabel} hesabına ödeme/kredi eklemen gerekiyor.`;
+    }
     if (s === 429) return `${providerLabel}: Hız sınırına takıldın (429). Birkaç saniye sonra tekrar dene.`;
     if (s === 400 && /model|not found|does not exist|decommission/i.test(detail)) {
         return `${providerLabel}: Bu model artık geçersiz veya desteklenmiyor. Ayarlar → Model'den güncel bir model seç.`;
