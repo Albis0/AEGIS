@@ -49,6 +49,7 @@ export interface SkinProps {
     onSettingsOpen: () => void;
     onHistoryOpen?: () => void;
     feedRef: React.RefObject<HTMLDivElement>;
+    inputRef?: React.RefObject<HTMLInputElement>;
     layout: "normal" | "compact";
     telemetryWidgets?: TelemetryWidget[];
 }
@@ -58,7 +59,7 @@ const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "networ
 export default function HologramSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
-    onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, layout,
+    onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, inputRef, layout,
     telemetryWidgets,
 }: SkinProps) {
     const compact = layout === "compact";
@@ -287,6 +288,7 @@ export default function HologramSkin({
                 <div className="flex items-center gap-3 rounded-xl border transition-colors" style={{padding: "var(--feed-p) calc(var(--feed-p) * 2)", borderColor: "rgba(var(--hud),0.3)", background: "rgba(3,6,12,0.85)", boxShadow: "0 0 24px rgba(var(--hud),0.12)"}}>
                     <span className="text-sm" style={{color: "rgba(var(--hud),0.6)"}}>›</span>
                     <input
+                        ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && onSend()}

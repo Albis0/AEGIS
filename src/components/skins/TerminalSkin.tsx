@@ -22,7 +22,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", {hour: "2-digit", min
 export default function TerminalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel,
     mode, setMode, listening, activated, placeholder,
-    onSend, onStop, onSettingsOpen, feedRef,
+    onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const promptColor = state === "error" ? "rgb(var(--status-danger))" : state === "thinking" ? "rgb(var(--status-warn))" : "rgb(var(--hud))";
     const [clock, setClock] = useState(new Date());
@@ -124,6 +124,7 @@ export default function TerminalSkin({
                 <div className="flex items-center gap-2">
                     <span style={{color: promptColor}}>❯</span>
                     <input
+                        ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && onSend()}

@@ -20,7 +20,7 @@ function parseSearchSource(detail?: string): string | null {
 export default function MinimalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming,
     mode, setMode, listening, activated, placeholder,
-    onSend, onStop, onSettingsOpen, feedRef,
+    onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const [clock, setClock] = useState(new Date());
     useEffect(() => {
@@ -118,6 +118,7 @@ export default function MinimalSkin({
                         setMode(next);
                     }} />
                     <input
+                        ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && onSend()}

@@ -50,7 +50,7 @@ function Widget({title, children, className = ""}: {title: string; children: Rea
 export default function DashboardSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, placeholder,
-    onSend, onStop, onSettingsOpen, feedRef,
+    onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const [clock, setClock] = useState(new Date());
     useEffect(() => {
@@ -230,6 +230,7 @@ export default function DashboardSkin({
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border" style={{borderColor: "rgba(var(--hud),0.2)", background: "rgba(var(--hud),0.04)"}}>
                     <span style={{color: "rgba(var(--hud),0.5)"}}>›</span>
                     <input
+                        ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && onSend()}

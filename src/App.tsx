@@ -109,6 +109,9 @@ export default function App() {
     const isBusyRef = useRef(false);
     const modeRef = useRef<VoiceMode>("off");
 
+    const inputRef = useRef<HTMLInputElement>(null);
+    const focusInput = useCallback(() => { inputRef.current?.focus(); }, []);
+
     const [attachments, setAttachments] = useState<Attachment[]>([]);
 
     useEffect(() => {
@@ -208,6 +211,7 @@ export default function App() {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "F11") { e.preventDefault(); window.jarvis.fullscreen(); }
             if (e.key === "Escape") { stopSpeaking(); setState(modeRef.current !== "off" ? "listening" : "idle"); }
+            if (e.ctrlKey && e.key === "l") { e.preventDefault(); focusInput(); return; }
             if (e.ctrlKey && e.key === " ") { e.preventDefault(); if (!isBusyRef.current) setPaletteOpen(true); return; }
             if (e.key === "m" || e.key === "M") {
                 if (document.activeElement?.tagName === "INPUT") return;
@@ -217,7 +221,7 @@ export default function App() {
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [stopSpeaking, setMode]);
+    }, [stopSpeaking, setMode, focusInput]);
 
     useEffect(() => {
         feedRef.current?.scrollTo({top: feedRef.current.scrollHeight, behavior: "smooth"});
@@ -285,6 +289,8 @@ export default function App() {
                     stopSpeaking();
                     setState("speaking");
                     speak(responseText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+                } else {
+                    setTimeout(() => inputRef.current?.focus(), 50);
                 }
             }),
         ];
@@ -357,7 +363,7 @@ export default function App() {
         attachments, setAttachments,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
-        feedRef, layout, telemetryWidgets,
+        feedRef, inputRef, layout, telemetryWidgets,
     }), [feed, input, attachments, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
         send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets]);
