@@ -187,19 +187,234 @@
 
 ---
 
+---
+
+## Faz 10 — Arka Plan Servisi & Bildirimler 🔔
+*AEGIS kapalıyken bile çalışsın.*
+
+### 10.1 Background Service
+- [ ] Windows'ta sistem tepsisinde (system tray) küçük ikon — AEGIS kapatılınca tamamen kapanmaz
+- [ ] Tray menüsü: "Aç", "Mikrofon Aç", "Çıkış"
+- [ ] `app.on("window-all-closed")` → `event.preventDefault()` ile gizle, kapat
+- [ ] Başlangıçta otomatik başlat seçeneği (`AutoLaunch` ile Windows registry)
+
+### 10.2 Zamanlanmış Görevler & Cron
+- [ ] `schedule_task` tool: cron ifadesiyle tekrarlayan görev (örn: "her sabah 9'da haber özetle")
+- [ ] `list_scheduled_tasks` / `cancel_scheduled_task` tool'ları
+- [ ] Görevler `~/.aegis/scheduled-tasks.json`'da saklanır, uygulama açılışında yüklenir
+- [ ] Görev tetiklenince feed'e eklenir + sesli bildirim
+
+### 10.3 Anlık Bildirim Tetikleyiciler
+- [ ] `watch_condition` tool: belirli koşul gerçekleşince bildir (örn: "GPU %90 geçerse uyar")
+- [ ] CPU/RAM/disk eşiği aşınca otomatik uyarı (ayarlardan açılabilir)
+- [ ] Windows toast bildirimi + isteğe bağlı TTS ile seslendir
+
+---
+
+## Faz 11 — Performans & Streaming ⚡
+*Her token hissedilsin, her re-render önlensin.*
+
+### 11.1 Gerçek LLM Streaming
+- [ ] Groq: `stream: true` — her token gelince `chat-delta` IPC'ye gönder
+- [ ] Kullanıcı ilk kelimeyi ~200ms'de görsün, tüm yanıt bir anda değil
+- [ ] Diğer provider'lar (OpenAI, Anthropic, Gemini) için de streaming aktif
+
+### 11.2 Paralel Tool Execution
+- [ ] Birden fazla tool çağrısı `Promise.all()` ile eş zamanlı çalışsın
+- [ ] `web_search` + `get_weather` gibi bağımsız araçlar aynı anda dönsün
+
+### 11.3 React Render Optimizasyonu
+- [ ] `FeedItem` bileşeni `React.memo` ile ayrılsın — önceki balonlar re-render etmesin
+- [ ] `skinProps` `useMemo` ile sarılsın — her render'da yeni nesne oluşturulmasın
+- [ ] `CpuRow` / `GpuRow` / `TelRow` helper'ları `React.memo` ile izole
+
+### 11.4 Diğer Optimizasyonlar
+- [ ] `getUserProfile()` modül seviyesinde 60sn cache — her mesajda DB round-trip olmasın
+- [ ] Telemetri interval'ları `before-quit`'te temizlensin — process artakalamasın
+- [ ] Web search `AbortController` + 8sn timeout — Tavily donunca 30sn beklemesin
+- [ ] CSS `@import` Google Fonts render-blocking kaldırılsın; `will-change` hint'leri eklenmeli
+
+---
+
+## Faz 12 — Ajans Modu & Otomasyon 🤖
+*AEGIS sadece yanıtlamakla kalmaz, görevleri başından sonuna tamamlar.*
+
+### 12.1 Multi-Step Ajan
+- [ ] `agent_mode` flag'i: bir hedef ver, AEGIS adım adım tool'ları zincirleme çalıştırsın
+- [ ] Her adımda "Ne yapıyorum" bildirimi feed'e düşsün
+- [ ] Maksimum adım sayısı ayarlanabilir (loop koruması)
+- [ ] Başarı / başarısızlık özeti feed'e eklensin
+
+### 12.2 Makro Kayıt & Tekrar
+- [ ] `start_macro` / `stop_macro`: kullanıcının yaptığı komut dizisini kaydet
+- [ ] `run_macro <ad>`: kaydedilmiş diziyi tekrarla
+- [ ] Makrolar `~/.aegis/macros.json`'da saklanır
+
+### 12.3 Koşullu Otomasyon
+- [ ] `if_then` tool: "eğer X ise Y yap" kuralları tanımla
+- [ ] Örn: "Saat 23:00 geçince ekranı karat ve müziği durdur"
+- [ ] Kurallar `~/.aegis/automations.json`'da saklanır, boot'ta yüklenir
+
+---
+
+## Faz 13 — Bilgi Tabanı & RAG 📚
+*AEGIS kendi belgelerin üzerinde akıl yürütebilsin.*
+
+### 13.1 Yerel Belge İndeksleme
+- [ ] `index_folder` tool: klasör ver → dosyaları chunk'la, embedding'leri `~/.aegis/index/`'e kaydet
+- [ ] `.txt`, `.md`, `.pdf`, `.docx` formatları desteklenmeli
+- [ ] Değişen dosyalar incremental olarak güncellenmeli
+
+### 13.2 Semantik Arama
+- [ ] `search_knowledge` tool: doğal dil sorgu → en alakalı chunk'lar → LLM'e bağlam olarak ver
+- [ ] "Proje notlarımda X hakkında ne yazmışım?" sorusu çalışsın
+- [ ] Kaynak dosya + satır numarası yanıtta gösterilsin
+
+### 13.3 Belge Sohbeti
+- [ ] `chat_with_file` tool: tek dosya ver → o dosyayla odaklı sohbet
+- [ ] PDF, Word, uzun markdown desteği
+- [ ] "Bu PDF'i özetle", "3. bölümde ne diyor?" soruları çalışsın
+
+---
+
+## Faz 14 — Telefon & Mobil Köprüsü 📱
+*AEGIS masaüstü ile telefonun arasındaki köprü olsun.*
+
+### 14.1 Yerel Ağ API
+- [ ] `electron/api-server.ts`: Express HTTP sunucusu, yerel ağda dinlesin (varsayılan `http://0.0.0.0:7331`)
+- [ ] `/api/ask` POST: JSON body `{text, voice?}` → AEGIS'e sor, yanıtı döndür
+- [ ] `/api/tts` POST: metni sese çevir, MP3 döndür
+- [ ] Bearer token auth (ayarlardan token oluştur/sıfırla)
+
+### 14.2 Mobil Kısayollar
+- [ ] iOS Kısayollar / Android Tasker ile `curl` üzerinden entegrasyon tarifi (README)
+- [ ] Sesli mesaj → `/api/stt` endpoint → metin → AEGIS'e gönder
+- [ ] Telefon bildirimlerini masaüstüne yansıt (Android Debug Bridge ile opsiyonel)
+
+### 14.3 QR Bağlantı
+- [ ] Ayarlar'da "Mobil Bağlan" butonu — yerel IP + token içeren QR kodu göster
+- [ ] Tarayıcıdan `http://<ip>:7331` ile basit web UI'ı aç (Faz 14.4 kapsamı)
+
+---
+
+## Faz 15 — Web Arayüzü 🌐
+*AEGIS'e başka cihazdan tarayıcıdan da erişilebilsin.*
+
+### 15.1 Tarayıcı Tabanlı UI
+- [ ] Faz 14'te açılan Express sunucusunda aynı React UI'ı statik olarak sun
+- [ ] Gerçek zamanlı mesajlaşma WebSocket üzerinden (Socket.io veya native WS)
+- [ ] Hologram skin'in tarayıcı uyumlu versiyonu
+
+### 15.2 Çok Cihaz Senkronizasyonu
+- [ ] Masaüstü + web UI'ı aynı anda kullanılabilsin
+- [ ] Feed, iki tarafta da senkron güncellensin
+- [ ] Konuşma Supabase'de zaten saklandığı için senkronizasyon doğal
+
+---
+
+## Faz 16 — Gelişmiş Hafıza & Kişiselleştirme 🧠+
+*Faz 1'in üzerine derin öğrenme katmanı.*
+
+### 16.1 Vektör Hafızası
+- [ ] Her konuşmadan önemli gerçekleri otomatik çıkar (`extract_facts` arka plan görevi)
+- [ ] Gerçekler embedding ile saklanır, ilgili sohbette otomatik inject edilir
+- [ ] "Bunu bil" komutuyla manuel gerçek eklenebilir
+
+### 16.2 Alışkanlık & Davranış Takibi
+- [ ] AEGIS'in hangi tool'ların ne sıklıkta kullanıldığını takip etmesi
+- [ ] Sık kullanılan komutlar Command Palette'in üstüne çıksın
+- [ ] "Bu hafta ne kadar çalıştım?" sorusu çalışsın
+
+### 16.3 Proaktif Öneriler
+- [ ] Sabah ilk açılışta günlük özet: hava, takvim, önemli notlar
+- [ ] Uzun süredir tamamlanmamış notlar için "hâlâ geçerli mi?" sorusu
+- [ ] Proje bazlı bağlam: "Dün X projesinde çalışıyordun, devam etmek ister misin?"
+
+---
+
+## Faz 17 — Güvenlik & Gizlilik 🔒
+*AEGIS'in verilerini güvende tut.*
+
+### 17.1 Yerel Şifreleme
+- [ ] `~/.aegis/` klasörü isteğe bağlı AES-256 ile şifreli — şifre ayarlardan girilir
+- [ ] Uygulama açılışında şifre sor (PIN veya biyometrik — Windows Hello API)
+- [ ] Şifreli mod: API key'ler, profil, notlar, geçmiş korunur
+
+### 17.2 Veri Denetimi
+- [ ] `privacy_audit` tool: hangi verilerin nerede saklandığını listele
+- [ ] `clear_history` / `clear_profile` / `clear_notes` araçları
+- [ ] Otomatik silme: X günden eski konuşmalar kaldırılsın (ayarlanabilir)
+
+### 17.3 API Key Vault
+- [ ] API key'ler düz JSON yerine Windows Credential Manager'da (DPAPI) saklansın
+- [ ] Ayarlar panelinden "Güvenli Depoya Taşı" tek tıkla
+
+---
+
+## Faz 18 — Gelişmiş Plugin Ekosistemi 🔌+
+*Faz 9'un üzerine marketplace katmanı.*
+
+### 18.1 Plugin Marketplace
+- [ ] `plugin_search` tool: GitHub'da `aegis-plugin-` prefix'li repoları ara
+- [ ] `plugin_install` tool: URL ver → `~/.aegis/plugins/`'e indir, doğrula, etkinleştir
+- [ ] `plugin_update` / `plugin_remove` tool'ları
+
+### 18.2 Plugin Güvenlik Sandboxu
+- [ ] Plugin'ler `vm2` veya Node `--experimental-vm-modules` ile izolasyonda çalışsın
+- [ ] İzin sistemi: `manifest.json`'da hangi sistem kaynaklarına erişebileceği bildirilsin
+- [ ] İzin dışı erişim denenince kullanıcıya sor
+
+### 18.3 Daha Fazla Hazır Plugin
+- [ ] **Discord** — mesaj gönder, kanal listele, durum ayarla (Discord RPC)
+- [ ] **Notion** — sayfa oluştur/oku/güncelle, veritabanı sorgula (Notion API)
+- [ ] **Home Assistant** — akıllı ev cihazlarını kontrol et (HA WebSocket API)
+- [ ] **YouTube** — video ara, açıklamasını oku, transcript çek (yt-dlp)
+
+---
+
+## Faz 19 — Ses & Müzik Üretimi 🎵
+*AEGIS sadece dinlemez, üretir de.*
+
+### 19.1 Ses Efektleri
+- [ ] `play_sound` tool: sistem sesi veya özel `.wav`/`.mp3` çal
+- [ ] Olay bazlı ses: "görev tamamlandı", "hata", "uyarı" için özel sesler
+- [ ] Ses dosyaları `~/.aegis/sounds/`'tan yüklenir
+
+### 19.2 Müzik Üretimi Entegrasyonu
+- [ ] Suno AI veya Udio API entegrasyonu — "Lo-fi çalışma müziği üret" komutu
+- [ ] Üretilen müziği kaydet + oynat
+- [ ] `generate_music` tool: stil/mood/süre parametreleri
+
+### 19.3 Ambient Ses Modu
+- [ ] `ambient_start` / `ambient_stop`: arka planda odaklanma müziği / beyaz gürültü
+- [ ] Hazır kategoriler: yağmur, kafe, orman, uzay, lo-fi
+- [ ] Ses seviyesi AEGIS'in konuşmasıyla otomatik düşsün (ducking)
+
+---
+
 ## Öncelik Sırası
 
 ```
-✅  Faz 1    Hafıza & bağlam         ← TAMAMLANDI
-✅  Faz 2    Ayarlar & model seçimi  ← TAMAMLANDI
-✅  Faz 3    UI temaları & skinler   ← TAMAMLANDI
-✅  Faz 4    Dil desteği             ← TAMAMLANDI
-✅  Faz 5    Görme & ekran           ← TAMAMLANDI
-✅  Faz 6    Sistem kontrolü         ← TAMAMLANDI
-✅  Faz 7    Web & iletişim          ← TAMAMLANDI
-✅  Faz 8.1  Sözünü kesme            ← TAMAMLANDI
-✅  Faz 8.2  Chat geçmişi UI         ← TAMAMLANDI
-✅  Faz 8.3  Command palette         ← TAMAMLANDI
-✅  Faz 9    Plugin sistemi          ← TAMAMLANDI
-✅  Faz 9.2  Hazır plugin'ler        ← TAMAMLANDI (Spotify/VSCode/Steam/OBS)
+✅  Faz 1    Hafıza & bağlam              ← TAMAMLANDI
+✅  Faz 2    Ayarlar & model seçimi       ← TAMAMLANDI
+✅  Faz 3    UI temaları & skinler        ← TAMAMLANDI
+✅  Faz 4    Dil desteği                  ← TAMAMLANDI
+✅  Faz 5    Görme & ekran                ← TAMAMLANDI
+✅  Faz 6    Sistem kontrolü              ← TAMAMLANDI
+✅  Faz 7    Web & iletişim               ← TAMAMLANDI
+✅  Faz 8.1  Sözünü kesme                 ← TAMAMLANDI
+✅  Faz 8.2  Chat geçmişi UI              ← TAMAMLANDI
+✅  Faz 8.3  Command palette              ← TAMAMLANDI
+✅  Faz 9    Plugin sistemi               ← TAMAMLANDI
+✅  Faz 9.2  Hazır plugin'ler             ← TAMAMLANDI (Spotify/VSCode/Steam/OBS)
+[ ] Faz 10   Arka plan servisi & bildirim ← SIRADA
+[ ] Faz 11   Performans & streaming       ← SIRADA
+[ ] Faz 12   Ajans modu & otomasyon       ← SIRADA
+[ ] Faz 13   Bilgi tabanı & RAG           ← SIRADA
+[ ] Faz 14   Telefon & mobil köprüsü      ← SIRADA
+[ ] Faz 15   Web arayüzü                  ← SIRADA
+[ ] Faz 16   Gelişmiş hafıza              ← SIRADA
+[ ] Faz 17   Güvenlik & gizlilik          ← SIRADA
+[ ] Faz 18   Gelişmiş plugin ekosistemi   ← SIRADA
+[ ] Faz 19   Ses & müzik üretimi          ← SIRADA
 ```
