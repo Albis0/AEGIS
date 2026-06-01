@@ -8,6 +8,7 @@ import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolT
 import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
+import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./memory-plus";
 
 type ToolResult = string;
 
@@ -471,6 +472,62 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const memoryPlusSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "remember_fact",
+            description: "Kalıcı bir gerçeği hafızaya kaydet. 'Bunu bil: abimin adı Ahmet', 'Hatırla: proje teslim tarihi 15 Temmuz' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    content: {type: "string", description: "Kaydedilecek gerçek"},
+                    tags:    {type: "string", description: "Etiketler, virgülle ayrılmış (opsiyonel, örn: 'aile,kişisel')"},
+                },
+                required: ["content"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_facts",
+            description: "Kaydedilmiş gerçekleri listele. 'Ne biliyorsun?', 'Kayıtlı bilgilerin neler?' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    filter: {type: "string", description: "Filtreleme terimi (opsiyonel)"},
+                },
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "forget_fact",
+            description: "Kayıtlı bir gerçeği sil.",
+            parameters: {
+                type: "object",
+                properties: {
+                    id_or_content: {type: "string", description: "Gerçek ID veya içeriği (kısmi eşleşme)"},
+                },
+                required: ["id_or_content"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_habits",
+            description: "En sık kullandığın araçları ve alışkanlık istatistiklerini göster.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+];
+
 const knowledgeSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -742,7 +799,7 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -1172,6 +1229,20 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async remove_from_index({file_path}) {
         return removeFromIndex(file_path ?? "");
+    },
+
+    async remember_fact({content, tags}) {
+        const tagList = tags ? String(tags).split(",").map((t) => t.trim()).filter(Boolean) : [];
+        return addFact(content ?? "", "manual", tagList);
+    },
+    async list_facts({filter}) {
+        return listFacts(filter ?? "");
+    },
+    async forget_fact({id_or_content}) {
+        return removeFact(id_or_content ?? "");
+    },
+    async list_habits() {
+        return listHabits();
     },
 };
 

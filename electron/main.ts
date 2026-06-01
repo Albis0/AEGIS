@@ -9,6 +9,7 @@ import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback} from "./tools";
 import {addMacroStep, isRecording} from "./macros";
+import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
 import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent} from "./api-server";
@@ -943,7 +944,7 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr") + profileNote + memorySummaries;
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr") + profileNote + memorySummaries + getFactsForContext();
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
@@ -977,6 +978,7 @@ async function runAgent(history: {role: string; content: string}[], reqId: strin
                 const name = call.function.name;
                 const argsJson = call.function.arguments || "{}";
                 send("tool-event", {phase: "start", name, args: argsJson});
+                recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
@@ -1387,6 +1389,16 @@ async function bootApp(): Promise<void> {
     startTelemetry();
     createTray();
     app.setLoginItemSettings({openAtLogin: currentSettings.autoLaunch});
+
+    if (shouldShowMorningSummary()) {
+        markMorningSummaryShown();
+        setTimeout(() => {
+            const prompt = buildMorningSummaryPrompt();
+            const msgs = [...sessionHistory, {role: "user", content: prompt}];
+            saveMessage("user", prompt).catch(() => {});
+            runAgent(msgs, `morning-${Date.now()}`).catch(() => {});
+        }, 4000); // pencere yüklendikten 4sn sonra
+    }
 
     registerSchedulerCallback((task) => {
         if (mainWindow && !mainWindow.isDestroyed()) {

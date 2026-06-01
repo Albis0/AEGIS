@@ -319,20 +319,19 @@
 ## Faz 16 — Gelişmiş Hafıza & Kişiselleştirme 🧠+
 *Faz 1'in üzerine derin öğrenme katmanı.*
 
-### 16.1 Vektör Hafızası
-- [ ] Her konuşmadan önemli gerçekleri otomatik çıkar (`extract_facts` arka plan görevi)
-- [ ] Gerçekler embedding ile saklanır, ilgili sohbette otomatik inject edilir
-- [ ] "Bunu bil" komutuyla manuel gerçek eklenebilir
+### 16.1 Kalıcı Gerçekler ✅
+- ✅ `remember_fact` tool: "Bunu bil: …" ile manuel gerçek kaydet (`~/.aegis/facts.json`)
+- ✅ `list_facts` / `forget_fact` tool'ları
+- ✅ Gerçekler her konuşmada system prompt'a otomatik inject edilir
 
-### 16.2 Alışkanlık & Davranış Takibi
-- [ ] AEGIS'in hangi tool'ların ne sıklıkta kullanıldığını takip etmesi
-- [ ] Sık kullanılan komutlar Command Palette'in üstüne çıksın
-- [ ] "Bu hafta ne kadar çalıştım?" sorusu çalışsın
+### 16.2 Alışkanlık Takibi ✅
+- ✅ Her tool çağrısı `habits.json`'a kaydedilir (araç adı + kullanım sayısı)
+- ✅ `list_habits` tool: "en sık hangi araçları kullanıyorum?" sorusunu yanıtlar
 
-### 16.3 Proaktif Öneriler
-- [ ] Sabah ilk açılışta günlük özet: hava, takvim, önemli notlar
-- [ ] Uzun süredir tamamlanmamış notlar için "hâlâ geçerli mi?" sorusu
-- [ ] Proje bazlı bağlam: "Dün X projesinde çalışıyordun, devam etmek ister misin?"
+### 16.3 Sabah Özeti ✅
+- ✅ İlk günlük açılışta otomatik sabah özeti: hava + notlar + görevler
+- ✅ `morning-check.json` ile günde bir kez tetiklenir, tekrar etmez
+- ✅ 4sn gecikmeyle pencere yüklendikten sonra başlar
 
 ---
 
