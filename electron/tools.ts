@@ -4,6 +4,7 @@ import * as path from "path";
 import * as os from "os";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
+import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
 
 type ToolResult = string;
 
@@ -408,7 +409,66 @@ export function registerPluginExecutors(executors: Record<string, (args: Record<
 }
 
 export const extraSchemas: ChatCompletionTool[] = [];
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...extraSchemas]; }
+
+const schedulerSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "schedule_task",
+            description: "Tekrarlayan zamanlanmış görev oluştur. 'Her sabah hava durumunu söyle', 'Her saat başı CPU kullanımını kontrol et' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name:     {type: "string", description: "Görev adı (benzersiz, kısa)"},
+                    schedule: {type: "string", description: "Zamanlama: 'every 30 minutes', 'every 2 hours', 'daily at 09:00', 'hourly'"},
+                    command:  {type: "string", description: "AEGIS'e gönderilecek doğal dil komutu (örn: 'hava durumunu söyle')"},
+                },
+                required: ["name", "schedule", "command"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_scheduled_tasks",
+            description: "Tüm zamanlanmış görevleri listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "cancel_scheduled_task",
+            description: "Zamanlanmış görevi iptal et (ad veya ID ile).",
+            parameters: {
+                type: "object",
+                properties: {
+                    id_or_name: {type: "string", description: "Görev adı (kısmi eşleşme yeterli) veya ID"},
+                },
+                required: ["id_or_name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "toggle_scheduled_task",
+            description: "Zamanlanmış görevi etkinleştir/devre dışı bırak.",
+            parameters: {
+                type: "object",
+                properties: {
+                    id_or_name: {type: "string", description: "Görev adı veya ID"},
+                },
+                required: ["id_or_name"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -708,6 +768,19 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         } catch {}
 
         return "HATA: Tüm arama servisleri başarısız.";
+    },
+
+    async schedule_task({name, schedule, command}) {
+        return toolScheduleTask(name ?? "", schedule ?? "", command ?? "");
+    },
+    async list_scheduled_tasks() {
+        return toolListScheduledTasks();
+    },
+    async cancel_scheduled_task({id_or_name}) {
+        return toolCancelScheduledTask(id_or_name ?? "");
+    },
+    async toggle_scheduled_task({id_or_name}) {
+        return toolToggleScheduledTask(id_or_name ?? "");
     },
 };
 

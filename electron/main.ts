@@ -8,6 +8,7 @@ import * as dotenv from "dotenv";
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback} from "./tools";
+import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
@@ -1267,6 +1268,16 @@ async function bootApp(): Promise<void> {
     startTelemetry();
     createTray();
     app.setLoginItemSettings({openAtLogin: currentSettings.autoLaunch});
+
+    registerSchedulerCallback((task) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("chat-stream-inject", {command: task.command});
+        }
+        if (ElectronNotification.isSupported()) {
+            new ElectronNotification({title: "AEGIS · Zamanlanmış Görev", body: task.name}).show();
+        }
+    });
+    startScheduler();
 }
 
 function createSetupWindow(): void {
@@ -1326,6 +1337,7 @@ app.whenReady().then(async () => {
 let isQuitting = false;
 app.on("before-quit", (e) => {
     telIntervals.forEach(clearInterval);
+    stopScheduler();
     if (isQuitting || sessionHistory.length < 2) return;
     e.preventDefault();
     isQuitting = true;

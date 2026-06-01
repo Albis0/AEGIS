@@ -254,6 +254,12 @@ export default function App() {
         });
     }, [setMode]);
 
+    useEffect(() => {
+        return window.jarvis.on("chat-stream-inject", ({command}: {command: string}) => {
+            if (command?.trim()) sendText(command.trim());
+        });
+    }, [sendText]);
+
     const handleHistoryOpen = useCallback(() => setHistoryOpen(true), []);
 
     const handleLoadSession = useCallback((messages: {role: string; content: string}[]) => {

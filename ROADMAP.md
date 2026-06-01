@@ -198,11 +198,11 @@
 - ✅ Pencere kapatılınca gizle (`minimizeToTray` ayarı açıkken)
 - ✅ Başlangıçta otomatik başlat seçeneği (`app.setLoginItemSettings` ile Windows registry)
 
-### 10.2 Zamanlanmış Görevler & Cron
-- [ ] `schedule_task` tool: cron ifadesiyle tekrarlayan görev (örn: "her sabah 9'da haber özetle")
-- [ ] `list_scheduled_tasks` / `cancel_scheduled_task` tool'ları
-- [ ] Görevler `~/.aegis/scheduled-tasks.json`'da saklanır, uygulama açılışında yüklenir
-- [ ] Görev tetiklenince feed'e eklenir + sesli bildirim
+### 10.2 Zamanlanmış Görevler & Cron ✅
+- ✅ `schedule_task` tool: "every 30 minutes", "daily at 09:00" gibi ifadelerle tekrarlayan görev
+- ✅ `list_scheduled_tasks` / `cancel_scheduled_task` / `toggle_scheduled_task` tool'ları
+- ✅ Görevler `~/.aegis/scheduled-tasks.json`'da saklanır, uygulama açılışında yüklenir
+- ✅ Görev tetiklenince `chat-stream-inject` ile AEGIS'e komut gönderilir + Windows bildirimi
 
 ### 10.3 Anlık Bildirim Tetikleyiciler
 - [ ] `watch_condition` tool: belirli koşul gerçekleşince bildir (örn: "GPU %90 geçerse uyar")
