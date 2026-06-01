@@ -9,6 +9,7 @@ import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMac
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./memory-plus";
+import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 
 type ToolResult = string;
 
@@ -472,6 +473,70 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const securitySchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "vault_store",
+            description: "API key veya hassas veriyi Windows şifreli depoya (safeStorage) kaydet.",
+            parameters: {
+                type: "object",
+                properties: {
+                    key:   {type: "string", description: "Anahtar adı (örn: 'openai_key')"},
+                    value: {type: "string", description: "Kaydedilecek değer"},
+                },
+                required: ["key", "value"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "vault_list",
+            description: "Güvenli depodaki anahtarları listele (değerleri göstermez).",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "vault_delete",
+            description: "Güvenli depodan bir anahtarı sil.",
+            parameters: {
+                type: "object",
+                properties: {
+                    key: {type: "string", description: "Silinecek anahtar adı"},
+                },
+                required: ["key"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "privacy_audit",
+            description: "Hangi verilerin nerede saklandığını listele. 'Gizlilik denetimi yap', 'Verilerimi nerede saklıyorsun?' gibi.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "clear_old_data",
+            description: "Eski verileri temizle (bilgi tabanı chunk'ları, devre dışı görevler). 'X günden eski verileri sil' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    days: {type: "number", description: "Kaç günden eski veri silinsin (varsayılan 30)"},
+                },
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const memoryPlusSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -799,7 +864,7 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...securitySchemas, ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -1243,6 +1308,23 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async list_habits() {
         return listHabits();
+    },
+
+    async vault_store({key, value}) {
+        return vaultStore(key ?? "", value ?? "");
+    },
+    async vault_list() {
+        return vaultList();
+    },
+    async vault_delete({key}) {
+        return vaultDelete(key ?? "");
+    },
+    async privacy_audit() {
+        return privacyAudit();
+    },
+    async clear_old_data({days}) {
+        const d = parseInt(String(days ?? "30"), 10);
+        return clearOldData(isNaN(d) ? 30 : d);
     },
 };
 

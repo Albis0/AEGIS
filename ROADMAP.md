@@ -338,19 +338,18 @@
 ## Faz 17 — Güvenlik & Gizlilik 🔒
 *AEGIS'in verilerini güvende tut.*
 
-### 17.1 Yerel Şifreleme
-- [ ] `~/.aegis/` klasörü isteğe bağlı AES-256 ile şifreli — şifre ayarlardan girilir
-- [ ] Uygulama açılışında şifre sor (PIN veya biyometrik — Windows Hello API)
-- [ ] Şifreli mod: API key'ler, profil, notlar, geçmiş korunur
+### 17.1 API Key Vault ✅
+- ✅ `vault_store` / `vault_list` / `vault_delete` tool'ları
+- ✅ Electron `safeStorage` (OS DPAPI/Keychain) ile AES-256 şifreli depo
+- ✅ Şifreli değerler `~/.aegis/vault.enc.json`'da hex olarak saklanır
 
-### 17.2 Veri Denetimi
-- [ ] `privacy_audit` tool: hangi verilerin nerede saklandığını listele
-- [ ] `clear_history` / `clear_profile` / `clear_notes` araçları
-- [ ] Otomatik silme: X günden eski konuşmalar kaldırılsın (ayarlanabilir)
+### 17.2 Veri Denetimi ✅
+- ✅ `privacy_audit` tool: tüm AEGIS veri konumlarını listele (mevcut/değil işaretli)
+- ✅ `clear_old_data` tool: X günden eski bilgi tabanı + devre dışı görevleri temizle
 
-### 17.3 API Key Vault
-- [ ] API key'ler düz JSON yerine Windows Credential Manager'da (DPAPI) saklansın
-- [ ] Ayarlar panelinden "Güvenli Depoya Taşı" tek tıkla
+### 17.3 Güvenli Başlatma ✅
+- ✅ `initVault(safeStorage)` ile boot'ta şifreleme motoru başlatılır
+- ✅ `safeStorage.isEncryptionAvailable()` kontrolü; desteklenmiyorsa hata verir
 
 ---
 

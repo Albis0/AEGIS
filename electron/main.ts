@@ -10,6 +10,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback} from "./tools";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
+import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
 import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent} from "./api-server";
@@ -1046,6 +1047,9 @@ function activatePlugins(): string {
 }
 
 async function bootApp(): Promise<void> {
+    const {safeStorage} = await import("electron");
+    initVault(safeStorage);
+
     registerQuitCallback(() => app.quit());
 
     registerRemindCallback((message) => {
