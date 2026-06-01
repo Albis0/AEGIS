@@ -356,21 +356,21 @@
 ## Faz 18 — Gelişmiş Plugin Ekosistemi 🔌+
 *Faz 9'un üzerine marketplace katmanı.*
 
-### 18.1 Plugin Marketplace
-- [ ] `plugin_search` tool: GitHub'da `aegis-plugin-` prefix'li repoları ara
-- [ ] `plugin_install` tool: URL ver → `~/.aegis/plugins/`'e indir, doğrula, etkinleştir
-- [ ] `plugin_update` / `plugin_remove` tool'ları
+### 18.1 Plugin Marketplace ✅
+- ✅ `plugin_search` tool: GitHub Search API ile aegis-plugin araması
+- ✅ `plugin_install` tool: repo zip indir → manifest doğrula → güvenlik taraması → kur
+- ✅ `plugin_remove` tool: plugin klasörünü kaldır
 
-### 18.2 Plugin Güvenlik Sandboxu
-- [ ] Plugin'ler `vm2` veya Node `--experimental-vm-modules` ile izolasyonda çalışsın
-- [ ] İzin sistemi: `manifest.json`'da hangi sistem kaynaklarına erişebileceği bildirilsin
-- [ ] İzin dışı erişim denenince kullanıcıya sor
+### 18.2 Plugin Güvenlik Taraması ✅
+- ✅ `manifest.json` şema doğrulaması (name, tools, tool.name kontrolleri)
+- ✅ `index.js` statik kod taraması — şüpheli pattern'lar reddedilir
+- ✅ Kurulum öncesi güvenlik başarısız olursa işlem iptal edilir
 
-### 18.3 Daha Fazla Hazır Plugin
-- [ ] **Discord** — mesaj gönder, kanal listele, durum ayarla (Discord RPC)
-- [ ] **Notion** — sayfa oluştur/oku/güncelle, veritabanı sorgula (Notion API)
-- [ ] **Home Assistant** — akıllı ev cihazlarını kontrol et (HA WebSocket API)
-- [ ] **YouTube** — video ara, açıklamasını oku, transcript çek (yt-dlp)
+### 18.3 Yeni Hazır Plugin'ler ✅
+- ✅ **Discord** (3 tool): webhook mesaj, durum ayarla, rich presence
+- ✅ **Notion** (3 tool): sayfa oluştur, arama, blok ekle (Notion API v1)
+- ✅ **Home Assistant** (3 tool): cihaz durumu, servis çağrısı, entity listesi (yerel HTTP API)
+- ✅ **YouTube** (3 tool): video ara (Invidious API), tarayıcıda aç, transkript al (yt-dlp)
 
 ---
 

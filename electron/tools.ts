@@ -10,6 +10,7 @@ import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./memory-plus";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
+import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 
 type ToolResult = string;
 
@@ -473,6 +474,54 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const marketplaceSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "plugin_search",
+            description: "GitHub'da AEGIS plugin ara. 'Discord plugin var mı?', 'Notion entegrasyonu ara' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {type: "string", description: "Arama terimi"},
+                },
+                required: ["query"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "plugin_install",
+            description: "GitHub repo'sundan plugin kur. 'kullanici/aegis-plugin-x' formatında.",
+            parameters: {
+                type: "object",
+                properties: {
+                    repo: {type: "string", description: "GitHub repo yolu (örn: user/aegis-plugin-discord)"},
+                },
+                required: ["repo"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "plugin_remove",
+            description: "Yüklü bir plugin'i kaldır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Plugin adı"},
+                },
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const securitySchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -864,7 +913,7 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...securitySchemas, ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas, ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -1325,6 +1374,16 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async clear_old_data({days}) {
         const d = parseInt(String(days ?? "30"), 10);
         return clearOldData(isNaN(d) ? 30 : d);
+    },
+
+    async plugin_search({query}) {
+        return pluginSearch(query ?? "");
+    },
+    async plugin_install({repo}) {
+        return pluginInstall(repo ?? "");
+    },
+    async plugin_remove({name}) {
+        return pluginRemove(name ?? "");
     },
 };
 
