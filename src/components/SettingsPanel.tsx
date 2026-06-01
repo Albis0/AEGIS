@@ -149,12 +149,16 @@ const EDGE_VOICES = [
 ];
 
 const EL_VOICES = [
-    {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel", meta: "EN · Kadın"},
-    {id: "el:AZnzlk1XvdvUeBnXmlld", label: "Domi",   meta: "EN · Kadın"},
-    {id: "el:EXAVITQu4vr4xnSDxMaL", label: "Bella",  meta: "EN · Kadın"},
-    {id: "el:ErXwobaYiN019PkySvjV",  label: "Antoni", meta: "EN · Erkek"},
-    {id: "el:VR6AewLTigWG4xSOukaG",  label: "Arnold", meta: "EN · Erkek"},
-    {id: "el:pNInz6obpgDQGcFmaJgB",  label: "Adam",   meta: "EN · Erkek"},
+    {id: "el:cgSgspJ2msm6clMCkdW9", label: "Jessica",   meta: "EN · Kadın · varsayılan"},
+    {id: "el:9BWtsMINqrJLrRacOk9x", label: "Aria",      meta: "EN · Kadın · doğal"},
+    {id: "el:XB0fDUnXU5powFXDhCwa", label: "Charlotte", meta: "EN-GB · Kadın · yumuşak"},
+    {id: "el:Xb7hH8MSUJpSbSDYk0k2", label: "Alice",     meta: "EN-GB · Kadın · profesyonel"},
+    {id: "el:TX3LPaxmHKxFdv7VOQHJ", label: "Liam",      meta: "EN · Erkek · anlatıcı"},
+    {id: "el:nPczCjzI2devNBz1zQrb", label: "Brian",     meta: "EN · Erkek · derin"},
+    {id: "el:IKne3meq5aSn9XLyUdCD", label: "Charlie",   meta: "EN-AU · Erkek · rahat"},
+    {id: "el:onwK4e9ZLuTAKqWW03F9", label: "Daniel",    meta: "EN-GB · Erkek · haberci"},
+    {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel",    meta: "EN · Kadın · klasik"},
+    {id: "el:pNInz6obpgDQGcFmaJgB", label: "Adam",      meta: "EN · Erkek · klasik"},
 ];
 
 const LANGUAGES = [
@@ -672,7 +676,7 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
                                         const active = settings.ttsProvider === p.id;
                                         return (
                                             <button key={p.id} onClick={() => {
-                                                const dv = p.id === "elevenlabs" ? "el:21m00Tcm4TlvDq8ikWAM" : "tr-TR-EmelNeural";
+                                                const dv = p.id === "elevenlabs" ? "el:cgSgspJ2msm6clMCkdW9" : "tr-TR-EmelNeural";
                                                 applySettings({ttsProvider: p.id as "edge" | "elevenlabs", ttsVoice: dv});
                                             }}
                                                 className="flex flex-col gap-0.5 px-3.5 py-3 rounded-lg text-left transition"

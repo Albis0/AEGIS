@@ -1074,23 +1074,28 @@ async function bootApp(): Promise<void> {
             const elKey = cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "";
 
             if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
-                // ElevenLabs TTS — uses Multilingual v2 model, voice from ttsVoice field (voice_id)
                 const voiceId = currentSettings.ttsVoice.startsWith("el:") ?
                     currentSettings.ttsVoice.slice(3) :
-                    "21m00Tcm4TlvDq8ikWAM"; // Rachel (default)
+                    "cgSgspJ2msm6clMCkdW9"; // Jessica (default)
+                const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
                 const resp = await fetch(
-                    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+                    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
                     {
                         method: "POST",
                         headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
                         body: JSON.stringify({
                             text,
-                            model_id: "eleven_multilingual_v2",
-                            voice_settings: {stability: 0.5, similarity_boost: 0.75, speed: currentSettings.ttsRate},
+                            model_id: "eleven_flash_v2_5",
+                            voice_settings: {stability: 0.5, similarity_boost: 0.75},
+                            output_format: "mp3_44100_128",
+                            speed,
                         }),
                     },
                 );
-                if (!resp.ok) throw new Error(`ElevenLabs ${resp.status}: ${await resp.text()}`);
+                if (!resp.ok) {
+                    const body = await resp.text().catch(() => "");
+                    throw new Error(`ElevenLabs ${resp.status}: ${body || "Bilinmeyen hata. API key doğru mu?"}`);
+                }
                 const ab = await resp.arrayBuffer();
                 return {buffer: Buffer.from(ab)};
             }
