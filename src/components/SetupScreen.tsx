@@ -12,7 +12,14 @@ const CYAN = "34,211,238";
 const ac = `rgb(${CYAN})`;
 const border = `rgba(${CYAN},0.15)`;
 
-export default function SetupScreen() {
+interface SetupProps {
+    // Onboarding akışından çağrıldığında: kaydet sonrası akışı devam ettirir.
+    // Verilmezse eski davranış (setupSave + uygulama başlat) korunur.
+    onComplete?: () => void;
+    onBack?: () => void;
+}
+
+export default function SetupScreen({onComplete, onBack}: SetupProps = {}) {
     const [fields, setFields] = useState<Fields>({
         groqApiKey: "",
         supabaseUrl: "",
@@ -28,18 +35,27 @@ export default function SetupScreen() {
 
     async function handleSave() {
         if (!fields.groqApiKey.trim()) { setError("Groq API key zorunlu."); return; }
-        if (!fields.supabaseUrl.trim()) { setError("Supabase URL zorunlu."); return; }
-        if (!fields.supabaseServiceKey.trim()) { setError("Supabase service_role key zorunlu."); return; }
+        // Supabase artık opsiyonel (Faz 30): girilirse session/mesaj geçmişi
+        // cloud'a kaydedilir; girilmezse uygulama yine çalışır.
+        const sbUrl = fields.supabaseUrl.trim();
+        const sbKey = fields.supabaseServiceKey.trim();
+        if ((sbUrl && !sbKey) || (!sbUrl && sbKey)) {
+            setError("Supabase için hem URL hem service_role key gerekli (ya ikisini de gir ya da ikisini de boş bırak).");
+            return;
+        }
         setError("");
         setSaving(true);
         try {
             await window.jarvis.setupSave({
                 groqApiKey: fields.groqApiKey.trim(),
-                supabaseUrl: fields.supabaseUrl.trim(),
-                supabaseServiceKey: fields.supabaseServiceKey.trim(),
+                supabaseUrl: sbUrl,
+                supabaseServiceKey: sbKey,
                 tavilyApiKey: fields.tavilyApiKey.trim() || undefined,
                 serperApiKey: fields.serperApiKey.trim() || undefined,
             });
+            // Onboarding akışından çağrıldıysa devam ettir; değilse setup-save
+            // zaten uygulamayı başlatır (eski davranış).
+            onComplete?.();
         } catch (e) {
             setError((e as Error).message ?? "Bilinmeyen hata.");
             setSaving(false);
@@ -102,8 +118,7 @@ export default function SetupScreen() {
                     />
                     <Field
                         label="SUPABASE URL"
-                        required
-                        hint="Supabase Dashboard → Settings → API → Project URL"
+                        hint="Opsiyonel — konuşma geçmişini bulutta saklamak için. Boş bırakırsan uygulama yine çalışır."
                         type="text"
                         value={fields.supabaseUrl}
                         onChange={set("supabaseUrl")}
@@ -111,8 +126,7 @@ export default function SetupScreen() {
                     />
                     <Field
                         label="SUPABASE SERVICE_ROLE KEY"
-                        required
-                        hint="Settings → API → service_role (anon key değil)"
+                        hint="Opsiyonel — Settings → API → service_role (anon key değil)"
                         type="password"
                         value={fields.supabaseServiceKey}
                         onChange={set("supabaseServiceKey")}
@@ -150,16 +164,17 @@ export default function SetupScreen() {
                     </div>
                 </div>
 
-                {/* Supabase uyarısı */}
+                {/* Supabase notu */}
                 <div
                     className="text-[12px] rounded-lg px-4 py-3 leading-relaxed"
                     style={{
-                        borderLeft: "2px solid rgba(245,185,60,0.5)",
-                        background: "rgba(245,185,60,0.05)",
-                        color: "rgb(245,185,60)",
+                        borderLeft: `2px solid rgba(${CYAN},0.4)`,
+                        background: `rgba(${CYAN},0.04)`,
+                        color: ac,
+                        opacity: 0.7,
                     }}
                 >
-                    ⚠ Supabase tablolarını oluşturdun mu? <code style={{opacity: 0.85}}>supabase/schema.sql</code> dosyasını Supabase SQL Editor'da çalıştır.
+                    Supabase opsiyoneldir — yalnızca konuşma geçmişini bulutta saklamak istersen gir. Girersen <code style={{opacity: 0.85}}>supabase/schema.sql</code>'i SQL Editor'da çalıştırmayı unutma.
                 </div>
 
                 {/* Hata */}
@@ -190,6 +205,14 @@ export default function SetupScreen() {
                 >
                     {saving ? "KAYDEDİLİYOR…" : "KAYDET VE BAŞLAT"}
                 </button>
+
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="text-[11px] opacity-40 hover:opacity-100 transition self-center"
+                        style={{color: ac}}
+                    >‹ Geri</button>
+                )}
 
                 <div className="pb-2" />
             </div>

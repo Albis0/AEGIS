@@ -586,30 +586,31 @@
 
 *Sırlar (Groq + Supabase service_role) yalnızca Edge Function secret'ında durur. Client'ta yalnızca public-safe anon key + RLS bulunur — repo public olsa bile sızıntı olmaz.*
 
-### 30.1 Supabase backend temeli ⬜
-- ⬜ Supabase Auth aç — email/şifre + opsiyonel Google OAuth
-- ⬜ `usage` tablosu: günlük istek + token sayacı (`user_id, day, request_count, token_count`)
-- ⬜ `user_configs` tablosu: cloud sync için `settings jsonb` + `encrypted_keys`
-- ⬜ RLS politikaları — herkes yalnızca kendi satırını okur; `usage` yazımı yalnızca Edge Function'a açık
-- ⬜ `supabase/schema.sql` güncelle + Supabase CLI ile `supabase link`
+### 30.1 Supabase backend temeli ✅
+- ✅ Supabase Auth aç — email/şifre (confirm-email kapalı)
+- ✅ `usage` tablosu: günlük istek + token sayacı (`user_id, day, request_count, token_count`)
+- ✅ `user_configs` tablosu: cloud sync için `settings jsonb` + `encrypted_keys`
+- ✅ RLS politikaları — herkes yalnızca kendi satırını okur; `usage` yazımı yalnızca Edge Function'a açık (client INSERT/UPDATE 403 ile reddedildi — test edildi)
+- ✅ `supabase/schema.sql` güncellendi + `increment_usage` atomik RPC (security definer)
 
-### 30.2 Edge Function `chat-proxy` (deneme beyni) ⬜
-- ⬜ JWT doğrula → `usage`'dan limit kontrol → aşımda `429`
-- ⬜ Limit OK → Edge secret'taki Groq key ile Groq'a streaming, yanıtı client'a aktar
-- ⬜ Yanıt sonunda `usage` satırını arttır (istek + token)
-- ⬜ Tool-calling akışını proxy üzerinden taşı; Edge secret'lar `supabase secrets set` ile
+### 30.2 Edge Function `chat-proxy` (deneme beyni) ✅
+- ✅ JWT doğrula → `usage`'dan limit kontrol → aşımda `429`
+- ✅ Limit OK → Edge secret'taki Groq key ile Groq'a streaming, yanıtı client'a aktar
+- ✅ Yanıt sonunda `usage` satırını arttır (istek + token) — `increment_usage` ile
+- ✅ Dashboard'dan deploy; `GROQ_API_KEY` Edge secret. Uçtan uca test: stream cevap + sayaç arttı + RLS yazma engeli doğrulandı
 
-### 30.3 Electron — gömülü public config + sır temizliği ⬜
-- ⬜ Build-time sabitler: `AEGIS_SUPABASE_URL`, `AEGIS_SUPABASE_ANON_KEY`, `AEGIS_PROXY_URL`
-- ⬜ `config.ts`'ten service_role alanını kaldır — deneme modu artık sır tutmaz
-- ⬜ `@supabase/supabase-js` client'ı anon key ile kur (auth + sync)
+### 30.3 Electron — gömülü public config + sır temizliği ✅
+- ✅ Gömülü sabitler `electron/aegis-config.ts`: `AEGIS_SUPABASE_URL`, `AEGIS_SUPABASE_ANON_KEY`, `AEGIS_PROXY_URL` (env override destekli)
+- ✅ `electron/auth.ts` — anon key ile Supabase Auth (login/signup/logout, dosya tabanlı oturum, sessiz yenileme)
+- ✅ `callProxy` — deneme modunda chat senin proxy'inden (stream + tool-call). Kendi Groq key'i varsa bypass
+- ✅ Uçtan uca test: login → getAccessToken → proxy 200 "PROXY_OK"
 
-### 30.4 Mod seçim + kimlik ekranları ⬜
-- ⬜ Mod seçim ekranı — "Hızlı Başlangıç (Deneme)" vs "Gelişmiş Kurulum"
-- ⬜ Auth ekranı — email/şifre kayıt + giriş (Supabase Auth), opsiyonel Google OAuth
-- ⬜ Deneme → giriş zorunlu; Gelişmiş → giriş opsiyonel + "Atla"
-- ⬜ Oturum token'ı safeStorage/vault ile sakla; açılışta sessiz yenile
-- ⬜ `SetupScreen.tsx`'i Gelişmiş Kurulum akışına dönüştür; `main.ts` ilk açılış mantığını güncelle
+### 30.4 Mod seçim + kimlik ekranları ✅
+- ✅ `ModeSelectScreen` — "Hızlı Başlangıç (Deneme)" vs "Gelişmiş Kurulum"
+- ✅ `AuthScreen` — email/şifre kayıt + giriş; deneme→zorunlu, gelişmiş→opsiyonel + "Atla"
+- ✅ `Onboarding` state machine; `main.ts` ilk açılış mantığı (ownReady/trialReady → onboarding)
+- ✅ `SetupScreen` gelişmiş kuruluma dönüştü; Supabase opsiyonel oldu (`db.ts` graceful no-op)
+- ✅ Temiz makinede test: onboarding açıldı, mod seçim → auth geçişi çalıştı
 
 ### 30.5 Chat akışını moda göre yönlendir ⬜
 - ⬜ Deneme modu: `groq.chat.completions` yerine proxy fetch + JWT (stream + tool-call korunur)
@@ -672,5 +673,5 @@
 ✅  Faz 27   Öğrenme & kişisel gelişim    ← TAMAMLANDI
 ✅  Faz 28   Fiziksel dünya & IoT         ← TAMAMLANDI
 ✅  Faz 29   Çoklu model orkestrasyonu    ← TAMAMLANDI
-⬜  Faz 30   Dağıtım: deneme modu + auth  ← SIRADA
+🔶  Faz 30   Dağıtım: deneme modu + auth  ← 30.1-30.4 ✅ / 30.5-30.8 sırada
 ```

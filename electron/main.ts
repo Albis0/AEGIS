@@ -1657,8 +1657,10 @@ async function bootApp(): Promise<void> {
     startScheduler();
 }
 
-function createSetupWindow(): void {
-    const win = new BrowserWindow({
+let onboardingWin: BrowserWindow | null = null;
+
+function createOnboardingWindow(): void {
+    onboardingWin = new BrowserWindow({
         width: 560,
         height: 680,
         resizable: false,
@@ -1674,42 +1676,68 @@ function createSetupWindow(): void {
 
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
-        win.loadURL("http://127.0.0.1:5173?setup=1");
+        onboardingWin.loadURL("http://127.0.0.1:5173?setup=1");
     } else {
         // loadFile query'si bazı Electron sürümlerinde location.search'e güvenilir geçmiyor;
         // hash kullan — renderer hem ?setup hem #setup'ı kontrol eder.
-        win.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
+        onboardingWin.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
     }
 
-    // Setup form submit
-    ipcMain.handleOnce("setup-save", async (_e, config: AegisConfig) => {
-        saveConfig(config);
-        applyConfig(config);
-        groq = new Groq({apiKey: config.groqApiKey});
-        win.close();
-        mainWindow = null;
-        await bootApp();
-        app.on("activate", () => {
-            if (BrowserWindow.getAllWindows().length === 0) createWindow();
-        });
-    });
+    ipcMain.on("win-close", () => onboardingWin?.close());
+    ipcMain.on("win-minimize", () => onboardingWin?.minimize());
+}
 
-    ipcMain.on("win-close", () => win.close());
-    ipcMain.on("win-minimize", () => win.minimize());
+// Onboarding penceresini kapatıp asıl uygulamayı başlatır.
+async function startMainAppFromOnboarding(): Promise<void> {
+    if (onboardingWin && !onboardingWin.isDestroyed()) onboardingWin.close();
+    onboardingWin = null;
+    mainWindow = null;
+    await bootApp();
+    app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+}
+
+// Gelişmiş kurulum — kendi anahtarlarını kaydet (Supabase opsiyonel).
+ipcMain.handle("setup-save", (_e, config: AegisConfig) => {
+    saveConfig(config);
+    applyConfig(config);
+    groq = new Groq({apiKey: config.groqApiKey});
+    // Not: uygulamayı burada başlatmıyoruz — onboarding akışı opsiyonel auth
+    // adımına geçip sonra onboarding-complete çağırır.
+});
+
+// Onboarding tamamlandı (trial veya own) → uygulamayı başlat.
+ipcMain.handle("onboarding-complete", async (_e, mode: "trial" | "own") => {
+    currentSettings = {...currentSettings, aiMode: mode};
+    saveSettings(currentSettings);
+    await startMainAppFromOnboarding();
+});
+
+// Deneme modu kullanıma hazır mı? (aiMode=trial + geçerli oturum)
+async function trialReady(): Promise<boolean> {
+    if (currentSettings.aiMode !== "trial") return false;
+    try {
+        const token = await getAccessToken();
+        return !!token;
+    } catch {
+        return false;
+    }
 }
 
 app.whenReady().then(async () => {
-    const hasConfig =
-        (loadConfig() !== null) ||
-        (!!process.env.GROQ_API_KEY && !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_KEY);
+    // Gelişmiş mod hazır mı? (kendi Groq key'i config'te veya env'de)
+    const ownReady =
+        currentSettings.aiMode === "own" &&
+        ((loadConfig()?.groqApiKey ?? "").trim() !== "" || !!process.env.GROQ_API_KEY);
 
-    if (!hasConfig) {
-        createSetupWindow();
-    } else {
+    if (ownReady || await trialReady()) {
         await bootApp();
         app.on("activate", () => {
             if (BrowserWindow.getAllWindows().length === 0) createWindow();
         });
+    } else {
+        createOnboardingWindow();
     }
 });
 
