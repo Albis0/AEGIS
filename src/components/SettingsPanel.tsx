@@ -11,77 +11,85 @@ interface ModelEntry {
 }
 
 const GROQ_MODELS: ModelEntry[] = [
-    {id: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick",   tag: "yeni",       ctx: "1M"},
-    {id: "meta-llama/llama-4-scout-17b-16e-instruct",    label: "Llama 4 Scout",       tag: "hızlı",      ctx: "128K"},
-    {id: "qwen/qwen3-32b",                               label: "Qwen3 32B",            tag: "varsayılan", ctx: "128K"},
-    {id: "qwen/qwen3-70b",                               label: "Qwen3 70B",            tag: "güçlü",      ctx: "128K"},
-    {id: "deepseek-r1-distill-llama-70b",                label: "DeepSeek-R1 Distill",  tag: "reasoning",  ctx: "128K"},
-    {id: "llama-3.3-70b-versatile",                      label: "Llama 3.3 70B",        tag: "",           ctx: "128K"},
-    {id: "llama-3.1-70b-versatile",                      label: "Llama 3.1 70B",        tag: "",           ctx: "128K"},
-    {id: "llama3-70b-8192",                              label: "Llama 3 70B",           tag: "",           ctx: "8K"},
-    {id: "llama-3.1-8b-instant",                         label: "Llama 3.1 8B",         tag: "hızlı",      ctx: "128K"},
-    {id: "gemma2-9b-it",                                 label: "Gemma2 9B",            tag: "",           ctx: "8K"},
-    {id: "mixtral-8x7b-32768",                           label: "Mixtral 8×7B",         tag: "klasik",     ctx: "32K"},
+    {id: "meta-llama/llama-4-scout-17b-16e-instruct",    label: "Llama 4 Scout",         tag: "varsayılan", ctx: "128K", note: "MoE·Vizyon"},
+    {id: "qwen/qwen3-32b",                               label: "Qwen3 32B",              tag: "güçlü",      ctx: "128K"},
+    {id: "openai/gpt-oss-120b",                          label: "GPT OSS 120B",           tag: "yeni",       ctx: "131K", note: "OpenAI open-weight"},
+    {id: "openai/gpt-oss-20b",                           label: "GPT OSS 20B",            tag: "hızlı",      ctx: "131K", note: "~1000 tok/s"},
+    {id: "deepseek-r1-distill-llama-70b",                label: "DeepSeek-R1 Distill 70B",tag: "reasoning",  ctx: "128K"},
+    {id: "llama-3.3-70b-versatile",                      label: "Llama 3.3 70B",          tag: "",           ctx: "128K"},
+    {id: "llama-3.1-8b-instant",                         label: "Llama 3.1 8B",           tag: "hızlı",      ctx: "128K", note: "~560 tok/s"},
+    {id: "groq/compound",                                label: "Groq Compound",          tag: "agentic",    ctx: "131K", note: "Web+Kod dahil"},
+    {id: "groq/compound-mini",                           label: "Groq Compound Mini",     tag: "agentic",    ctx: "131K"},
+    {id: "gemma2-9b-it",                                 label: "Gemma2 9B",              tag: "",           ctx: "8K"},
+    {id: "mixtral-8x7b-32768",                           label: "Mixtral 8×7B",           tag: "klasik",     ctx: "32K"},
 ];
 
 const OPENAI_MODELS: ModelEntry[] = [
-    {id: "gpt-4.1",          label: "GPT-4.1",          tag: "yeni",      ctx: "1M",   note: "Flagship"},
-    {id: "gpt-4.1-mini",     label: "GPT-4.1 Mini",     tag: "hızlı",     ctx: "1M"},
-    {id: "gpt-4.1-nano",     label: "GPT-4.1 Nano",     tag: "ekonomik",  ctx: "1M"},
-    {id: "o4-mini",          label: "o4-mini",          tag: "reasoning", ctx: "200K"},
-    {id: "o3",               label: "o3",               tag: "güçlü",     ctx: "200K", note: "Yavaş"},
-    {id: "gpt-4o",           label: "GPT-4o",           tag: "önerilen",  ctx: "128K"},
-    {id: "gpt-4o-mini",      label: "GPT-4o Mini",      tag: "",          ctx: "128K"},
-    {id: "o1",               label: "o1",               tag: "reasoning", ctx: "200K"},
-    {id: "o1-mini",          label: "o1-mini",          tag: "hızlı",     ctx: "128K"},
-    {id: "gpt-4-turbo",      label: "GPT-4 Turbo",      tag: "eski",      ctx: "128K"},
+    {id: "gpt-5.5",          label: "GPT-5.5",          tag: "yeni",      ctx: "1M",   note: "Flagship · ChatGPT varsayılan"},
+    {id: "gpt-5.5-pro",      label: "GPT-5.5 Pro",      tag: "güçlü",     ctx: "1M",   note: "Yüksek doğruluk"},
+    {id: "gpt-5.4",          label: "GPT-5.4",          tag: "",          ctx: "1M"},
+    {id: "gpt-5.4-mini",     label: "GPT-5.4 Mini",     tag: "hızlı",     ctx: "400K"},
+    {id: "gpt-5.4-nano",     label: "GPT-5.4 Nano",     tag: "ekonomik",  ctx: "400K"},
+    {id: "gpt-5",            label: "GPT-5",            tag: "",          ctx: "1M"},
+    {id: "gpt-5-mini",       label: "GPT-5 Mini",       tag: "",          ctx: "200K"},
+    {id: "o3",               label: "o3",               tag: "reasoning", ctx: "200K", note: "o3-2025-04-16"},
+    {id: "gpt-4.1",          label: "GPT-4.1",          tag: "eski",      ctx: "1M"},
+    {id: "gpt-4o",           label: "GPT-4o",           tag: "eski",      ctx: "128K"},
     {id: "gpt-3.5-turbo",    label: "GPT-3.5 Turbo",    tag: "ucuz",      ctx: "16K"},
 ];
 
 const ANTHROPIC_MODELS: ModelEntry[] = [
-    {id: "claude-opus-4-8",           label: "Claude Opus 4",      tag: "güçlü",     ctx: "200K"},
-    {id: "claude-sonnet-4-6",         label: "Claude Sonnet 4",    tag: "varsayılan",ctx: "200K"},
-    {id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4",     tag: "hızlı",     ctx: "200K"},
-    {id: "claude-3-7-sonnet-20250219",label: "Claude 3.7 Sonnet",  tag: "thinking",  ctx: "200K"},
-    {id: "claude-3-5-sonnet-20241022",label: "Claude 3.5 Sonnet",  tag: "",          ctx: "200K"},
-    {id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku",   tag: "hızlı",     ctx: "200K"},
-    {id: "claude-3-opus-20240229",    label: "Claude 3 Opus",      tag: "eski",      ctx: "200K"},
+    {id: "claude-opus-4-8",              label: "Claude Opus 4.8",    tag: "yeni",      ctx: "1M",   note: "Flagship · Adaptive thinking"},
+    {id: "claude-opus-4-7",              label: "Claude Opus 4.7",    tag: "güçlü",     ctx: "1M"},
+    {id: "claude-sonnet-4-6",            label: "Claude Sonnet 4.6",  tag: "varsayılan",ctx: "1M",   note: "Önerilen"},
+    {id: "claude-haiku-4-5-20251001",    label: "Claude Haiku 4.5",   tag: "hızlı",     ctx: "200K", note: "En ucuz"},
+    {id: "claude-sonnet-4-5-20250929",   label: "Claude Sonnet 4.5",  tag: "",          ctx: "200K"},
+    {id: "claude-opus-4-5-20251101",     label: "Claude Opus 4.5",    tag: "",          ctx: "200K"},
+    {id: "claude-opus-4-1-20250805",     label: "Claude Opus 4.1",    tag: "eski",      ctx: "200K"},
+    {id: "claude-3-7-sonnet-20250219",   label: "Claude 3.7 Sonnet",  tag: "thinking",  ctx: "200K"},
+    {id: "claude-3-5-sonnet-20241022",   label: "Claude 3.5 Sonnet",  tag: "eski",      ctx: "200K"},
+    {id: "claude-3-5-haiku-20241022",    label: "Claude 3.5 Haiku",   tag: "eski",      ctx: "200K"},
 ];
 
 const GEMINI_MODELS: ModelEntry[] = [
-    {id: "gemini-2.5-pro",           label: "Gemini 2.5 Pro",       tag: "güçlü",     ctx: "1M",  note: "Düşünen"},
-    {id: "gemini-2.5-flash",         label: "Gemini 2.5 Flash",     tag: "varsayılan",ctx: "1M",  note: "Hızlı+Düşünen"},
-    {id: "gemini-2.5-flash-lite",    label: "Gemini 2.5 Flash Lite",tag: "ekonomik",  ctx: "1M"},
-    {id: "gemini-2.0-flash",         label: "Gemini 2.0 Flash",     tag: "stabil",    ctx: "1M"},
-    {id: "gemini-2.0-flash-lite",    label: "Gemini 2.0 Flash Lite",tag: "hızlı",     ctx: "1M"},
-    {id: "gemini-1.5-pro",           label: "Gemini 1.5 Pro",       tag: "",          ctx: "2M"},
-    {id: "gemini-1.5-flash",         label: "Gemini 1.5 Flash",     tag: "",          ctx: "1M"},
+    {id: "gemini-3.5-flash",            label: "Gemini 3.5 Flash",      tag: "yeni",      ctx: "1M",  note: "Flagship · Mayıs 2026"},
+    {id: "gemini-3.1-pro-preview",      label: "Gemini 3.1 Pro",        tag: "güçlü",     ctx: "1M",  note: "Preview"},
+    {id: "gemini-3.1-flash-lite",       label: "Gemini 3.1 Flash Lite", tag: "ekonomik",  ctx: "1M"},
+    {id: "gemini-2.5-pro",              label: "Gemini 2.5 Pro",        tag: "varsayılan",ctx: "1M",  note: "En iyi 2.x reasoning"},
+    {id: "gemini-2.5-flash",            label: "Gemini 2.5 Flash",      tag: "hızlı",     ctx: "1M",  note: "Fiyat/performans"},
+    {id: "gemini-2.5-flash-lite",       label: "Gemini 2.5 Flash Lite", tag: "",          ctx: "1M"},
+    {id: "gemini-1.5-pro",              label: "Gemini 1.5 Pro",        tag: "eski",      ctx: "2M"},
 ];
 
 const MISTRAL_MODELS: ModelEntry[] = [
-    {id: "mistral-large-latest",  label: "Mistral Large",    tag: "varsayılan", ctx: "128K"},
-    {id: "mistral-medium-3",      label: "Mistral Medium 3", tag: "",           ctx: "128K"},
-    {id: "mistral-small-latest",  label: "Mistral Small",    tag: "hızlı",      ctx: "32K"},
-    {id: "mistral-saba-latest",   label: "Mistral Saba",     tag: "çok dilli",  ctx: "32K"},
-    {id: "codestral-latest",      label: "Codestral",        tag: "kod",        ctx: "256K"},
-    {id: "pixtral-large-latest",  label: "Pixtral Large",    tag: "vizyon",     ctx: "128K"},
-    {id: "mistral-nemo",          label: "Mistral Nemo",     tag: "açık",       ctx: "128K"},
-    {id: "open-mixtral-8x22b",    label: "Mixtral 8×22B",    tag: "açık",       ctx: "64K"},
-    {id: "open-mixtral-8x7b",     label: "Mixtral 8×7B",     tag: "açık",       ctx: "32K"},
-    {id: "open-mistral-7b",       label: "Mistral 7B",       tag: "açık",       ctx: "32K"},
+    {id: "mistral-medium-3.5",        label: "Mistral Medium 3.5",   tag: "yeni",      ctx: "256K", note: "128B · MIT açık"},
+    {id: "mistral-small-2603",        label: "Mistral Small 4",      tag: "varsayılan",ctx: "256K", note: "Reasoning+Vizyon+Kod"},
+    {id: "mistral-large-latest",      label: "Mistral Large",        tag: "güçlü",     ctx: "256K"},
+    {id: "mistral-large-2512",        label: "Mistral Large 3",      tag: "",          ctx: "256K"},
+    {id: "mistral-medium-latest",     label: "Mistral Medium",       tag: "",          ctx: "128K"},
+    {id: "magistral-medium-latest",   label: "Magistral Medium",     tag: "reasoning", ctx: "128K"},
+    {id: "magistral-medium-2506",     label: "Magistral Medium 2506",tag: "reasoning", ctx: "128K"},
+    {id: "magistral-small-2506",      label: "Magistral Small",      tag: "reasoning", ctx: "128K"},
+    {id: "codestral-latest",          label: "Codestral",            tag: "kod",       ctx: "128K", note: "FIM+kod"},
+    {id: "ministral-14b-latest",      label: "Ministral 14B",        tag: "hızlı",     ctx: "256K", note: "Edge/compact"},
+    {id: "open-mistral-nemo-2407",    label: "Mistral Nemo",         tag: "açık",      ctx: "128K"},
+    {id: "open-mixtral-8x7b",         label: "Mixtral 8×7B",         tag: "açık",      ctx: "32K"},
 ];
 
 const XAI_MODELS: ModelEntry[] = [
-    {id: "grok-3",              label: "Grok 3",              tag: "güçlü",     ctx: "131K"},
-    {id: "grok-3-mini",         label: "Grok 3 Mini",         tag: "varsayılan",ctx: "131K", note: "Reasoning"},
-    {id: "grok-3-fast",         label: "Grok 3 Fast",         tag: "hızlı",     ctx: "131K"},
-    {id: "grok-2-1212",         label: "Grok 2",              tag: "stabil",    ctx: "131K"},
-    {id: "grok-2-vision-1212",  label: "Grok 2 Vision",       tag: "vizyon",    ctx: "32K"},
+    {id: "grok-4.3",                      label: "Grok 4.3",              tag: "yeni",      ctx: "1M",   note: "Flagship · Mayıs 2026"},
+    {id: "grok-4.20-0309-reasoning",      label: "Grok 4.20 Reasoning",   tag: "reasoning", ctx: "1M"},
+    {id: "grok-4.20-0309-non-reasoning",  label: "Grok 4.20",             tag: "güçlü",     ctx: "1M"},
+    {id: "grok-4.20-multi-agent-0309",    label: "Grok 4.20 Multi-Agent", tag: "agentic",   ctx: "1M"},
+    {id: "grok-build-0.1",                label: "Grok Build",            tag: "kod",       ctx: "256K", note: "Agentic kod · early access"},
+    {id: "grok-2-vision-1212",            label: "Grok 2 Vision",         tag: "vizyon",    ctx: "32K",  note: "Eski nesil"},
 ];
 
 const DEEPSEEK_MODELS: ModelEntry[] = [
-    {id: "deepseek-chat",     label: "DeepSeek V3",     tag: "varsayılan", ctx: "64K",  note: "Çok güçlü"},
-    {id: "deepseek-reasoner", label: "DeepSeek R1",     tag: "reasoning",  ctx: "64K",  note: "Adım adım"},
+    {id: "deepseek-v4-pro",    label: "DeepSeek V4 Pro",   tag: "yeni",      ctx: "1M",  note: "1.6T params · 49B aktif"},
+    {id: "deepseek-v4-flash",  label: "DeepSeek V4 Flash", tag: "varsayılan",ctx: "1M",  note: "Fiyat/performans"},
+    {id: "deepseek-chat",      label: "DeepSeek Chat",     tag: "eski",      ctx: "64K", note: "→ V4 Flash alias"},
+    {id: "deepseek-reasoner",  label: "DeepSeek Reasoner", tag: "eski",      ctx: "64K", note: "→ V4 Flash (thinking)"},
 ];
 
 const PROVIDER_MODELS: Record<string, ModelEntry[]> = {
@@ -95,26 +103,26 @@ const PROVIDER_MODELS: Record<string, ModelEntry[]> = {
 };
 
 const DEFAULT_MODEL: Record<string, string> = {
-    groq:      "qwen/qwen3-32b",
-    openai:    "gpt-4.1",
+    groq:      "meta-llama/llama-4-scout-17b-16e-instruct",
+    openai:    "gpt-5.5",
     anthropic: "claude-sonnet-4-6",
-    gemini:    "gemini-2.5-flash",
-    mistral:   "mistral-large-latest",
-    xai:       "grok-3-mini",
-    deepseek:  "deepseek-chat",
-    ollama:    "llama3.2",
+    gemini:    "gemini-2.5-pro",
+    mistral:   "mistral-medium-3.5",
+    xai:       "grok-4.3",
+    deepseek:  "deepseek-v4-flash",
+    ollama:    "qwen3:8b",
 };
 
 // ── Provider definitions ───────────────────────────────────────────────────
 const AI_PROVIDERS = [
-    {id: "groq",      icon: "⚡", label: "Groq",       sub: "Ultra hızlı · ücretsiz",  badge: "free"},
-    {id: "openai",    icon: "◎",  label: "OpenAI",     sub: "GPT-4.1 · o4 serisi",     badge: ""},
-    {id: "anthropic", icon: "◈",  label: "Anthropic",  sub: "Claude 4 serisi",         badge: ""},
-    {id: "gemini",    icon: "◇",  label: "Gemini",     sub: "Google · 1M context",     badge: "free"},
-    {id: "mistral",   icon: "✦",  label: "Mistral",    sub: "EU · açık kaynak",        badge: ""},
-    {id: "xai",       icon: "✧",  label: "xAI / Grok", sub: "Gerçek zamanlı web",     badge: ""},
-    {id: "deepseek",  icon: "◆",  label: "DeepSeek",   sub: "Güçlü · ekonomik",       badge: ""},
-    {id: "ollama",    icon: "◉",  label: "Ollama",     sub: "Yerel · tam offline",     badge: "local"},
+    {id: "groq",      icon: "⚡", label: "Groq",       sub: "Ultra hızlı · Llama 4",    badge: "free"},
+    {id: "openai",    icon: "◎",  label: "OpenAI",     sub: "GPT-5.5 · o3 serisi",      badge: ""},
+    {id: "anthropic", icon: "◈",  label: "Anthropic",  sub: "Claude Opus 4.8",          badge: ""},
+    {id: "gemini",    icon: "◇",  label: "Gemini",     sub: "Gemini 3.5 Flash · 1M ctx",badge: "free"},
+    {id: "mistral",   icon: "✦",  label: "Mistral",    sub: "Medium 3.5 · EU · MIT",    badge: ""},
+    {id: "xai",       icon: "✧",  label: "xAI / Grok", sub: "Grok 4.3 · gerçek zamanlı",badge: ""},
+    {id: "deepseek",  icon: "◆",  label: "DeepSeek",   sub: "V4 Pro · 1M ctx",          badge: ""},
+    {id: "ollama",    icon: "◉",  label: "Ollama",     sub: "Yerel · tam offline",       badge: "local"},
 ] as const;
 
 // Temperature max by provider
@@ -271,11 +279,12 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
         if (tag === "yeni" || tag === "varsayılan") return `rgba(${a},0.9)`;
         if (tag === "hızlı") return "rgba(74,222,128,0.9)";
         if (tag === "güçlü") return "rgba(251,146,60,0.9)";
-        if (tag === "reasoning") return "rgba(192,132,252,0.9)";
-        if (tag === "thinking") return "rgba(192,132,252,0.9)";
+        if (tag === "reasoning" || tag === "thinking") return "rgba(192,132,252,0.9)";
         if (tag === "ekonomik") return "rgba(74,222,128,0.7)";
-        if (tag === "vizyon") return "rgba(56,189,248,0.9)";
-        if (tag === "kod") return "rgba(56,189,248,0.9)";
+        if (tag === "vizyon" || tag === "kod") return "rgba(56,189,248,0.9)";
+        if (tag === "agentic") return "rgba(251,191,36,0.9)";
+        if (tag === "eski") return `rgba(${a},0.3)`;
+        if (tag === "açık" || tag === "klasik") return `rgba(${a},0.45)`;
         return `rgba(${a},0.5)`;
     }
 

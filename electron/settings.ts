@@ -40,7 +40,7 @@ export interface AppSettings {
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
 
 const DEFAULTS: AppSettings = {
-    model: "qwen/qwen3-32b",
+    model: "meta-llama/llama-4-scout-17b-16e-instruct",
     ttsVoice: "tr-TR-EmelNeural",
     ttsRate: 1.0,
     accentColor: "34,211,238",
