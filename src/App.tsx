@@ -111,6 +111,28 @@ export default function App() {
 
     const [attachments, setAttachments] = useState<Attachment[]>([]);
 
+    useEffect(() => {
+        const onPaste = (e: ClipboardEvent) => {
+            const items = Array.from(e.clipboardData?.items ?? []);
+            const imageItems = items.filter((it) => it.kind === "file" && it.type.startsWith("image/"));
+            if (imageItems.length === 0) return;
+            e.preventDefault();
+            Promise.all(imageItems.map((it) => new Promise<Attachment>((res) => {
+                const file = it.getAsFile();
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const url = reader.result as string;
+                    const name = file.name && file.name !== "image.png" ? file.name : `screenshot-${Date.now()}.png`;
+                    res({name, url, mime: file.type, data: url.split(",")[1] ?? ""});
+                };
+                reader.readAsDataURL(file);
+            }))).then((atts) => setAttachments((prev) => [...prev, ...atts]));
+        };
+        window.addEventListener("paste", onPaste);
+        return () => window.removeEventListener("paste", onPaste);
+    }, []);
+
     const sendText = useCallback((text: string) => {
         if (!text.trim() || isBusyRef.current) return;
         const reqId = uid();
