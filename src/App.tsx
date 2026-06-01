@@ -15,7 +15,10 @@ type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {ur
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
-type FeedItem = {id: string; kind: "user"; text: string; attachments?: Attachment[]} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
+type FeedItem =
+    | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
+    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
+    | {id: string; kind: "error"; text: string};
 
 const FONT_FAMILIES: Record<string, string> = {
     jetbrains:    "'JetBrains Mono', monospace",
@@ -260,9 +263,15 @@ export default function App() {
                 );
             }),
 
-            window.jarvis.on("chat-error", ({reqId}: any) => {
+            window.jarvis.on("chat-error", ({reqId, message}: any) => {
                 if (reqId !== reqIdRef.current) return;
                 setState("error");
+                const aId = activeIdRef.current;
+                setFeed((prev) => {
+                    // Boş kalan assistant balonunu çıkar, yerine belirgin error öğesi koy.
+                    const cleaned = prev.filter((it) => !(it.id === aId && it.kind === "assistant" && !it.text));
+                    return [...cleaned, {id: uid(), kind: "error", text: message || "Bir hata oluştu."}];
+                });
             }),
 
             window.jarvis.on("reminder-fired", ({message}: {message: string}) => {

@@ -64,7 +64,12 @@ export default function TerminalSkin({
                 </div>
 
                 {feed.map((item, idx) =>
-                    item.kind === "user" ? (
+                    item.kind === "error" ? (
+                        <div key={item.id} className="rise flex gap-2" style={{color: "rgb(252,180,180)"}}>
+                            <span className="shrink-0" style={{color: "rgb(248,113,113)"}}>[!]</span>
+                            <span className="whitespace-pre-wrap break-words">error: {item.text}</span>
+                        </div>
+                    ) : item.kind === "user" ? (
                         <div key={item.id} className="rise">
                             <div className="flex gap-2">
                                 <span className="shrink-0" style={{color: "rgb(var(--status-ok))"}}>aegis@os</span>

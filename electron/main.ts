@@ -800,7 +800,8 @@ async function callProxy(
         body: JSON.stringify({
             model: opts.model,
             messages,
-            tools,
+            // Boş tool listesi gönderme (sohbet mesajları) — token tasarrufu.
+            ...(tools.length > 0 ? {tools} : {}),
             temperature: opts.temperature,
             max_tokens: opts.max_tokens,
         }),
@@ -909,7 +910,8 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             const stream = await groq.chat.completions.create({
                 model: MODEL,
                 messages: messages as ChatCompletionMessageParam[],
-                tools: activeSchemas,
+                // Boş tool listesi gönderme — sohbet mesajlarında token tasarrufu (özellikle düşük-TPM modeller).
+                ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
                 stream: true,
                 temperature: temp,
                 max_tokens: maxTok,
@@ -1499,9 +1501,9 @@ async function bootApp(): Promise<void> {
                 msg = "İnternet bağlantısı kurulamadı. Ağ bağlantını kontrol et ve tekrar dene.";
             }
             if (mainWindow && !mainWindow.isDestroyed()) {
+                // Hata ayrı bir "error" feed öğesi olarak gösterilir (chat-delta ile
+                // assistant balonuna yazılmaz — yoksa normal cevap gibi görünüyordu).
                 mainWindow.webContents.send("chat-error", {reqId, message: msg});
-                // Mesaj zaten kullanıcı dostu (friendlyHttpError / limit / ağ) — doğrudan göster.
-                mainWindow.webContents.send("chat-delta", {reqId, text: `\n\n⚠ ${msg}`});
                 mainWindow.webContents.send("chat-done", {reqId});
             }
         }

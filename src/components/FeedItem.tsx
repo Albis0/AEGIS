@@ -4,7 +4,8 @@ type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
 export type FeedItemType =
     | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
-    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
+    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
+    | {id: string; kind: "error"; text: string};
 
 const TOOL_VERB: Record<string, string> = {
     run_command: "KOMUT YÜRÜTÜLÜYOR",
@@ -27,6 +28,36 @@ interface Props {
 }
 
 const FeedItem = React.memo(function FeedItem({item, streaming, isLast}: Props) {
+    if (item.kind === "error") {
+        return (
+            <div className="rise">
+                <div
+                    className="rounded-lg border overflow-hidden"
+                    style={{
+                        borderColor: "rgba(248,113,113,0.45)",
+                        background: "rgba(248,113,113,0.07)",
+                    }}
+                >
+                    <div
+                        className="flex items-center gap-2 px-3 py-1.5 text-[10px] tracking-[0.25em]"
+                        style={{
+                            background: "rgba(248,113,113,0.12)",
+                            color: "rgb(248,113,113)",
+                            borderBottom: "1px solid rgba(248,113,113,0.25)",
+                        }}
+                    >
+                        <span className="text-[12px]">⊘</span>
+                        <span>HATA</span>
+                    </div>
+                    <p className="px-3 py-2.5 text-[12.5px] leading-relaxed whitespace-pre-wrap break-words"
+                        style={{color: "rgb(252,180,180)"}}>
+                        {item.text}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     if (item.kind === "user") {
         return (
             <div className="flex justify-end rise">

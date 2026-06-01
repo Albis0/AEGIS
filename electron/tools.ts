@@ -1049,13 +1049,35 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
     ollama:     64,
 };
 
-// Çekirdek tool'lar — her istekte gönderilir (komut, dosya, web, ekran, sistem, hafıza).
-const CORE_SCHEMAS = () => [...toolSchemas, ...memoryPlusSchemas, ...extraSchemas];
+// Çekirdek tool'lar — yalnızca bir AKSİYON niyeti olduğunda gönderilir
+// (komut çalıştır, dosya, web arama, ekran). Düşük-TPM modelleri (gpt-oss-120b
+// gibi 8K) korumak için olabildiğince küçük tutulur.
+const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
+
+// Aksiyon fiil/isim KÖKLERİ. Türkçe ekler sona geldiği için her kelimenin
+// köküyle BAŞLAYIP başlamadığına bakarız (aç→açar, kur→kurdu). Bu hem JS \b'nin
+// Türkçe ç/ş/ğ tanımama sorununu hem "nasılsin→sil" gibi kelime-içi false-positive'i çözer.
+const ACTION_ROOTS = [
+    "aç", "kapat", "çalış", "başlat", "durdur", "yaz", "oku", "sil", "taşı", "kopyala",
+    "indir", "kur", "yükle", "ara", "bul", "getir", "göster", "listele", "oluştur",
+    "ekle", "kaydet", "gönder", "hatırlat", "zamanla", "ayarla", "değiştir", "güncelle",
+    "kontrol", "tara", "bağlan", "ölç", "hesapla", "çevir", "dönüştür", "çal", "yazdır",
+    "komut", "dosya", "klasör", "ekran", "sistem", "process", "servis", "uygulama", "program",
+    "open", "close", "start", "stop", "write", "read", "delete", "move", "copy", "download",
+    "install", "search", "find", "create", "send", "remind", "schedule", "update", "check",
+    "scan", "connect", "play", "print", "launch", "run", "file", "folder", "screen",
+];
+
+function hasActionSignal(text: string): boolean {
+    const words = text.toLowerCase().split(/[^a-zçğıöşü0-9]+/i).filter(Boolean);
+    return words.some((w) => ACTION_ROOTS.some((root) => w.startsWith(root)));
+}
 
 // Bağlama göre eklenen tool grupları. Anahtar kelimelerden biri kullanıcı
 // mesajında geçerse grup eklenir. Böylece her isteğe 130+ tool yerine yalnızca
 // çekirdek + alakalı gruplar gider → TPM/token tasarrufu.
 const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; keywords: RegExp}[] = [
+    {schemas: () => memoryPlusSchemas,  keywords: /hatırla|hafıza|profil|not(um|un|lar)?|beni tanı|kim olduğum|tercih|memory|remember/i},
     {schemas: () => schedulerSchemas,   keywords: /hatırlat|zamanla|schedule|reminder|alarm|her gün|saat \d/i},
     {schemas: () => marketplaceSchemas, keywords: /plugin|eklenti|marketplace|kur(ulum)?|yükle/i},
     {schemas: () => securitySchemas,    keywords: /şifre|parola|vault|kasa|güvenli|encrypt|secret|gizli/i},
@@ -1082,10 +1104,17 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
     const limit = PROVIDER_TOOL_LIMITS[provider ?? "groq"] ?? 64;
 
     let selected: ChatCompletionTool[];
-    if (context && context.trim()) {
-        selected = [...CORE_SCHEMAS()];
-        for (const group of TOOL_GROUPS) {
-            if (group.keywords.test(context)) selected.push(...group.schemas());
+    if (context !== undefined) {
+        const ctx = context.trim();
+        const hasGroupMatch = TOOL_GROUPS.some((g) => g.keywords.test(ctx));
+        // Sohbet/selam/saçma metin (aksiyon sinyali yok, grup eşleşmesi yok) → HİÇ tool yok.
+        if (!hasActionSignal(ctx) && !hasGroupMatch) {
+            selected = [];
+        } else {
+            selected = [...CORE_SCHEMAS()];
+            for (const group of TOOL_GROUPS) {
+                if (group.keywords.test(ctx)) selected.push(...group.schemas());
+            }
         }
     } else {
         // Bağlam yok (ör. ajan modu) → eski davranış: hepsi.

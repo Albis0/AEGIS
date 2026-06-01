@@ -59,7 +59,14 @@ export default function MinimalSkin({
                     </div>
                 )}
                 {feed.map((item) =>
-                    item.kind === "user" ? (
+                    item.kind === "error" ? (
+                        <div key={item.id} className="rise flex gap-3">
+                            <span className="text-[11px] shrink-0 mt-0.5" style={{color: "rgb(248,113,113)"}}>⊘</span>
+                            <p className="text-[13px] leading-relaxed px-2.5 py-1.5 rounded-lg" style={{color: "rgb(252,180,180)", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)"}}>
+                                {item.text}
+                            </p>
+                        </div>
+                    ) : item.kind === "user" ? (
                         <div key={item.id} className="rise flex gap-3">
                             <span className="text-[11px] opacity-30 shrink-0 mt-0.5" style={{color: "rgb(var(--hud))"}}>you</span>
                             <p className="text-[13px] leading-relaxed" style={{color: "rgb(var(--hud-soft))"}}>

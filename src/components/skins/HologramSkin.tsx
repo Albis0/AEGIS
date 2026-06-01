@@ -9,7 +9,10 @@ import type {FeedItemType} from "../FeedItem";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
-type FeedItemLocal = {id: string; kind: "user"; text: string; attachments?: Attachment[]} | {id: string; kind: "assistant"; text: string; tools: ToolLine[]};
+type FeedItemLocal =
+    | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
+    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
+    | {id: string; kind: "error"; text: string};
 
 const fmtUptime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -92,7 +95,6 @@ export default function HologramSkin({
                     )}
                     <button onClick={onSettingsOpen} title="Ayarlar" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
                     <button onClick={() => window.jarvis.minimize()} title="Küçült" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>─</button>
-                    <button onClick={() => window.jarvis.maximize()} title="Büyüt" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>▢</button>
                     <button onClick={() => window.jarvis.fullscreen()} title="Tam ekran (F11)" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>⛶</button>
                     <button onClick={() => window.jarvis.close()} title="Kapat" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 hover:text-red-400 transition" style={{color: "rgb(var(--hud))"}}>✕</button>
                 </div>

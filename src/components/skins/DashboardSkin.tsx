@@ -163,7 +163,14 @@ export default function DashboardSkin({
                         <div className="text-[12px] opacity-30">Sistem hazır. Komut bekleniyor…</div>
                     )}
                     {feed.map((item) =>
-                        item.kind === "user" ? (
+                        item.kind === "error" ? (
+                            <div key={item.id} className="rise rounded-lg border overflow-hidden" style={{borderColor: "rgba(248,113,113,0.45)", background: "rgba(248,113,113,0.07)"}}>
+                                <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] tracking-[0.25em]" style={{background: "rgba(248,113,113,0.12)", color: "rgb(248,113,113)", borderBottom: "1px solid rgba(248,113,113,0.25)"}}>
+                                    <span className="text-[12px]">⊘</span><span>HATA</span>
+                                </div>
+                                <p className="px-3 py-2.5 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style={{color: "rgb(252,180,180)"}}>{item.text}</p>
+                            </div>
+                        ) : item.kind === "user" ? (
                             <div key={item.id} className="rise flex justify-end">
                                 <div className="max-w-[75%] px-3 py-2 rounded-lg rounded-br-sm text-[12px] leading-relaxed" style={{background: "rgba(var(--hud),0.1)", border: "1px solid rgba(var(--hud),0.2)", color: "rgb(var(--hud-soft))"}}>
                                     {item.text}
