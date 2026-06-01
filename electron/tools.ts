@@ -5,6 +5,7 @@ import * as os from "os";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
+import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
 
 type ToolResult = string;
 
@@ -468,6 +469,89 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const macroSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "start_macro",
+            description: "Makro kaydını başlat. Bundan sonra verilen komutlar makroya eklenir. 'Sabah rutinini kaydet', 'Oyun başlatma makrosu oluştur' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Makro adı"},
+                },
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "stop_macro",
+            description: "Aktif makro kaydını durdur ve kaydet.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "run_macro",
+            description: "Kaydedilmiş bir makroyu çalıştır. 'Sabah rutinini çalıştır', 'Oyun makrosunu başlat' gibi.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Makro adı (kısmi eşleşme yeterli)"},
+                },
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_macros",
+            description: "Kayıtlı makroları listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "delete_macro",
+            description: "Bir makroyu sil.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Silinecek makro adı veya ID"},
+                },
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
+const agentSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "agent_run",
+            description: "Ajan modunu başlat: bir hedef ver, AEGIS araçları zincirleme kullanarak onu tamamlar. 'Şu klasördeki tüm .txt dosyalarını özetle', 'Sistemi optimize et' gibi karmaşık görevler için.",
+            parameters: {
+                type: "object",
+                properties: {
+                    goal:      {type: "string", description: "Tamamlanacak hedef (açık ve net olsun)"},
+                    max_steps: {type: "number", description: "Maksimum adım sayısı (varsayılan 10, max 20)"},
+                },
+                required: ["goal"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const watchSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -511,13 +595,23 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
 
 let _reloadPluginsCallback: (() => Promise<string>) | null = null;
 export function registerReloadPluginsCallback(cb: () => Promise<string>): void { _reloadPluginsCallback = cb; }
+
+// ---- Agent mode callback ----
+type AgentCallback = (goal: string, maxSteps: number) => void;
+let _agentCallback: AgentCallback | null = null;
+export function registerAgentCallback(cb: AgentCallback): void { _agentCallback = cb; }
+
+// ---- Macro run callback ----
+type MacroRunCallback = (steps: string[]) => void;
+let _macroRunCallback: MacroRunCallback | null = null;
+export function registerMacroRunCallback(cb: MacroRunCallback): void { _macroRunCallback = cb; }
 
 // ---- Watch conditions (eşik uyarıları) ----
 interface WatchCondition {threshold: number; direction: "above" | "below"}
@@ -870,6 +964,32 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const m = (metric ?? "").toLowerCase();
         if (_watchConditions.delete(m)) return `${m.toUpperCase()} izlemesi kaldırıldı.`;
         return `${m.toUpperCase()} için aktif izleme yok.`;
+    },
+
+    async agent_run({goal, max_steps}) {
+        const steps = Math.max(1, Math.min(20, parseInt(String(max_steps ?? "10"), 10)));
+        _agentCallback?.(goal ?? "", steps);
+        return `Ajan modu başlatıldı. Hedef: "${goal}". Maksimum ${steps} adım. Adımlar feed'e düşecek.`;
+    },
+
+    async start_macro({name}) {
+        return startMacroRecording(name ?? "isimsiz");
+    },
+    async stop_macro() {
+        return stopMacroRecording();
+    },
+    async run_macro({name}) {
+        const steps = getMacroSteps(name ?? "");
+        if (!steps) return `"${name}" adında makro bulunamadı. Mevcut makrolar: ${listMacros()}`;
+        if (steps.length === 0) return `"${name}" makrosu boş.`;
+        _macroRunCallback?.(steps);
+        return `"${name}" makrosu çalıştırılıyor (${steps.length} adım)…`;
+    },
+    async list_macros() {
+        return listMacros();
+    },
+    async delete_macro({name}) {
+        return deleteMacro(name ?? "");
     },
 };
 

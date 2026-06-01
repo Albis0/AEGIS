@@ -7,7 +7,8 @@ import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
-import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions} from "./tools";
+import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback} from "./tools";
+import {addMacroStep, isRecording} from "./macros";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
@@ -1120,11 +1121,29 @@ async function bootApp(): Promise<void> {
         }
     } catch {}
 
+    registerAgentCallback((goal, maxSteps) => {
+        const reqId = `agent-${Date.now()}`;
+        const agentPrompt = `[AJAN MODU — maks ${maxSteps} adım] Hedef: ${goal}\n\nBu hedefi araçları kullanarak adım adım tamamla. Her adımda kısa bir durum bildirimi yaz. Bitince özet sun.`;
+        const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
+        saveMessage("user", agentPrompt).catch(() => {});
+        runAgent(messages, reqId).catch(() => {});
+    });
+
+    registerMacroRunCallback(async (steps) => {
+        for (const step of steps) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("chat-stream-inject", {command: step});
+            }
+            await new Promise<void>((r) => setTimeout(r, 3000));
+        }
+    });
+
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string}[]; reqId: string}) => {
         try {
             const last = messages[messages.length - 1];
             if (last?.role === "user") {
                 await saveMessage("user", last.content).catch(() => {});
+                if (isRecording()) addMacroStep(last.content);
             }
             await runAgent(messages, reqId);
         } catch (e) {

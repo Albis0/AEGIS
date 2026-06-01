@@ -240,16 +240,17 @@
 ## Faz 12 — Ajans Modu & Otomasyon 🤖
 *AEGIS sadece yanıtlamakla kalmaz, görevleri başından sonuna tamamlar.*
 
-### 12.1 Multi-Step Ajan
-- [ ] `agent_mode` flag'i: bir hedef ver, AEGIS adım adım tool'ları zincirleme çalıştırsın
-- [ ] Her adımda "Ne yapıyorum" bildirimi feed'e düşsün
-- [ ] Maksimum adım sayısı ayarlanabilir (loop koruması)
-- [ ] Başarı / başarısızlık özeti feed'e eklensin
+### 12.1 Multi-Step Ajan ✅
+- ✅ `agent_run` tool: hedef ver, AEGIS araçları zincirleme kullanarak tamamlar
+- ✅ Sistem prompt'a ajan modu direktifi + maks adım limiti inject edilir
+- ✅ Mevcut `runAgent` döngüsü (maks 8 adım) ajan modunu da karşılar
+- ✅ `agent_run` → `registerAgentCallback` → `runAgent` zinciri
 
-### 12.2 Makro Kayıt & Tekrar
-- [ ] `start_macro` / `stop_macro`: kullanıcının yaptığı komut dizisini kaydet
-- [ ] `run_macro <ad>`: kaydedilmiş diziyi tekrarla
-- [ ] Makrolar `~/.aegis/macros.json`'da saklanır
+### 12.2 Makro Kayıt & Tekrar ✅
+- ✅ `start_macro` / `stop_macro`: kullanıcı komutlarını `macros.json`'a kaydet
+- ✅ `run_macro`: kaydedilmiş diziyi `chat-stream-inject` ile adım adım tekrarla
+- ✅ `list_macros` / `delete_macro` tool'ları
+- ✅ Makrolar `~/.aegis/macros.json`'da saklanır
 
 ### 12.3 Koşullu Otomasyon
 - [ ] `if_then` tool: "eğer X ise Y yap" kuralları tanımla
