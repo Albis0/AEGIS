@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld("jarvis", {
     configSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("config-set", patch),
     setupSave: (config: Record<string, string>) => ipcRenderer.invoke("setup-save", config),
 
+    // Auth (Faz 30)
+    authSignUp: (email: string, password: string) => ipcRenderer.invoke("auth-sign-up", {email, password}),
+    authSignIn: (email: string, password: string) => ipcRenderer.invoke("auth-sign-in", {email, password}),
+    authSignOut: () => ipcRenderer.invoke("auth-sign-out"),
+    authCurrentUser: () => ipcRenderer.invoke("auth-current-user"),
+
     screenshot: () => ipcRenderer.invoke("screenshot"),
 
     sessionsList: () => ipcRenderer.invoke("sessions-list"),

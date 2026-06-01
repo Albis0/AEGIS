@@ -16,6 +16,11 @@ export interface AppSettings {
     ttsRate: number;
     accentColor: string;
     ttsProvider: "edge" | "elevenlabs";
+    // Faz 30 — dağıtım modu:
+    //   "trial" = deneme; chat senin proxy'inden (rate limited). Kullanıcı kendi
+    //             Groq key'ini girerse proxy bypass edilir, direkt Groq'a gider.
+    //   "own"   = gelişmiş; kullanıcının seçtiği provider + kendi key'i (proxy yok).
+    aiMode: "trial" | "own";
     aiProvider: AiProvider;
     aiApiKey: string; // backward compat — prefer providerKeys
     providerKeys: Record<string, string>;
@@ -57,6 +62,7 @@ const DEFAULTS: AppSettings = {
     ttsRate: 1.0,
     accentColor: "34,211,238",
     ttsProvider: "edge",
+    aiMode: "own", // mevcut kurulumlar bozulmasın; yeni kullanıcı 30.4'te seçer
     aiProvider: "groq",
     aiApiKey: "",
     providerKeys: {},

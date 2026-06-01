@@ -9,6 +9,8 @@ import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
+import {getAccessToken, signUp, signIn, signOut, getCurrentUser} from "./auth";
+import {AEGIS_PROXY_URL} from "./aegis-config";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
@@ -737,6 +739,81 @@ function toGeminiParts(content: string | MsgPart[] | null): object[] {
     });
 }
 
+// Deneme modu — chat-proxy Edge Function üzerinden Groq (senin key'in, rate limited).
+// SSE stream'i parse edip OAICompletion formatına çevirir (tool-call dahil).
+async function callProxy(
+    messages: OAIMessage[],
+    tools: ReturnType<typeof getAllToolSchemas>,
+    opts: {model: string; temperature: number; max_tokens: number},
+    onDelta?: (text: string) => void,
+): Promise<OAICompletion> {
+    const token = await getAccessToken();
+    if (!token) throw new Error("Deneme modu için giriş yapman gerekiyor. Lütfen oturum aç.");
+
+    const resp = await fetch(AEGIS_PROXY_URL, {
+        method: "POST",
+        headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
+        body: JSON.stringify({
+            model: opts.model,
+            messages,
+            tools,
+            temperature: opts.temperature,
+            max_tokens: opts.max_tokens,
+        }),
+    });
+
+    if (resp.status === 429) {
+        const info = await resp.json().catch(() => ({}));
+        throw new Error(info.message ?? "Günlük deneme limitin doldu. Kendi Groq API anahtarını ekle veya yarın tekrar dene.");
+    }
+    if (!resp.ok || !resp.body) {
+        const errText = await resp.text().catch(() => "");
+        throw new Error(`Proxy hatası ${resp.status}: ${errText.slice(0, 200)}`);
+    }
+
+    // SSE parse — Groq chunk formatı (callAI'deki Groq dalıyla aynı mantık)
+    let fullContent = "";
+    const tcMap = new Map<number, {id: string; name: string; args: string}>();
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? ""; // son kısmi satırı koru
+        for (const line of lines) {
+            const t = line.trim();
+            if (!t.startsWith("data:")) continue;
+            const payload = t.slice(5).trim();
+            if (payload === "" || payload === "[DONE]") continue;
+            let chunk: any;
+            try { chunk = JSON.parse(payload); } catch { continue; }
+            const delta = chunk.choices?.[0]?.delta;
+            if (delta?.content) {
+                fullContent += delta.content;
+                onDelta?.(delta.content);
+            }
+            for (const tc of delta?.tool_calls ?? []) {
+                const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
+                tcMap.set(tc.index, {
+                    id: tc.id ?? ex.id,
+                    name: tc.function?.name ?? ex.name,
+                    args: ex.args + (tc.function?.arguments ?? ""),
+                });
+            }
+        }
+    }
+
+    return {choices: [{message: {
+        content: fullContent || null,
+        tool_calls: tcMap.size > 0
+            ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
+            : undefined,
+    }}]};
+}
+
 async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = getProviderKey(provider);
@@ -746,6 +823,14 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const isReasoning = REASONING_MODELS.has(MODEL);
 
     const activeSchemas = getAllToolSchemas(provider);
+
+    // ── Deneme modu (proxy) ────────────────────────────────────────────────────
+    // aiMode "trial" + kullanıcının kendi Groq key'i YOKSA → senin chat-proxy'in
+    // (rate limited). Kendi Groq key'i varsa aşağıdaki normal Groq dalı çalışır.
+    const ownGroqKey = (currentSettings.providerKeys?.groq ?? "").trim();
+    if (currentSettings.aiMode === "trial" && !ownGroqKey) {
+        return callProxy(messages, activeSchemas, {model: MODEL, temperature: temp, max_tokens: maxTok}, onDelta);
+    }
 
     // ── Groq (streaming) ──────────────────────────────────────────────────────
     if (provider === "groq") {
@@ -1405,6 +1490,12 @@ async function bootApp(): Promise<void> {
             return {error: (e as Error).message ?? String(e)};
         }
     });
+
+    // ── Auth (Faz 30) ───────────────────────────────────────────────────────
+    ipcMain.handle("auth-sign-up", (_e, {email, password}: {email: string; password: string}) => signUp(email, password));
+    ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
+    ipcMain.handle("auth-sign-out", () => signOut());
+    ipcMain.handle("auth-current-user", () => getCurrentUser());
 
     ipcMain.handle("config-get", () => {
         return {

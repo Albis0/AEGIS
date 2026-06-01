@@ -78,6 +78,7 @@ export interface AppSettings {
     ttsRate: number;
     accentColor: string;
     ttsProvider: "edge" | "elevenlabs";
+    aiMode: "trial" | "own";
     aiProvider: AiProvider;
     aiApiKey: string;
     providerKeys: Record<string, string>;
@@ -142,6 +143,10 @@ declare global {
             configGet: () => Promise<AegisConfig>;
             configSet: (patch: Partial<AegisConfig>) => Promise<void>;
             setupSave: (config: AegisConfig) => Promise<void>;
+            authSignUp: (email: string, password: string) => Promise<{ok: boolean; error?: string; userId?: string; email?: string}>;
+            authSignIn: (email: string, password: string) => Promise<{ok: boolean; error?: string; userId?: string; email?: string}>;
+            authSignOut: () => Promise<void>;
+            authCurrentUser: () => Promise<{userId: string; email?: string} | null>;
             screenshot: () => Promise<void>;
             sessionsList: () => Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]>;
             sessionMessages: (sessionId: string) => Promise<{role: string; content: string; tool_name: string | null; created_at: string}[]>;
