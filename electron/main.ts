@@ -764,7 +764,9 @@ async function callProxy(
 
     if (resp.status === 429) {
         const info = await resp.json().catch(() => ({}));
-        throw new Error(info.message ?? "Günlük deneme limitin doldu. Kendi Groq API anahtarını ekle veya yarın tekrar dene.");
+        const err = new Error(info.message ?? "Günlük deneme limitin doldu. Kendi Groq API anahtarını ekle veya yarın tekrar dene.");
+        (err as Error & {isLimit?: boolean}).isLimit = true;
+        throw err;
     }
     if (!resp.ok || !resp.body) {
         const errText = await resp.text().catch(() => "");
@@ -1242,6 +1244,20 @@ async function bootApp(): Promise<void> {
         const key = getProviderKey(provider);
         const imgUrl = `data:image/png;base64,${base64}`;
 
+        // ── Deneme modu (proxy) — kendi Groq key'i yoksa senin proxy'inden ──
+        const ownGroqKey = (currentSettings.providerKeys?.groq ?? "").trim();
+        if (currentSettings.aiMode === "trial" && !ownGroqKey) {
+            const completion = await callProxy(
+                [{role: "user", content: [
+                    {type: "image_url", image_url: {url: imgUrl}},
+                    {type: "text", text: prompt},
+                ]} as OAIMessage],
+                [], // vision için tool yok
+                {model: "meta-llama/llama-4-scout-17b-16e-instruct", temperature: 0.7, max_tokens: 1024},
+            );
+            return completion.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+        }
+
         // ── Anthropic vision ──
         if (provider === "anthropic" && key) {
             const body = {
@@ -1405,9 +1421,11 @@ async function bootApp(): Promise<void> {
             await runAgent(messages, reqId);
         } catch (e) {
             const msg = (e as Error).message ?? String(e);
+            const isLimit = (e as Error & {isLimit?: boolean}).isLimit === true;
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send("chat-error", {reqId, message: msg});
-                mainWindow.webContents.send("chat-delta", {reqId, text: `\n\n[Sistem hatası: ${msg}]`});
+                // Limit hatası kullanıcıya doğrudan, "sistem hatası" damgası olmadan gösterilir.
+                mainWindow.webContents.send("chat-delta", {reqId, text: isLimit ? `\n\n${msg}` : `\n\n[Sistem hatası: ${msg}]`});
                 mainWindow.webContents.send("chat-done", {reqId});
             }
         }

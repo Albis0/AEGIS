@@ -612,12 +612,12 @@
 - ✅ `SetupScreen` gelişmiş kuruluma dönüştü; Supabase opsiyonel oldu (`db.ts` graceful no-op)
 - ✅ Temiz makinede test: onboarding açıldı, mod seçim → auth geçişi çalıştı
 
-### 30.5 Chat akışını moda göre yönlendir ⬜
-- ⬜ Deneme modu: `groq.chat.completions` yerine proxy fetch + JWT (stream + tool-call korunur)
-- ⬜ Deneme + kullanıcının kendi Groq key'i → proxy bypass, direkt Groq
-- ⬜ Gelişmiş mod → mevcut direkt-provider akışı (değişiklik yok)
-- ⬜ Vision/screenshot analizini de aynı yönlendirmeye sok
-- ⬜ 429 limit yanıtını UI'da anlamlı göster
+### 30.5 Chat akışını moda göre yönlendir ✅
+- ✅ Deneme modu: `callProxy` ile proxy fetch + JWT (stream + tool-call korunur)
+- ✅ Deneme + kullanıcının kendi Groq key'i → proxy bypass, direkt Groq
+- ✅ Gelişmiş mod → mevcut direkt-provider akışı (değişiklik yok)
+- ✅ Vision/screenshot analizi de deneme modunda proxy'e gider
+- ✅ 429 limit yanıtı UI'da "sistem hatası" damgası olmadan, doğrudan mesaj olarak gösterilir
 
 ### 30.6 Rate limit cilası & kötüye kullanım koruması ⬜
 - ⬜ Edge Function'da yapılandırılabilir limitler (örn. 50 istek/gün, 100k token/gün)
