@@ -1049,20 +1049,60 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
     ollama:     64,
 };
 
-export function getAllToolSchemas(provider?: string): ChatCompletionTool[] {
+// Çekirdek tool'lar — her istekte gönderilir (komut, dosya, web, ekran, sistem, hafıza).
+const CORE_SCHEMAS = () => [...toolSchemas, ...memoryPlusSchemas, ...extraSchemas];
+
+// Bağlama göre eklenen tool grupları. Anahtar kelimelerden biri kullanıcı
+// mesajında geçerse grup eklenir. Böylece her isteğe 130+ tool yerine yalnızca
+// çekirdek + alakalı gruplar gider → TPM/token tasarrufu.
+const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; keywords: RegExp}[] = [
+    {schemas: () => schedulerSchemas,   keywords: /hatırlat|zamanla|schedule|reminder|alarm|her gün|saat \d/i},
+    {schemas: () => marketplaceSchemas, keywords: /plugin|eklenti|marketplace|kur(ulum)?|yükle/i},
+    {schemas: () => securitySchemas,    keywords: /şifre|parola|vault|kasa|güvenli|encrypt|secret|gizli/i},
+    {schemas: () => knowledgeSchemas,   keywords: /bilgi|knowledge|rag|belge|doküman|index|ara(ma)?|öğren/i},
+    {schemas: () => automationSchemas,  keywords: /otomasyon|automation|tetikle|trigger|kural|workflow|akış/i},
+    {schemas: () => macroSchemas,       keywords: /makro|macro|kayıt|kaydet.*adım|tekrarla|record/i},
+    {schemas: () => agentSchemas,       keywords: /ajan|agent|otonom|adım adım|kendi başına|görev.*tamamla/i},
+    {schemas: () => watchSchemas,       keywords: /izle|watch|uyar|alert|eşik|threshold|takip/i},
+    {schemas: () => soundSchemas,       keywords: /ses çal|sound|bip|beep|çalar|notification.*ses/i},
+    {schemas: () => codeToolSchemas,    keywords: /kod|code|git|npm|derle|compile|lint|test|repo|commit|fonksiyon/i},
+    {schemas: () => timeSchemas,        keywords: /saat|tarih|zaman|time|takvim|calendar|timezone|gün|hafta/i},
+    {schemas: () => mediaSchemas,       keywords: /resim|görsel|image|video|medya|media|fotoğraf|dönüştür|convert|kırp/i},
+    {schemas: () => personaSchemas,     keywords: /kişilik|persona|rol|karakter|ton|davran|tarz/i},
+    {schemas: () => networkSchemas,     keywords: /ağ|network|ping|ssh|docker|port|ip|sunucu|server|bağlan/i},
+    {schemas: () => vizSchemas,         keywords: /grafik|chart|görselleştir|rapor|report|tablo|istatistik|graph/i},
+    {schemas: () => emailSchemas,       keywords: /e-?posta|mail|smtp|imap|gönder.*mesaj|taslak|inbox/i},
+    {schemas: () => learningSchemas,    keywords: /öğren|kart|flashcard|tekrar|okuma|hedef|goal|çalış(ma)?/i},
+    {schemas: () => iotSchemas,         keywords: /bluetooth|usb|yazıcı|print|cihaz|device|hava istasyon|iot/i},
+    {schemas: () => multiModelSchemas,  keywords: /model.*karşılaştır|pipeline|zincir|compare|yönlendir|route/i},
+];
+
+// context = son kullanıcı mesajı (düz metin). Verilirse bağlama göre tool seçilir.
+export function getAllToolSchemas(provider?: string, context?: string): ChatCompletionTool[] {
     const limit = PROVIDER_TOOL_LIMITS[provider ?? "groq"] ?? 64;
-    const all = [
-        ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
-        ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
-        ...agentSchemas, ...watchSchemas,
-        ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
-        ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
-        ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
-        ...extraSchemas,
-    ];
+
+    let selected: ChatCompletionTool[];
+    if (context && context.trim()) {
+        selected = [...CORE_SCHEMAS()];
+        for (const group of TOOL_GROUPS) {
+            if (group.keywords.test(context)) selected.push(...group.schemas());
+        }
+    } else {
+        // Bağlam yok (ör. ajan modu) → eski davranış: hepsi.
+        selected = [
+            ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
+            ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
+            ...agentSchemas, ...watchSchemas,
+            ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
+            ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
+            ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
+            ...extraSchemas,
+        ];
+    }
+
     const filtered = _disabledTools.size > 0
-        ? all.filter((t) => !_disabledTools.has(t.function?.name ?? ""))
-        : all;
+        ? selected.filter((t) => !_disabledTools.has(t.function?.name ?? ""))
+        : selected;
     return filtered.slice(0, limit);
 }
 

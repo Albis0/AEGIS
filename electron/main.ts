@@ -766,6 +766,23 @@ async function friendlyHttpError(providerLabel: string, resp: Response): Promise
     return `${providerLabel} hatası (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
 }
 
+// Groq SDK exception'ını kullanıcı dostu mesaja çevirir (SDK kendi hata nesnesini fırlatır).
+function friendlyGroqError(e: unknown): string {
+    const err = e as {status?: number; error?: {message?: string; code?: string}; message?: string};
+    const status = err?.status ?? 0;
+    const detail = (err?.error?.message ?? err?.message ?? "").toString();
+    const low = detail.toLowerCase();
+    if (status === 401 || status === 403) return "Groq: API anahtarın geçersiz. Ayarlar → Model'den anahtarı kontrol et.";
+    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: Bu model artık geçersiz. Ayarlar → Model'den güncel bir model seç.";
+    if (status === 413 || /too large|tpm|tokens per minute|reduce your message/.test(low)) {
+        return "Seçili model bu kadar metni tek seferde kaldıramıyor (dakikalık token limiti). Daha kısa bir mesajla dene veya Ayarlar → Model'den daha geniş limitli bir model (örn. Llama 4 Scout) seç.";
+    }
+    if (status === 429) return "Groq: Çok hızlı istek attın (hız limiti). Birkaç saniye sonra tekrar dene.";
+    if (status >= 500) return "Groq: Sağlayıcı sunucu hatası. Geçici olabilir, tekrar dene.";
+    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "İnternet bağlantısı kurulamadı. Ağını kontrol et.";
+    return `Groq hatası${detail ? ": " + detail.slice(0, 140) : ""}`;
+}
+
 // Deneme modu — chat-proxy Edge Function üzerinden Groq (senin key'in, rate limited).
 // SSE stream'i parse edip OAICompletion formatına çevirir (tool-call dahil).
 async function callProxy(
@@ -790,14 +807,35 @@ async function callProxy(
     });
 
     if (resp.status === 429) {
-        const info = await resp.json().catch(() => ({}));
-        const err = new Error(info.message ?? "Günlük deneme limitin doldu. Kendi Groq API anahtarını ekle veya yarın tekrar dene.");
-        (err as Error & {isLimit?: boolean}).isLimit = true;
-        throw err;
+        // 429 iki şey olabilir: (a) bizim günlük deneme kotamız doldu (Edge "limit"),
+        // (b) Groq'un dakikalık hız limiti (rate_limit_exceeded). İkisini ayır.
+        const info = await resp.json().catch(() => ({}) as Record<string, unknown>);
+        const raw = JSON.stringify(info).toLowerCase();
+        if ((info as {error?: string}).error === "limit") {
+            const err = new Error((info as {message?: string}).message ?? "Günlük deneme limitin doldu. Kendi Groq anahtarını ekle veya yarın tekrar dene.");
+            (err as Error & {isLimit?: boolean}).isLimit = true;
+            throw err;
+        }
+        if (/tpm|tokens per minute|rate_limit|too large/.test(raw)) {
+            throw new Error("Şu an çok yoğunluk var (dakikalık hız limiti). Birkaç saniye bekleyip tekrar dene; mesajın çok uzunsa kısalt.");
+        }
+        const err2 = new Error("Deneme servisi geçici olarak meşgul. Birkaç saniye sonra tekrar dene.");
+        (err2 as Error & {isLimit?: boolean}).isLimit = true;
+        throw err2;
+    }
+    if (resp.status === 413) {
+        throw new Error("Mesajın veya ekli dosyalar çok büyük. Daha kısa bir mesaj veya daha küçük dosya ile dene.");
+    }
+    if (resp.status === 401) {
+        throw new Error("Deneme modu için oturumun geçersiz. Lütfen çıkış yapıp tekrar giriş yap.");
     }
     if (!resp.ok || !resp.body) {
+        // Ham JSON yerine kullanıcı dostu mesaj — gövdeden anlamlı detay çek.
         const errText = await resp.text().catch(() => "");
-        throw new Error(`Proxy hatası ${resp.status}: ${errText.slice(0, 200)}`);
+        let detail = "";
+        try { const j = JSON.parse(errText); detail = j?.error?.message ?? j?.message ?? j?.error ?? ""; } catch { detail = errText.slice(0, 120); }
+        if (resp.status >= 500) throw new Error("Deneme sunucusunda geçici bir hata oluştu. Tekrar dene.");
+        throw new Error(`Deneme servisi hatası${detail ? ": " + String(detail).slice(0, 120) : ` (${resp.status})`}`);
     }
 
     // SSE parse — Groq chunk formatı (callAI'deki Groq dalıyla aynı mantık)
@@ -851,7 +889,11 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const topP = currentSettings.topP ?? 1.0;
     const isReasoning = REASONING_MODELS.has(MODEL);
 
-    const activeSchemas = getAllToolSchemas(provider);
+    // Bağlama göre tool seçimi: son kullanıcı mesajını context olarak ver.
+    // Böylece her isteğe 130+ tool yerine çekirdek + alakalı gruplar gider (token tasarrufu).
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
+    const activeSchemas = getAllToolSchemas(provider, toolContext);
 
     // ── Deneme modu (proxy) ────────────────────────────────────────────────────
     // aiMode "trial" + kullanıcının kendi Groq key'i YOKSA → senin chat-proxy'in
@@ -863,37 +905,41 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
 
     // ── Groq (streaming) ──────────────────────────────────────────────────────
     if (provider === "groq") {
-        const stream = await groq.chat.completions.create({
-            model: MODEL,
-            messages: messages as ChatCompletionMessageParam[],
-            tools: activeSchemas,
-            stream: true,
-            temperature: temp,
-            max_tokens: maxTok,
-        });
-        let fullContent = "";
-        const tcMap = new Map<number, {id: string; name: string; args: string}>();
-        for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta;
-            if (delta?.content) {
-                fullContent += delta.content;
-                onDelta?.(delta.content);
+        try {
+            const stream = await groq.chat.completions.create({
+                model: MODEL,
+                messages: messages as ChatCompletionMessageParam[],
+                tools: activeSchemas,
+                stream: true,
+                temperature: temp,
+                max_tokens: maxTok,
+            });
+            let fullContent = "";
+            const tcMap = new Map<number, {id: string; name: string; args: string}>();
+            for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta;
+                if (delta?.content) {
+                    fullContent += delta.content;
+                    onDelta?.(delta.content);
+                }
+                for (const tc of (delta as any)?.tool_calls ?? []) {
+                    const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
+                    tcMap.set(tc.index, {
+                        id: tc.id ?? ex.id,
+                        name: tc.function?.name ?? ex.name,
+                        args: ex.args + (tc.function?.arguments ?? ""),
+                    });
+                }
             }
-            for (const tc of (delta as any)?.tool_calls ?? []) {
-                const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
-                tcMap.set(tc.index, {
-                    id: tc.id ?? ex.id,
-                    name: tc.function?.name ?? ex.name,
-                    args: ex.args + (tc.function?.arguments ?? ""),
-                });
-            }
+            return {choices: [{message: {
+                content: fullContent || null,
+                tool_calls: tcMap.size > 0
+                    ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
+                    : undefined,
+            }}]};
+        } catch (e) {
+            throw new Error(friendlyGroqError(e));
         }
-        return {choices: [{message: {
-            content: fullContent || null,
-            tool_calls: tcMap.size > 0
-                ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
-                : undefined,
-        }}]};
     }
 
     // ── Anthropic ────────────────────────────────────────────────────────────
