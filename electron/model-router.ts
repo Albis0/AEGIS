@@ -25,6 +25,12 @@ interface PipelineStep {
     model?: string;
 }
 
+// Tek-atışlık LLM çağrısı — main.ts enjekte eder (model-router'ın Groq erişimi yok).
+// model: "provider:modelId" veya sadece "modelId" (varsayılan provider).
+type LLMCallback = (prompt: string, model?: string) => Promise<string>;
+let _llmCallback: LLMCallback | null = null;
+export function registerLLMCallback(cb: LLMCallback): void { _llmCallback = cb; }
+
 function loadRouting(): Record<string, RoutingRule> {
     try { return JSON.parse(fs.readFileSync(ROUTING_FILE, "utf-8")); } catch { return {}; }
 }
@@ -95,34 +101,43 @@ export async function pipelineRun(pipelineName: string, input: string): Promise<
             : `HATA: "${pipelineName}" bulunamadı. Mevcut: ${names.join(", ")}`;
     }
 
+    if (!_llmCallback) return "HATA: LLM bağlantısı hazır değil. Uygulamayı yeniden başlat.";
+
     let current = input;
     const results: string[] = [`Pipeline: ${pipelineName} (${pipeline.steps.length} adım)\nGirdi: ${input.slice(0, 100)}\n`];
 
     for (let i = 0; i < pipeline.steps.length; i++) {
         const step = pipeline.steps[i];
         const prompt = step.prompt.replace(/\{\{input\}\}/g, current);
-        results.push(`Adım ${i + 1}: ${prompt.slice(0, 80)}...`);
-        // In a real implementation, this would call the LLM
-        // Here we prepare the prompt chain output
-        current = `[Adım ${i + 1} çıktısı: ${prompt.slice(0, 60)}...]`;
+        try {
+            const out = await _llmCallback(prompt, step.model);
+            current = out.trim();
+            results.push(`── Adım ${i + 1}${step.model ? ` (${step.model})` : ""} ──\n${current}`);
+        } catch (e) {
+            results.push(`── Adım ${i + 1} HATA ──\n${(e as Error).message}`);
+            return results.join("\n\n");
+        }
     }
 
-    results.push(`\nPipeline hazır. ${pipeline.steps.length} adım oluşturuldu. Tam çalıştırma için LLM zinciri desteklenecek.`);
-    return results.join("\n");
+    results.push(`\n✓ Pipeline tamamlandı (${pipeline.steps.length} adım).`);
+    return results.join("\n\n");
 }
 
 export async function modelCompare(prompt: string, models: string): Promise<string> {
     const modelList = models.split(",").map((m) => m.trim()).filter(Boolean);
     if (modelList.length < 2) return "HATA: En az 2 model belirtin, virgülle ayırarak (örn: groq:qwen3-32b,groq:llama-3.3-70b)";
+    if (!_llmCallback) return "HATA: LLM bağlantısı hazır değil. Uygulamayı yeniden başlat.";
 
-    // Build comparison request info
-    const header = `Model Karşılaştırması\nPrompt: "${prompt.slice(0, 100)}"\nModeller: ${modelList.join(", ")}\n${"═".repeat(50)}\n`;
+    const header = `Model Karşılaştırması\nPrompt: "${prompt.slice(0, 100)}"\nModeller: ${modelList.join(", ")}\n${"═".repeat(50)}`;
 
-    const results = modelList.map((m) => {
-        const [provider, modelId] = m.split(":");
-        return `[${m}]\nSağlayıcı: ${provider || "groq"}\nModel: ${modelId || m}\n(Yanıt: API çağrısı yapılıyor — gerçek karşılaştırma için tüm modeller için API key gerekli)`;
-    });
+    const answers = await Promise.all(modelList.map(async (m) => {
+        try {
+            const out = await _llmCallback!(prompt, m);
+            return `[${m}]\n${out.trim()}`;
+        } catch (e) {
+            return `[${m}]\nHATA: ${(e as Error).message}`;
+        }
+    }));
 
-    return header + results.join("\n\n─────────────────────\n\n") +
-        "\n\nNot: Gerçek karşılaştırma için her provider'ın API key'i ayarlarda bulunmalı. Şu an Groq modelleri doğrudan karşılaştırılabilir.";
+    return header + "\n\n" + answers.join("\n\n─────────────────────\n\n");
 }

@@ -8,6 +8,7 @@ import * as dotenv from "dotenv";
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
+import {registerLLMCallback} from "./model-router";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
@@ -1294,6 +1295,20 @@ async function bootApp(): Promise<void> {
         }
     });
 
+    // pipeline_run / model_compare için tek-atışlık LLM çağrısı (tool'suz, stream'siz).
+    registerLLMCallback(async (prompt, model) => {
+        // "provider:modelId" → Groq modelleri için prefix'i sıyır; aksi halde aktif MODEL.
+        const modelId = model
+            ? (model.startsWith("groq:") ? model.slice(5) : model.includes(":") ? model.split(":")[1] : model)
+            : MODEL;
+        const res = await groq.chat.completions.create({
+            model: modelId,
+            messages: [{role: "user", content: prompt}],
+            stream: false,
+        });
+        return res.choices[0]?.message?.content ?? "";
+    });
+
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string | MsgPart[]}[]; reqId: string}) => {
         try {
             const last = messages[messages.length - 1];
@@ -1570,7 +1585,9 @@ function createSetupWindow(): void {
     if (isDev) {
         win.loadURL("http://127.0.0.1:5173?setup=1");
     } else {
-        win.loadFile(path.join(__dirname, "../dist/index.html"), {query: {setup: "1"}});
+        // loadFile query'si bazı Electron sürümlerinde location.search'e güvenilir geçmiyor;
+        // hash kullan — renderer hem ?setup hem #setup'ı kontrol eder.
+        win.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
     }
 
     // Setup form submit

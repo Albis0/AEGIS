@@ -71,6 +71,14 @@ SERPER_API_KEY=...        # optional
 npm run dev
 ```
 
+### 6. Build a distributable (optional)
+
+```bash
+npm run electron:build
+```
+
+Produces a portable `.exe` under `dist/`. Pushing a `v*` git tag also triggers the GitHub Actions release workflow.
+
 ---
 
 ## Usage
@@ -78,11 +86,15 @@ npm run dev
 | Shortcut | Action |
 |---|---|
 | `M` | Mic: Off → Always-on → Wake-word → Off |
+| `Ctrl+L` | Focus the message input |
+| `Ctrl+Space` | Command palette |
 | `ESC` | Stop speaking |
 | `F11` | Fullscreen |
 | ⚙ (title bar) | Settings panel |
 
 **Wake-word mode:** Say "Jarvis, what's the weather?" or just "Jarvis", then speak.
+
+**Attachments:** Click `⊕` to attach images/files, or paste a screenshot directly with `Ctrl+V` (e.g. after `Win+Shift+S`).
 
 ---
 

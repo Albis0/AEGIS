@@ -4,7 +4,9 @@ import App from "./App";
 import SetupScreen from "./components/SetupScreen";
 import "./index.css";
 
-const isSetup = new URLSearchParams(window.location.search).get("setup") === "1";
+const isSetup =
+    new URLSearchParams(window.location.search).get("setup") === "1" ||
+    window.location.hash.replace(/^#/, "") === "setup";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
