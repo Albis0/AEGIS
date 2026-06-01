@@ -98,6 +98,7 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
+    apiServerEnabled: boolean;
     alertCpuPct: number | null;
     alertRamPct: number | null;
     alertGpuPct: number | null;
@@ -143,6 +144,8 @@ declare global {
             maximize: () => void;
             fullscreen: () => void;
             close: () => void;
+            apiInfo: () => Promise<{ip: string; port: number; token: string; running: boolean}>;
+            apiServerToggle: (enable: boolean) => Promise<string>;
         };
     }
 }

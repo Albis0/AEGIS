@@ -792,8 +792,9 @@ export default function SettingsPanel({open, onClose, onAccentChange, onSkinChan
 
                             <Group label="UYGULAMA" accent={a}>
                                 {([
-                                    {key: "minimizeToTray" as const, label: "Kapatınca sistem tepsisine küçült", sub: "Pencereyi kapatmak uygulamayı sonlandırmaz"},
-                                    {key: "autoLaunch"     as const, label: "Windows başlangıcında otomatik başlat", sub: "Oturum açılınca AEGIS arka planda başlar"},
+                                    {key: "minimizeToTray"   as const, label: "Kapatınca sistem tepsisine küçült",       sub: "Pencereyi kapatmak uygulamayı sonlandırmaz"},
+                                    {key: "autoLaunch"       as const, label: "Windows başlangıcında otomatik başlat",   sub: "Oturum açılınca AEGIS arka planda başlar"},
+                                    {key: "apiServerEnabled" as const, label: "Yerel ağ API sunucusunu aç (port 7331)", sub: "Telefondan /api/ask ile AEGIS'e soru sor"},
                                 ] as const).map(({key, label, sub}) => {
                                     const active = !!(settings as unknown as Record<string, unknown>)[key];
                                     return (

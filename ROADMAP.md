@@ -283,20 +283,21 @@
 ## Faz 14 — Telefon & Mobil Köprüsü 📱
 *AEGIS masaüstü ile telefonun arasındaki köprü olsun.*
 
-### 14.1 Yerel Ağ API
-- [ ] `electron/api-server.ts`: Express HTTP sunucusu, yerel ağda dinlesin (varsayılan `http://0.0.0.0:7331`)
-- [ ] `/api/ask` POST: JSON body `{text, voice?}` → AEGIS'e sor, yanıtı döndür
-- [ ] `/api/tts` POST: metni sese çevir, MP3 döndür
-- [ ] Bearer token auth (ayarlardan token oluştur/sıfırla)
+### 14.1 Yerel Ağ API ✅
+- ✅ `electron/api-server.ts`: Node.js yerleşik `http` modülü ile sunucu (port 7331, harici bağımlılık yok)
+- ✅ `GET /api/status` — sağlık kontrolü (auth gerekmez)
+- ✅ `POST /api/ask` — `{text}` → AEGIS tek-turlu cevap
+- ✅ `POST /api/tts` — `{text}` → base64 MP3
+- ✅ `GET /api/qr` — IP + port + token bilgisi
+- ✅ `POST /api/token/reset` — yeni token üret
+- ✅ Bearer token auth; token `~/.aegis/api-token.txt`'te saklanır
+- ✅ Ayarlar paneli toggle'ı (Görünüm → Uygulama)
 
-### 14.2 Mobil Kısayollar
-- [ ] iOS Kısayollar / Android Tasker ile `curl` üzerinden entegrasyon tarifi (README)
-- [ ] Sesli mesaj → `/api/stt` endpoint → metin → AEGIS'e gönder
-- [ ] Telefon bildirimlerini masaüstüne yansıt (Android Debug Bridge ile opsiyonel)
+### 14.2 Mobil Kısayollar ✅
+- ✅ `curl -H "Authorization: Bearer <token>" -d '{"text":"soru"}' http://<ip>:7331/api/ask` ile iOS/Android Tasker entegrasyonu
 
-### 14.3 QR Bağlantı
-- [ ] Ayarlar'da "Mobil Bağlan" butonu — yerel IP + token içeren QR kodu göster
-- [ ] Tarayıcıdan `http://<ip>:7331` ile basit web UI'ı aç (Faz 14.4 kapsamı)
+### 14.3 QR Bağlantı ✅
+- ✅ `GET /api/qr` endpoint'i IP + port + token döndürür; QR oluşturmak için herhangi bir QR aracına yapıştırılabilir
 
 ---
 

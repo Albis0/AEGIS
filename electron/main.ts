@@ -11,6 +11,7 @@ import {executeTool, registerQuitCallback, registerSetLanguageCallback, register
 import {addMacroStep, isRecording} from "./macros";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
+import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo} from "./api-server";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
@@ -1281,6 +1282,10 @@ async function bootApp(): Promise<void> {
         if (patch.autoLaunch !== undefined) {
             app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
         }
+        if (patch.apiServerEnabled !== undefined) {
+            if (patch.apiServerEnabled) startApiServer();
+            else stopApiServer();
+        }
         // Sync settings-based watch conditions
         const alertMap: Record<string, number | null> = {
             cpu: currentSettings.alertCpuPct ?? null,
@@ -1327,6 +1332,52 @@ async function bootApp(): Promise<void> {
         if (!mainWindow) return;
         if (mainWindow.isMaximized()) mainWindow.unmaximize();
         else mainWindow.maximize();
+    });
+
+    // Mobil API — ask handler: single-turn LLM call (no streaming)
+    registerAskHandler(async (question) => {
+        const profile = Object.keys(cachedProfile).length > 0
+            ? `\nKullanıcı profili: ${Object.entries(cachedProfile).map(([k, v]) => `${k}=${v}`).join(", ")}`
+            : "";
+        const sysPrompt = getSystemPrompt(currentSettings.language) + profile + memorySummaries;
+        const msgs = [{role: "system", content: sysPrompt}, {role: "user", content: question}];
+        const result = await callAI(msgs as OAIMessage[]);
+        return result.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+    });
+
+    registerTtsHandler(async (text) => {
+        const cfg = loadConfig();
+        const elKey = cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "";
+        if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
+            const voiceId = currentSettings.ttsVoice.startsWith("el:") ? currentSettings.ttsVoice.slice(3) : "cgSgspJ2msm6clMCkdW9";
+            const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
+            const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                method: "POST",
+                headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
+                body: JSON.stringify({text, model_id: "eleven_flash_v2_5", voice_settings: {stability: 0.5, similarity_boost: 0.75}, output_format: "mp3_44100_128", speed}),
+            });
+            if (!resp.ok) return null;
+            return Buffer.from(await resp.arrayBuffer());
+        }
+        const {MsEdgeTTS: EdgeTTS, OUTPUT_FORMAT: FMT} = await import("msedge-tts") as typeof import("msedge-tts");
+        const tts = new EdgeTTS();
+        await tts.setMetadata(currentSettings.ttsVoice, FMT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+        const {audioStream} = await tts.toStream(text);
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve, reject) => {
+            audioStream.on("data", (d: Buffer) => chunks.push(d));
+            audioStream.on("close", resolve);
+            audioStream.on("error", reject);
+        });
+        return Buffer.concat(chunks);
+    });
+
+    if (currentSettings.apiServerEnabled) startApiServer();
+
+    ipcMain.handle("api-info", () => getApiInfo());
+    ipcMain.handle("api-server-toggle", (_e, enable: boolean) => {
+        if (enable) return startApiServer();
+        stopApiServer(); return "API sunucusu durduruldu.";
     });
 
     createWindow();
@@ -1403,6 +1454,7 @@ let isQuitting = false;
 app.on("before-quit", (e) => {
     telIntervals.forEach(clearInterval);
     stopScheduler();
+    stopApiServer();
     if (isQuitting || sessionHistory.length < 2) return;
     e.preventDefault();
     isQuitting = true;

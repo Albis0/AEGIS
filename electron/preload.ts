@@ -31,4 +31,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     maximize: () => ipcRenderer.send("win-maximize"),
     fullscreen: () => ipcRenderer.send("win-fullscreen"),
     close: () => ipcRenderer.send("win-close"),
+
+    apiInfo: () => ipcRenderer.invoke("api-info"),
+    apiServerToggle: (enable: boolean) => ipcRenderer.invoke("api-server-toggle", enable),
 });

@@ -37,6 +37,7 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
+    apiServerEnabled: boolean;
     alertCpuPct: number | null;
     alertRamPct: number | null;
     alertGpuPct: number | null;
@@ -71,6 +72,7 @@ const DEFAULTS: AppSettings = {
     mistralSafeMode: false,
     autoLaunch: false,
     minimizeToTray: true,
+    apiServerEnabled: false,
     alertCpuPct: null,
     alertRamPct: null,
     alertGpuPct: null,
