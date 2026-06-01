@@ -394,6 +394,209 @@
 
 ---
 
+## Faz 20 — Kod Asistanı & Geliştirici Araçları 👨‍💻
+*AEGIS bir programcının en iyi yardımcısı olsun.*
+
+### 20.1 Git Entegrasyonu
+- [ ] `git_status` / `git_log` / `git_diff` tool'ları: repo durumunu sorgula
+- [ ] `git_commit` tool: staged değişiklikleri commit et (mesaj AEGIS'in önerisi)
+- [ ] `git_branch` tool: branch oluştur, değiştir, listele
+- [ ] "Son commit'i özetle", "Bu branch'te ne değişti?" soruları çalışsın
+
+### 20.2 Terminal Çıktısı Analizi
+- [ ] `run_and_analyze` tool: komut çalıştır + çıktıyı LLM ile yorumla
+- [ ] "Bu hata ne anlama geliyor?", "Neden başarısız oldu?" soruları için
+- [ ] Stack trace'leri otomatik tanı ve çözüm öner
+
+### 20.3 Proje Şablonları
+- [ ] `scaffold_project` tool: "Python FastAPI projesi oluştur", "React + Tailwind boilerplate yap"
+- [ ] Şablonlar `~/.aegis/templates/` altında özelleştirilebilir
+- [ ] `list_templates` / `add_template` tool'ları
+
+---
+
+## Faz 21 — Takvim & Zaman Yönetimi 📅
+*AEGIS zamanı planlar, seni hatırlatır.*
+
+### 21.1 Yerel Takvim Entegrasyonu
+- [ ] `calendar_get_events` tool: Windows Takvim API'sinden bugünkü/haftalık etkinlikleri çek
+- [ ] `calendar_add_event` tool: takvime etkinlik ekle (başlık, saat, notlar)
+- [ ] "Bugün ne var?", "Toplantım var mı?" soruları çalışsın
+
+### 21.2 Pomodoro & Odaklanma Modu
+- [ ] `pomodoro_start` / `pomodoro_stop`: 25dk çalışma / 5dk mola döngüsü
+- [ ] Her pomodoro bitiminde bildirim + TTS seslendirme
+- [ ] Günlük pomodoro sayısını `~/.aegis/pomodoro-log.json`'da takip et
+
+### 21.3 Zaman Takibi
+- [ ] `time_track_start` / `time_track_stop`: görev bazlı zaman kayıt
+- [ ] `time_track_report`: haftalık/günlük harcanan süre raporu
+- [ ] "Bu hafta ne kadar kod yazdım?" sorusuna cevap ver
+
+---
+
+## Faz 22 — Dosya & Medya Yönetimi 🗂️
+*AEGIS dosyaları anlar, düzenler, dönüştürür.*
+
+### 22.1 Akıllı Dosya Organizasyonu
+- [ ] `organize_folder` tool: klasörü tara, dosyaları uzantı/tarihe göre alt klasörlere taşı
+- [ ] `find_duplicates` tool: hash karşılaştırmasıyla yinelenen dosyaları bul
+- [ ] `bulk_rename` tool: regex veya şablonla toplu yeniden adlandır
+
+### 22.2 Görüntü Analizi & İşleme
+- [ ] `analyze_image` tool: yerel görüntü dosyasını vision modelle analiz et
+- [ ] `resize_image` / `convert_image` tool: PowerShell + .NET ile format/boyut dönüştür
+- [ ] "Bu fotoğrafta ne var?", "PNG'yi JPEG'e çevir" komutları
+
+### 22.3 PDF & Belge İşleme
+- [ ] `pdf_to_text` tool: PowerShell COM nesnesiyle PDF'ten metin çıkar
+- [ ] `merge_pdfs` / `split_pdf` tool: PDF birleştir/böl
+- [ ] `extract_tables` tool: tablolu PDF'leri CSV'ye çevir
+
+---
+
+## Faz 23 — Yapay Zeka Kişiliği & Rol Sistemi 🎭
+*AEGIS farklı modlarda çalışsın — asistan, koç, arkadaş.*
+
+### 23.1 Kişilik Profilleri
+- [ ] `set_persona` tool: "Resmi asistan", "Samimi arkadaş", "Sert koç", "Öğretmen" modları
+- [ ] Her persona kendi TTS sesi, dil tonu ve system prompt direktifleriyle gelir
+- [ ] `get_persona` / `list_personas` tool'ları; özel persona ekleme desteği
+
+### 23.2 Rol Yapma & Simülasyon
+- [ ] `roleplay_start` tool: kullanıcı tanımlı senaryo ver, AEGIS o karakterde konuşur
+- [ ] "Bir Python öğretmeni gibi anlat", "CEO gibi davran" komutları
+- [ ] `roleplay_stop` ile normal moda dön
+
+### 23.3 Duygusal Bağlam Takibi
+- [ ] Konuşma tonu analizine göre AEGIS yanıt stilini uyarlar (sakin/stresli/neşeli)
+- [ ] `mood_check` tool: "Nasılsın?" benzeri sorularda mevcut mood'u döndür
+- [ ] Stress tespit edilince kısa nefes egzersizi veya mola öner
+
+---
+
+## Faz 24 — Ağ & Sunucu Yönetimi 🌐
+*AEGIS ağı izler ve sunucu işlerini halleder.*
+
+### 24.1 Ağ Tanılama
+- [ ] `ping_host` tool: gecikme ve paket kaybı ölç
+- [ ] `trace_route` tool: ağ yolunu izle
+- [ ] `port_scan` tool: verilen host'un açık portlarını listele (yerel ağ)
+- [ ] `dns_lookup` tool: A, MX, TXT kayıtlarını sorgula
+
+### 24.2 SSH & Uzak Sunucu
+- [ ] `ssh_connect` / `ssh_run` tool: önceden kaydedilmiş host'a bağlan, komut çalıştır
+- [ ] SSH profilleri `~/.aegis/ssh-hosts.json`'da saklanır
+- [ ] "Sunucuda disk durumunu kontrol et", "Servisi yeniden başlat" komutları
+
+### 24.3 Docker Yönetimi
+- [ ] `docker_ps` / `docker_start` / `docker_stop` tool'ları
+- [ ] `docker_logs` tool: container loglarını al, LLM ile özetle
+- [ ] `docker_stats` tool: CPU/RAM kullanım özeti
+
+---
+
+## Faz 25 — Gelişmiş Görselleştirme & Dashboard 📊
+*AEGIS verileri görsel olarak sunsun.*
+
+### 25.1 Dinamik Dashboard Skin
+- [ ] Dashboard skinini gerçek verilerle besle: hisse, hava, sistem, takvim widget'ları
+- [ ] Widget'lar sürükle-bırak ile yeniden düzenlenebilsin
+- [ ] Her widget bağımsız yenileme hızına sahip olsun
+
+### 25.2 Grafik Oluşturma
+- [ ] `create_chart` tool: CSV/JSON veri ver → SVG/PNG bar, çizgi, pasta grafik üret
+- [ ] Üretilen grafiği feed'de göster ve masaüstüne kaydet
+- [ ] "Bu veritabanı sorgusunu grafik yap" komutu çalışsın
+
+### 25.3 Sistem Sağlık Raporu
+- [ ] `system_report` tool: CPU/RAM/Disk/GPU son 24 saatin özeti → PDF veya HTML rapor
+- [ ] Haftalık otomatik rapor zamanlanmış görev olarak kurulabilsin
+- [ ] Anormallikler (spike'lar, eşik aşımları) raporda vurgulanır
+
+---
+
+## Faz 26 — E-posta & İletişim 📧
+*AEGIS mesajları okur, yazar ve düzenler.*
+
+### 26.1 SMTP / IMAP E-posta
+- [ ] `email_send` tool: SMTP ile e-posta gönder (konu, alıcı, gövde)
+- [ ] `email_fetch` tool: IMAP ile gelen kutusu oku (son N e-posta, filtreli)
+- [ ] SMTP/IMAP kimlik bilgileri vault'ta şifreli saklanır
+
+### 26.2 E-posta Özetleme & Taslak
+- [ ] `email_summarize` tool: verilen e-postayı özetle
+- [ ] `email_draft` tool: doğal dil girişinden profesyonel e-posta taslağı oluştur
+- [ ] "Toplantıyı kabul eden bir cevap yaz" komutu çalışsın
+
+### 26.3 Slack & Teams Entegrasyonu *(plugin)*
+- [ ] Slack Webhook ile kanal mesajı gönder (`slack_send` plugin)
+- [ ] Teams webhook entegrasyonu (`teams_send` plugin)
+- [ ] Bildirim formatları: düz metin, Markdown, attachment
+
+---
+
+## Faz 27 — Öğrenme & Kişisel Gelişim 📚
+*AEGIS öğrenmeyi takip eder ve destekler.*
+
+### 27.1 Flashcard Sistemi
+- [ ] `card_add` tool: konu + cevap çifti ekle (`~/.aegis/flashcards.json`)
+- [ ] `card_review` tool: spaced repetition algoritmasıyla kart çalış
+- [ ] "Bugün kaç kart çalışayım?", "Python flashcard ekle" komutları
+
+### 27.2 Okuma Listesi & Özet
+- [ ] `reading_add` tool: URL veya kitap adı ekle okuma listesine
+- [ ] `reading_summarize` tool: URL'den makaleyi çek → LLM ile özetle → listeye ekle
+- [ ] `reading_list` tool: bekleme listesini öncelik sırasıyla göster
+
+### 27.3 Hedef Takibi
+- [ ] `goal_set` tool: hedef tanımla (başlık, son tarih, alt adımlar)
+- [ ] `goal_check_in` tool: ilerleme güncelle
+- [ ] `goal_list` tool: aktif hedefleri + tamamlanma yüzdesini göster
+- [ ] Haftalık hedef özeti zamanlanmış görev olarak ayarlanabilsin
+
+---
+
+## Faz 28 — Fiziksel Dünya & IoT Entegrasyonu 🏠
+*AEGIS fiziksel dünyaya uzanır.*
+
+### 28.1 Hava İstasyonu Verileri
+- [ ] `weather_station` tool: yerel hava istasyonundan (OpenWeatherMap kişisel) veri al
+- [ ] Sıcaklık, nem, basınç, UV indeksi: iç mekan + dış mekan karşılaştırması
+- [ ] Günlük hava tahmin raporu zamanlanmış görevle sabah özetine eklensin
+
+### 28.2 Bluetooth & USB Cihaz Yönetimi
+- [ ] `list_bluetooth` tool: bağlı/eşleştirilmiş BT cihazlarını listele
+- [ ] `connect_bluetooth` / `disconnect_bluetooth` tool'ları (PowerShell BT API)
+- [ ] `list_usb` tool: takılı USB cihazlarını listele (sürücü, hız, kapasite)
+
+### 28.3 Baskı & Tarama
+- [ ] `list_printers` tool: kurulu yazıcıları listele
+- [ ] `print_file` tool: belirtilen dosyayı varsayılan/seçilen yazıcıya gönder
+- [ ] `printer_status` tool: yazıcı kağıt/mürekkep durumunu sorgula
+
+---
+
+## Faz 29 — Yapay Zeka Zinciri & Çoklu Model 🤖
+*AEGIS tek model değil, model orkestrasyonu olsun.*
+
+### 29.1 Çoklu Model Yönlendirme
+- [ ] Görev türüne göre otomatik model seç: kod → Anthropic, hızlı soru → Groq, vizyon → Llama
+- [ ] `model_route` kural tablosu: `~/.aegis/model-routing.json`'da özelleştirilebilir
+- [ ] "Bu soruyu Claude'a sor", "Gemini ile dene" komutları çalışsın
+
+### 29.2 Zincirleme Prompt (Chain of Thought Pipeline)
+- [ ] `pipeline_run` tool: adım adım prompt zinciri tanımla ve çalıştır
+- [ ] Her adımın çıktısı bir sonrakine otomatik aktarılır
+- [ ] Pipelines `~/.aegis/pipelines.json`'da saklanır
+
+### 29.3 Model Karşılaştırma
+- [ ] `model_compare` tool: aynı prompt'u 2-3 modele gönder, yanıtları yan yana göster
+- [ ] Latency, token sayısı, maliyet tahmini karşılaştırması
+- [ ] "GPT-5.5 ve Claude'u karşılaştır: hangi model daha iyi anlattı?" sorusu çalışsın
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -410,7 +613,7 @@
 ✅  Faz 9    Plugin sistemi               ← TAMAMLANDI
 ✅  Faz 9.2  Hazır plugin'ler             ← TAMAMLANDI (Spotify/VSCode/Steam/OBS)
 ✅  Faz 10   Arka plan servisi & bildirim ← TAMAMLANDI
-✅  Faz 11   Performans & streaming       ← TAMAMLANDI (zaten implemente edilmişti)
+✅  Faz 11   Performans & streaming       ← TAMAMLANDI
 ✅  Faz 12   Ajans modu & otomasyon       ← TAMAMLANDI
 ✅  Faz 13   Bilgi tabanı & RAG           ← TAMAMLANDI
 ✅  Faz 14   Telefon & mobil köprüsü      ← TAMAMLANDI
@@ -418,5 +621,15 @@
 ✅  Faz 16   Gelişmiş hafıza              ← TAMAMLANDI
 ✅  Faz 17   Güvenlik & gizlilik          ← TAMAMLANDI
 ✅  Faz 18   Gelişmiş plugin ekosistemi   ← TAMAMLANDI
-[ ] Faz 19   Ses & müzik üretimi          ← SIRADA (son faz, kullanıcı isteğiyle)
+[ ] Faz 19   Ses & müzik üretimi          ← SIRADA
+[ ] Faz 20   Kod asistanı & geliştirici   ← SIRADA
+[ ] Faz 21   Takvim & zaman yönetimi      ← SIRADA
+[ ] Faz 22   Dosya & medya yönetimi       ← SIRADA
+[ ] Faz 23   Yapay zeka kişiliği & rol    ← SIRADA
+[ ] Faz 24   Ağ & sunucu yönetimi         ← SIRADA
+[ ] Faz 25   Gelişmiş görselleştirme      ← SIRADA
+[ ] Faz 26   E-posta & iletişim           ← SIRADA
+[ ] Faz 27   Öğrenme & kişisel gelişim    ← SIRADA
+[ ] Faz 28   Fiziksel dünya & IoT         ← SIRADA
+[ ] Faz 29   Çoklu model orkestrasyonu    ← SIRADA
 ```
