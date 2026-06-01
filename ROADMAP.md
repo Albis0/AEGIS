@@ -179,11 +179,11 @@
 - ✅ `list_plugins` / `reload_plugins` tool'ları: AEGIS'e "plugin'leri listele" diyerek yönet
 - ✅ `require.cache` temizlenerek hot-reload desteklenir
 
-### 9.2 Hazır Plugin'ler
-- [ ] **Spotify** — çal, durdur, atla, ne çalıyor
-- [ ] **VS Code** — dosya aç, terminal komutu
-- [ ] **Steam** — oyun başlat
-- [ ] **OBS** — kayıt başlat/durdur
+### 9.2 Hazır Plugin'ler ✅
+- ✅ **Spotify** — çal/duraklat, atla, önceki, ne çalıyor, ses, arama+çal (6 tool)
+- ✅ **VS Code** — dosya/klasör aç, terminal komutu, yeni dosya, son projeler, uzantı kur (6 tool)
+- ✅ **Steam** — oyun başlat (ad veya App ID), kütüphane listesi, Steam aç, oyun kapat (4 tool)
+- ✅ **OBS** — kayıt başlat/durdur, yayın başlat/durdur, durum, sahne değiştir, sahneler, ses (8 tool, obs-websocket 5.x)
 
 ---
 
@@ -201,5 +201,5 @@
 ✅  Faz 8.2  Chat geçmişi UI         ← TAMAMLANDI
 ✅  Faz 8.3  Command palette         ← TAMAMLANDI
 ✅  Faz 9    Plugin sistemi          ← TAMAMLANDI
-    Faz 10   Gelişmiş bildirimler    ← sıradaki
+✅  Faz 9.2  Hazır plugin'ler        ← TAMAMLANDI (Spotify/VSCode/Steam/OBS)
 ```
