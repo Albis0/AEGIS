@@ -6,6 +6,7 @@ import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
 import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
+import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 
 type ToolResult = string;
 
@@ -469,6 +470,63 @@ const schedulerSchemas: ChatCompletionTool[] = [
     },
 ];
 
+const automationSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "if_then",
+            description: "Koşullu otomasyon kur. 'Saat 23 olunca ekranı karat', 'CPU 90 geçince müziği durdur' gibi. Desteklenen metrikler: cpu, ram, gpu, disk, hour, minute.",
+            parameters: {
+                type: "object",
+                properties: {
+                    condition: {type: "string", description: "Koşul ifadesi: 'cpu > 80', 'hour == 23', 'ram >= 75'"},
+                    action:    {type: "string", description: "Tetiklenince AEGIS'e gönderilecek komut"},
+                },
+                required: ["condition", "action"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_automations",
+            description: "Tanımlı otomasyon kurallarını listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "remove_automation",
+            description: "Bir otomasyon kuralını sil.",
+            parameters: {
+                type: "object",
+                properties: {
+                    id_or_condition: {type: "string", description: "Otomasyon ID veya koşul ifadesi (kısmi eşleşme)"},
+                },
+                required: ["id_or_condition"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "toggle_automation",
+            description: "Bir otomasyon kuralını etkinleştir/devre dışı bırak.",
+            parameters: {
+                type: "object",
+                properties: {
+                    id_or_condition: {type: "string", description: "Otomasyon ID veya koşul ifadesi"},
+                },
+                required: ["id_or_condition"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const macroSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -595,7 +653,7 @@ const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
+export function getAllToolSchemas(): ChatCompletionTool[] { return [...toolSchemas, ...schedulerSchemas, ...automationSchemas, ...macroSchemas, ...agentSchemas, ...watchSchemas, ...extraSchemas]; }
 
 let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
@@ -990,6 +1048,19 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async delete_macro({name}) {
         return deleteMacro(name ?? "");
+    },
+
+    async if_then({condition, action}) {
+        return addAutomation(condition ?? "", action ?? "");
+    },
+    async list_automations() {
+        return listAutomations();
+    },
+    async remove_automation({id_or_condition}) {
+        return removeAutomation(id_or_condition ?? "");
+    },
+    async toggle_automation({id_or_condition}) {
+        return toggleAutomation(id_or_condition ?? "");
     },
 };
 

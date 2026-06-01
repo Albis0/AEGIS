@@ -252,10 +252,11 @@
 - ✅ `list_macros` / `delete_macro` tool'ları
 - ✅ Makrolar `~/.aegis/macros.json`'da saklanır
 
-### 12.3 Koşullu Otomasyon
-- [ ] `if_then` tool: "eğer X ise Y yap" kuralları tanımla
-- [ ] Örn: "Saat 23:00 geçince ekranı karat ve müziği durdur"
-- [ ] Kurallar `~/.aegis/automations.json`'da saklanır, boot'ta yüklenir
+### 12.3 Koşullu Otomasyon ✅
+- ✅ `if_then` tool: `"cpu > 80"`, `"hour == 23"`, `"ram >= 75"` gibi koşullar tanımla
+- ✅ `list_automations` / `remove_automation` / `toggle_automation` tool'ları
+- ✅ Kurallar `~/.aegis/automations.json`'da saklanır
+- ✅ Her 1.5sn telemetri döngüsünde değerlendirilir; 2dk cooldown ile spam engellenir
 
 ---
 

@@ -10,6 +10,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback} from "./tools";
 import {addMacroStep, isRecording} from "./macros";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
+import {checkAutomations} from "./automations";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
@@ -581,12 +582,18 @@ function startTelemetry(): void {
             activeWindow,
         });
 
-        // Eşik uyarıları — her 1.5sn kontrol, 60sn cooldown
+        // Eşik uyarıları + koşullu otomasyon — her 1.5sn kontrol
+        const ramPct = Math.round((usedMem / totalMem) * 100);
+        const gpuLoad = gpuInfo[0]?.load ?? 0;
+        const now = new Date();
+        const liveMetrics = {
+            cpu: cpuTotal, ram: ramPct, gpu: gpuLoad, disk: primaryDiskPct(),
+            hour: now.getHours(), minute: now.getMinutes(),
+        };
+
         if (_watchConditions.size > 0) {
-            const ramPct = Math.round((usedMem / totalMem) * 100);
-            const gpuLoad = gpuInfo[0]?.load ?? 0;
             checkWatchConditions(
-                {cpu: cpuTotal, ram: ramPct, gpu: gpuLoad, disk: primaryDiskPct()},
+                liveMetrics,
                 (msg) => {
                     if (mainWindow && !mainWindow.isDestroyed()) {
                         mainWindow.webContents.send("reminder-fired", {message: msg});
@@ -597,6 +604,12 @@ function startTelemetry(): void {
                 },
             );
         }
+
+        checkAutomations(liveMetrics, (action) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("chat-stream-inject", {command: action});
+            }
+        });
     }, 1500));
 }
 
