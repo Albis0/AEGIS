@@ -739,6 +739,29 @@ function toGeminiParts(content: string | MsgPart[] | null): object[] {
     });
 }
 
+// HTTP provider hatasını kullanıcı dostu, kısa bir mesaja çevirir.
+// Ham JSON gövdesini chat'e basmak yerine duruma göre anlamlı açıklama döndürür.
+async function friendlyHttpError(providerLabel: string, resp: Response): Promise<string> {
+    let bodyText = "";
+    try { bodyText = await resp.text(); } catch { /* ignore */ }
+    let detail = "";
+    try {
+        const j = JSON.parse(bodyText);
+        detail = j?.error?.message ?? j?.message ?? j?.error?.code ?? "";
+    } catch {
+        detail = bodyText.slice(0, 160);
+    }
+    const s = resp.status;
+    if (s === 401 || s === 403) return `${providerLabel}: API anahtarın geçersiz veya yetkisiz (${s}). Ayarlar → Model'den anahtarı kontrol et.`;
+    if (s === 404) return `${providerLabel}: Model bulunamadı (404). Seçili model bu sağlayıcıda mevcut değil — Ayarlar → Model'den başka bir model seç.`;
+    if (s === 429) return `${providerLabel}: Hız sınırına takıldın (429). Birkaç saniye sonra tekrar dene.`;
+    if (s === 400 && /model|not found|does not exist|decommission/i.test(detail)) {
+        return `${providerLabel}: Bu model artık geçersiz veya desteklenmiyor. Ayarlar → Model'den güncel bir model seç.`;
+    }
+    if (s >= 500) return `${providerLabel}: Sağlayıcı sunucu hatası (${s}). Geçici olabilir, tekrar dene.`;
+    return `${providerLabel} hatası (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
+}
+
 // Deneme modu — chat-proxy Edge Function üzerinden Groq (senin key'in, rate limited).
 // SSE stream'i parse edip OAICompletion formatına çevirir (tool-call dahil).
 async function callProxy(
@@ -895,7 +918,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             body: JSON.stringify(body),
         });
-        if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(await friendlyHttpError("Anthropic", resp));
         const data = await resp.json() as {content: {type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown>}[]};
         const textBlock = data.content.find((b) => b.type === "text");
         const toolBlocks = data.content.filter((b) => b.type === "tool_use");
@@ -951,7 +974,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
             {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
         );
-        if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(await friendlyHttpError("Gemini", resp));
 
         const data = await resp.json() as {
             candidates?: [{content?: {parts?: ({text?: string; functionCall?: {name: string; args: Record<string, unknown>}})[]; role?: string}}]
@@ -1062,7 +1085,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
         headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
         body: JSON.stringify(body),
     });
-    if (!resp.ok) throw new Error(`${provider} ${resp.status}: ${await resp.text()}`);
+    if (!resp.ok) throw new Error(await friendlyHttpError(provider.toUpperCase(), resp));
     const result = await resp.json() as OAICompletion;
     const text = result.choices[0]?.message?.content;
     if (text) onDelta?.(text);
@@ -1276,7 +1299,7 @@ async function bootApp(): Promise<void> {
                 headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
                 body: JSON.stringify(body),
             });
-            if (!resp.ok) throw new Error(`Anthropic vision ${resp.status}: ${await resp.text()}`);
+            if (!resp.ok) throw new Error(await friendlyHttpError("Anthropic vision", resp));
             const data = await resp.json() as {content: {type: string; text?: string}[]};
             return data.content.find((b) => b.type === "text")?.text ?? "(yanıt alınamadı)";
         }
@@ -1294,7 +1317,7 @@ async function bootApp(): Promise<void> {
                 `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
                 {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
             );
-            if (!resp.ok) throw new Error(`Gemini vision ${resp.status}: ${await resp.text()}`);
+            if (!resp.ok) throw new Error(await friendlyHttpError("Gemini vision", resp));
             const data = await resp.json() as {candidates: {content: {parts: {text?: string}[]}}[]};
             return data.candidates[0]?.content?.parts?.find((p) => p.text)?.text ?? "(yanıt alınamadı)";
         }
@@ -1329,7 +1352,7 @@ async function bootApp(): Promise<void> {
                 headers: {"Authorization": `Bearer ${key}`, "content-type": "application/json"},
                 body: JSON.stringify(body),
             });
-            if (!resp.ok) throw new Error(`${provider} vision ${resp.status}: ${await resp.text()}`);
+            if (!resp.ok) throw new Error(await friendlyHttpError(`${provider.toUpperCase()} vision`, resp));
             const data = await resp.json() as {choices: {message: {content: string}}[]};
             return data.choices[0]?.message?.content ?? "(yanıt alınamadı)";
         }
@@ -1420,12 +1443,15 @@ async function bootApp(): Promise<void> {
             }
             await runAgent(messages, reqId);
         } catch (e) {
-            const msg = (e as Error).message ?? String(e);
-            const isLimit = (e as Error & {isLimit?: boolean}).isLimit === true;
+            let msg = (e as Error).message ?? String(e);
+            // Ağ/bağlantı hatalarını da kullanıcı diline çevir
+            if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
+                msg = "İnternet bağlantısı kurulamadı. Ağ bağlantını kontrol et ve tekrar dene.";
+            }
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send("chat-error", {reqId, message: msg});
-                // Limit hatası kullanıcıya doğrudan, "sistem hatası" damgası olmadan gösterilir.
-                mainWindow.webContents.send("chat-delta", {reqId, text: isLimit ? `\n\n${msg}` : `\n\n[Sistem hatası: ${msg}]`});
+                // Mesaj zaten kullanıcı dostu (friendlyHttpError / limit / ağ) — doğrudan göster.
+                mainWindow.webContents.send("chat-delta", {reqId, text: `\n\n⚠ ${msg}`});
                 mainWindow.webContents.send("chat-done", {reqId});
             }
         }
