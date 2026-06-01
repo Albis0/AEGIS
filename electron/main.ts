@@ -11,6 +11,7 @@ import {executeTool, registerQuitCallback, registerSetLanguageCallback, register
 import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
 import {AEGIS_PROXY_URL} from "./aegis-config";
+import {fetchModels} from "./models";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
@@ -1541,6 +1542,12 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());
     ipcMain.handle("usage-get", () => getUsage());
+
+    // Canlı model listesi — provider'ın resmi endpoint'inden (uydurma ID sorununu çözer).
+    ipcMain.handle("models-list", async (_e, {provider, key}: {provider: string; key?: string}) => {
+        const useKey = (key ?? "").trim() || getProviderKey(provider);
+        return fetchModels(provider, useKey, currentSettings.ollamaUrl);
+    });
 
     ipcMain.handle("config-get", () => {
         return {

@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import type {AppSettings, AiProvider} from "../../../electron.d";
 import {
     SectionLabel, FieldLabel, Hint, RadioCard, KeyField, PlainField,
@@ -12,13 +12,46 @@ interface Props {
     onApply: (patch: Partial<AppSettings>) => void;
 }
 
+type DisplayModel = {id: string; label: string; tag?: string; ctx?: string; note?: string};
+
 export default function ModelTab({settings, accent, ac, onApply}: Props) {
     const [paramsOpen, setParamsOpen] = useState(false);
     const provider = settings.aiProvider as AiProvider;
-    const modelList = PROVIDER_MODELS[provider] ?? [];
     const tempMax = TEMP_MAX[provider] ?? 2;
     const needsKey = provider !== "groq" && provider !== "ollama";
     const currentKey = settings.providerKeys?.[provider] ?? "";
+
+    // Canlı model listesi — provider'ın resmi endpoint'inden. Boş/hata olursa
+    // hardcoded liste fallback (uydurma ID sorununu çözer, liste eskimsez).
+    const fallback = PROVIDER_MODELS[provider] ?? [];
+    const [liveModels, setLiveModels] = useState<DisplayModel[]>([]);
+    const [loadingModels, setLoadingModels] = useState(false);
+
+    useEffect(() => {
+        if (provider === "ollama") { setLiveModels([]); return; }
+        let cancelled = false;
+        setLoadingModels(true);
+        setLiveModels([]);
+        window.jarvis.modelsList(provider, currentKey || undefined)
+            .then((list) => {
+                if (cancelled) return;
+                const models = list.map((m) => ({id: m.id, label: m.label ?? m.id}));
+                setLiveModels(models);
+                // Seçili model canlı listede yoksa (uydurma/ölü ID) → listenin ilkine geç.
+                if (models.length > 0 && !models.some((m) => m.id === settings.model)) {
+                    onApply({model: models[0].id});
+                }
+            })
+            .catch(() => { if (!cancelled) setLiveModels([]); })
+            .finally(() => { if (!cancelled) setLoadingModels(false); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [provider, currentKey]);
+
+    // Canlı liste varsa onu, yoksa hardcoded fallback'i göster.
+    const modelList: DisplayModel[] = liveModels.length > 0
+        ? liveModels
+        : fallback.map((m) => ({id: m.id, label: m.label, tag: m.tag, ctx: m.ctx, note: m.note}));
 
     function saveProviderKey(key: string) {
         onApply({providerKeys: {...(settings.providerKeys ?? {}), [provider]: key}});
@@ -118,13 +151,19 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
             )}
 
             {/* Model list */}
-            {provider !== "ollama" && modelList.length > 0 && (
+            {provider !== "ollama" && (
                 <div>
                     <SectionLabel label="MODEL" accent={accent} />
+                    {loadingModels && (
+                        <Hint accent={accent}>Modeller yükleniyor…</Hint>
+                    )}
+                    {!loadingModels && liveModels.length === 0 && (
+                        <Hint accent={accent}>{needsKey && !currentKey ? "Canlı model listesi için API anahtarı gir. Şimdilik bilinen modeller gösteriliyor." : "Canlı liste alınamadı — bilinen modeller gösteriliyor."}</Hint>
+                    )}
                     <div className="space-y-1">
                         {modelList.map((m) => {
                             const active = settings.model === m.id;
-                            const tc = tagColor(m.tag, accent);
+                            const tc = tagColor(m.tag ?? "", accent);
                             return (
                                 <button key={m.id} onClick={() => onApply({model: m.id})}
                                     className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all"
