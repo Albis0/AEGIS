@@ -1165,7 +1165,19 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 .join(", ")}`
         :   "";
     const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext();
-    const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
+    // Konuşma geçmişini son ~20 mesajla sınırla — sınırsız büyüyen geçmiş TPM/token
+    // limitini patlatır (özellikle düşük-TPM modeller). Önceki bağlam zaten
+    // memorySummaries (oturum özetleri) ile system prompt'ta korunuyor.
+    let trimmedHistory = history;
+    if (history.length > 20) {
+        let cut = history.slice(-20);
+        // Pencere "tool" veya tool_calls'lu "assistant" ile başlamamalı — yoksa API
+        // "tool mesajından önce tool_calls gerekli" 400 hatası verir. İlk "user"a hizala.
+        const firstUser = cut.findIndex((m) => m.role === "user");
+        if (firstUser > 0) cut = cut.slice(firstUser);
+        trimmedHistory = cut;
+    }
+    const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...trimmedHistory];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
         if (channel === "chat-delta") broadcastFeedEvent("delta", payload);
@@ -1202,7 +1214,13 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 const result = await executeTool(name, argsJson);
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
-                return {id: call.id, content: String(result)};
+                // Modele geri beslenen sonucu da kırp — devasa tool çıktıları (büyük
+                // dizin listesi, koca dosya, uzun web sonucu) TPM/token limitini patlatmasın.
+                const forModel = String(result);
+                const clipped = forModel.length > 6000
+                    ? forModel.slice(0, 6000) + `\n\n[...kısaltıldı, toplam ${forModel.length} karakter]`
+                    : forModel;
+                return {id: call.id, content: clipped};
             })
         );
         for (const r of toolResults) {
