@@ -1054,49 +1054,69 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
 // gibi 8K) korumak için olabildiğince küçük tutulur.
 const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
 
-// Aksiyon fiil/isim KÖKLERİ. Türkçe ekler sona geldiği için her kelimenin
-// köküyle BAŞLAYIP başlamadığına bakarız (aç→açar, kur→kurdu). Bu hem JS \b'nin
-// Türkçe ç/ş/ğ tanımama sorununu hem "nasılsin→sil" gibi kelime-içi false-positive'i çözer.
+// Aksiyon fiil/isim KÖKLERİ — hepsi NORMALIZE (ASCII, ç→c ş→s ı→i ö→o ü→u ğ→g).
+// Eşleştirme normalize edilmiş kelimeler üzerinde startsWith ile yapılır; Türkçe
+// ekler sona geldiğinden kök yeter (ac→aciyor, gonder→gonderdim). Kelime-içi
+// false-positive (nasilsin→sil) yaşanmaz çünkü kelimenin BAŞINA bakılır.
 const ACTION_ROOTS = [
-    "aç", "kapat", "çalış", "başlat", "durdur", "yaz", "oku", "sil", "taşı", "kopyala",
-    "indir", "kur", "yükle", "ara", "bul", "getir", "göster", "listele", "oluştur",
-    "ekle", "kaydet", "gönder", "hatırlat", "zamanla", "ayarla", "değiştir", "güncelle",
-    "kontrol", "tara", "bağlan", "ölç", "hesapla", "çevir", "dönüştür", "çal", "yazdır",
-    "komut", "dosya", "klasör", "ekran", "sistem", "process", "servis", "uygulama", "program",
+    "ac", "kapat", "calis", "baslat", "durdur", "yaz", "oku", "sil", "tasi", "kopyala",
+    "indir", "kur", "yukle", "ara", "bul", "getir", "goster", "listele", "olustur",
+    "ekle", "kaydet", "gonder", "hatirlat", "zamanla", "ayarla", "degistir", "guncelle",
+    "kontrol", "tara", "baglan", "olc", "hesapla", "cevir", "donustur", "cal", "yazdir",
+    "komut", "dosya", "klasor", "ekran", "sistem", "process", "servis", "uygulama", "program",
     "open", "close", "start", "stop", "write", "read", "delete", "move", "copy", "download",
     "install", "search", "find", "create", "send", "remind", "schedule", "update", "check",
     "scan", "connect", "play", "print", "launch", "run", "file", "folder", "screen",
 ];
 
-function hasActionSignal(text: string): boolean {
-    const words = text.toLowerCase().split(/[^a-zçğıöşü0-9]+/i).filter(Boolean);
-    return words.some((w) => ACTION_ROOTS.some((root) => w.startsWith(root)));
+// Türkçe karakterleri ASCII'ye indir — kullanıcı "dönüştür" veya "donustur"
+// yazsa da aynı eşleşsin. Eşleştirme hep normalize edilmiş metin üzerinde yapılır.
+function normalizeTr(s: string): string {
+    return s.toLowerCase()
+        .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
+        .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
+        .replace(/î/g, "i").replace(/â/g, "a");
 }
 
-// Bağlama göre eklenen tool grupları. Anahtar kelimelerden biri kullanıcı
-// mesajında geçerse grup eklenir. Böylece her isteğe 130+ tool yerine yalnızca
-// çekirdek + alakalı gruplar gider → TPM/token tasarrufu.
-const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; keywords: RegExp}[] = [
-    {schemas: () => memoryPlusSchemas,  keywords: /hatırla|hafıza|profil|not(um|un|lar)?|beni tanı|kim olduğum|tercih|memory|remember/i},
-    {schemas: () => schedulerSchemas,   keywords: /hatırlat|zamanla|schedule|reminder|alarm|her gün|saat \d/i},
-    {schemas: () => marketplaceSchemas, keywords: /plugin|eklenti|marketplace|kur(ulum)?|yükle/i},
-    {schemas: () => securitySchemas,    keywords: /şifre|parola|vault|kasa|güvenli|encrypt|secret|gizli/i},
-    {schemas: () => knowledgeSchemas,   keywords: /bilgi|knowledge|rag|belge|doküman|index|ara(ma)?|öğren/i},
-    {schemas: () => automationSchemas,  keywords: /otomasyon|automation|tetikle|trigger|kural|workflow|akış/i},
-    {schemas: () => macroSchemas,       keywords: /makro|macro|kayıt|kaydet.*adım|tekrarla|record/i},
-    {schemas: () => agentSchemas,       keywords: /ajan|agent|otonom|adım adım|kendi başına|görev.*tamamla/i},
-    {schemas: () => watchSchemas,       keywords: /izle|watch|uyar|alert|eşik|threshold|takip/i},
-    {schemas: () => soundSchemas,       keywords: /ses çal|sound|bip|beep|çalar|notification.*ses/i},
-    {schemas: () => codeToolSchemas,    keywords: /kod|code|git|npm|derle|compile|lint|test|repo|commit|fonksiyon/i},
-    {schemas: () => timeSchemas,        keywords: /saat|tarih|zaman|time|takvim|calendar|timezone|gün|hafta/i},
-    {schemas: () => mediaSchemas,       keywords: /resim|görsel|image|video|medya|media|fotoğraf|dönüştür|convert|kırp/i},
-    {schemas: () => personaSchemas,     keywords: /kişilik|persona|rol|karakter|ton|davran|tarz/i},
-    {schemas: () => networkSchemas,     keywords: /ağ|network|ping|ssh|docker|port|ip|sunucu|server|bağlan/i},
-    {schemas: () => vizSchemas,         keywords: /grafik|chart|görselleştir|rapor|report|tablo|istatistik|graph/i},
-    {schemas: () => emailSchemas,       keywords: /e-?posta|mail|smtp|imap|gönder.*mesaj|taslak|inbox/i},
-    {schemas: () => learningSchemas,    keywords: /öğren|kart|flashcard|tekrar|okuma|hedef|goal|çalış(ma)?/i},
-    {schemas: () => iotSchemas,         keywords: /bluetooth|usb|yazıcı|print|cihaz|device|hava istasyon|iot/i},
-    {schemas: () => multiModelSchemas,  keywords: /model.*karşılaştır|pipeline|zincir|compare|yönlendir|route/i},
+// Kelimelere böl (normalize sonrası ASCII).
+function tokenize(text: string): string[] {
+    return normalizeTr(text).split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+// Bir kelime, köklerden biriyle BAŞLIYOR mu? (Türkçe ekler sona gelir: ac→aciyor)
+function matchesRoots(words: string[], roots: string[]): boolean {
+    return words.some((w) => roots.some((r) => w.startsWith(r)));
+}
+
+function hasActionSignal(words: string[]): boolean {
+    return matchesRoots(words, ACTION_ROOTS);
+}
+
+// Bağlama göre eklenen tool grupları. Kök listesi NORMALIZE edilmiş (ASCII) —
+// "resim/resmi", "donustur/dönüştür" gibi varyantları yakalamak için kök tutulur.
+// Yanlış tarafa düşmektense (false-negative = tool gelmez, AI yapamaz) FAZLA tool
+// göndermek (false-positive = sadece token) tercih edilir.
+const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
+    {schemas: () => memoryPlusSchemas,  roots: ["hatirla", "hafiza", "profil", "not", "tani", "tercih", "memory", "remember"]},
+    {schemas: () => schedulerSchemas,   roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm"]},
+    {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace"]},
+    {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
+    {schemas: () => knowledgeSchemas,   roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index"]},
+    {schemas: () => automationSchemas,  roots: ["otomasyon", "automation", "tetikle", "trigger", "workflow"]},
+    {schemas: () => macroSchemas,       roots: ["makro", "macro", "record"]},
+    {schemas: () => agentSchemas,       roots: ["ajan", "agent", "otonom"]},
+    {schemas: () => watchSchemas,       roots: ["izle", "watch", "uyar", "alert", "esik", "threshold", "takip"]},
+    {schemas: () => soundSchemas,       roots: ["bip", "beep", "calar"]},
+    {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon"]},
+    {schemas: () => timeSchemas,        roots: ["saat", "tarih", "zaman", "time", "takvim", "calendar", "timezone", "hafta"]},
+    {schemas: () => mediaSchemas,       roots: ["resim", "resm", "gorsel", "image", "video", "medya", "media", "foto", "donustur", "convert", "kirp"]},
+    {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
+    {schemas: () => networkSchemas,     roots: ["ping", "ssh", "docker", "sunucu", "server", "network", "port"]},
+    {schemas: () => vizSchemas,         roots: ["grafik", "chart", "gorsellestir", "rapor", "report", "tablo", "istatistik", "graph"]},
+    {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox"]},
+    {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
+    {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
+    {schemas: () => multiModelSchemas,  roots: ["pipeline", "karsilastir", "compare"]},
 ];
 
 // context = son kullanıcı mesajı (düz metin). Verilirse bağlama göre tool seçilir.
@@ -1105,16 +1125,14 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
 
     let selected: ChatCompletionTool[];
     if (context !== undefined) {
-        const ctx = context.trim();
-        const hasGroupMatch = TOOL_GROUPS.some((g) => g.keywords.test(ctx));
+        const words = tokenize(context);
+        const matchedGroups = TOOL_GROUPS.filter((g) => matchesRoots(words, g.roots));
         // Sohbet/selam/saçma metin (aksiyon sinyali yok, grup eşleşmesi yok) → HİÇ tool yok.
-        if (!hasActionSignal(ctx) && !hasGroupMatch) {
+        if (!hasActionSignal(words) && matchedGroups.length === 0) {
             selected = [];
         } else {
             selected = [...CORE_SCHEMAS()];
-            for (const group of TOOL_GROUPS) {
-                if (group.keywords.test(ctx)) selected.push(...group.schemas());
-            }
+            for (const group of matchedGroups) selected.push(...group.schemas());
         }
     } else {
         // Bağlam yok (ör. ajan modu) → eski davranış: hepsi.
