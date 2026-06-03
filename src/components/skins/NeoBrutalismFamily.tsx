@@ -1,9 +1,8 @@
 // AEGIS — "Neo-brutalism" skin ailesi (4 ferdi: Poster / Stack / Switch / Grid)
 // =============================================================================
-// Tasarım dili: AÇIK TEMA. Krem/beyaz (#faf8f0) zemin, SAF SİYAH kalın çerçeve,
-// elektrik vurgu rengi (--nb-accent), sert ofset drop-shadow (4px 4px 0 #000),
+// Tasarım dili: KOYU TEMA. Siyah zemin (#0d0d0d), beyaz kalın çerçeve,
+// elektrik vurgu rengi, sert ofset drop-shadow (4px 4px 0 #fff / renkli),
 // düz renk (gradyan yok), dev/kalın tipografi. Syne / Space Grotesk.
-// Diğer ailelerden (koyu Aegis HUD, doku Skeuomorphism, pastel Clay) tamamen farklı.
 
 import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
@@ -12,15 +11,15 @@ import VoiceModeToggle from "../VoiceModeToggle";
 
 // ─── Aile renk sabitleri (kullanıcı accent'inden bağımsız) ───────────────────
 const NB = {
-    bg:       "#faf8f0",   // krem
-    bgCard:   "#ffffff",
-    ink:      "#0a0a0a",   // neredeyse siyah
-    border:   "#0a0a0a",
-    accent:   "#2563eb",   // elektrik mavi (varsayılan; swatch)
+    bg:       "#0d0d0d",   // neredeyse siyah
+    bgCard:   "#181818",   // kart zemini
+    ink:      "#f0ede6",   // krem beyaz metin
+    border:   "#f0ede6",   // beyaz çerçeve
+    accent:   "#3b82f6",   // elektrik mavi
     accentAlt:"#f59e0b",   // sarı vurgu (ikincil)
-    shadow:   "4px 4px 0 #0a0a0a",
-    shadowSm: "2px 2px 0 #0a0a0a",
-    danger:   "#dc2626",
+    shadow:   "4px 4px 0 #f0ede6",
+    shadowSm: "2px 2px 0 #f0ede6",
+    danger:   "#ef4444",
 };
 
 const nbRoot: React.CSSProperties = {
@@ -262,8 +261,8 @@ export function NbSwitch(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex" style={nbRoot}>
             {/* Sol sidebar — durum + telemetri */}
-            <aside className="shrink-0 w-20 flex flex-col" style={{borderRight: `2px solid ${NB.border}`, background: NB.ink, color: "#fff"}}>
-                <div className="drag h-10 flex items-center justify-center" style={{borderBottom: `2px solid #fff`}}>
+            <aside className="shrink-0 w-20 flex flex-col" style={{borderRight: `2px solid ${NB.border}`, background: "#1a1a1a", color: NB.ink}}>
+                <div className="drag h-10 flex items-center justify-center" style={{borderBottom: `2px solid ${NB.border}`}}>
                     <span className="text-[11px] font-black uppercase tracking-widest" style={{writingMode: "vertical-rl", transform: "rotate(180deg)"}}>AEGIS</span>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 py-3 text-[10px] font-bold">
@@ -286,14 +285,14 @@ export function NbSwitch(p: SkinProps) {
                     {p.onHistoryOpen && (
                         <button onClick={p.onHistoryOpen} title={p.t.tipHistory}
                             className="w-full h-7 grid place-items-center text-[11px] font-black"
-                            style={{border: "2px solid #fff", background: "transparent", color: "#fff", boxShadow: "2px 2px 0 #555"}}>H</button>
+                            style={{border: `2px solid ${NB.border}`, background: "transparent", color: NB.ink, boxShadow: `2px 2px 0 ${NB.border}`}}>H</button>
                     )}
                     <button onClick={p.onSettingsOpen} title={p.t.tipSettings}
                         className="w-full h-7 grid place-items-center text-[11px] font-black"
-                        style={{border: "2px solid #fff", background: "transparent", color: "#fff", boxShadow: "2px 2px 0 #555"}}>S</button>
+                        style={{border: `2px solid ${NB.border}`, background: "transparent", color: NB.ink, boxShadow: `2px 2px 0 ${NB.border}`}}>S</button>
                     <button onClick={() => window.jarvis.minimize()}
                         className="w-full h-7 grid place-items-center text-[11px] font-black"
-                        style={{border: "2px solid #fff", background: "transparent", color: "#fff", boxShadow: "2px 2px 0 #555"}}>_</button>
+                        style={{border: `2px solid ${NB.border}`, background: "transparent", color: NB.ink, boxShadow: `2px 2px 0 ${NB.border}`}}>_</button>
                     <button onClick={() => window.jarvis.close()}
                         className="w-full h-7 grid place-items-center text-[11px] font-black"
                         style={{border: `2px solid ${NB.danger}`, background: NB.danger, color: "#fff", boxShadow: "2px 2px 0 #000"}}>✕</button>
