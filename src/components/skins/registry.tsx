@@ -9,6 +9,8 @@ import MinimalSkin from "./MinimalSkin";
 import TerminalSkin from "./TerminalSkin";
 import DashboardSkin from "./DashboardSkin";
 import {NebulaAura, NebulaChat, NebulaBoard, NebulaZen} from "./NebulaFamily";
+import {CodexDoc, CodexSplit, CodexGrid, CodexLog} from "./CodexFamily";
+import {RetroCRT, RetroBoot, RetroPanel, RetroWave} from "./RetroFamily";
 
 export interface SkinDef {
     id: string;
@@ -42,6 +44,24 @@ export const SKIN_FAMILIES: SkinFamily[] = [
             {id: "nebula-chat",  label: "Chat",  sub: "Modern mesajlaşma", icon: "◍", Comp: NebulaChat},
             {id: "nebula-board", label: "Board", sub: "Yuvarlak kartlar", icon: "◰", Comp: NebulaBoard},
             {id: "nebula-zen",   label: "Zen",   sub: "Ultra-minimal",    icon: "○", Comp: NebulaZen},
+        ],
+    },
+    {
+        id: "codex", label: "Codex", sub: "Düz · editöryel · mono",
+        skins: [
+            {id: "codex-doc",   label: "Doc",   sub: "Tek kolon döküman", icon: "▤", Comp: CodexDoc},
+            {id: "codex-split", label: "Split", sub: "Yan panel + feed",  icon: "◫", Comp: CodexSplit},
+            {id: "codex-grid",  label: "Grid",  sub: "Bordürlü hücreler", icon: "▥", Comp: CodexGrid},
+            {id: "codex-log",   label: "Log",   sub: "Kayıt akışı",       icon: "≡", Comp: CodexLog},
+        ],
+    },
+    {
+        id: "retro", label: "Retro", sub: "CRT · beveled · scanline",
+        skins: [
+            {id: "retro-crt",   label: "CRT",   sub: "Tüp ekran",        icon: "▣", Comp: RetroCRT},
+            {id: "retro-boot",  label: "Boot",  sub: "BIOS açılış",      icon: "▤", Comp: RetroBoot},
+            {id: "retro-panel", label: "Panel", sub: "Çentikli paneller", icon: "◫", Comp: RetroPanel},
+            {id: "retro-wave",  label: "Wave",  sub: "Synthwave ızgara", icon: "◢", Comp: RetroWave},
         ],
     },
 ];
