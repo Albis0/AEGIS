@@ -26,8 +26,8 @@ export interface AppSettings {
     providerKeys: Record<string, string>;
     ollamaUrl: string;
     ollamaNumCtx: number;
-    skin: "hologram" | "minimal" | "terminal" | "dashboard";
-    uiFamily: string; // UI ailesi/tema (themes.ts): cyber/synthwave/matrix/aurora/ember
+    skin: string; // skin id (registry.tsx): hologram/minimal/terminal/dashboard/nebula-*
+    uiFamily: string; // renk/zemin palet preset (themes.ts): cyber/synthwave/matrix/aurora/ember
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;

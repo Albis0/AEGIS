@@ -5,10 +5,7 @@ import ChatHistorySidebar from "./components/ChatHistorySidebar";
 import CommandPalette from "./components/CommandPalette";
 import {useVoice, type VoiceMode} from "./hooks/useVoice";
 import type {Telemetry, Weather, AppSettings, TelemetryWidget} from "./electron.d";
-import HologramSkin from "./components/skins/HologramSkin";
-import MinimalSkin from "./components/skins/MinimalSkin";
-import TerminalSkin from "./components/skins/TerminalSkin";
-import DashboardSkin from "./components/skins/DashboardSkin";
+import {getSkinComp} from "./components/skins/registry";
 import {UI, type Lang} from "./i18n";
 import {getFamily} from "./themes";
 
@@ -412,10 +409,7 @@ export default function App() {
                 onSelect={handlePaletteSelect}
                 lang={lang}
             />
-            {skin === "minimal"   ? <MinimalSkin   {...skinProps} /> :
-             skin === "terminal"  ? <TerminalSkin  {...skinProps} /> :
-             skin === "dashboard" ? <DashboardSkin {...skinProps} /> :
-                                    <HologramSkin  {...skinProps} />}
+            {(() => { const SkinComp = getSkinComp(skin); return <SkinComp {...skinProps} />; })()}
         </>
     );
 }

@@ -683,6 +683,19 @@ gerçek skin "aileleri" Faz 33'te.)*
 
 ---
 
+## Faz 33 — Skin Aileleri 🧩 (1/4 aile · sürüyor)
+*Mevcut 4 skin tek bir AİLE altında ("Aegis HUD"). Kullanıcı 3 farklı aile daha
+istedi, her birinin 4 ferdi (skin) olacak şekilde — recolor değil, gerçek farklı
+layout'lar. Toplam hedef: 4 aile × 4 skin = 16.*
+- ✅ Mimari: `src/components/skins/registry.tsx` — skinler ailelere gruplu; App render + Ayarlar seçici buradan; `skin` tipi `string`'e açıldı
+- ✅ Ayarlar → Görünüm: skin seçici "AİLE › FERDİ" gruplu
+- ✅ **Aile 1 — Aegis HUD**: hologram / minimal / terminal / dashboard (mevcut)
+- ✅ **Aile 2 — Nebula** (yumuşak/yuvarlak/bubble/gradient): Aura / Chat / Board / Zen — `NebulaFamily.tsx`
+- ⬜ **Aile 3** — (gelecek tur) farklı tasarım dili, 4 skin
+- ⬜ **Aile 4** — (gelecek tur) farklı tasarım dili, 4 skin
+
+---
+
 ## 🌐 Çalışma Listesi — Tam i18n (geçici, bitince sil)
 *Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde

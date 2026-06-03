@@ -2,6 +2,7 @@ import {useState} from "react";
 import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, Toggle} from "../shared";
 import {UI_FAMILIES, type UiFamily} from "../../../themes";
+import {SKIN_FAMILIES} from "../../skins/registry";
 
 const ACCENT_COLORS = [
     {id: "34,211,238",  label: "Cyan",    hex: "#22d3ee"},
@@ -30,12 +31,6 @@ const FONTS = [
     {id: "spacegrotesk", label: "Space Grotesk", sub: "Grotesque · techy", family: "'Space Grotesk'"},
 ] as const;
 
-const SKINS = [
-    {id: "hologram",  icon: "◎", label: "Hologram",  sub: "3D globe · HUD"},
-    {id: "minimal",   icon: "—", label: "Minimal",   sub: "Sade · metin"},
-    {id: "terminal",  icon: ">", label: "Terminal",  sub: "CLI emülatörü"},
-    {id: "dashboard", icon: "▦", label: "Dashboard", sub: "Widget grid"},
-] as const;
 
 interface Props {
     settings: AppSettings;
@@ -122,23 +117,34 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* UI Skin */}
+            {/* UI Skin — aileye göre gruplu (her aile = bir tasarım dili, 4 ferdi) */}
             <div>
-                <SectionLabel label="UI SKIN" accent={accent} />
-                <div className="grid grid-cols-2 gap-2">
-                    {SKINS.map((s) => {
-                        const active = settings.skin === s.id;
-                        return (
-                            <RadioCard key={s.id} active={active} accent={accent}
-                                onClick={() => applyWithSideEffect({skin: s.id})}
-                                className="flex flex-col gap-0.5 px-4 py-3.5">
-                                <span className="text-2xl leading-none" style={{color: active ? ac : `rgba(${accent},0.3)`}}>{s.icon}</span>
-                                <span className="text-[13px] font-semibold mt-2"
-                                    style={{color: active ? ac : `rgba(${accent},0.6)`}}>{s.label}</span>
-                                <span className="text-[11px] mt-0.5" style={{color: `rgba(${accent},0.35)`}}>{s.sub}</span>
-                            </RadioCard>
-                        );
-                    })}
+                <SectionLabel label="UI SKIN — AİLE › FERDİ" accent={accent} />
+                <div className="space-y-4">
+                    {SKIN_FAMILIES.map((fam) => (
+                        <div key={fam.id}>
+                            <div className="flex items-baseline gap-2 mb-1.5 px-0.5">
+                                <span className="text-[11px] font-semibold tracking-wide" style={{color: `rgba(${accent},0.75)`}}>{fam.label}</span>
+                                <span className="text-[9px]" style={{color: `rgba(${accent},0.35)`}}>{fam.sub}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {fam.skins.map((s) => {
+                                    const active = settings.skin === s.id;
+                                    return (
+                                        <RadioCard key={s.id} active={active} accent={accent}
+                                            onClick={() => applyWithSideEffect({skin: s.id})}
+                                            className="flex items-center gap-2.5 px-3.5 py-2.5">
+                                            <span className="text-xl leading-none shrink-0" style={{color: active ? ac : `rgba(${accent},0.3)`}}>{s.icon}</span>
+                                            <span className="flex-1 min-w-0">
+                                                <span className="block text-[12.5px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{s.label}</span>
+                                                <span className="block text-[10px] truncate" style={{color: `rgba(${accent},0.35)`}}>{s.sub}</span>
+                                            </span>
+                                        </RadioCard>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
