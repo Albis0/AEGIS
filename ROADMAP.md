@@ -625,11 +625,11 @@
 - ✅ İstek başına token tavanı Edge'de zorlanıyor; 429 limit testi doğrulandı
 - ✅ Hesap sekmesi: mod, e-posta, kota çubukları, çıkış; UTC sıfırlama notu
 
-### 30.7 Cloud sync (Gelişmiş mod, opsiyonel auth) ⬜
-- ⬜ Ayarlar + şifreli API key'leri `user_configs`'e yaz
-- ⬜ İstemci tarafı şifreleme — sunucu düz key görmez
-- ⬜ Açılışta cloud'dan çek, yerel `~/.aegis` ile birleştir (en yeni kazanır)
-- ⬜ "Bu cihazı senkronla" toggle'ı
+### 30.7 Cloud sync (Gelişmiş mod, opsiyonel auth) ✅
+- ✅ Ayarlar + şifreli API key'leri `user_configs`'e yaz (`cloud-sync.ts`, debounce'lu otomatik push)
+- ✅ İstemci tarafı şifreleme — AES-256-GCM (user.id'den türetilen anahtar); sunucuda key düz metin DEĞİL (test edildi)
+- ✅ Açılışta `pullFromCloud` ile çek, yerel `~/.aegis` ile birleştir; uçtan uca roundtrip test edildi
+- ✅ "Bu cihazı senkronla" toggle'ı (Ayarlar → Hesap)
 
 ### 30.8 Dağıtım sertleştirme & yayın ⬜
 - ⬜ Repo sır taraması (grep + git hook) — service_role / Groq key sızıntısı yok

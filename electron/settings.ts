@@ -52,6 +52,7 @@ export interface AppSettings {
     tempUnit: "C" | "F";
     fullPcAccess: boolean;
     disabledTools: string[];
+    cloudSync: boolean; // "Bu cihazı senkronla" (Faz 30.7) — giriş varsa ayar/key bulut sync
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -93,6 +94,7 @@ const DEFAULTS: AppSettings = {
     tempUnit: "C",
     fullPcAccess: false,
     disabledTools: [],
+    cloudSync: true,
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

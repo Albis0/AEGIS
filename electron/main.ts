@@ -12,6 +12,7 @@ import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchModels} from "./models";
+import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
@@ -38,6 +39,15 @@ let currentSettings = loadSettings();
 let MODEL = currentSettings.model;
 setFullPcAccess(currentSettings.fullPcAccess ?? false);
 setDisabledTools(currentSettings.disabledTools ?? []);
+
+// Cloud sync debounce — ardışık ayar değişikliklerini tek push'ta topla (3sn).
+let _cloudPushTimer: NodeJS.Timeout | null = null;
+function scheduleCloudPush(): void {
+    if (_cloudPushTimer) clearTimeout(_cloudPushTimer);
+    _cloudPushTimer = setTimeout(() => {
+        pushToCloud().catch(() => {}); // sessiz başarısızlık — giriş yoksa/sync kapalıysa zaten no-op
+    }, 3000);
+}
 
 const SYSTEM_PROMPTS: Record<string, string> = {
     tr: `Sen AEGIS, kişisel AI asistanısın. Türkçe konuş, kısa ve net ol. Windows 11'de çalışıyorsun. PowerShell sözdizimi kullan. Uygulama açmak için Start-Process, kapatmak için Stop-Process kullan. Araçları gerektiğinde kullan, önce yap sonra özetle.
@@ -1287,6 +1297,17 @@ async function bootApp(): Promise<void> {
     const {safeStorage} = await import("electron");
     initVault(safeStorage);
 
+    // Cloud sync (Faz 30.7) — giriş + sync açıksa açılışta buluttan ayar/key çek.
+    try {
+        const res = await pullFromCloud();
+        if (res.applied) {
+            currentSettings = loadSettings();
+            MODEL = currentSettings.model;
+            setFullPcAccess(currentSettings.fullPcAccess ?? false);
+            setDisabledTools(currentSettings.disabledTools ?? []);
+        }
+    } catch { /* sync opsiyonel — başarısızlık uygulamayı durdurmaz */ }
+
     registerQuitCallback(() => app.quit());
 
     registerRemindCallback((message) => {
@@ -1680,6 +1701,8 @@ async function bootApp(): Promise<void> {
                 ttsVoice: currentSettings.ttsVoice,
             });
         }
+        // Cloud sync (Faz 30.7) — ayar değişince debounce'lu buluta yaz (giriş + sync açıksa).
+        scheduleCloudPush();
         return currentSettings;
     });
 

@@ -109,6 +109,7 @@ export interface AppSettings {
     tempUnit: "C" | "F";
     fullPcAccess: boolean;
     disabledTools: string[];
+    cloudSync: boolean;
 }
 
 export interface AegisConfig {

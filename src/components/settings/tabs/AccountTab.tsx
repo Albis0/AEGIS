@@ -18,7 +18,7 @@ interface Usage {
     limitRequests: number; limitTokens: number;
 }
 
-export default function AccountTab({accent, ac, settings}: Props) {
+export default function AccountTab({accent, ac, settings, onApply}: Props) {
     const [user, setUser] = useState<{userId: string; email?: string} | null>(null);
     const [usage, setUsage] = useState<Usage | null>(null);
     const [loading, setLoading] = useState(true);
@@ -70,6 +70,32 @@ export default function AccountTab({accent, ac, settings}: Props) {
                         ) : (
                             <Hint accent={accent}>Kotayı görmek için giriş yapman gerekiyor.</Hint>
                         )}
+                    </div>
+                </>
+            )}
+
+            {user && (
+                <>
+                    <SectionLabel label="BULUT SENKRONİZASYONU" accent={accent} />
+                    <div className="rounded-xl p-4 space-y-3" style={card}>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[12.5px]" style={{color: ac, opacity: 0.8}}>Bu cihazı senkronla</span>
+                            <button
+                                onClick={() => onApply({cloudSync: !(settings.cloudSync ?? true)})}
+                                className="shrink-0 w-11 h-6 rounded-full relative transition-all"
+                                style={{
+                                    background: (settings.cloudSync ?? true) ? `rgba(${accent},0.45)` : `rgba(${accent},0.08)`,
+                                    border: `1px solid ${(settings.cloudSync ?? true) ? `rgba(${accent},0.6)` : `rgba(${accent},0.2)`}`,
+                                }}
+                            >
+                                <span className="absolute top-1 w-4 h-4 rounded-full transition-all"
+                                    style={{
+                                        background: (settings.cloudSync ?? true) ? `rgb(${accent})` : `rgba(${accent},0.3)`,
+                                        left: (settings.cloudSync ?? true) ? "calc(100% - 18px)" : "2px",
+                                    }} />
+                            </button>
+                        </div>
+                        <Hint accent={accent}>Açıkken ayarların ve API anahtarların (şifreli) cihazlar arasında otomatik senkronlanır. Anahtarlar sunucuda düz metin olarak saklanmaz.</Hint>
                     </div>
                 </>
             )}
