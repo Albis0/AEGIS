@@ -804,18 +804,24 @@ async function callProxy(
     const token = await getAccessToken();
     if (!token) throw new Error("Deneme modu için giriş yapman gerekiyor. Lütfen oturum aç.");
 
-    const resp = await fetch(AEGIS_PROXY_URL, {
-        method: "POST",
-        headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
-        body: JSON.stringify({
-            model: opts.model,
-            messages,
-            // Boş tool listesi gönderme (sohbet mesajları) — token tasarrufu.
-            ...(tools.length > 0 ? {tools} : {}),
-            temperature: opts.temperature,
-            max_tokens: opts.max_tokens,
-        }),
-    });
+    let resp: Response;
+    try {
+        resp = await fetch(AEGIS_PROXY_URL, {
+            method: "POST",
+            headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
+            body: JSON.stringify({
+                model: opts.model,
+                messages,
+                // Boş tool listesi gönderme (sohbet mesajları) — token tasarrufu.
+                ...(tools.length > 0 ? {tools} : {}),
+                temperature: opts.temperature,
+                max_tokens: opts.max_tokens,
+            }),
+        });
+    } catch {
+        // Proxy/Supabase'e ulaşılamadı (servis down veya ağ yok) → gelişmiş moda düşme öner.
+        throw new Error("Deneme servisine ulaşılamıyor (sunucu veya internet bağlantısı). Ayarlar → Model'den kendi API anahtarınla Gelişmiş moda geçebilirsin.");
+    }
 
     if (resp.status === 429) {
         // 429 iki şey olabilir: (a) bizim günlük deneme kotamız doldu (Edge "limit"),

@@ -631,11 +631,37 @@
 - ✅ Açılışta `pullFromCloud` ile çek, yerel `~/.aegis` ile birleştir; uçtan uca roundtrip test edildi
 - ✅ "Bu cihazı senkronla" toggle'ı (Ayarlar → Hesap)
 
-### 30.8 Dağıtım sertleştirme & yayın ⬜
-- ⬜ Repo sır taraması (grep + git hook) — service_role / Groq key sızıntısı yok
-- ⬜ `electron-builder` imzalı build; `AEGIS_*` env'leri CI secret'tan enjekte
-- ⬜ Onboarding metinleri (TR/EN) — deneme vs gelişmiş farkı
-- ⬜ Hata durumları: proxy/Supabase/ağ down → anlamlı mesaj + gelişmiş moda düşme
+### 30.8 Dağıtım sertleştirme & yayın 🔶
+- ✅ Repo sır taraması — service_role / Groq key sızıntısı yok (anon key güvenli); pre-commit hook (`scripts/check-secrets.sh`) gerçek sırrı engelliyor (test edildi)
+- ⬜ `electron-builder` imzalı build; `AEGIS_*` env'leri CI secret'tan enjekte (release ertelendi — daha çok fix var)
+- ✅ Onboarding çok dilli (5 dil) + en başta dil seçim ekranı
+- ✅ Hata durumları: proxy/Supabase/ağ down → "Gelişmiş moda geç" önerili anlamlı mesaj
+
+---
+
+## 🌐 Çalışma Listesi — Tam i18n (geçici, bitince sil)
+*Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
+Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
+i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es).*
+
+**Öncelik 1 — Ana ekran (hep görünür):**
+- ⬜ Skinler: input placeholder, durum metinleri (KONUŞMA, CANLI/HAZIR/İŞLENİYOR/DİNLİYOR), boş-feed mesajları, buton etiketleri (GÖNDER/DURDUR/KAPAT) — Hologram/Minimal/Terminal/Dashboard
+- ⬜ FeedItem: "HATA" etiketi, tool fiilleri (KOMUT YÜRÜTÜLÜYOR, DOSYA OKUNUYOR…)
+- ⬜ CommandPalette: başlık, ipuçları, kategori adları
+- ⬜ ChatHistorySidebar: başlık, "geçmiş yok" vb.
+- ⬜ VoiceModeToggle: mod etiketleri
+
+**Öncelik 2 — Ayarlar paneli (en yoğun, ~200 metin):**
+- ⬜ SettingsPanel: NAV_ITEMS (sekme adları + alt başlıklar)
+- ⬜ settings/shared.tsx: ortak primitive metinleri, model tag'leri
+- ⬜ AccountTab, ModelTab, VoiceTab, AppearanceTab, KeysTab, TelemetryTab, ToolsTab, ShortcutsTab — her sekmenin SectionLabel/Hint/FieldLabel'ları
+- ⬜ SetupScreen (Gelişmiş kurulum) — alan etiketleri, ipuçları, hata mesajları
+
+**Öncelik 3 — Backend kullanıcıya dönen metinler:**
+- ⬜ main.ts hata/limit mesajları (friendlyHttpError, friendlyGroqError, callProxy) — şu an sabit Türkçe; dile göre çevrilmeli
+- ⬜ tools.ts executor dönüş mesajları (ENGELLENDI, HATA, başarı metinleri) — opsiyonel (AI'a gidiyor, kullanıcı dolaylı görür)
+
+**Yaklaşım:** Öncelik 1'i bir turda bitir → commit. Öncelik 2'yi tab-tab (her commit birkaç tab). Öncelik 3 en son. Tahmini: 1 birkaç saat, 2 birkaç tur, 3 kısa.
 
 ---
 
