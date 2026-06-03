@@ -12,6 +12,7 @@ import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchModels} from "./models";
+import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
@@ -703,8 +704,8 @@ function findToolName(messages: OAIMessage[], callId: string): string {
     return "result";
 }
 
-// Reasoning models don't support temperature or tools
-const REASONING_MODELS = new Set(["o1", "o1-mini", "o3", "o3-mini", "o4-mini"]);
+// Not: Modele özel kısıtlar (reasoning, tool/temperature/vision/system desteği,
+// max_tokens & context tavanları) artık ./model-capabilities içinde merkezi.
 
 function extractTextContent(content: string | MsgPart[] | null): string {
     if (!content) return "";
@@ -898,26 +899,97 @@ async function callProxy(
     }}]};
 }
 
+// ───────── Mesaj ön-işleme (modele göre) ─────────
+// Görüntü desteklemeyen modele image göndermeyiz (400 önler) — yer tutucu metne çevir.
+function stripImagesIfNeeded(messages: OAIMessage[], caps: ModelCaps): OAIMessage[] {
+    if (caps.supportsVision) return messages;
+    let changed = false;
+    const out = messages.map((msg) => {
+        if (!Array.isArray(msg.content)) return msg;
+        if (!msg.content.some((p) => p.type === "image_url")) return msg;
+        changed = true;
+        const parts = msg.content.map((p) =>
+            p.type === "image_url" ? {type: "text" as const, text: "[görüntü atlandı: bu model görüntü desteklemiyor]"} : p);
+        return {...msg, content: parts};
+    });
+    return changed ? out : messages;
+}
+
+// system rolünü desteklemeyen modeller (o1-mini/o1-preview) için system metnini
+// ilk user mesajının başına ekleyip system mesajını kaldır.
+function mergeSystemIfNeeded(messages: OAIMessage[], caps: ModelCaps): OAIMessage[] {
+    if (caps.supportsSystemPrompt) return messages;
+    const sys = messages.find((mm) => mm.role === "system");
+    if (!sys) return messages;
+    const sysText = extractTextContent(sys.content);
+    const rest = messages.filter((mm) => mm.role !== "system");
+    const idx = rest.findIndex((mm) => mm.role === "user");
+    if (idx >= 0 && sysText) {
+        rest[idx] = {...rest[idx], content: `${sysText}\n\n${extractTextContent(rest[idx].content)}`};
+    }
+    return rest;
+}
+
+// Bağlam penceresine göre geçmişi kırp. system + en yeni mesajları korur; pencere
+// "tool" ya da araç-çağrılı "assistant" ile başlamasın (yoksa API 400 verir).
+function trimToBudget(messages: OAIMessage[], caps: ModelCaps, maxOut: number): OAIMessage[] {
+    const sysMsg = messages[0]?.role === "system" ? messages[0] : null;
+    const body = sysMsg ? messages.slice(1) : messages;
+    const sysTokens = sysMsg ? estimateTokens(extractTextContent(sysMsg.content)) : 0;
+    const budget = caps.contextWindow - maxOut - sysTokens - 512;
+    if (budget <= 0) return messages;
+
+    const kept: OAIMessage[] = [];
+    let used = 0;
+    for (let i = body.length - 1; i >= 0; i--) {
+        const msg = body[i];
+        let tok = estimateTokens(typeof msg.content === "string" ? msg.content : extractTextContent(msg.content));
+        if (Array.isArray(msg.content)) tok += msg.content.filter((p) => p.type === "image_url").length * 1100;
+        if (used + tok > budget && kept.length > 0) break;
+        kept.unshift(msg);
+        used += tok;
+    }
+    while (kept.length > 0 && (kept[0].role === "tool" || (kept[0].role === "assistant" && kept[0].tool_calls))) {
+        kept.shift();
+    }
+    if (kept.length === 0) {
+        const lastUser = [...body].reverse().find((mm) => mm.role === "user");
+        if (lastUser) kept.push(lastUser);
+    }
+    return sysMsg ? [sysMsg, ...kept] : kept;
+}
+
 async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = getProviderKey(provider);
     const temp = currentSettings.temperature ?? 0.7;
-    const maxTok = currentSettings.maxTokens ?? 8192;
+    const reqMaxTok = currentSettings.maxTokens ?? 8192;
     const topP = currentSettings.topP ?? 1.0;
-    const isReasoning = REASONING_MODELS.has(MODEL);
 
-    // Bağlama göre tool seçimi: son kullanıcı mesajını context olarak ver.
-    // Böylece her isteğe 130+ tool yerine çekirdek + alakalı gruplar gider (token tasarrufu).
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-    const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
-    const activeSchemas = getAllToolSchemas(provider, toolContext);
-
-    // ── Deneme modu (proxy) ────────────────────────────────────────────────────
-    // aiMode "trial" + kullanıcının kendi Groq key'i YOKSA → senin chat-proxy'in
-    // (rate limited). Kendi Groq key'i varsa aşağıdaki normal Groq dalı çalışır.
+    // Deneme modunda (kendi Groq key'i yoksa) chat proxy üzerinden Groq'a gider —
+    // bu yüzden yetenekleri ve tool seçimini groq'a göre hesapla.
     const ownGroqKey = (currentSettings.providerKeys?.groq ?? "").trim();
-    if (currentSettings.aiMode === "trial" && !ownGroqKey) {
-        return callProxy(messages, activeSchemas, {model: MODEL, temperature: temp, max_tokens: maxTok}, onDelta);
+    const trialMode = currentSettings.aiMode === "trial" && !ownGroqKey;
+    const effectiveProvider = trialMode ? "groq" : provider;
+
+    // ── Modele özel yetenekler — her parametreyi buna göre kırp/at ──
+    const caps = getModelCapabilities(effectiveProvider, MODEL, currentSettings.ollamaNumCtx ?? 4096);
+    const maxTok = clampMaxTokens(reqMaxTok, caps);
+    const sendTemp = resolveTemperature(temp, caps); // number | undefined (reasoning → undefined)
+
+    // Mesajları ön-işle: vision yoksa görüntü çıkar, system yoksa birleştir, bağlama göre kırp.
+    messages = stripImagesIfNeeded(messages, caps);
+    messages = mergeSystemIfNeeded(messages, caps);
+    messages = trimToBudget(messages, caps, maxTok);
+
+    // Bağlama göre tool seçimi (token tasarrufu) — model tool desteklemiyorsa HİÇ gönderme.
+    const lastUserMsg = [...messages].reverse().find((mm) => mm.role === "user");
+    const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
+    const activeSchemas = caps.supportsTools ? getAllToolSchemas(effectiveProvider, toolContext) : [];
+
+    // ── Deneme modu (proxy) ──
+    if (trialMode) {
+        return callProxy(messages, activeSchemas, {model: MODEL, temperature: sendTemp ?? temp, max_tokens: maxTok}, onDelta);
     }
 
     // ── Groq (streaming) ──────────────────────────────────────────────────────
@@ -929,7 +1001,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
                 // Boş tool listesi gönderme — sohbet mesajlarında token tasarrufu (özellikle düşük-TPM modeller).
                 ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
                 stream: true,
-                temperature: temp,
+                ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
                 max_tokens: maxTok,
             });
             let fullContent = "";
@@ -968,18 +1040,18 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             model: MODEL,
             max_tokens: maxTok,
             system,
-            temperature: Math.min(temp, 1), // Anthropic max is 1
+            ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
             messages: turns.map((m) => ({
                 role: m.role === "tool" ? "user" : m.role,
                 content: m.role === "tool"
                     ? [{type: "tool_result", tool_use_id: m.tool_call_id, content: typeof m.content === "string" ? m.content : extractTextContent(m.content)}]
                     : toAnthropicContent(m.content),
             })),
-            tools: activeSchemas.map((t) => ({
+            ...(activeSchemas.length > 0 ? {tools: activeSchemas.map((t) => ({
                 name: t.function?.name,
                 description: t.function?.description,
                 input_schema: t.function?.parameters,
-            })),
+            }))} : {}),
         };
         const resp = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -1031,10 +1103,9 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             parameters: s.function?.parameters,
         }));
 
-        const body: Record<string, unknown> = {
-            contents,
-            generationConfig: {temperature: temp, maxOutputTokens: maxTok, topP},
-        };
+        const generationConfig: Record<string, unknown> = {maxOutputTokens: maxTok, topP};
+        if (sendTemp !== undefined) generationConfig.temperature = sendTemp;
+        const body: Record<string, unknown> = {contents, generationConfig};
         if (sysMsg?.content) body.systemInstruction = {parts: [{text: extractTextContent(sysMsg.content)}]};
         if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
 
@@ -1075,9 +1146,9 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
                 body: JSON.stringify({
                     model: MODEL,
                     messages,
-                    tools: activeSchemas,
+                    ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
                     stream: false,
-                    temperature: temp,
+                    ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
                     options: {num_ctx: currentSettings.ollamaNumCtx ?? 4096},
                 }),
             });
@@ -1094,10 +1165,9 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     // ── xAI (Grok) — OpenAI-compatible ───────────────────────────────────────
     if (provider === "xai") {
         if (!key) throw new Error("xAI API key eksik. Model ayarlarından girin.");
-        const body: Record<string, unknown> = {
-            model: MODEL, messages, tools: activeSchemas, stream: false,
-            temperature: temp, max_tokens: maxTok,
-        };
+        const body: Record<string, unknown> = {model: MODEL, messages, stream: false, max_tokens: maxTok};
+        if (activeSchemas.length > 0) body.tools = activeSchemas;
+        if (sendTemp !== undefined) body.temperature = sendTemp;
         const resp = await fetch("https://api.x.ai/v1/chat/completions", {
             method: "POST",
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
@@ -1113,10 +1183,9 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     // ── DeepSeek — OpenAI-compatible ─────────────────────────────────────────
     if (provider === "deepseek") {
         if (!key) throw new Error("DeepSeek API key eksik. Model ayarlarından girin.");
-        const body: Record<string, unknown> = {
-            model: MODEL, messages, tools: activeSchemas, stream: false,
-            temperature: Math.min(temp, 1.5), max_tokens: maxTok,
-        };
+        const body: Record<string, unknown> = {model: MODEL, messages, stream: false, max_tokens: maxTok};
+        if (activeSchemas.length > 0) body.tools = activeSchemas;
+        if (sendTemp !== undefined) body.temperature = sendTemp;
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
@@ -1138,14 +1207,16 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     const body: Record<string, unknown> = {
         model: MODEL,
         messages,
-        tools: isReasoning ? undefined : activeSchemas,
         stream: false,
-        max_tokens: maxTok,
     };
-    if (!isReasoning) body.temperature = temp;
-    if (topP !== 1.0) body.top_p = topP;
-    if (provider === "openai" && currentSettings.presencePenalty !== 0) body.presence_penalty = currentSettings.presencePenalty;
-    if (provider === "openai" && currentSettings.frequencyPenalty !== 0) body.frequency_penalty = currentSettings.frequencyPenalty;
+    if (activeSchemas.length > 0) body.tools = activeSchemas;
+    // OpenAI o-serisi / gpt-5: max_tokens YERİNE max_completion_tokens ister.
+    if (caps.usesMaxCompletionTokens) body.max_completion_tokens = maxTok;
+    else body.max_tokens = maxTok;
+    if (sendTemp !== undefined) body.temperature = sendTemp;
+    if (topP !== 1.0 && caps.supportsTemperature) body.top_p = topP;
+    if (provider === "openai" && caps.supportsTemperature && currentSettings.presencePenalty !== 0) body.presence_penalty = currentSettings.presencePenalty;
+    if (provider === "openai" && caps.supportsTemperature && currentSettings.frequencyPenalty !== 0) body.frequency_penalty = currentSettings.frequencyPenalty;
     if (provider === "mistral" && currentSettings.mistralSafeMode) body.safe_prompt = true;
 
     const resp = await fetch(url, {
@@ -1181,18 +1252,10 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 .join(", ")}`
         :   "";
     const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext();
-    // Konuşma geçmişini son ~20 mesajla sınırla — sınırsız büyüyen geçmiş TPM/token
-    // limitini patlatır (özellikle düşük-TPM modeller). Önceki bağlam zaten
-    // memorySummaries (oturum özetleri) ile system prompt'ta korunuyor.
-    let trimmedHistory = history;
-    if (history.length > 20) {
-        let cut = history.slice(-20);
-        // Pencere "tool" veya tool_calls'lu "assistant" ile başlamamalı — yoksa API
-        // "tool mesajından önce tool_calls gerekli" 400 hatası verir. İlk "user"a hizala.
-        const firstUser = cut.findIndex((m) => m.role === "user");
-        if (firstUser > 0) cut = cut.slice(firstUser);
-        trimmedHistory = cut;
-    }
+    // Geçmiş kırpma artık callAI içinde MODELE GÖRE (bağlam penceresi token bütçesi +
+    // boundary düzeltme) yapılıyor. Burada yalnız belleğin sınırsız büyümesini önlemek
+    // için kaba bir üst sınır koyuyoruz; gerçek kırpmayı model yeteneği belirler.
+    const trimmedHistory = history.length > 60 ? history.slice(-60) : history;
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...trimmedHistory];
     const send = (channel: string, payload: object) => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
@@ -1262,6 +1325,9 @@ app.on("second-instance", () => {
 
 async function summarizeAndSave(): Promise<void> {
     if (sessionHistory.length < 2) return;
+    // Özet için yerel Groq anahtarı gerekir; yoksa (ör. trial modu — anahtar sunucuda)
+    // sessizce atla, 401 üretme.
+    if (!(process.env.GROQ_API_KEY ?? "").trim()) return;
     try {
         const turns = sessionHistory
             .filter((m) => m.role === "user" || m.role === "assistant")
@@ -1643,6 +1709,12 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("models-list", async (_e, {provider, key}: {provider: string; key?: string}) => {
         const useKey = (key ?? "").trim() || getProviderKey(provider);
         return fetchModels(provider, useKey, currentSettings.ollamaUrl);
+    });
+
+    // Seçili modelin yetenekleri (tool/vision/reasoning/limit) — Model sekmesinde
+    // rozet olarak gösterilir. Kullanıcı modelin ne yapıp yapamadığını net görür.
+    ipcMain.handle("caps-get", (_e, {provider, model}: {provider: string; model: string}) => {
+        return getModelCapabilities(provider, model, currentSettings.ollamaNumCtx ?? 4096);
     });
 
     ipcMain.handle("config-get", () => {

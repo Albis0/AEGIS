@@ -6,6 +6,20 @@ export interface GpuInfo {
     temp: number | null;
 }
 
+// Seçili modelin yetenekleri (electron/model-capabilities.ts ile aynı şekil).
+export interface ModelCaps {
+    supportsTools: boolean;
+    supportsTemperature: boolean;
+    maxTemperature: number;
+    supportsSystemPrompt: boolean;
+    supportsVision: boolean;
+    supportsStreaming: boolean;
+    reasoning: boolean;
+    usesMaxCompletionTokens: boolean;
+    maxOutputTokens: number;
+    contextWindow: number;
+}
+
 export interface ProcInfo {
     name: string;
     cpu: number;
@@ -150,6 +164,7 @@ declare global {
             authCurrentUser: () => Promise<{userId: string; email?: string} | null>;
             usageGet: () => Promise<{signedIn: boolean; usedRequests: number; usedTokens: number; limitRequests: number; limitTokens: number}>;
             modelsList: (provider: string, key?: string) => Promise<{id: string; label?: string}[]>;
+            capsGet: (provider: string, model: string) => Promise<ModelCaps>;
             onboardingComplete: (mode: "trial" | "own") => Promise<void>;
             screenshot: () => Promise<void>;
             sessionsList: () => Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]>;

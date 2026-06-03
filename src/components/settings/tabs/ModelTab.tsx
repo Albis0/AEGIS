@@ -1,5 +1,5 @@
 import {useState, useEffect} from "react";
-import type {AppSettings, AiProvider} from "../../../electron.d";
+import type {AppSettings, AiProvider, ModelCaps} from "../../../electron.d";
 import {
     SectionLabel, FieldLabel, Hint, RadioCard, KeyField, PlainField,
     AI_PROVIDERS, PROVIDER_MODELS, DEFAULT_MODEL, TEMP_MAX, MAX_TOKEN_OPTIONS, tagColor,
@@ -26,6 +26,17 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
     const fallback = PROVIDER_MODELS[provider] ?? [];
     const [liveModels, setLiveModels] = useState<DisplayModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
+
+    // Seçili modelin yetenekleri — backend'deki tek doğruluk kaynağından (model-capabilities).
+    const [caps, setCaps] = useState<ModelCaps | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        if (!settings.model) { setCaps(null); return; }
+        window.jarvis.capsGet(provider, settings.model)
+            .then((c) => { if (!cancelled) setCaps(c); })
+            .catch(() => { if (!cancelled) setCaps(null); });
+        return () => { cancelled = true; };
+    }, [provider, settings.model]);
 
     useEffect(() => {
         if (provider === "ollama") { setLiveModels([]); return; }
@@ -195,6 +206,14 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                 </div>
             )}
 
+            {/* Model yetenekleri — seçili model ne yapabilir? */}
+            {caps && (
+                <div>
+                    <SectionLabel label="BU MODEL NE YAPABİLİR" accent={accent} />
+                    <CapsBadges caps={caps} accent={accent} ac={ac} />
+                </div>
+            )}
+
             {/* Advanced params */}
             <div className="rounded-xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.1)`}}>
                 <button onClick={() => setParamsOpen((o) => !o)}
@@ -312,6 +331,49 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function fmtTok(n: number): string {
+    if (n >= 1024 * 1024) return `${Math.round(n / (1024 * 1024))}M`;
+    if (n >= 1024) return `${Math.round(n / 1024)}K`;
+    return `${n}`;
+}
+
+// Seçili modelin yeteneklerini rozet olarak gösterir. Yeşil = destekliyor,
+// soluk/kırmızı = desteklemiyor. Kullanıcı modelin sınırlarını net görür.
+function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: string}) {
+    const yes = "74,222,128", no = "248,113,113";
+    const Pill = ({on, label}: {on: boolean; label: string}) => (
+        <span className="text-[10px] px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
+            style={{
+                color: on ? `rgb(${yes})` : `rgba(${no},0.75)`,
+                background: on ? `rgba(${yes},0.1)` : `rgba(${no},0.07)`,
+                border: `1px solid ${on ? `rgba(${yes},0.25)` : `rgba(${no},0.2)`}`,
+            }}>
+            {on ? "✓" : "✕"} {label}
+        </span>
+    );
+    const Info = ({label, value}: {label: string; value: string}) => (
+        <span className="text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1"
+            style={{color: `rgba(${accent},0.55)`, background: `rgba(${accent},0.06)`, border: `1px solid rgba(${accent},0.12)`}}>
+            <span style={{opacity: 0.6}}>{label}</span><span style={{color: ac}}>{value}</span>
+        </span>
+    );
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            <Pill on={caps.supportsTools} label="Araçlar" />
+            <Pill on={caps.supportsVision} label="Görüntü" />
+            {caps.reasoning && (
+                <span className="text-[10px] px-2 py-1 rounded-full font-medium"
+                    style={{color: "rgb(192,132,252)", background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.25)"}}>
+                    ◆ Reasoning
+                </span>
+            )}
+            <Info label="Bağlam" value={`${fmtTok(caps.contextWindow)} tok`} />
+            <Info label="Çıktı" value={`${fmtTok(caps.maxOutputTokens)} tok`} />
+            {!caps.supportsTemperature && <Pill on={false} label="Temperature" />}
         </div>
     );
 }

@@ -639,6 +639,39 @@
 
 ---
 
+## Faz 31 — Model-Özel Revizyon & Sıfır-Hata AI Katmanı 🎯 ✅
+*Projenin ana amacı: her model yalnızca DESTEKLEDİĞİ kadarını yapsın, desteklemediği
+parametre hiç gönderilmesin → 400/422 "unsupported parameter / max_tokens too large /
+no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek tek okundu.*
+
+### 31.1 Model yetenek kayıt defteri ✅
+- ✅ `electron/model-capabilities.ts` — `getModelCapabilities(provider, model)` tek doğruluk kaynağı
+- ✅ Her model için: tool / temperature / system / vision / streaming / reasoning desteği + `maxOutputTokens` + `contextWindow` + `usesMaxCompletionTokens`
+- ✅ Veriler resmi dokümanlardan derlendi (Groq, OpenAI, Anthropic, Gemini, Mistral, DeepSeek, xAI — Haziran 2026)
+- ✅ Bilinmeyen model → güvenli muhafazakâr varsayılan (hata almamak önce)
+- ✅ 16 temsili modelde doğrulandı (smoke test)
+
+### 31.2 callAI modele göre parametre kırpma ✅
+- ✅ `max_tokens` modelin çıktı tavanına clamp'lenir (kritik: claude-3-opus/haiku 8192→**4096**, yoksa 400)
+- ✅ OpenAI o-serisi/gpt-5 → `max_tokens` yerine **`max_completion_tokens`**; temperature atılır
+- ✅ Reasoning modelleri (deepseek-reasoner, o1-mini…) → tool + temperature gönderilmez (deepseek-reasoner tool desteklemiyor)
+- ✅ Tool desteklemeyen model (gemma2, o1-mini…) → şema HİÇ gönderilmez (token + hata tasarrufu)
+- ✅ system rolü desteklemeyen model (o1-mini/o1-preview) → system metni ilk user mesajına birleştirilir
+- ✅ Vision desteklemeyen modele giden görüntüler stripleniyor (yer tutucu metin) → 400 önlenir
+- ✅ Tüm provider dalları (groq/anthropic/gemini/ollama/xai/deepseek/openai/mistral) tek tek elden geçti
+
+### 31.3 Bağlam penceresine göre geçmiş yönetimi ✅
+- ✅ Sabit "son 20 mesaj" yerine MODELE GÖRE token bütçesi (`trimToBudget`): küçük-ctx modelde daha az, geniş-ctx modelde dolu kullanım
+- ✅ Pencere boundary düzeltme korunur (tool/araç-çağrılı assistant ile başlamaz → 400 yok)
+- ✅ Deneme modunda yetenekler efektif olarak Groq'a göre hesaplanır (proxy Groq'a gider)
+- ✅ `summarizeAndSave` yerel Groq anahtarı yoksa sessizce atlar (401 spam'i biter)
+
+### 31.4 UI — model yetenek görünürlüğü ✅
+- ✅ `caps-get` IPC + Model sekmesinde "BU MODEL NE YAPABİLİR" rozetleri (Araçlar/Görüntü/Reasoning/Bağlam/Çıktı)
+- ✅ Kullanıcı seçtiği modelin sınırlarını net görür
+
+---
+
 ## 🌐 Çalışma Listesi — Tam i18n (geçici, bitince sil)
 *Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
