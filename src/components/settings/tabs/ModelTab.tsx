@@ -344,8 +344,9 @@ function fmtTok(n: number): string {
 // Seçili modelin yeteneklerini rozet olarak gösterir. Yeşil = destekliyor,
 // soluk/kırmızı = desteklemiyor. Kullanıcı modelin sınırlarını net görür.
 // Çizgi (stroke) ikonlar — currentColor ile rozetin rengini alır. Emoji yok.
-const svgProps = {width: 15, height: 15, viewBox: "0 0 24 24", fill: "none",
-    stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const};
+const svgProps = {width: 16, height: 16, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+    shapeRendering: "geometricPrecision" as const, style: {display: "block"} as const};
 const IconTerminal = () => (<svg {...svgProps}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>);
 const IconEye = () => (<svg {...svgProps}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>);
 const IconDiamond = () => (<svg {...svgProps}><path d="M12 2 22 12 12 22 2 12Z" /></svg>);
@@ -357,15 +358,15 @@ function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: st
 
     // Destekleniyor/desteklenmiyor büyük rozet
     const Cap = ({on, label, icon}: {on: boolean; label: string; icon: React.ReactNode}) => {
-        const col = on ? `rgb(${yes})` : `rgba(${no},0.8)`;
+        const col = on ? `rgb(${yes})` : `rgb(${no})`;
         return (
-            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl transition"
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl"
                 style={{
-                    background: on ? `rgba(${yes},0.09)` : `rgba(${no},0.07)`,
-                    border: `1px solid ${on ? `rgba(${yes},0.3)` : `rgba(${no},0.22)`}`,
+                    background: on ? `rgba(${yes},0.13)` : `rgba(${no},0.11)`,
+                    border: `1px solid ${on ? `rgba(${yes},0.35)` : `rgba(${no},0.3)`}`,
                 }}>
                 <span className="shrink-0" style={{color: col}}>{icon}</span>
-                <span className="flex-1 text-[12.5px] font-semibold" style={{color: col}}>{label}</span>
+                <span className="flex-1 text-[13px] font-medium" style={{color: col}}>{label}</span>
                 <span className="shrink-0" style={{color: col}}>{on ? <IconCheck /> : <IconCross />}</span>
             </div>
         );
@@ -375,10 +376,10 @@ function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: st
     const Stat = ({label, value, sub}: {label: string; value: string; sub: string}) => (
         <div className="flex flex-col gap-0.5 px-3.5 py-2.5 rounded-xl"
             style={{background: `rgba(${accent},0.07)`, border: `1px solid rgba(${accent},0.16)`}}>
-            <span className="text-[9px] tracking-[0.2em]" style={{color: `rgba(${accent},0.5)`}}>{label}</span>
+            <span className="text-[10px] tracking-[0.2em]" style={{color: `rgba(${accent},0.55)`}}>{label}</span>
             <div className="flex items-baseline gap-1">
                 <span className="text-[18px] font-bold leading-none" style={{fontFamily: "Orbitron, sans-serif", color: ac}}>{value}</span>
-                <span className="text-[9px]" style={{color: `rgba(${accent},0.4)`}}>{sub}</span>
+                <span className="text-[10px]" style={{color: `rgba(${accent},0.45)`}}>{sub}</span>
             </div>
         </div>
     );
