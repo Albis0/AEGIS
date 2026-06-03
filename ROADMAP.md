@@ -721,14 +721,24 @@ Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havu
 - Komut önerisi chip'leri / selamlama başlığı
 - Saat varyantları (analog, dünya saatleri); aktif otomasyon/izleme, persona göstergesi
 
-### 34.3 Aileler — KESİNLEŞEN 4 (her biri ayrı bir tasarım AKIMI) ⬜
-Her aile tanınmış ve birbirinden tamamen farklı bir akım. Tur başına 1 aile,
-bitince dur–göster–onay. Her aile 4 ferdiyle (skin).
-1. **Aegis HUD** (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, holografik, keskin köşe
-2. **Skeuomorphism** — gerçek dünya dokuları + derinlik: deri/metal/cam/kâğıt yüzeyler, gerçekçi gölge & ışık, fiziksel basılabilir düğmeler, gerçek malzeme hissi
-3. **Neo-brutalism** — ham & cesur: kalın siyah çerçeveler, sert ofset gölge (drop-shadow), çarpışan canlı renkler, dev tipografi, düz/süssüz
-4. **Claymorphism** (seçim: ben) — yumuşak puffy 3D: pastel renkler, çok yuvarlak, çift gölge (iç+dış), kabarık/samimi yüzeyler
-*(Faz 33'teki Nebula/Codex/Retro, "aynı görünüyordu" — bu 4'ün lehine bırakılıyor; 34.1 kimlik sistemine geçilince ya yeniden kimliklendirilir ya kaldırılır.)*
+### 34.3 Aileler — 4 akım × 4 ferdi (her biri ayrı tasarım AKIMI) ⬜
+Her ailede aynı **4 arketip** o akımın diliyle yorumlanır: **İmza** (vitrin),
+**Sohbet** (konuşma öncelikli), **Kompakt** (yoğun/mini), **Pano** (telemetri/widget).
+Tur başına 1 aile, bitince dur–göster–onay.
+
+**0. Aegis HUD** (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, keskin
+→ Hologram · Minimal · Terminal · Dashboard
+
+**1. Skeuomorphism** — gerçek nesne & doku (deri/metal/cam/kâğıt, gerçekçi gölge, fiziksel düğme). Sıcak koyu deri zemin, pirinç/amber vurgu, Oxanium/Rajdhani.
+→ **Desk** (İmza: deri masada metal-çerçeveli cihaz + notepad) · **Journal** (Sohbet: deri defter sayfaları) · **Walkman** (Kompakt: retro gadget, LCD+düğme) · **Cockpit** (Pano: analog ibreli kadranlar)
+
+**2. Neo-brutalism** — ham/cesur (kalın siyah çerçeve, sert ofset gölge, çarpışan canlı renk, dev tipografi, düz). AÇIK krem zemin, Syne/Space Grotesk bold.
+→ **Poster** (İmza: dev tipografik afiş) · **Stack** (Sohbet: ofset-gölgeli sticker kartlar) · **Switch** (Kompakt: dev kalın butonlar) · **Grid** (Pano: kalın çerçeveli renkli hücreler)
+
+**3. Claymorphism** — yumuşak puffy 3D (pastel, çok yuvarlak, çift gölge, kabarık). Lavanta/mint açık zemin, Poppins.
+→ **Orb** (İmza: dev kil küre + pastel haplar) · **Pillow** (Sohbet: kabarık yastık baloncuklar) · **Pebble** (Kompakt: yumuşak çakıl butonlar) · **Tiles** (Pano: kabarık kil fayanslar)
+
+*(Faz 33'teki Nebula/Codex/Retro "aynı görünüyordu" — bu 12 ferdin lehine bırakılıyor; 34.1 kimlik sistemine geçilince temizlenir.)*
 
 **Yaklaşım:** Önce 34.1 (kimlik altyapısı) + 34.2'den birkaç widget → sonra 34.3'te
 aileleri TEK TEK, her aile bitince dur–göster–onay. Churn yok, plan-önce.
