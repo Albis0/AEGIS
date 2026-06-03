@@ -8,19 +8,10 @@ import TelemetryTab  from "./settings/tabs/TelemetryTab";
 import ShortcutsTab  from "./settings/tabs/ShortcutsTab";
 import ToolsTab      from "./settings/tabs/ToolsTab";
 import AccountTab    from "./settings/tabs/AccountTab";
+import {SETTINGS, UI, type Lang} from "../i18n";
 
 type Tab = "account" | "model" | "voice" | "appearance" | "keys" | "telemetry" | "shortcuts" | "tools";
 
-const NAV_ITEMS: {id: Tab; icon: string; label: string; sub: string}[] = [
-    {id: "account",    icon: "◉",  label: "Hesap",      sub: "Mod, oturum & kota"},
-    {id: "model",      icon: "◈",  label: "Model",      sub: "AI sağlayıcı & parametreler"},
-    {id: "voice",      icon: "◎",  label: "Ses",        sub: "TTS motoru & dil"},
-    {id: "appearance", icon: "▦",  label: "Görünüm",    sub: "Tema, skin, font"},
-    {id: "keys",       icon: "◆",  label: "API Keys",   sub: "Servis anahtarları"},
-    {id: "telemetry",  icon: "▣",  label: "Telemetri",  sub: "Widget & uyarılar"},
-    {id: "shortcuts",  icon: "⌨",  label: "Kısayollar", sub: "Klavye kısayolları"},
-    {id: "tools",      icon: "✦",  label: "Araçlar",    sub: "Mevcut tool listesi"},
-];
 
 interface Props {
     open: boolean;
@@ -32,11 +23,12 @@ interface Props {
     onLayoutChange: (layout: AppSettings["layout"]) => void;
     onCustomCssChange: (css: string) => void;
     onTelemetryWidgetsChange: (widgets: TelemetryWidget[]) => void;
+    lang: Lang;
 }
 
 export default function SettingsPanel({
     open, onClose, onAccentChange, onFamilyChange, onSkinChange, onFontChange,
-    onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange,
+    onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange, lang,
 }: Props) {
     const [tab, setTab]         = useState<Tab>("model");
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -75,6 +67,18 @@ export default function SettingsPanel({
 
     const a = settings.accentColor;
     const ac = `rgb(${a})`;
+    const s = SETTINGS[lang];
+
+    const NAV_ITEMS = [
+        {id: "account"    as Tab, icon: "◉", label: s.navAccount,    sub: s.navAccountSub},
+        {id: "model"      as Tab, icon: "◈", label: s.navModel,      sub: s.navModelSub},
+        {id: "voice"      as Tab, icon: "◎", label: s.navVoice,      sub: s.navVoiceSub},
+        {id: "appearance" as Tab, icon: "▦", label: s.navAppearance, sub: s.navAppearanceSub},
+        {id: "keys"       as Tab, icon: "◆", label: s.navKeys,       sub: s.navKeysSub},
+        {id: "telemetry"  as Tab, icon: "▣", label: s.navTelemetry,  sub: s.navTelemetrySub},
+        {id: "shortcuts"  as Tab, icon: "⌨", label: s.navShortcuts,  sub: s.navShortcutsSub},
+        {id: "tools"      as Tab, icon: "✦", label: s.navTools,      sub: s.navToolsSub},
+    ];
 
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center">
@@ -107,7 +111,9 @@ export default function SettingsPanel({
                     <div className="px-5 mb-6">
                         <div className="text-[11px] tracking-[0.5em] font-semibold"
                             style={{fontFamily: "Orbitron, sans-serif", color: `rgba(${a},0.5)`}}>AEGIS</div>
-                        <div className="text-[10px] mt-0.5" style={{color: `rgba(${a},0.28)`}}>yapılandırma</div>
+                        <div className="text-[10px] mt-0.5" style={{color: `rgba(${a},0.28)`}}>
+                            {({tr:"yapılandırma", en:"settings", de:"Einstellungen", fr:"paramètres", es:"configuración"} as Record<Lang,string>)[lang]}
+                        </div>
                     </div>
 
                     {/* Nav items */}
@@ -145,14 +151,14 @@ export default function SettingsPanel({
                             <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                                 style={{background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)"}}>
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                <span className="text-[10px] tracking-widest font-medium" style={{color: "rgba(74,222,128,0.9)"}}>KAYDEDİLDİ</span>
+                                <span className="text-[10px] tracking-widest font-medium" style={{color: "rgba(74,222,128,0.9)"}}>{s.saved.toUpperCase()}</span>
                             </div>
                         )}
                         <button onClick={onClose}
                             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition hover:brightness-125"
                             style={{color: `rgba(${a},0.4)`, border: `1px solid rgba(${a},0.1)`}}>
                             <span className="text-[11px]">✕</span>
-                            <span className="text-[11px] tracking-widest">KAPAT</span>
+                            <span className="text-[11px] tracking-widest">{UI[lang].closeBtn}</span>
                             <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded"
                                 style={{color: `rgba(${a},0.3)`, background: `rgba(${a},0.06)`, border: `1px solid rgba(${a},0.1)`}}>ESC</span>
                         </button>
@@ -182,14 +188,14 @@ export default function SettingsPanel({
                     {/* Tab content */}
                     <div className="flex-1 overflow-y-auto px-8 py-6">
                         {tab === "account" && (
-                            <AccountTab settings={settings} accent={a} ac={ac} onApply={applySettings} />
+                            <AccountTab settings={settings} accent={a} ac={ac} onApply={applySettings} s={s} />
                         )}
                         {tab === "model" && (
-                            <ModelTab settings={settings} accent={a} ac={ac} onApply={applySettings} />
+                            <ModelTab settings={settings} accent={a} ac={ac} onApply={applySettings} s={s} />
                         )}
                         {tab === "voice" && (
                             <VoiceTab settings={settings} config={config} accent={a} ac={ac}
-                                onApply={applySettings} onApplyConfig={applyConfig} />
+                                onApply={applySettings} onApplyConfig={applyConfig} s={s} />
                         )}
                         {tab === "appearance" && (
                             <AppearanceTab settings={settings} accent={a} ac={ac}
@@ -200,20 +206,21 @@ export default function SettingsPanel({
                                 onFontChange={onFontChange}
                                 onLayoutChange={onLayoutChange}
                                 onCustomCssChange={onCustomCssChange}
+                                s={s}
                             />
                         )}
                         {tab === "keys" && (
-                            <KeysTab config={config} accent={a} ac={ac} onApplyConfig={applyConfig} />
+                            <KeysTab config={config} accent={a} ac={ac} onApplyConfig={applyConfig} s={s} />
                         )}
                         {tab === "telemetry" && (
                             <TelemetryTab settings={settings} accent={a} ac={ac}
-                                onApply={applySettings} onWidgetsChange={onTelemetryWidgetsChange} />
+                                onApply={applySettings} onWidgetsChange={onTelemetryWidgetsChange} s={s} />
                         )}
                         {tab === "shortcuts" && (
-                            <ShortcutsTab accent={a} ac={ac} />
+                            <ShortcutsTab accent={a} ac={ac} s={s} />
                         )}
                         {tab === "tools" && (
-                            <ToolsTab settings={settings} accent={a} ac={ac} onApply={applySettings} />
+                            <ToolsTab settings={settings} accent={a} ac={ac} onApply={applySettings} s={s} />
                         )}
                     </div>
                 </main>

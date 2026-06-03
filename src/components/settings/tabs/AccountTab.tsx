@@ -4,12 +4,14 @@
 import {useEffect, useState} from "react";
 import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, Hint} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 interface Props {
     accent: string;
     ac: string;
     settings: AppSettings;
     onApply: (patch: Partial<AppSettings>) => void;
+    s: SettingsStrings;
 }
 
 interface Usage {
@@ -18,7 +20,7 @@ interface Usage {
     limitRequests: number; limitTokens: number;
 }
 
-export default function AccountTab({accent, ac, settings, onApply}: Props) {
+export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
     const [user, setUser] = useState<{userId: string; email?: string} | null>(null);
     const [usage, setUsage] = useState<Usage | null>(null);
     const [loading, setLoading] = useState(true);
@@ -40,35 +42,25 @@ export default function AccountTab({accent, ac, settings, onApply}: Props) {
 
     return (
         <div className="space-y-5">
-            <SectionLabel label="HESAP & MOD" accent={accent} />
+            <SectionLabel label={s.accSection} accent={accent} />
 
             <div className="rounded-xl p-4 space-y-3" style={card}>
-                <Row label="Mod" ac={ac} value={isTrial ? "Hızlı Başlangıç (Deneme)" : "Gelişmiş (Kendi Anahtarın)"} />
-                <Row label="Hesap" ac={ac} value={loading ? "…" : user?.email ?? (isTrial ? "Giriş gerekli" : "Giriş yapılmadı")} />
+                <Row label={s.accMode} ac={ac} value={isTrial ? s.accTrial : s.accAdvanced} />
+                <Row label={s.accEmail} ac={ac} value={loading ? "…" : user?.email ?? (isTrial ? s.accSignInHint : s.accSignInHint)} />
             </div>
 
             {isTrial && (
                 <>
-                    <SectionLabel label="GÜNLÜK KOTA" accent={accent} />
+                    <SectionLabel label={s.accQuota} accent={accent} />
                     <div className="rounded-xl p-4 space-y-3" style={card}>
                         {usage?.signedIn ? (
                             <>
-                                <Quota
-                                    label="İstek"
-                                    used={usage.usedRequests}
-                                    limit={usage.limitRequests}
-                                    accent={accent} ac={ac}
-                                />
-                                <Quota
-                                    label="Token"
-                                    used={usage.usedTokens}
-                                    limit={usage.limitTokens}
-                                    accent={accent} ac={ac}
-                                />
-                                <Hint accent={accent}>Kota her gün UTC gece yarısı sıfırlanır. Limitten kurtulmak için Model sekmesinden kendi Groq anahtarını girebilirsin.</Hint>
+                                <Quota label={s.accRequests} used={usage.usedRequests} limit={usage.limitRequests} accent={accent} ac={ac} />
+                                <Quota label={s.accTokens} used={usage.usedTokens} limit={usage.limitTokens} accent={accent} ac={ac} />
+                                <Hint accent={accent}>{s.accQuotaHint}</Hint>
                             </>
                         ) : (
-                            <Hint accent={accent}>Kotayı görmek için giriş yapman gerekiyor.</Hint>
+                            <Hint accent={accent}>{s.accSignInHint}</Hint>
                         )}
                     </div>
                 </>
@@ -76,10 +68,10 @@ export default function AccountTab({accent, ac, settings, onApply}: Props) {
 
             {user && (
                 <>
-                    <SectionLabel label="BULUT SENKRONİZASYONU" accent={accent} />
+                    <SectionLabel label={s.accSync} accent={accent} />
                     <div className="rounded-xl p-4 space-y-3" style={card}>
                         <div className="flex items-center justify-between">
-                            <span className="text-[12.5px]" style={{color: ac, opacity: 0.8}}>Bu cihazı senkronla</span>
+                            <span className="text-[12.5px]" style={{color: ac, opacity: 0.8}}>{s.accSyncHint.split(".")[0]}</span>
                             <button
                                 onClick={() => onApply({cloudSync: !(settings.cloudSync ?? true)})}
                                 className="shrink-0 w-11 h-6 rounded-full relative transition-all"
@@ -95,7 +87,7 @@ export default function AccountTab({accent, ac, settings, onApply}: Props) {
                                     }} />
                             </button>
                         </div>
-                        <Hint accent={accent}>Açıkken ayarların ve API anahtarların (şifreli) cihazlar arasında otomatik senkronlanır. Anahtarlar sunucuda düz metin olarak saklanmaz.</Hint>
+                        <Hint accent={accent}>{s.accSyncHint}</Hint>
                     </div>
                 </>
             )}
@@ -106,7 +98,7 @@ export default function AccountTab({accent, ac, settings, onApply}: Props) {
                     className="text-[12px] px-4 py-2 rounded-lg border transition hover:brightness-125"
                     style={{color: "#f87171", borderColor: "rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.05)"}}
                 >
-                    Çıkış Yap
+                    {s.accSignOut}
                 </button>
             )}
         </div>

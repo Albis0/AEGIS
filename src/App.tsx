@@ -396,6 +396,7 @@ export default function App() {
                 onLayoutChange={setLayout}
                 onCustomCssChange={applyCustomCss}
                 onTelemetryWidgetsChange={setTelemetryWidgets}
+                lang={lang}
             />
             <ChatHistorySidebar
                 open={historyOpen}

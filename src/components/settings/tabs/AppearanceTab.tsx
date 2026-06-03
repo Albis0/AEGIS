@@ -3,6 +3,7 @@ import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, Toggle} from "../shared";
 import {UI_FAMILIES, type UiFamily} from "../../../themes";
 import {SKIN_FAMILIES} from "../../skins/registry";
+import type {SettingsStrings} from "../../../i18n";
 
 const ACCENT_COLORS = [
     {id: "34,211,238",  label: "Cyan",    hex: "#22d3ee"},
@@ -42,9 +43,10 @@ interface Props {
     onFontChange: (font: AppSettings["font"]) => void;
     onLayoutChange: (layout: AppSettings["layout"]) => void;
     onCustomCssChange: (css: string) => void;
+    s: SettingsStrings;
 }
 
-export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onFamilyChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
+export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onFamilyChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange, s}: Props) {
     const [fineOpen, setFineOpen] = useState(false);
 
     function applyWithSideEffect(patch: Partial<AppSettings>) {
@@ -64,7 +66,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
     }
 
     // Seçili skin hangi aileye ait?
-    const activeFamilyId = SKIN_FAMILIES.find((f) => f.skins.some((s) => s.id === settings.skin))?.id ?? "aegis";
+    const activeFamilyId = SKIN_FAMILIES.find((f) => f.skins.some((sk) => sk.id === settings.skin))?.id ?? "aegis";
     const [expandedFamily, setExpandedFamily] = useState<string>(activeFamilyId);
 
     return (
@@ -72,13 +74,13 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
             {/* ── 1. AİLE + FERDİ: Tek seçim akışı ── */}
             <div>
-                <SectionLabel label="GÖRÜNÜM" accent={accent} />
+                <SectionLabel label={s.apSkin} accent={accent} />
 
                 {/* Aile listesi — yatay chip'ler */}
                 <div className="flex flex-wrap gap-2 mb-3">
                     {SKIN_FAMILIES.map((fam) => {
                         const isExpanded = expandedFamily === fam.id;
-                        const hasActiveSkin = fam.skins.some((s) => s.id === settings.skin);
+                        const hasActiveSkin = fam.skins.some((sk) => sk.id === settings.skin);
                         return (
                             <button
                                 key={fam.id}
@@ -109,22 +111,22 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                             <span className="text-[10px] tracking-[0.2em] opacity-50">{fam.sub}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-px" style={{background: `rgba(${accent},0.06)`}}>
-                            {fam.skins.map((s) => {
-                                const active = settings.skin === s.id;
+                            {fam.skins.map((sk) => {
+                                const active = settings.skin === sk.id;
                                 return (
                                     <button
-                                        key={s.id}
-                                        onClick={() => applyWithSideEffect({skin: s.id})}
+                                        key={sk.id}
+                                        onClick={() => applyWithSideEffect({skin: sk.id})}
                                         className="flex flex-col gap-1 px-4 py-3.5 text-left transition-all"
                                         style={{
                                             background: active ? `rgba(${accent},0.12)` : "var(--bg)",
                                         }}>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[16px] leading-none" style={{color: active ? ac : `rgba(${accent},0.35)`}}>{s.icon}</span>
-                                            <span className="text-[13px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.65)`}}>{s.label}</span>
-                                            {active && <span className="ml-auto text-[9px] tracking-widest px-1.5 py-0.5 rounded-full" style={{color: ac, background: `rgba(${accent},0.12)`, border: `1px solid rgba(${accent},0.25)`}}>AKTİF</span>}
+                                            <span className="text-[16px] leading-none" style={{color: active ? ac : `rgba(${accent},0.35)`}}>{sk.icon}</span>
+                                            <span className="text-[13px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.65)`}}>{sk.label}</span>
+                                            {active && <span className="ml-auto text-[9px] tracking-widest px-1.5 py-0.5 rounded-full" style={{color: ac, background: `rgba(${accent},0.12)`, border: `1px solid rgba(${accent},0.25)`}}>{s.apActive}</span>}
                                         </div>
-                                        <span className="text-[10px] pl-6" style={{color: `rgba(${accent},0.35)`}}>{s.sub}</span>
+                                        <span className="text-[10px] pl-6" style={{color: `rgba(${accent},0.35)`}}>{sk.sub}</span>
                                     </button>
                                 );
                             })}
@@ -135,7 +137,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
             {/* ── 2. LAYOUT yoğunluk ── */}
             <div>
-                <SectionLabel label="YOĞUNLUK" accent={accent} />
+                <SectionLabel label={s.apDensity} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
                     {([
                         {id: "normal",  label: "Normal",  sub: "Standart boşluklar"},
@@ -160,7 +162,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                     onClick={() => setFineOpen((o) => !o)}
                     className="w-full flex items-center justify-between px-4 py-3 transition"
                     style={{background: fineOpen ? `rgba(${accent},0.05)` : "transparent"}}>
-                    <span className="text-[10px] tracking-[0.3em]" style={{color: `rgba(${accent},0.45)`}}>İNCE AYAR · RENK / PALET / FONT</span>
+                    <span className="text-[10px] tracking-[0.3em]" style={{color: `rgba(${accent},0.45)`}}>{s.apFineAdj}</span>
                     <span className="text-[10px] transition-transform duration-200"
                         style={{color: `rgba(${accent},0.35)`, transform: fineOpen ? "rotate(180deg)" : "none"}}>▼</span>
                 </button>
@@ -170,7 +172,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
                         {/* Tema rengi */}
                         <div className="pt-4">
-                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>TEMA RENGİ</span>
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>{s.apAccent}</span>
                             <div className="grid grid-cols-6 gap-2.5">
                                 {ACCENT_COLORS.map((c) => {
                                     const active = settings.accentColor === c.id;
@@ -190,7 +192,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
                         {/* Hızlı palet preset */}
                         <div>
-                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>PALET (RENK + ZEMİN + FONT)</span>
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>{s.apPalette}</span>
                             <div className="grid grid-cols-2 gap-2">
                                 {UI_FAMILIES.map((fam) => {
                                     const active = (settings.uiFamily ?? "cyber") === fam.id;
@@ -216,7 +218,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
                         {/* Font */}
                         <div>
-                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>FONT</span>
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>{s.apFont}</span>
                             <div className="grid grid-cols-3 gap-1.5">
                                 {FONTS.map((f) => {
                                     const active = (settings.font ?? "jetbrains") === f.id;
@@ -240,12 +242,12 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
             {/* ── 4. UYGULAMA toggle'ları ── */}
             <div>
-                <SectionLabel label="UYGULAMA" accent={accent} />
+                <SectionLabel label={s.apApp} accent={accent} />
                 <div className="space-y-2">
                     {([
-                        {key: "minimizeToTray"   as const, label: "Kapatınca tepsiye küçült",       sub: "Pencereyi kapatmak uygulamayı sonlandırmaz"},
-                        {key: "autoLaunch"       as const, label: "Windows başlangıcında başlat",   sub: "Oturum açılınca AEGIS arka planda başlar"},
-                        {key: "apiServerEnabled" as const, label: "Yerel API sunucusu (port 7331)", sub: "Telefondan /api/ask ile AEGIS'e soru sor"},
+                        {key: "minimizeToTray"   as const, label: s.apTray,       sub: ""},
+                        {key: "autoLaunch"       as const, label: s.apAutoLaunch, sub: ""},
+                        {key: "apiServerEnabled" as const, label: s.apApiServer,  sub: ""},
                     ]).map(({key, label, sub}) => {
                         const active = !!(settings as unknown as Record<string, unknown>)[key];
                         return (
@@ -268,7 +270,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
 
             {/* ── 5. ÖZEL CSS ── */}
             <div>
-                <SectionLabel label="ÖZEL CSS" accent={accent} />
+                <SectionLabel label={s.apCustomCss} accent={accent} />
                 <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} />
                 <Hint accent={accent}>CSS değişkenlerini override et. Örn: <code style={{color: `rgba(${accent},0.55)`}}>{`:root { --hud: 255,100,50; }`}</code></Hint>
             </div>

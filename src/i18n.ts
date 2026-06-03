@@ -394,3 +394,235 @@ export const ONBOARDING: Record<Lang, OnboardingStrings> = {
         errPassLen: "La contraseña debe tener al menos 6 caracteres.",
     },
 };
+
+// ─── Ayarlar paneli (Öncelik 2) ───────────────────────────────────────────────
+export interface SettingsStrings {
+    // Nav sekme adları + alt başlıklar
+    navAccount: string; navAccountSub: string;
+    navModel: string; navModelSub: string;
+    navVoice: string; navVoiceSub: string;
+    navAppearance: string; navAppearanceSub: string;
+    navKeys: string; navKeysSub: string;
+    navTelemetry: string; navTelemetrySub: string;
+    navShortcuts: string; navShortcutsSub: string;
+    navTools: string; navToolsSub: string;
+    // AccountTab
+    accSection: string; accMode: string; accEmail: string;
+    accTrial: string; accAdvanced: string;
+    accQuota: string; accRequests: string; accTokens: string;
+    accQuotaHint: string; accSignInHint: string;
+    accSync: string; accSyncHint: string; accSignOut: string;
+    // ModelTab
+    mdProvider: string; mdKey: string; mdKeyHint: string;
+    mdOllama: string; mdUrl: string; mdModelName: string; mdCtx: string; mdOllamaHint: string;
+    mdModel: string; mdLoadingModels: string; mdNoKey: string; mdNoLive: string;
+    mdParams: string; mdTemp: string; mdMaxTokens: string; mdSysPrompt: string;
+    mdSysHint: string; mdCaps: string;
+    // VoiceTab
+    voLang: string; voLangHint: string; voEngine: string;
+    voEdgeSub: string; voElSub: string; voElKey: string;
+    voVoice: string; voSpeed: string; voTest: string; voTestPlaying: string; voTestHint: string;
+    // AppearanceTab
+    apSkin: string; apDensity: string; apNormal: string; apCompact: string;
+    apFineAdj: string; apAccent: string; apPalette: string; apFont: string;
+    apApp: string; apTray: string; apAutoLaunch: string; apApiServer: string;
+    apCustomCss: string; apCssHint: string; apActive: string;
+    // KeysTab
+    keysSection: string; keysHint: string;
+    // TelemetryTab
+    telWidgets: string; telThresholds: string;
+    // ShortcutsTab
+    scTitle: string; scHint: string;
+    // ToolsTab
+    tlTitle: string; tlHint: string;
+    // SettingsPanel nav footer
+    saved: string;
+}
+
+export const SETTINGS: Record<Lang, SettingsStrings> = {
+    tr: {
+        navAccount: "Hesap", navAccountSub: "Mod, oturum & kota",
+        navModel: "Model", navModelSub: "AI sağlayıcı & parametreler",
+        navVoice: "Ses", navVoiceSub: "TTS motoru & dil",
+        navAppearance: "Görünüm", navAppearanceSub: "Tema, skin, font",
+        navKeys: "API Keys", navKeysSub: "Servis anahtarları",
+        navTelemetry: "Telemetri", navTelemetrySub: "Widget & uyarılar",
+        navShortcuts: "Kısayollar", navShortcutsSub: "Klavye kısayolları",
+        navTools: "Araçlar", navToolsSub: "Mevcut tool listesi",
+        accSection: "HESAP & MOD", accMode: "Mod", accEmail: "Hesap",
+        accTrial: "Hızlı Başlangıç (Deneme)", accAdvanced: "Gelişmiş (Kendi Anahtarın)",
+        accQuota: "GÜNLÜK KOTA", accRequests: "İstek", accTokens: "Token",
+        accQuotaHint: "Kota her gün UTC gece yarısı sıfırlanır. Limitten kurtulmak için Model sekmesinden kendi Groq anahtarını girebilirsin.",
+        accSignInHint: "Kotayı görmek için giriş yapman gerekiyor.",
+        accSync: "BULUT SENKRONİZASYONU", accSyncHint: "Açıkken ayarların ve API anahtarların (şifreli) cihazlar arasında otomatik senkronlanır.",
+        accSignOut: "Çıkış Yap",
+        mdProvider: "AI SAĞLAYICI", mdKey: "API KEY", mdKeyHint: "settings.json içinde saklanır · diğer provider'lar etkilenmez.",
+        mdOllama: "OLLAMA AYARLARI", mdUrl: "Sunucu URL", mdModelName: "Model adı", mdCtx: "Context penceresi", mdOllamaHint: "Ollama kapalıysa: ollama serve",
+        mdModel: "MODEL", mdLoadingModels: "Modeller yükleniyor…",
+        mdNoKey: "Canlı model listesi için API anahtarı gir. Şimdilik bilinen modeller gösteriliyor.",
+        mdNoLive: "Canlı liste alınamadı — bilinen modeller gösteriliyor.",
+        mdParams: "PARAMETRELER", mdTemp: "Sıcaklık", mdMaxTokens: "Maks çıktı", mdSysPrompt: "SİSTEM PROMPTU",
+        mdSysHint: "Boş bırakırsan AEGIS varsayılan karakterini kullanır.", mdCaps: "BU MODEL NE YAPABİLİR",
+        voLang: "DİL / LANGUAGE", voLangHint: "Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir.",
+        voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · offline · hızlı", voElSub: "Gerçekçi · API key gerekli",
+        voElKey: "ELEVENLABS API KEY", voVoice: "SES", voSpeed: "KONUŞMA HIZI",
+        voTest: "SES TESTİ", voTestPlaying: "ÇALINIYOR…", voTestHint: " motoru kullanılır.",
+        apSkin: "GÖRÜNÜM", apDensity: "YOĞUNLUK", apNormal: "Normal", apCompact: "Kompakt",
+        apFineAdj: "İNCE AYAR", apAccent: "VURGU RENGİ", apPalette: "PALET", apFont: "FONT",
+        apApp: "UYGULAMA", apTray: "Sistem tepsisine küçült", apAutoLaunch: "Başlangıçta başlat", apApiServer: "API Sunucusu",
+        apCustomCss: "ÖZEL CSS", apCssHint: "Tüm CSS değişkenlerine ve sınıflarına erişebilirsin.", apActive: "AKTİF",
+        keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
+        telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
+        scTitle: "KLAVYE KISAYOLLARI", scHint: "Kısayollar sistem genelinde çalışır.",
+        tlTitle: "MEVCUT ARAÇLAR", tlHint: "Aktif araçlar AI'ın kullanabileceği işlevleri gösterir.",
+        saved: "Kaydedildi",
+    },
+    en: {
+        navAccount: "Account", navAccountSub: "Mode, session & quota",
+        navModel: "Model", navModelSub: "AI provider & parameters",
+        navVoice: "Voice", navVoiceSub: "TTS engine & language",
+        navAppearance: "Appearance", navAppearanceSub: "Theme, skin, font",
+        navKeys: "API Keys", navKeysSub: "Service keys",
+        navTelemetry: "Telemetry", navTelemetrySub: "Widgets & alerts",
+        navShortcuts: "Shortcuts", navShortcutsSub: "Keyboard shortcuts",
+        navTools: "Tools", navToolsSub: "Available tool list",
+        accSection: "ACCOUNT & MODE", accMode: "Mode", accEmail: "Account",
+        accTrial: "Quick Start (Trial)", accAdvanced: "Advanced (Own Key)",
+        accQuota: "DAILY QUOTA", accRequests: "Requests", accTokens: "Tokens",
+        accQuotaHint: "Quota resets every day at UTC midnight. To bypass the limit, enter your own Groq key in the Model tab.",
+        accSignInHint: "Sign in to view your quota.",
+        accSync: "CLOUD SYNC", accSyncHint: "When enabled, your settings and API keys (encrypted) sync automatically across devices.",
+        accSignOut: "Sign Out",
+        mdProvider: "AI PROVIDER", mdKey: "API KEY", mdKeyHint: "Stored in settings.json · other providers unaffected.",
+        mdOllama: "OLLAMA SETTINGS", mdUrl: "Server URL", mdModelName: "Model name", mdCtx: "Context window", mdOllamaHint: "If Ollama is not running: ollama serve",
+        mdModel: "MODEL", mdLoadingModels: "Loading models…",
+        mdNoKey: "Enter an API key to fetch live models. Showing known models for now.",
+        mdNoLive: "Could not fetch live list — showing known models.",
+        mdParams: "PARAMETERS", mdTemp: "Temperature", mdMaxTokens: "Max output", mdSysPrompt: "SYSTEM PROMPT",
+        mdSysHint: "Leave empty to use AEGIS default persona.", mdCaps: "MODEL CAPABILITIES",
+        voLang: "LANGUAGE", voLangHint: "Changing language updates system prompt, Whisper and TTS voice automatically.",
+        voEngine: "TTS ENGINE", voEdgeSub: "Free · offline · fast", voElSub: "Realistic · API key required",
+        voElKey: "ELEVENLABS API KEY", voVoice: "VOICE", voSpeed: "SPEECH RATE",
+        voTest: "VOICE TEST", voTestPlaying: "PLAYING…", voTestHint: " engine is used.",
+        apSkin: "APPEARANCE", apDensity: "DENSITY", apNormal: "Normal", apCompact: "Compact",
+        apFineAdj: "FINE TUNE", apAccent: "ACCENT COLOR", apPalette: "PALETTE", apFont: "FONT",
+        apApp: "APPLICATION", apTray: "Minimize to tray", apAutoLaunch: "Launch at startup", apApiServer: "API Server",
+        apCustomCss: "CUSTOM CSS", apCssHint: "You have access to all CSS variables and classes.", apActive: "ACTIVE",
+        keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
+        telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
+        scTitle: "KEYBOARD SHORTCUTS", scHint: "Shortcuts work system-wide.",
+        tlTitle: "AVAILABLE TOOLS", tlHint: "Active tools show what functions the AI can use.",
+        saved: "Saved",
+    },
+    de: {
+        navAccount: "Konto", navAccountSub: "Modus, Sitzung & Kontingent",
+        navModel: "Modell", navModelSub: "KI-Anbieter & Parameter",
+        navVoice: "Stimme", navVoiceSub: "TTS-Engine & Sprache",
+        navAppearance: "Aussehen", navAppearanceSub: "Thema, Skin, Schriftart",
+        navKeys: "API-Schlüssel", navKeysSub: "Dienstschlüssel",
+        navTelemetry: "Telemetrie", navTelemetrySub: "Widgets & Warnungen",
+        navShortcuts: "Tastenkürzel", navShortcutsSub: "Tastaturkürzel",
+        navTools: "Werkzeuge", navToolsSub: "Verfügbare Tool-Liste",
+        accSection: "KONTO & MODUS", accMode: "Modus", accEmail: "Konto",
+        accTrial: "Schnellstart (Testversion)", accAdvanced: "Erweitert (Eigener Schlüssel)",
+        accQuota: "TAGESKONTINGENT", accRequests: "Anfragen", accTokens: "Token",
+        accQuotaHint: "Kontingent wird täglich um UTC-Mitternacht zurückgesetzt. Eigenen Groq-Schlüssel eingeben, um Limit zu umgehen.",
+        accSignInHint: "Zum Anzeigen des Kontingents bitte anmelden.",
+        accSync: "CLOUD-SYNCHRONISATION", accSyncHint: "Wenn aktiviert, werden Einstellungen und API-Schlüssel (verschlüsselt) geräteübergreifend synchronisiert.",
+        accSignOut: "Abmelden",
+        mdProvider: "KI-ANBIETER", mdKey: "API-SCHLÜSSEL", mdKeyHint: "In settings.json gespeichert · andere Anbieter nicht betroffen.",
+        mdOllama: "OLLAMA-EINSTELLUNGEN", mdUrl: "Server-URL", mdModelName: "Modellname", mdCtx: "Kontextfenster", mdOllamaHint: "Falls Ollama nicht läuft: ollama serve",
+        mdModel: "MODELL", mdLoadingModels: "Modelle werden geladen…",
+        mdNoKey: "API-Schlüssel eingeben, um Live-Modelle zu laden. Bekannte Modelle werden angezeigt.",
+        mdNoLive: "Live-Liste konnte nicht geladen werden — bekannte Modelle werden angezeigt.",
+        mdParams: "PARAMETER", mdTemp: "Temperatur", mdMaxTokens: "Max. Ausgabe", mdSysPrompt: "SYSTEMPROMPT",
+        mdSysHint: "Leer lassen, um AEGIS-Standardpersona zu verwenden.", mdCaps: "MODELL-FÄHIGKEITEN",
+        voLang: "SPRACHE", voLangHint: "Beim Sprachwechsel werden Systemprompt, Whisper und TTS-Stimme automatisch aktualisiert.",
+        voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · offline · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich",
+        voElKey: "ELEVENLABS-API-SCHLÜSSEL", voVoice: "STIMME", voSpeed: "SPRECHGESCHWINDIGKEIT",
+        voTest: "STIMMTEST", voTestPlaying: "WIRD ABGESPIELT…", voTestHint: " Engine wird verwendet.",
+        apSkin: "AUSSEHEN", apDensity: "DICHTE", apNormal: "Normal", apCompact: "Kompakt",
+        apFineAdj: "FEINEINSTELLUNG", apAccent: "AKZENTFARBE", apPalette: "PALETTE", apFont: "SCHRIFTART",
+        apApp: "ANWENDUNG", apTray: "In Taskleiste minimieren", apAutoLaunch: "Beim Start ausführen", apApiServer: "API-Server",
+        apCustomCss: "BENUTZERDEFINIERTES CSS", apCssHint: "Zugriff auf alle CSS-Variablen und Klassen.", apActive: "AKTIV",
+        keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
+        telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
+        scTitle: "TASTATURKÜRZEL", scHint: "Kürzel funktionieren systemweit.",
+        tlTitle: "VERFÜGBARE WERKZEUGE", tlHint: "Aktive Tools zeigen, welche Funktionen die KI nutzen kann.",
+        saved: "Gespeichert",
+    },
+    fr: {
+        navAccount: "Compte", navAccountSub: "Mode, session & quota",
+        navModel: "Modèle", navModelSub: "Fournisseur IA & paramètres",
+        navVoice: "Voix", navVoiceSub: "Moteur TTS & langue",
+        navAppearance: "Apparence", navAppearanceSub: "Thème, skin, police",
+        navKeys: "Clés API", navKeysSub: "Clés de service",
+        navTelemetry: "Télémétrie", navTelemetrySub: "Widgets & alertes",
+        navShortcuts: "Raccourcis", navShortcutsSub: "Raccourcis clavier",
+        navTools: "Outils", navToolsSub: "Liste des outils disponibles",
+        accSection: "COMPTE & MODE", accMode: "Mode", accEmail: "Compte",
+        accTrial: "Démarrage rapide (Essai)", accAdvanced: "Avancé (Clé personnelle)",
+        accQuota: "QUOTA QUOTIDIEN", accRequests: "Requêtes", accTokens: "Tokens",
+        accQuotaHint: "Le quota se réinitialise chaque jour à minuit UTC. Entrez votre propre clé Groq dans l'onglet Modèle pour lever la limite.",
+        accSignInHint: "Connectez-vous pour voir votre quota.",
+        accSync: "SYNCHRONISATION CLOUD", accSyncHint: "Quand activé, vos paramètres et clés API (chiffrés) se synchronisent automatiquement entre appareils.",
+        accSignOut: "Se déconnecter",
+        mdProvider: "FOURNISSEUR IA", mdKey: "CLÉ API", mdKeyHint: "Stocké dans settings.json · autres fournisseurs non affectés.",
+        mdOllama: "PARAMÈTRES OLLAMA", mdUrl: "URL du serveur", mdModelName: "Nom du modèle", mdCtx: "Fenêtre de contexte", mdOllamaHint: "Si Ollama ne tourne pas : ollama serve",
+        mdModel: "MODÈLE", mdLoadingModels: "Chargement des modèles…",
+        mdNoKey: "Entrez une clé API pour charger les modèles en direct. Modèles connus affichés pour l'instant.",
+        mdNoLive: "Liste en direct indisponible — modèles connus affichés.",
+        mdParams: "PARAMÈTRES", mdTemp: "Température", mdMaxTokens: "Sortie max", mdSysPrompt: "PROMPT SYSTÈME",
+        mdSysHint: "Laisser vide pour utiliser le persona par défaut d'AEGIS.", mdCaps: "CAPACITÉS DU MODÈLE",
+        voLang: "LANGUE", voLangHint: "Le changement de langue met à jour automatiquement le prompt système, Whisper et la voix TTS.",
+        voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · hors ligne · rapide", voElSub: "Réaliste · clé API requise",
+        voElKey: "CLÉ API ELEVENLABS", voVoice: "VOIX", voSpeed: "VITESSE D'ÉLOCUTION",
+        voTest: "TEST VOCAL", voTestPlaying: "LECTURE…", voTestHint: " moteur utilisé.",
+        apSkin: "APPARENCE", apDensity: "DENSITÉ", apNormal: "Normal", apCompact: "Compact",
+        apFineAdj: "RÉGLAGE FIN", apAccent: "COULEUR D'ACCENT", apPalette: "PALETTE", apFont: "POLICE",
+        apApp: "APPLICATION", apTray: "Réduire dans la barre", apAutoLaunch: "Lancer au démarrage", apApiServer: "Serveur API",
+        apCustomCss: "CSS PERSONNALISÉ", apCssHint: "Accès à toutes les variables et classes CSS.", apActive: "ACTIF",
+        keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
+        telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
+        scTitle: "RACCOURCIS CLAVIER", scHint: "Les raccourcis fonctionnent à l'échelle du système.",
+        tlTitle: "OUTILS DISPONIBLES", tlHint: "Les outils actifs montrent les fonctions que l'IA peut utiliser.",
+        saved: "Enregistré",
+    },
+    es: {
+        navAccount: "Cuenta", navAccountSub: "Modo, sesión y cuota",
+        navModel: "Modelo", navModelSub: "Proveedor IA y parámetros",
+        navVoice: "Voz", navVoiceSub: "Motor TTS e idioma",
+        navAppearance: "Apariencia", navAppearanceSub: "Tema, skin, fuente",
+        navKeys: "Claves API", navKeysSub: "Claves de servicio",
+        navTelemetry: "Telemetría", navTelemetrySub: "Widgets y alertas",
+        navShortcuts: "Atajos", navShortcutsSub: "Atajos de teclado",
+        navTools: "Herramientas", navToolsSub: "Lista de herramientas disponibles",
+        accSection: "CUENTA Y MODO", accMode: "Modo", accEmail: "Cuenta",
+        accTrial: "Inicio rápido (Prueba)", accAdvanced: "Avanzado (Clave propia)",
+        accQuota: "CUOTA DIARIA", accRequests: "Solicitudes", accTokens: "Tokens",
+        accQuotaHint: "La cuota se restablece cada día a medianoche UTC. Introduce tu propia clave Groq en la pestaña Modelo para eliminar el límite.",
+        accSignInHint: "Inicia sesión para ver tu cuota.",
+        accSync: "SINCRONIZACIÓN EN LA NUBE", accSyncHint: "Cuando está activado, tus ajustes y claves API (cifradas) se sincronizan automáticamente entre dispositivos.",
+        accSignOut: "Cerrar sesión",
+        mdProvider: "PROVEEDOR IA", mdKey: "CLAVE API", mdKeyHint: "Almacenado en settings.json · otros proveedores no afectados.",
+        mdOllama: "AJUSTES OLLAMA", mdUrl: "URL del servidor", mdModelName: "Nombre del modelo", mdCtx: "Ventana de contexto", mdOllamaHint: "Si Ollama no está ejecutándose: ollama serve",
+        mdModel: "MODELO", mdLoadingModels: "Cargando modelos…",
+        mdNoKey: "Introduce una clave API para cargar modelos en vivo. Mostrando modelos conocidos por ahora.",
+        mdNoLive: "No se pudo obtener la lista en vivo — mostrando modelos conocidos.",
+        mdParams: "PARÁMETROS", mdTemp: "Temperatura", mdMaxTokens: "Salida máx", mdSysPrompt: "PROMPT DEL SISTEMA",
+        mdSysHint: "Dejar vacío para usar la persona predeterminada de AEGIS.", mdCaps: "CAPACIDADES DEL MODELO",
+        voLang: "IDIOMA", voLangHint: "Al cambiar el idioma se actualizan automáticamente el prompt del sistema, Whisper y la voz TTS.",
+        voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · sin conexión · rápido", voElSub: "Realista · requiere clave API",
+        voElKey: "CLAVE API ELEVENLABS", voVoice: "VOZ", voSpeed: "VELOCIDAD DE HABLA",
+        voTest: "PRUEBA DE VOZ", voTestPlaying: "REPRODUCIENDO…", voTestHint: " motor en uso.",
+        apSkin: "APARIENCIA", apDensity: "DENSIDAD", apNormal: "Normal", apCompact: "Compacto",
+        apFineAdj: "AJUSTE FINO", apAccent: "COLOR DE ACENTO", apPalette: "PALETA", apFont: "FUENTE",
+        apApp: "APLICACIÓN", apTray: "Minimizar a bandeja", apAutoLaunch: "Iniciar al arranque", apApiServer: "Servidor API",
+        apCustomCss: "CSS PERSONALIZADO", apCssHint: "Acceso a todas las variables y clases CSS.", apActive: "ACTIVO",
+        keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
+        telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",
+        scTitle: "ATAJOS DE TECLADO", scHint: "Los atajos funcionan a nivel del sistema.",
+        tlTitle: "HERRAMIENTAS DISPONIBLES", tlHint: "Las herramientas activas muestran las funciones que puede usar la IA.",
+        saved: "Guardado",
+    },
+};

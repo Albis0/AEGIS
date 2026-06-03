@@ -1,12 +1,14 @@
 import {useState} from "react";
 import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, Hint, Toggle} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 interface Props {
     accent: string;
     ac: string;
     settings: AppSettings;
     onApply: (patch: Partial<AppSettings>) => void;
+    s: SettingsStrings;
 }
 
 interface ToolInfo {
@@ -46,7 +48,7 @@ const TOOLS: ToolInfo[] = [
 
 const CATEGORIES = [...new Set(TOOLS.map((t) => t.category))];
 
-export default function ToolsTab({accent, ac, settings, onApply}: Props) {
+export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
     const [pendingEnable, setPendingEnable] = useState(false);
     const fullPcAccess = settings.fullPcAccess ?? false;
     const disabled = new Set(settings.disabledTools ?? []);

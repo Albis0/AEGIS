@@ -1,6 +1,7 @@
 import {useState} from "react";
 import type {AppSettings, AegisConfig} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, KeyField} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 const EDGE_VOICES = [
     {id: "tr-TR-EmelNeural",   label: "Emel",   meta: "TR · Kadın"},
@@ -44,9 +45,10 @@ interface Props {
     ac: string;
     onApply: (patch: Partial<AppSettings>) => void;
     onApplyConfig: (patch: Partial<AegisConfig>) => void;
+    s: SettingsStrings;
 }
 
-export default function VoiceTab({settings, config, accent, ac, onApply, onApplyConfig}: Props) {
+export default function VoiceTab({settings, config, accent, ac, onApply, onApplyConfig, s}: Props) {
     const [testing, setTesting] = useState(false);
     const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES : EDGE_VOICES;
 
@@ -74,7 +76,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
 
             {/* Language */}
             <div>
-                <SectionLabel label="DİL / LANGUAGE" accent={accent} />
+                <SectionLabel label={s.voLang} accent={accent} />
                 <div className="grid grid-cols-5 gap-1.5">
                     {LANGUAGES.map((l) => {
                         const active = (settings.language ?? "tr") === l.id;
@@ -89,16 +91,16 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         );
                     })}
                 </div>
-                <Hint accent={accent}>Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir.</Hint>
+                <Hint accent={accent}>{s.voLangHint}</Hint>
             </div>
 
             {/* TTS engine */}
             <div>
-                <SectionLabel label="TTS MOTORU" accent={accent} />
+                <SectionLabel label={s.voEngine} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
                     {[
-                        {id: "edge",       icon: "◎", label: "Edge TTS",   sub: "Ücretsiz · offline · hızlı"},
-                        {id: "elevenlabs", icon: "♬", label: "ElevenLabs", sub: "Gerçekçi · API key gerekli"},
+                        {id: "edge",       icon: "◎", label: "Edge TTS",   sub: s.voEdgeSub},
+                        {id: "elevenlabs", icon: "♬", label: "ElevenLabs", sub: s.voElSub},
                     ].map((p) => {
                         const active = settings.ttsProvider === p.id;
                         return (
@@ -121,7 +123,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
             {/* ElevenLabs key */}
             {settings.ttsProvider === "elevenlabs" && (
                 <div>
-                    <SectionLabel label="ELEVENLABS API KEY" accent={accent} />
+                    <SectionLabel label={s.voElKey} accent={accent} />
                     <KeyField value={config?.elevenlabsApiKey ?? ""} placeholder="sk_..."
                         onSave={(v) => onApplyConfig({elevenlabsApiKey: v || undefined})} accent={accent} />
                 </div>
@@ -129,7 +131,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
 
             {/* Voice picker */}
             <div>
-                <SectionLabel label="SES" accent={accent} />
+                <SectionLabel label={s.voVoice} accent={accent} />
                 <div className="grid grid-cols-2 gap-1.5">
                     {voices.map((v) => {
                         const active = settings.ttsVoice === v.id;
@@ -148,7 +150,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
 
             {/* Speed */}
             <div>
-                <SectionLabel label="KONUŞMA HIZI" accent={accent} />
+                <SectionLabel label={s.voSpeed} accent={accent} />
                 <div className="flex items-center gap-4 px-1">
                     <span className="text-[11px] opacity-35 w-8 shrink-0" style={{color: ac}}>0.5×</span>
                     <input type="range" min={0.5} max={2.0} step={0.1}
@@ -163,15 +165,15 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
 
             {/* Test */}
             <div>
-                <SectionLabel label="SES TESTİ" accent={accent} />
+                <SectionLabel label={s.voTest} accent={accent} />
                 <button onClick={testVoice} disabled={testing}
                     className="flex items-center gap-3 px-5 py-3 rounded-xl border text-[11px] tracking-[0.2em] font-medium transition hover:brightness-125 disabled:opacity-40"
                     style={{color: ac, borderColor: `rgba(${accent},0.3)`, background: `rgba(${accent},0.07)`}}>
                     {testing
-                        ? <><span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{background: ac}} />ÇALINIYOR…</>
+                        ? <><span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{background: ac}} />{s.voTestPlaying}</>
                         : <>▶ MERHABA, BEN AEGIS</>}
                 </button>
-                <Hint accent={accent}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Edge TTS"} motoru kullanılır.</Hint>
+                <Hint accent={accent}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Edge TTS"}{s.voTestHint}</Hint>
             </div>
         </div>
     );

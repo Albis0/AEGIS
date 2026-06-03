@@ -1,6 +1,7 @@
 import {useState} from "react";
 import type {AppSettings, TelemetryWidget} from "../../../electron.d";
 import {SectionLabel, Hint} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu","ram","disk","battery","network","gpu","fans","processes","system","activeWindow"];
 
@@ -23,9 +24,10 @@ interface Props {
     ac: string;
     onApply: (patch: Partial<AppSettings>) => void;
     onWidgetsChange: (widgets: TelemetryWidget[]) => void;
+    s: SettingsStrings;
 }
 
-export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsChange}: Props) {
+export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsChange, s}: Props) {
     const [exportDone, setExportDone] = useState(false);
     const active = settings.telemetryWidgets ?? [];
 
@@ -71,7 +73,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
 
             {/* Widget toggles */}
             <div>
-                <SectionLabel label="GÖRÜNTÜLENECEK WIDGET'LAR" accent={accent} />
+                <SectionLabel label={s.telWidgets} accent={accent} />
                 <p className="text-[11px] mb-4 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
                     Sol panelde hangi telemetri bloklarının görüneceğini seç.
                 </p>
@@ -123,7 +125,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
 
             {/* Alert thresholds */}
             <div>
-                <SectionLabel label="EŞİK UYARILARI" accent={accent} />
+                <SectionLabel label={s.telThresholds} accent={accent} />
                 <p className="text-[11px] mb-4 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
                     Eşik aşılınca feed'e uyarı düşer + Windows bildirimi gelir. Boş bırakırsan izlenmez.
                 </p>

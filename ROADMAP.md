@@ -704,12 +704,9 @@ ana ekran sadece telemetri + chat'ten oluştuğu için UI'da işlenecek malzeme 
 **Karar (kullanıcı):** Her aile KENDİ tam kimliğini dayatsın; hepsi birbirinden
 tamamen unique olsun; tek tek yapılacak, her aile bitince dur–göster–onay.
 
-### 34.1 Aile kimlik sistemi (altyapı) ⬜
-- Aile = TAM preset: kendi `--hud/--hud-soft/--hud-deep/--bg/--bg-deep/status` +
-  font + vibe flag'leri (glow, köşe yarıçapı, scanline, light/dark). Aile seçince
-  hepsi uygulanır; accent yine de opsiyonel ezilebilir.
-- "PALET" (Faz 32) ile çakışmayı çöz: aile tam kimlik verir, palet ince ayar kalır.
-- Mevcut Nebula/Codex/Retro bu sisteme taşınır (kendi renkleriyle) — recolor değil.
+### 34.1 Aile kimlik sistemi (altyapı) ✅
+- Her aile kendi hardcoded renk/zemin/font paletini doğrudan TSX sabitleri olarak taşır
+- Nebula/Codex/Retro registry'den çıkarıldı; Skeuomorphism/Neo-brutalism/Claymorphism eklendi
 
 ### 34.2 Ana ekran içerik genişletme (ailelere malzeme) ⬜
 Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havuzu:
@@ -721,27 +718,23 @@ Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havu
 - Komut önerisi chip'leri / selamlama başlığı
 - Saat varyantları (analog, dünya saatleri); aktif otomasyon/izleme, persona göstergesi
 
-### 34.3 Aileler — 4 akım × 4 ferdi (her biri ayrı tasarım AKIMI) ⬜
+### 34.3 Aileler — 4 akım × 4 ferdi (her biri ayrı tasarım AKIMI) ✅
 Her ailede aynı **4 arketip** o akımın diliyle yorumlanır: **İmza** (vitrin),
 **Sohbet** (konuşma öncelikli), **Kompakt** (yoğun/mini), **Pano** (telemetri/widget).
-Tur başına 1 aile, bitince dur–göster–onay.
 
-**0. Aegis HUD** (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, keskin
+**0. Aegis HUD** ✅ (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, keskin
 → Hologram · Minimal · Terminal · Dashboard
 
-**1. Skeuomorphism** — gerçek nesne & doku (deri/metal/cam/kâğıt, gerçekçi gölge, fiziksel düğme). Sıcak koyu deri zemin, pirinç/amber vurgu, Oxanium/Rajdhani.
-→ **Desk** (İmza: deri masada metal-çerçeveli cihaz + notepad) · **Journal** (Sohbet: deri defter sayfaları) · **Walkman** (Kompakt: retro gadget, LCD+düğme) · **Cockpit** (Pano: analog ibreli kadranlar)
+**1. Skeuomorphism** ✅ — gerçek nesne & doku (deri/metal/cam/kâğıt, gerçekçi gölge, fiziksel düğme). Sıcak koyu deri zemin, pirinç/amber vurgu, Oxanium/Rajdhani.
+→ **Desk** (İmza) · **Journal** (Sohbet) · **Walkman** (Kompakt) · **Cockpit** (Pano)
 
-**2. Neo-brutalism** — ham/cesur (kalın siyah çerçeve, sert ofset gölge, çarpışan canlı renk, dev tipografi, düz). AÇIK krem zemin, Syne/Space Grotesk bold.
-→ **Poster** (İmza: dev tipografik afiş) · **Stack** (Sohbet: ofset-gölgeli sticker kartlar) · **Switch** (Kompakt: dev kalın butonlar) · **Grid** (Pano: kalın çerçeveli renkli hücreler)
+**2. Neo-brutalism** ✅ — ham/cesur (kalın çerçeve, sert ofset gölge, dev tipografi). Koyu siyah zemin, krem metin, Space Grotesk bold.
+→ **Poster** (İmza) · **Stack** (Sohbet) · **Switch** (Kompakt) · **Grid** (Pano)
 
-**3. Claymorphism** — yumuşak puffy 3D (pastel, çok yuvarlak, çift gölge, kabarık). Lavanta/mint açık zemin, Poppins.
-→ **Orb** (İmza: dev kil küre + pastel haplar) · **Pillow** (Sohbet: kabarık yastık baloncuklar) · **Pebble** (Kompakt: yumuşak çakıl butonlar) · **Tiles** (Pano: kabarık kil fayanslar)
+**3. Claymorphism** ✅ — yumuşak puffy 3D (pastel, çok yuvarlak, çift gölge, kabarık). Derin mor zemin, lila/mint/şeftali pastel vurgu, Poppins.
+→ **Orb** (İmza) · **Pillow** (Sohbet) · **Pebble** (Kompakt) · **Tiles** (Pano)
 
-*(Faz 33'teki Nebula/Codex/Retro "aynı görünüyordu" — bu 12 ferdin lehine bırakılıyor; 34.1 kimlik sistemine geçilince temizlenir.)*
-
-**Yaklaşım:** Önce 34.1 (kimlik altyapısı) + 34.2'den birkaç widget → sonra 34.3'te
-aileleri TEK TEK, her aile bitince dur–göster–onay. Churn yok, plan-önce.
+*(Faz 33'teki Nebula/Codex/Retro registry'den çıkarıldı; 3 yeni benzersiz aile ile değiştirildi.)*
 *Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
 i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es).*
@@ -803,5 +796,10 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 27   Öğrenme & kişisel gelişim    ← TAMAMLANDI
 ✅  Faz 28   Fiziksel dünya & IoT         ← TAMAMLANDI
 ✅  Faz 29   Çoklu model orkestrasyonu    ← TAMAMLANDI
-🔶  Faz 30   Dağıtım: deneme modu + auth  ← 30.1-30.4 ✅ / 30.5-30.8 sırada
+✅  Faz 30   Dağıtım: deneme modu + auth  ← TAMAMLANDI (30.8 imzalı build ertelendi)
+✅  Faz 31   Model-özel revizyon          ← TAMAMLANDI
+✅  Faz 32   Renk/zemin palet presetleri  ← TAMAMLANDI
+✅  Faz 33   Skin aileleri (mimari)       ← TAMAMLANDI
+✅  Faz 34   Benzersiz UI aileleri        ← TAMAMLANDI (34.2 widget'lar opsiyonel/sonra)
+🔶  i18n Ö2  Ayarlar paneli ~200 metin   ← DEVAM EDİYOR
 ```

@@ -1,11 +1,13 @@
 import type {AegisConfig} from "../../../electron.d";
 import {SectionLabel, KeyField, Hint} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 interface Props {
     config: AegisConfig;
     accent: string;
     ac: string;
     onApplyConfig: (patch: Partial<AegisConfig>) => void;
+    s: SettingsStrings;
 }
 
 interface KeyRow {
@@ -16,7 +18,7 @@ interface KeyRow {
     required?: boolean;
 }
 
-export default function KeysTab({config, accent, ac, onApplyConfig}: Props) {
+export default function KeysTab({config, accent, ac, onApplyConfig, s}: Props) {
     const rows: KeyRow[] = [
         {
             label: "GROQ",
@@ -60,8 +62,7 @@ export default function KeysTab({config, accent, ac, onApplyConfig}: Props) {
     return (
         <div className="space-y-6">
             <p className="text-[12px] leading-relaxed" style={{color: `rgba(${accent},0.4)`}}>
-                Groq + Supabase temel servisler için zorunludur. Tavily / Serper web araması, ElevenLabs gelişmiş ses sentezi için opsiyoneldir.
-                AI provider key'leri için <span style={{color: ac}}>Model</span> sekmesini kullan.
+                {s.keysHint}
             </p>
 
             {rows.map((row) => (

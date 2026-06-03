@@ -4,17 +4,19 @@ import {
     SectionLabel, FieldLabel, Hint, RadioCard, KeyField, PlainField,
     AI_PROVIDERS, PROVIDER_MODELS, DEFAULT_MODEL, TEMP_MAX, MAX_TOKEN_OPTIONS, tagColor,
 } from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 interface Props {
     settings: AppSettings;
     accent: string;
     ac: string;
     onApply: (patch: Partial<AppSettings>) => void;
+    s: SettingsStrings;
 }
 
 type DisplayModel = {id: string; label: string; tag?: string; ctx?: string; note?: string};
 
-export default function ModelTab({settings, accent, ac, onApply}: Props) {
+export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
     const [paramsOpen, setParamsOpen] = useState(false);
     const provider = settings.aiProvider as AiProvider;
     const tempMax = TEMP_MAX[provider] ?? 2;
@@ -73,7 +75,7 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
 
             {/* Provider grid */}
             <div>
-                <SectionLabel label="AI SAĞLAYICI" accent={accent} />
+                <SectionLabel label={s.mdProvider} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
                     {AI_PROVIDERS.map((p) => {
                         const active = provider === p.id;
@@ -118,27 +120,27 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                         onSave={saveProviderKey}
                         accent={accent}
                     />
-                    <Hint accent={accent}>settings.json içinde saklanır · diğer provider'lar etkilenmez.</Hint>
+                    <Hint accent={accent}>{s.mdKeyHint}</Hint>
                 </div>
             )}
 
             {/* Ollama */}
             {provider === "ollama" && (
                 <div>
-                    <SectionLabel label="OLLAMA AYARLARI" accent={accent} />
+                    <SectionLabel label={s.mdOllama} accent={accent} />
                     <div className="space-y-3">
                         <div>
-                            <FieldLabel accent={accent}>Sunucu URL</FieldLabel>
+                            <FieldLabel accent={accent}>{s.mdUrl}</FieldLabel>
                             <PlainField value={settings.ollamaUrl || "http://localhost:11434"} placeholder="http://localhost:11434"
                                 onSave={(v) => onApply({ollamaUrl: v})} accent={accent} />
                         </div>
                         <div>
-                            <FieldLabel accent={accent}>Model adı</FieldLabel>
+                            <FieldLabel accent={accent}>{s.mdModelName}</FieldLabel>
                             <PlainField value={settings.model} placeholder="llama3.2, mistral, gemma2..."
                                 onSave={(v) => onApply({model: v})} accent={accent} />
                         </div>
                         <div>
-                            <FieldLabel accent={accent}>Context penceresi</FieldLabel>
+                            <FieldLabel accent={accent}>{s.mdCtx}</FieldLabel>
                             <div className="flex flex-wrap gap-1.5 mt-1">
                                 {[2048, 4096, 8192, 16384, 32768].map((n) => {
                                     const active = (settings.ollamaNumCtx ?? 4096) === n;
@@ -156,7 +158,7 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                                 })}
                             </div>
                         </div>
-                        <Hint accent={accent}>Ollama kapalıysa: <code style={{color: `rgba(${accent},0.6)`}}>ollama serve</code></Hint>
+                        <Hint accent={accent}>{s.mdOllamaHint}</Hint>
                     </div>
                 </div>
             )}
@@ -164,12 +166,12 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
             {/* Model list */}
             {provider !== "ollama" && (
                 <div>
-                    <SectionLabel label="MODEL" accent={accent} />
+                    <SectionLabel label={s.mdModel} accent={accent} />
                     {loadingModels && (
-                        <Hint accent={accent}>Modeller yükleniyor…</Hint>
+                        <Hint accent={accent}>{s.mdLoadingModels}</Hint>
                     )}
                     {!loadingModels && liveModels.length === 0 && (
-                        <Hint accent={accent}>{needsKey && !currentKey ? "Canlı model listesi için API anahtarı gir. Şimdilik bilinen modeller gösteriliyor." : "Canlı liste alınamadı — bilinen modeller gösteriliyor."}</Hint>
+                        <Hint accent={accent}>{needsKey && !currentKey ? s.mdNoKey : s.mdNoLive}</Hint>
                     )}
                     <div className="space-y-1">
                         {modelList.map((m) => {
@@ -209,8 +211,8 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
             {/* Model yetenekleri — seçili model ne yapabilir? */}
             {caps && (
                 <div>
-                    <SectionLabel label="BU MODEL NE YAPABİLİR" accent={accent} />
-                    <CapsBadges caps={caps} accent={accent} ac={ac} />
+                    <SectionLabel label={s.mdCaps} accent={accent} />
+                    <CapsBadges caps={caps} accent={accent} ac={ac} s={s} />
                 </div>
             )}
 
@@ -219,7 +221,7 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                 <button onClick={() => setParamsOpen((o) => !o)}
                     className="w-full flex items-center justify-between px-4 py-3 transition"
                     style={{background: paramsOpen ? `rgba(${accent},0.06)` : "transparent"}}>
-                    <span className="text-[10px] font-medium tracking-[0.3em]" style={{color: `rgba(${accent},0.5)`}}>GELİŞMİŞ PARAMETRELER</span>
+                    <span className="text-[10px] font-medium tracking-[0.3em]" style={{color: `rgba(${accent},0.5)`}}>{s.mdParams}</span>
                     <span className="text-[10px] transition-transform duration-200"
                         style={{color: `rgba(${accent},0.4)`, transform: paramsOpen ? "rotate(180deg)" : "none"}}>▼</span>
                 </button>
@@ -229,7 +231,7 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
 
                         <div className="pt-4">
                             <div className="flex items-center justify-between mb-2">
-                                <FieldLabel accent={accent}>Sıcaklık (Temperature)</FieldLabel>
+                                <FieldLabel accent={accent}>{s.mdTemp}</FieldLabel>
                                 <span className="text-[13px] tabular-nums font-medium"
                                     style={{fontFamily: "Orbitron, sans-serif", color: ac}}>{(settings.temperature ?? 0.7).toFixed(2)}</span>
                             </div>
@@ -244,7 +246,7 @@ export default function ModelTab({settings, accent, ac, onApply}: Props) {
                         </div>
 
                         <div>
-                            <FieldLabel accent={accent}>Maksimum token</FieldLabel>
+                            <FieldLabel accent={accent}>{s.mdMaxTokens}</FieldLabel>
                             <div className="flex flex-wrap gap-1.5 mt-1">
                                 {MAX_TOKEN_OPTIONS.map((n) => {
                                     const active = (settings.maxTokens ?? 8192) === n;
@@ -353,7 +355,7 @@ const IconDiamond = () => (<svg {...svgProps}><path d="M12 2 22 12 12 22 2 12Z" 
 const IconCheck = () => (<svg {...svgProps}><polyline points="20 6 9 17 4 12" /></svg>);
 const IconCross = () => (<svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>);
 
-function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: string}) {
+function CapsBadges({caps, accent, ac, s}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
     const yes = "74,222,128", no = "248,113,113", purp = "192,132,252";
 
     // Destekleniyor/desteklenmiyor büyük rozet

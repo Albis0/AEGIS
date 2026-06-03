@@ -1,8 +1,10 @@
 import {SectionLabel} from "../shared";
+import type {SettingsStrings} from "../../../i18n";
 
 interface Props {
     accent: string;
     ac: string;
+    s: SettingsStrings;
 }
 
 interface Shortcut {
@@ -40,7 +42,7 @@ function Kbd({label, accent, ac}: {label: string; accent: string; ac: string}) {
     );
 }
 
-export default function ShortcutsTab({accent, ac}: Props) {
+export default function ShortcutsTab({accent, ac, s}: Props) {
     return (
         <div className="space-y-7">
             {CATEGORIES.map((cat) => (
@@ -70,7 +72,7 @@ export default function ShortcutsTab({accent, ac}: Props) {
 
             <div className="rounded-xl p-4" style={{background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.1)`}}>
                 <p className="text-[11px] leading-relaxed" style={{color: `rgba(${accent},0.4)`}}>
-                    Kısayollar şu an özelleştirilemez. Gelecek güncellemelerde rebind desteği eklenecek.
+                    {s.scHint}
                 </p>
             </div>
         </div>
