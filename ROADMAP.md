@@ -721,13 +721,14 @@ Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havu
 - Komut önerisi chip'leri / selamlama başlığı
 - Saat varyantları (analog, dünya saatleri); aktif otomasyon/izleme, persona göstergesi
 
-### 34.3 Aileler — her biri UNIQUE, tur başına 1 (menü, sıra kullanıcıya) ⬜
-1. **Aegis HUD** (mevcut, dokunulmaz) — cyan neon sci-fi HUD
-2. **Paper** — açık/kağıt tema (tek LIGHT), serif+mono, ince çizgi, döküman hissi
-3. **Nebula** — derin mor/indigo cam, yuvarlak, sakin (kendi moru)
-4. **Retro** — yeşil/amber CRT, scanline, beveled (kendi yeşili)
-5. **Brutalist** — siyah-beyaz, dev tipografi, kalın çerçeve, sıfır süs
-*(Liste bir menü; hangisi/ne sırayla kullanıcı seçer.)*
+### 34.3 Aileler — KESİNLEŞEN 4 (her biri ayrı bir tasarım AKIMI) ⬜
+Her aile tanınmış ve birbirinden tamamen farklı bir akım. Tur başına 1 aile,
+bitince dur–göster–onay. Her aile 4 ferdiyle (skin).
+1. **Aegis HUD** (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, holografik, keskin köşe
+2. **Skeuomorphism** — gerçek dünya dokuları + derinlik: deri/metal/cam/kâğıt yüzeyler, gerçekçi gölge & ışık, fiziksel basılabilir düğmeler, gerçek malzeme hissi
+3. **Neo-brutalism** — ham & cesur: kalın siyah çerçeveler, sert ofset gölge (drop-shadow), çarpışan canlı renkler, dev tipografi, düz/süssüz
+4. **Claymorphism** (seçim: ben) — yumuşak puffy 3D: pastel renkler, çok yuvarlak, çift gölge (iç+dış), kabarık/samimi yüzeyler
+*(Faz 33'teki Nebula/Codex/Retro, "aynı görünüyordu" — bu 4'ün lehine bırakılıyor; 34.1 kimlik sistemine geçilince ya yeniden kimliklendirilir ya kaldırılır.)*
 
 **Yaklaşım:** Önce 34.1 (kimlik altyapısı) + 34.2'den birkaç widget → sonra 34.3'te
 aileleri TEK TEK, her aile bitince dur–göster–onay. Churn yok, plan-önce.
