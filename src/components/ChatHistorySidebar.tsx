@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useState} from "react";
+import {EXTRA, UI, type Lang} from "../i18n";
 
 interface Session {
     id: string;
@@ -18,9 +19,12 @@ interface Props {
     open: boolean;
     onClose: () => void;
     onLoadSession: (messages: {role: string; content: string}[]) => void;
+    lang: Lang;
 }
 
-export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props) {
+export default function ChatHistorySidebar({open, onClose, onLoadSession, lang}: Props) {
+    const tr = EXTRA[lang];
+    const locale = UI[lang].locale;
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
@@ -87,21 +91,21 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{borderColor: "rgba(var(--hud),0.2)"}}>
-                    <span className="text-[10px] tracking-[0.3em] glow-text" style={{color: "rgb(var(--hud))"}}>GEÇMİŞ OTURUMLAR</span>
+                    <span className="text-[10px] tracking-[0.3em] glow-text" style={{color: "rgb(var(--hud))"}}>{tr.histTitle}</span>
                     <button onClick={onClose} className="w-7 h-7 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>✕</button>
                 </div>
 
                 {/* Session list */}
                 <div className="flex-1 min-h-0 overflow-y-auto" style={{padding: "10px"}}>
                     {loading && (
-                        <div className="text-[11px] opacity-40 py-4 text-center" style={{color: "rgb(var(--hud))"}}>yükleniyor…</div>
+                        <div className="text-[11px] opacity-40 py-4 text-center" style={{color: "rgb(var(--hud))"}}>{tr.histLoading}</div>
                     )}
                     {!loading && sessions.length === 0 && (
-                        <div className="text-[11px] opacity-40 py-4 text-center" style={{color: "rgb(var(--hud))"}}>kayıtlı oturum yok</div>
+                        <div className="text-[11px] opacity-40 py-4 text-center" style={{color: "rgb(var(--hud))"}}>{tr.histEmpty}</div>
                     )}
                     {sessions.map((s) => {
                         const date = s.created_at
-                            ? new Date(s.created_at).toLocaleDateString("tr-TR", {day: "2-digit", month: "short", year: "numeric"})
+                            ? new Date(s.created_at).toLocaleDateString(locale, {day: "2-digit", month: "short", year: "numeric"})
                             : "?";
                         const isExp = expanded === s.id;
                         return (
@@ -129,7 +133,7 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props
                                                 {s.summary}
                                             </div>
                                         ) : (
-                                            <div className="text-[9px] opacity-25 italic mt-0.5" style={{color: "rgb(var(--hud))"}}>özet yok</div>
+                                            <div className="text-[9px] opacity-25 italic mt-0.5" style={{color: "rgb(var(--hud))"}}>{tr.histNoSummary}</div>
                                         )}
                                     </div>
                                 </div>
@@ -142,7 +146,7 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props
                                                 className="flex-1 py-1 text-[9px] tracking-wider rounded border transition hover:brightness-125"
                                                 style={{color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.3)"}}
                                             >
-                                                DEVAM ET
+                                                {tr.histContinue}
                                             </button>
                                             <button
                                                 onClick={handleExport}
@@ -150,19 +154,19 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props
                                                 className="flex-1 py-1 text-[9px] tracking-wider rounded border transition hover:brightness-125 disabled:opacity-40"
                                                 style={{color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.3)"}}
                                             >
-                                                DIŞA AKTAR
+                                                {tr.histExport}
                                             </button>
                                         </div>
                                         <div className="px-3 pb-3 space-y-1.5 max-h-52 overflow-y-auto">
                                             {msgLoading && (
-                                                <div className="text-[9px] opacity-30 text-center py-2" style={{color: "rgb(var(--hud))"}}>yükleniyor…</div>
+                                                <div className="text-[9px] opacity-30 text-center py-2" style={{color: "rgb(var(--hud))"}}>{tr.histLoading}</div>
                                             )}
                                             {!msgLoading && messages
                                                 .filter((m) => m.role !== "tool")
                                                 .map((m, i) => (
                                                     <div key={i} className={`text-[10px] leading-relaxed ${m.role === "user" ? "text-right" : ""}`}>
                                                         <span className="text-[8px] opacity-30 mr-1" style={{color: "rgb(var(--hud))"}}>
-                                                            {m.role === "user" ? "SİZ" : "AEGIS"}
+                                                            {m.role === "user" ? tr.histYou : tr.histAegis}
                                                         </span>
                                                         <span className="opacity-60 break-words" style={{color: "rgb(var(--hud))"}}>
                                                             {m.content.slice(0, 100)}{m.content.length > 100 ? "…" : ""}

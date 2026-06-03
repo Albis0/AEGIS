@@ -677,12 +677,13 @@ no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
 i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es).*
 
-**Öncelik 1 — Ana ekran (hep görünür):**
-- ⬜ Skinler: input placeholder, durum metinleri (KONUŞMA, CANLI/HAZIR/İŞLENİYOR/DİNLİYOR), boş-feed mesajları, buton etiketleri (GÖNDER/DURDUR/KAPAT) — Hologram/Minimal/Terminal/Dashboard
-- ⬜ FeedItem: "HATA" etiketi, tool fiilleri (KOMUT YÜRÜTÜLÜYOR, DOSYA OKUNUYOR…)
-- ⬜ CommandPalette: başlık, ipuçları, kategori adları
-- ⬜ ChatHistorySidebar: başlık, "geçmiş yok" vb.
-- ⬜ VoiceModeToggle: mod etiketleri
+**Öncelik 1 — Ana ekran (hep görünür): ✅ BİTTİ**
+- ✅ Skinler: input placeholder, durum metinleri (KONUŞMA, CANLI/HAZIR/İŞLENİYOR/DİNLİYOR), boş-feed mesajları, buton etiketleri (GÖNDER/DURDUR/KAPAT), saat locale — Hologram/Minimal/Terminal/Dashboard (Minimal/Terminal bilinçli İngilizce estetik korundu)
+- ✅ FeedItem: "HATA" etiketi, tool fiilleri (KOMUT YÜRÜTÜLÜYOR, DOSYA OKUNUYOR…)
+- ✅ CommandPalette: arama/ipuçları/ANLIK-DÜZENLE + 19 komutun label/açıklama/text'i (5 dil)
+- ✅ ChatHistorySidebar: başlık, yükleniyor/boş/özet-yok, DEVAM ET/DIŞA AKTAR, SİZ/AEGIS, tarih locale
+- ✅ VoiceModeToggle: mod etiketleri (MİK KAPALI/SÜREKLİ/UYANDIRMA) + başlık
+- Altyapı: i18n.ts `UI.LangStrings` (~40 anahtar) + `EXTRA` + `PALETTE_COMMANDS`; `t` skinProps'tan, `lang` standalone panellere geçiyor
 
 **Öncelik 2 — Ayarlar paneli (en yoğun, ~200 metin):**
 - ⬜ SettingsPanel: NAV_ITEMS (sekme adları + alt başlıklar)

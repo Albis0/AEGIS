@@ -1,42 +1,16 @@
 import React, {useEffect, useRef, useState} from "react";
-
-interface Command {
-    id: string;
-    label: string;
-    description: string;
-    text: string;
-    direct: boolean;
-}
-
-const COMMANDS: Command[] = [
-    {id: "screenshot",     label: "Ekranı analiz et",              description: "Tam ekran yakala + vision ile analiz",     text: "Ekranımda ne var?",                            direct: true},
-    {id: "clipboard_r",   label: "Panoyu oku",                    description: "Panodaki mevcut metni göster",             text: "Panodaki metni oku",                           direct: true},
-    {id: "windows",        label: "Açık pencereleri listele",      description: "Tüm açık uygulama pencerelerini göster",   text: "Açık pencereleri listele",                     direct: true},
-    {id: "weather",        label: "Hava durumu",                   description: "Konumunuzun güncel hava durumu",           text: "Hava durumu nasıl?",                           direct: true},
-    {id: "profile",        label: "Profilimi göster",              description: "Kaydedilmiş kullanıcı bilgileri",          text: "Profilimi göster",                             direct: true},
-    {id: "notes",          label: "Notlarımı göster",              description: "Bekleyen notlar ve hatırlatıcılar",        text: "Notlarımı göster",                             direct: true},
-    {id: "app_profiles",   label: "Uygulama profillerini listele", description: "Kayıtlı app başlatma profilleri",          text: "Uygulama profillerini listele",                direct: true},
-    {id: "plugins",        label: "Plugin'leri listele",           description: "Yüklü plugin'ler ve araçları",             text: "Plugin'leri listele",                          direct: true},
-    {id: "reload_plugins", label: "Plugin'leri yenile",            description: "~/.aegis/plugins/ diskten yeniden yükle", text: "Plugin'leri yenile",                           direct: true},
-    {id: "fetch_url",      label: "Web sayfasını oku",             description: "URL'nin içeriğini çek ve özetle",         text: "Bu sayfayı oku: https://",                     direct: false},
-    {id: "volume",         label: "Ses seviyesini ayarla",         description: "Sistem ses seviyesi 0-100",               text: "Sesi %50 yap",                                 direct: false},
-    {id: "brightness",     label: "Parlaklığı ayarla",             description: "Ekran parlaklığı 0-100",                  text: "Parlaklığı %50 yap",                           direct: false},
-    {id: "remind",         label: "Hatırlatıcı ayarla",            description: "X dakika/saniye sonra sesli hatırlat",    text: "10 dakika sonra hatırlat: ",                   direct: false},
-    {id: "note_save",      label: "Not kaydet",                    description: "Yeni not ekle (Supabase'e)",              text: "Not kaydet: ",                                 direct: false},
-    {id: "search",         label: "İnternette ara",                description: "Tavily/Serper/DuckDuckGo ile ara",        text: "Ara: ",                                        direct: false},
-    {id: "notif",          label: "Bildirim gönder",               description: "Windows toast bildirimi göster",          text: "Bildirim gönder başlık: AEGIS mesaj: Merhaba", direct: false},
-    {id: "focus",          label: "Pencereyi öne getir",           description: "Uygulamayı aktif pencere yap",            text: "Öne getir: ",                                  direct: false},
-    {id: "clip_write",     label: "Panoya yaz",                    description: "Metni panonuza kopyala",                  text: "Panoya kopyala: ",                             direct: false},
-    {id: "run_profile",    label: "Profil çalıştır",               description: "Kayıtlı uygulama profili başlat",         text: "Profili çalıştır: ",                           direct: false},
-];
+import {EXTRA, PALETTE_COMMANDS, type Lang, type PaletteCommand} from "../i18n";
 
 interface Props {
     open: boolean;
     onClose: () => void;
     onSelect: (text: string, direct: boolean) => void;
+    lang: Lang;
 }
 
-export default function CommandPalette({open, onClose, onSelect}: Props) {
+export default function CommandPalette({open, onClose, onSelect, lang}: Props) {
+    const tr = EXTRA[lang];
+    const COMMANDS = PALETTE_COMMANDS[lang];
     const [query, setQuery] = useState("");
     const [cursor, setCursor] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +33,7 @@ export default function CommandPalette({open, onClose, onSelect}: Props) {
 
     if (!open) return null;
 
-    const select = (cmd: Command) => {
+    const select = (cmd: PaletteCommand) => {
         onSelect(cmd.text, cmd.direct);
         onClose();
     };
@@ -90,7 +64,7 @@ export default function CommandPalette({open, onClose, onSelect}: Props) {
                         ref={inputRef}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Komut ara…"
+                        placeholder={tr.palSearch}
                         className="flex-1 bg-transparent outline-none text-sm font-mono"
                         style={{color: "rgb(var(--hud-soft))", caretColor: "rgb(var(--hud))"}}
                     />
@@ -100,7 +74,7 @@ export default function CommandPalette({open, onClose, onSelect}: Props) {
                 {/* Command list */}
                 <div className="max-h-[52vh] overflow-y-auto">
                     {filtered.length === 0 && (
-                        <div className="px-4 py-6 text-[11px] opacity-30 text-center" style={{color: "rgb(var(--hud))"}}>komut bulunamadı</div>
+                        <div className="px-4 py-6 text-[11px] opacity-30 text-center" style={{color: "rgb(var(--hud))"}}>{tr.palNotFound}</div>
                     )}
                     {filtered.map((cmd, i) => (
                         <div
@@ -122,7 +96,7 @@ export default function CommandPalette({open, onClose, onSelect}: Props) {
                                     border: `1px solid ${cmd.direct ? "rgb(var(--status-ok) / 0.25)" : "rgba(var(--hud),0.2)"}`,
                                 }}
                             >
-                                {cmd.direct ? "ANLIK" : "DÜZENLE"}
+                                {cmd.direct ? tr.palInstant : tr.palEdit}
                             </span>
                         </div>
                     ))}
@@ -130,10 +104,10 @@ export default function CommandPalette({open, onClose, onSelect}: Props) {
 
                 {/* Footer */}
                 <div className="flex gap-4 px-4 py-1.5 border-t text-[8.5px] opacity-30" style={{borderColor: "rgba(var(--hud),0.15)", color: "rgb(var(--hud))"}}>
-                    <span>↑↓ gezin</span>
-                    <span>↵ seç</span>
-                    <span>ESC kapat</span>
-                    <span className="ml-auto">Ctrl+Space açar</span>
+                    <span>{tr.palNav}</span>
+                    <span>{tr.palSelect}</span>
+                    <span>{tr.palClose}</span>
+                    <span className="ml-auto">{tr.palHint}</span>
                 </div>
             </div>
         </div>

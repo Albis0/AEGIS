@@ -393,11 +393,13 @@ export default function App() {
                 open={historyOpen}
                 onClose={() => setHistoryOpen(false)}
                 onLoadSession={handleLoadSession}
+                lang={lang}
             />
             <CommandPalette
                 open={paletteOpen}
                 onClose={() => setPaletteOpen(false)}
                 onSelect={handlePaletteSelect}
+                lang={lang}
             />
             {skin === "minimal"   ? <MinimalSkin   {...skinProps} /> :
              skin === "terminal"  ? <TerminalSkin  {...skinProps} /> :
