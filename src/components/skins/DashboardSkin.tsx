@@ -49,7 +49,7 @@ function Widget({title, children, className = ""}: {title: string; children: Rea
 
 export default function DashboardSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
-    mode, setMode, listening, activated, placeholder,
+    mode, setMode, listening, activated, placeholder, t,
     onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const [clock, setClock] = useState(new Date());
@@ -80,7 +80,7 @@ export default function DashboardSkin({
                     <span className="text-[11px] tracking-[0.45em]" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--hud))", opacity: 0.7}}>AEGIS · DASHBOARD</span>
                 </div>
                 <div className="text-[12px] tabular-nums opacity-60" style={{fontFamily: "Orbitron, sans-serif"}}>
-                    {clock.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit", second: "2-digit"})}
+                    {clock.toLocaleTimeString(t.locale, {hour: "2-digit", minute: "2-digit", second: "2-digit"})}
                 </div>
                 <div className="no-drag flex gap-1">
                     <button onClick={onSettingsOpen} className="w-8 h-8 grid place-items-center opacity-40 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
@@ -160,13 +160,13 @@ export default function DashboardSkin({
                     style={{background: "rgba(var(--hud),0.02)", border: "1px solid rgba(var(--hud),0.1)"}}
                 >
                     {feed.length === 0 && (
-                        <div className="text-[12px] opacity-30">Sistem hazır. Komut bekleniyor…</div>
+                        <div className="text-[12px] opacity-30">{t.emptyDash}</div>
                     )}
                     {feed.map((item) =>
                         item.kind === "error" ? (
                             <div key={item.id} className="rise rounded-lg border overflow-hidden" style={{borderColor: "rgba(248,113,113,0.45)", background: "rgba(248,113,113,0.07)"}}>
                                 <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] tracking-[0.25em]" style={{background: "rgba(248,113,113,0.12)", color: "rgb(248,113,113)", borderBottom: "1px solid rgba(248,113,113,0.25)"}}>
-                                    <span className="text-[12px]">⊘</span><span>HATA</span>
+                                    <span className="text-[12px]">⊘</span><span>{t.errLabel}</span>
                                 </div>
                                 <p className="px-3 py-2.5 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style={{color: "rgb(252,180,180)"}}>{item.text}</p>
                             </div>
@@ -247,7 +247,7 @@ export default function DashboardSkin({
                         className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
-                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[13px]" title="Dosya ekle" style={{color: "rgb(var(--hud))"}}>
+                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[13px]" title={t.attachFile} style={{color: "rgb(var(--hud))"}}>
                         ⊕
                         <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                             onChange={(e) => {
@@ -264,7 +264,7 @@ export default function DashboardSkin({
                     {state === "speaking" && (
                         <button onClick={onStop} className="text-[10px] px-2 py-1 rounded border transition" style={{color: "rgb(var(--status-danger))", borderColor: "rgba(var(--status-danger),0.3)"}}>⏹</button>
                     )}
-                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
+                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} t={t} onToggle={() => {
                         const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
                         setMode(next);
                     }} />

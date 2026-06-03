@@ -1,42 +1,84 @@
 export type Lang = "tr" | "en" | "de" | "fr" | "es";
 
 export interface LangStrings {
-    processing: string;
-    listening: string;
-    waitingVoice: string;
-    idle: string;
+    processing: string; listening: string; waitingVoice: string; idle: string;
+    locale: string;
+    send: string; stop: string; closeBtn: string; attachFile: string;
+    tipHistory: string; tipSettings: string; tipMinimize: string; tipFullscreen: string; tipClose: string;
+    conversation: string;
+    stLive: string; stProc: string; stResp: string; stListen: string; stErr: string; stReady: string;
+    empty1: string; empty2: string; empty3: string; emptyDash: string;
+    secSystem: string; secWeather: string; wx: string; feelsLike: string; humidity: string; wConnecting: string; wLoading: string;
+    ramUsed: string; ramFree: string; ramTotal: string;
+    errLabel: string; vRun: string; vRead: string; vWrite: string; vList: string; vSearch: string;
+    vmOff: string; vmAlways: string; vmWake: string; vmTitle: string;
 }
 
 export const UI: Record<Lang, LangStrings> = {
     tr: {
-        processing: "JARVIS işliyor…",
-        listening: "Dinliyorum, efendim…",
-        waitingVoice: "Sesli komut bekleniyor…",
-        idle: "Komutunuzu verin, efendim…",
+        processing: "JARVIS işliyor…", listening: "Dinliyorum, efendim…", waitingVoice: "Sesli komut bekleniyor…", idle: "Komutunuzu verin, efendim…",
+        locale: "tr-TR",
+        send: "GÖNDER", stop: "DURDUR", closeBtn: "KAPAT", attachFile: "Dosya ekle",
+        tipHistory: "Konuşma geçmişi", tipSettings: "Ayarlar", tipMinimize: "Küçült", tipFullscreen: "Tam ekran (F11)", tipClose: "Kapat",
+        conversation: "KONUŞMA",
+        stLive: "CANLI", stProc: "İŞLENİYOR", stResp: "YANIT VERİYOR", stListen: "DİNLİYOR", stErr: "HATA", stReady: "HAZIR",
+        empty1: "SYS: JARVIS çevrimiçi.", empty2: "SYS: Sistemler nominal.", empty3: "SYS: Emrinizi bekliyorum, efendim…", emptyDash: "Sistem hazır. Komut bekleniyor…",
+        secSystem: "SİSTEM DURUMU", secWeather: "HAVA DURUMU", wx: "HAVA", feelsLike: "hissedilen", humidity: "nem", wConnecting: "bağlanılamadı", wLoading: "yükleniyor…",
+        ramUsed: "KULLANILAN", ramFree: "BOŞ", ramTotal: "TOPLAM",
+        errLabel: "HATA", vRun: "KOMUT YÜRÜTÜLÜYOR", vRead: "DOSYA OKUNUYOR", vWrite: "DOSYA YAZILIYOR", vList: "DİZİN TARANIYOR", vSearch: "AĞ TARANIYOR",
+        vmOff: "MİK KAPALI", vmAlways: "SÜREKLİ", vmWake: "UYANDIRMA", vmTitle: "Ses modu",
     },
     en: {
-        processing: "AEGIS processing…",
-        listening: "Listening, sir…",
-        waitingVoice: "Waiting for voice command…",
-        idle: "Give your command, sir…",
+        processing: "AEGIS processing…", listening: "Listening, sir…", waitingVoice: "Waiting for voice command…", idle: "Give your command, sir…",
+        locale: "en-US",
+        send: "SEND", stop: "STOP", closeBtn: "CLOSE", attachFile: "Attach file",
+        tipHistory: "Chat history", tipSettings: "Settings", tipMinimize: "Minimize", tipFullscreen: "Fullscreen (F11)", tipClose: "Close",
+        conversation: "CONVERSATION",
+        stLive: "LIVE", stProc: "PROCESSING", stResp: "RESPONDING", stListen: "LISTENING", stErr: "ERROR", stReady: "READY",
+        empty1: "SYS: JARVIS online.", empty2: "SYS: Systems nominal.", empty3: "SYS: Awaiting your command, sir…", emptyDash: "System ready. Awaiting command…",
+        secSystem: "SYSTEM STATUS", secWeather: "WEATHER", wx: "WX", feelsLike: "feels like", humidity: "humidity", wConnecting: "can't connect", wLoading: "loading…",
+        ramUsed: "USED", ramFree: "FREE", ramTotal: "TOTAL",
+        errLabel: "ERROR", vRun: "RUNNING COMMAND", vRead: "READING FILE", vWrite: "WRITING FILE", vList: "LISTING DIR", vSearch: "SEARCHING WEB",
+        vmOff: "MIC OFF", vmAlways: "ALWAYS-ON", vmWake: "WAKE WORD", vmTitle: "Voice mode",
     },
     de: {
-        processing: "AEGIS verarbeitet…",
-        listening: "Ich höre, Sir…",
-        waitingVoice: "Warte auf Sprachbefehl…",
-        idle: "Ihr Befehl, Sir…",
+        processing: "AEGIS verarbeitet…", listening: "Ich höre, Sir…", waitingVoice: "Warte auf Sprachbefehl…", idle: "Ihr Befehl, Sir…",
+        locale: "de-DE",
+        send: "SENDEN", stop: "STOPP", closeBtn: "SCHLIESSEN", attachFile: "Datei anhängen",
+        tipHistory: "Verlauf", tipSettings: "Einstellungen", tipMinimize: "Minimieren", tipFullscreen: "Vollbild (F11)", tipClose: "Schließen",
+        conversation: "GESPRÄCH",
+        stLive: "LIVE", stProc: "VERARBEITUNG", stResp: "ANTWORTET", stListen: "HÖRT ZU", stErr: "FEHLER", stReady: "BEREIT",
+        empty1: "SYS: JARVIS online.", empty2: "SYS: Systeme nominal.", empty3: "SYS: Erwarte Ihren Befehl, Sir…", emptyDash: "System bereit. Warte auf Befehl…",
+        secSystem: "SYSTEMSTATUS", secWeather: "WETTER", wx: "WTR", feelsLike: "gefühlt", humidity: "Feuchte", wConnecting: "keine Verbindung", wLoading: "lädt…",
+        ramUsed: "BELEGT", ramFree: "FREI", ramTotal: "GESAMT",
+        errLabel: "FEHLER", vRun: "BEFEHL LÄUFT", vRead: "DATEI LESEN", vWrite: "DATEI SCHREIBEN", vList: "VERZEICHNIS", vSearch: "WEB-SUCHE",
+        vmOff: "MIK AUS", vmAlways: "IMMER AN", vmWake: "WAKE WORD", vmTitle: "Sprachmodus",
     },
     fr: {
-        processing: "AEGIS traite…",
-        listening: "J'écoute, Monsieur…",
-        waitingVoice: "En attente d'une commande vocale…",
-        idle: "Votre commande, Monsieur…",
+        processing: "AEGIS traite…", listening: "J'écoute, Monsieur…", waitingVoice: "En attente d'une commande vocale…", idle: "Votre commande, Monsieur…",
+        locale: "fr-FR",
+        send: "ENVOYER", stop: "STOP", closeBtn: "FERMER", attachFile: "Joindre un fichier",
+        tipHistory: "Historique", tipSettings: "Paramètres", tipMinimize: "Réduire", tipFullscreen: "Plein écran (F11)", tipClose: "Fermer",
+        conversation: "CONVERSATION",
+        stLive: "EN DIRECT", stProc: "TRAITEMENT", stResp: "RÉPONSE", stListen: "À L'ÉCOUTE", stErr: "ERREUR", stReady: "PRÊT",
+        empty1: "SYS: JARVIS en ligne.", empty2: "SYS: Systèmes nominaux.", empty3: "SYS: En attente de votre commande, Monsieur…", emptyDash: "Système prêt. En attente…",
+        secSystem: "ÉTAT SYSTÈME", secWeather: "MÉTÉO", wx: "MÉTÉO", feelsLike: "ressenti", humidity: "humidité", wConnecting: "connexion impossible", wLoading: "chargement…",
+        ramUsed: "UTILISÉ", ramFree: "LIBRE", ramTotal: "TOTAL",
+        errLabel: "ERREUR", vRun: "EXÉCUTION", vRead: "LECTURE FICHIER", vWrite: "ÉCRITURE FICHIER", vList: "LISTE DOSSIER", vSearch: "RECHERCHE WEB",
+        vmOff: "MIC OFF", vmAlways: "CONTINU", vmWake: "MOT-CLÉ", vmTitle: "Mode vocal",
     },
     es: {
-        processing: "AEGIS procesando…",
-        listening: "Escuchando, señor…",
-        waitingVoice: "Esperando comando de voz…",
-        idle: "Su orden, señor…",
+        processing: "AEGIS procesando…", listening: "Escuchando, señor…", waitingVoice: "Esperando comando de voz…", idle: "Su orden, señor…",
+        locale: "es-ES",
+        send: "ENVIAR", stop: "DETENER", closeBtn: "CERRAR", attachFile: "Adjuntar archivo",
+        tipHistory: "Historial", tipSettings: "Ajustes", tipMinimize: "Minimizar", tipFullscreen: "Pantalla completa (F11)", tipClose: "Cerrar",
+        conversation: "CONVERSACIÓN",
+        stLive: "EN VIVO", stProc: "PROCESANDO", stResp: "RESPONDIENDO", stListen: "ESCUCHANDO", stErr: "ERROR", stReady: "LISTO",
+        empty1: "SYS: JARVIS en línea.", empty2: "SYS: Sistemas nominales.", empty3: "SYS: Esperando su orden, señor…", emptyDash: "Sistema listo. Esperando comando…",
+        secSystem: "ESTADO SISTEMA", secWeather: "CLIMA", wx: "CLIMA", feelsLike: "sensación", humidity: "humedad", wConnecting: "sin conexión", wLoading: "cargando…",
+        ramUsed: "USADO", ramFree: "LIBRE", ramTotal: "TOTAL",
+        errLabel: "ERROR", vRun: "EJECUTANDO", vRead: "LEYENDO ARCHIVO", vWrite: "ESCRIBIENDO ARCHIVO", vList: "LISTANDO DIR", vSearch: "BUSCANDO WEB",
+        vmOff: "MIC OFF", vmAlways: "CONTINUO", vmWake: "PALABRA CLAVE", vmTitle: "Modo voz",
     },
 };
 

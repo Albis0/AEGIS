@@ -372,10 +372,10 @@ export default function App() {
         attachments, setAttachments,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
-        feedRef, inputRef, layout, telemetryWidgets,
+        feedRef, inputRef, layout, telemetryWidgets, t,
     }), [feed, input, attachments, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
-        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets]);
+        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets, t]);
 
     return (
         <>

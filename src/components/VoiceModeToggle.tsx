@@ -1,28 +1,25 @@
 import type {VoiceMode} from "../hooks/useVoice";
+import type {LangStrings} from "../i18n";
 
 interface Props {
     mode: VoiceMode;
     listening: boolean;
     activated: boolean;
     onToggle: () => void;
+    t: LangStrings;
 }
 
 const NEXT: Record<VoiceMode, VoiceMode> = {off: "always-on", "always-on": "wake-word", "wake-word": "off"};
 
-const LABEL: Record<VoiceMode, string> = {
-    off: "MİK KAPALI",
-    "always-on": "SÜREKLİ",
-    "wake-word": "UYANDIRMA",
-};
-
-export default function VoiceModeToggle({mode, listening, activated, onToggle}: Props) {
+export default function VoiceModeToggle({mode, listening, activated, onToggle, t}: Props) {
+    const LABEL: Record<VoiceMode, string> = {off: t.vmOff, "always-on": t.vmAlways, "wake-word": t.vmWake};
     const isActive = mode !== "off";
     const dotPulse = (mode === "always-on" && listening) || (mode === "wake-word" && activated);
 
     return (
         <button
             onClick={onToggle}
-            title={`Ses modu: ${LABEL[mode]} → ${LABEL[NEXT[mode]]}`}
+            title={`${t.vmTitle}: ${LABEL[mode]} → ${LABEL[NEXT[mode]]}`}
             className="flex items-center gap-1.5 hover:brightness-125 transition select-none"
             style={{color: isActive ? "rgb(var(--hud))" : "rgba(var(--hud),0.35)"}}
         >

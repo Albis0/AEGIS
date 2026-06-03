@@ -21,7 +21,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", {hour: "2-digit", min
 
 export default function TerminalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel,
-    mode, setMode, listening, activated, placeholder,
+    mode, setMode, listening, activated, placeholder, t,
     onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const promptColor = state === "error" ? "rgb(var(--status-danger))" : state === "thinking" ? "rgb(var(--status-warn))" : "rgb(var(--hud))";
@@ -139,7 +139,7 @@ export default function TerminalSkin({
                         className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
                         style={{color: "rgb(var(--hud-soft))", caretColor: "rgb(var(--hud))"}}
                     />
-                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[12px]" title="Dosya ekle" style={{color: "rgb(var(--hud))"}}>
+                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[12px]" title={t.attachFile} style={{color: "rgb(var(--hud))"}}>
                         ⊕
                         <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                             onChange={(e) => {
@@ -156,7 +156,7 @@ export default function TerminalSkin({
                     {state === "speaking" && (
                         <button onClick={onStop} className="text-[10px] px-2 py-0.5 rounded border transition hover:brightness-125" style={{color: "rgb(var(--status-danger))", borderColor: "rgba(var(--status-danger),0.3)"}}>STOP</button>
                     )}
-                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
+                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} t={t} onToggle={() => {
                         const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
                         setMode(next);
                     }} />

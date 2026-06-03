@@ -19,7 +19,7 @@ function parseSearchSource(detail?: string): string | null {
 
 export default function MinimalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming,
-    mode, setMode, listening, activated, placeholder,
+    mode, setMode, listening, activated, placeholder, t,
     onSend, onStop, onSettingsOpen, feedRef, inputRef,
 }: SkinProps) {
     const [clock, setClock] = useState(new Date());
@@ -38,7 +38,7 @@ export default function MinimalSkin({
                     <span className="w-1.5 h-1.5 rounded-full flick" style={{background: "rgb(var(--hud))"}} />
                     <span className="text-[11px] tracking-[0.4em]" style={{fontFamily: "Orbitron, sans-serif", opacity: 0.7}}>AEGIS</span>
                     <span className="text-[10px] opacity-30 ml-1">
-                        {clock.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"})}
+                        {clock.toLocaleTimeString(t.locale, {hour: "2-digit", minute: "2-digit"})}
                     </span>
                 </div>
                 <div className="no-drag flex items-center gap-1">
@@ -120,7 +120,7 @@ export default function MinimalSkin({
                     </div>
                 )}
                 <div className="flex items-center gap-3">
-                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
+                    <VoiceModeToggle mode={mode} listening={listening} activated={activated} t={t} onToggle={() => {
                         const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
                         setMode(next);
                     }} />
@@ -135,7 +135,7 @@ export default function MinimalSkin({
                         className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
-                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[13px]" title="Dosya ekle" style={{color: "rgb(var(--hud))"}}>
+                    <label className="cursor-pointer opacity-40 hover:opacity-80 transition text-[13px]" title={t.attachFile} style={{color: "rgb(var(--hud))"}}>
                         ⊕
                         <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                             onChange={(e) => {

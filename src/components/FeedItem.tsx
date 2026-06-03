@@ -1,4 +1,5 @@
 import React from "react";
+import type {LangStrings} from "../i18n";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
@@ -7,13 +8,13 @@ export type FeedItemType =
     | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
     | {id: string; kind: "error"; text: string};
 
-const TOOL_VERB: Record<string, string> = {
-    run_command: "KOMUT YÜRÜTÜLÜYOR",
-    read_file: "DOSYA OKUNUYOR",
-    write_file: "DOSYA YAZILIYOR",
-    list_directory: "DİZİN TARANIYOR",
-    web_search: "AĞ TARANIYOR",
-};
+function toolVerb(name: string, t: LangStrings): string {
+    const map: Record<string, string> = {
+        run_command: t.vRun, read_file: t.vRead, write_file: t.vWrite,
+        list_directory: t.vList, web_search: t.vSearch,
+    };
+    return map[name] || name.toUpperCase();
+}
 
 function parseSearchSource(detail?: string): string | null {
     if (!detail) return null;
@@ -25,9 +26,10 @@ interface Props {
     item: FeedItemType;
     streaming: boolean;
     isLast: boolean;
+    t: LangStrings;
 }
 
-const FeedItem = React.memo(function FeedItem({item, streaming, isLast}: Props) {
+const FeedItem = React.memo(function FeedItem({item, streaming, isLast, t}: Props) {
     if (item.kind === "error") {
         return (
             <div className="rise">
@@ -47,7 +49,7 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast}: Props) 
                         }}
                     >
                         <span className="text-[12px]">⊘</span>
-                        <span>HATA</span>
+                        <span>{t.errLabel}</span>
                     </div>
                     <p className="px-3 py-2.5 text-[12.5px] leading-relaxed whitespace-pre-wrap break-words"
                         style={{color: "rgb(252,180,180)"}}>
@@ -92,18 +94,18 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast}: Props) 
 
     return (
         <div className="rise">
-            {item.tools.map((t, i) => {
-                const source = t.name === "web_search" && t.status === "done" ? parseSearchSource(t.detail) : null;
+            {item.tools.map((tool, i) => {
+                const source = tool.name === "web_search" && tool.status === "done" ? parseSearchSource(tool.detail) : null;
                 return (
                     <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
                         <span
-                            className={t.status === "running" ? "flick" : ""}
-                            style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}
+                            className={tool.status === "running" ? "flick" : ""}
+                            style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}
                         >
-                            {t.status === "running" ? "▸" : "✓"}
+                            {tool.status === "running" ? "▸" : "✓"}
                         </span>
-                        <span style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
-                            {TOOL_VERB[t.name] || t.name.toUpperCase()}{t.status === "running" ? "…" : ""}
+                        <span style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
+                            {toolVerb(tool.name, t)}{tool.status === "running" ? "…" : ""}
                         </span>
                         {source && (
                             <span
@@ -127,6 +129,7 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast}: Props) 
         </div>
     );
 }, (prev, next) => {
+    if (prev.t !== next.t) return false; // dil değişince yeniden çiz
     if (prev.item.id !== next.item.id) return false;
     if (prev.item.kind !== next.item.kind) return false;
     if (prev.item.kind === "assistant" && next.item.kind === "assistant") {

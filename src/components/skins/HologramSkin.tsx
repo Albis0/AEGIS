@@ -6,6 +6,7 @@ import ArcReactor from "../ArcReactor";
 import VoiceModeToggle from "../VoiceModeToggle";
 import FeedItem from "../FeedItem";
 import type {FeedItemType} from "../FeedItem";
+import type {LangStrings} from "../../i18n";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
@@ -55,6 +56,7 @@ export interface SkinProps {
     inputRef?: React.RefObject<HTMLInputElement>;
     layout: "normal" | "compact";
     telemetryWidgets?: TelemetryWidget[];
+    t: LangStrings;
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -63,7 +65,7 @@ export default function HologramSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
     onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, inputRef, layout,
-    telemetryWidgets,
+    telemetryWidgets, t,
 }: SkinProps) {
     const compact = layout === "compact";
     const active = (s: CoreState) => s !== "idle";
@@ -91,12 +93,12 @@ export default function HologramSkin({
                 </div>
                 <div className="no-drag flex gap-1">
                     {onHistoryOpen && (
-                        <button onClick={onHistoryOpen} title="Konuşma geçmişi" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>◷</button>
+                        <button onClick={onHistoryOpen} title={t.tipHistory} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>◷</button>
                     )}
-                    <button onClick={onSettingsOpen} title="Ayarlar" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
-                    <button onClick={() => window.jarvis.minimize()} title="Küçült" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>─</button>
-                    <button onClick={() => window.jarvis.fullscreen()} title="Tam ekran (F11)" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>⛶</button>
-                    <button onClick={() => window.jarvis.close()} title="Kapat" className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 hover:text-red-400 transition" style={{color: "rgb(var(--hud))"}}>✕</button>
+                    <button onClick={onSettingsOpen} title={t.tipSettings} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
+                    <button onClick={() => window.jarvis.minimize()} title={t.tipMinimize} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>─</button>
+                    <button onClick={() => window.jarvis.fullscreen()} title={t.tipFullscreen} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>⛶</button>
+                    <button onClick={() => window.jarvis.close()} title={t.tipClose} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 hover:text-red-400 transition" style={{color: "rgb(var(--hud))"}}>✕</button>
                 </div>
             </div>
 
@@ -106,27 +108,27 @@ export default function HologramSkin({
                 <div className="shrink-0 w-[clamp(190px,17vw,230px)] flex flex-col overflow-y-auto hud" style={{gap: "var(--gap)", paddingTop: "var(--pad-y)", color: "rgb(var(--hud))"}}>
                     <Section title="TIME">
                         <div className="text-3xl tabular-nums glow-text leading-none" style={{fontFamily: "Orbitron, sans-serif"}}>
-                            {clock.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"})}
-                            <span className="text-base opacity-60">:{clock.toLocaleTimeString("tr-TR", {second: "2-digit"}).slice(-2)}</span>
+                            {clock.toLocaleTimeString(t.locale, {hour: "2-digit", minute: "2-digit"})}
+                            <span className="text-base opacity-60">:{clock.toLocaleTimeString(t.locale, {second: "2-digit"}).slice(-2)}</span>
                         </div>
-                        <div className="text-[11px] tracking-[0.2em] mt-1.5 glow-text">{clock.toLocaleDateString("tr-TR", {day: "2-digit", month: "short", year: "numeric"}).toUpperCase()}</div>
-                        <div className="text-[10px] tracking-widest opacity-60">{clock.toLocaleDateString("tr-TR", {weekday: "long"}).toUpperCase()}</div>
+                        <div className="text-[11px] tracking-[0.2em] mt-1.5 glow-text">{clock.toLocaleDateString(t.locale, {day: "2-digit", month: "short", year: "numeric"}).toUpperCase()}</div>
+                        <div className="text-[10px] tracking-widest opacity-60">{clock.toLocaleDateString(t.locale, {weekday: "long"}).toUpperCase()}</div>
                     </Section>
 
-                    <Section title={weather?.city ? `HAVA · ${weather.city.toUpperCase()}` : "HAVA DURUMU"}>
+                    <Section title={weather?.city ? `${t.wx} · ${weather.city.toUpperCase()}` : t.secWeather}>
                         {weather && !weather.error ?
                             <>
                                 <div className="text-3xl glow-text" style={{fontFamily: "Orbitron, sans-serif"}}>{weather.temp}°C</div>
                                 <ul className="text-[11px] mt-1.5 space-y-0.5 opacity-80">
                                     <li>• {weather.desc}</li>
-                                    <li>• hissedilen {weather.feels}°</li>
-                                    <li>• nem %{weather.humidity}</li>
+                                    <li>• {t.feelsLike} {weather.feels}°</li>
+                                    <li>• {t.humidity} %{weather.humidity}</li>
                                 </ul>
                             </>
-                        :   <div className="text-[11px] opacity-50">{weather?.error ? "bağlanılamadı" : "yükleniyor…"}</div>}
+                        :   <div className="text-[11px] opacity-50">{weather?.error ? t.wConnecting : t.wLoading}</div>}
                     </Section>
 
-                    <Section title="SİSTEM DURUMU">
+                    <Section title={t.secSystem}>
                         <div className="text-[9px] tracking-widest opacity-60 mb-1.5">
                             UPTIME · {tel ? fmtUptime(tel.uptime) : "—"}
                         </div>
@@ -147,6 +149,7 @@ export default function HologramSkin({
                                     usedMB={tel?.ramUsedMB ?? 0}
                                     totalMB={tel?.ramTotalMB ?? 0}
                                     freeMB={tel?.ramFreeMB ?? 0}
+                                    t={t}
                                 />
                             )}
                             {show("disk") && (tel?.disks ?? []).length > 0 && (
@@ -227,7 +230,7 @@ export default function HologramSkin({
                     style={{borderColor: "rgba(var(--hud),0.2)", background: "rgba(var(--hud),0.02)"}}
                 >
                     <div className="flex items-center justify-between px-3 py-2 border-b text-[10px] tracking-[0.25em]" style={{borderColor: "rgba(var(--hud),0.15)", color: "rgb(var(--hud))"}}>
-                        <span className="glow-text">KONUŞMA</span>
+                        <span className="glow-text">{t.conversation}</span>
                         <span className="opacity-70" style={{color: state === "error" ? "rgb(var(--status-danger))" : "rgb(var(--hud))"}}>
                             {state.toUpperCase()}
                         </span>
@@ -235,9 +238,9 @@ export default function HologramSkin({
                     <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto space-y-3" style={{padding: "var(--feed-p)"}}>
                         {feed.length === 0 && (
                             <div className="text-[12px] opacity-50 space-y-1 hud" style={{color: "rgb(var(--hud))"}}>
-                                <div>SYS: JARVIS çevrimiçi.</div>
-                                <div>SYS: Sistemler nominal.</div>
-                                <div>SYS: Emrinizi bekliyorum, efendim…</div>
+                                <div>{t.empty1}</div>
+                                <div>{t.empty2}</div>
+                                <div>{t.empty3}</div>
                             </div>
                         )}
                         {feed.map((item) => (
@@ -246,6 +249,7 @@ export default function HologramSkin({
                                 item={item as FeedItemType}
                                 streaming={streaming}
                                 isLast={item.id === feed[feed.length - 1]?.id}
+                                t={t}
                             />
                         ))}
                     </div>
@@ -255,19 +259,19 @@ export default function HologramSkin({
             {/* Control bar */}
             <div className="shrink-0 flex items-center justify-center gap-6 pb-1 z-20 text-[11px] tracking-[0.2em]">
                 <span className="flex items-center gap-1.5" style={{color: active(state) ? "rgb(var(--status-ok))" : "rgb(var(--status-ok) / 0.5)"}}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{background: "rgb(var(--status-ok))", boxShadow: "0 0 6px rgb(var(--status-ok))"}} /> CANLI
+                    <span className="w-1.5 h-1.5 rounded-full" style={{background: "rgb(var(--status-ok))", boxShadow: "0 0 6px rgb(var(--status-ok))"}} /> {t.stLive}
                 </span>
                 <span className="opacity-40">·</span>
                 <span style={{color: "rgb(var(--hud))"}}>
-                    {state === "thinking" ? "İŞLENİYOR" : state === "speaking" ? "YANIT VERİYOR" : state === "listening" ? "DİNLİYOR" : state === "error" ? "HATA" : "HAZIR"}
+                    {state === "thinking" ? t.stProc : state === "speaking" ? t.stResp : state === "listening" ? t.stListen : state === "error" ? t.stErr : t.stReady}
                 </span>
                 <span className="opacity-40">·</span>
-                <VoiceModeToggle mode={mode} listening={listening} activated={activated} onToggle={() => {
+                <VoiceModeToggle mode={mode} listening={listening} activated={activated} t={t} onToggle={() => {
                     const next: VoiceMode = mode === "off" ? "always-on" : mode === "always-on" ? "wake-word" : "off";
                     setMode(next);
                 }} />
                 <span className="opacity-40">·</span>
-                <button onClick={() => window.jarvis.close()} className="flex items-center gap-1.5 hover:brightness-125 transition" style={{color: "rgb(var(--status-danger))"}}>⏻ KAPAT</button>
+                <button onClick={() => window.jarvis.close()} className="flex items-center gap-1.5 hover:brightness-125 transition" style={{color: "rgb(var(--status-danger))"}}>⏻ {t.closeBtn}</button>
             </div>
 
             {/* Input */}
@@ -300,7 +304,7 @@ export default function HologramSkin({
                         className="flex-1 bg-transparent outline-none text-sm font-mono disabled:opacity-50"
                         style={{color: "rgb(var(--hud-soft))"}}
                     />
-                    <label className="cursor-pointer hover:brightness-125 transition" title="Dosya ekle" style={{color: "rgba(var(--hud),0.5)"}}>
+                    <label className="cursor-pointer hover:brightness-125 transition" title={t.attachFile} style={{color: "rgba(var(--hud),0.5)"}}>
                         <span className="text-[14px]">⊕</span>
                         <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                             onChange={(e) => {
@@ -319,11 +323,11 @@ export default function HologramSkin({
                     </label>
                     {state === "speaking" && (
                         <button onClick={onStop} className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border transition hover:brightness-125 flick" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--status-danger))", borderColor: "rgb(var(--status-danger) / 0.4)", background: "rgb(var(--status-danger) / 0.08)"}}>
-                            ⏹ DURDUR
+                            ⏹ {t.stop}
                         </button>
                     )}
                     <button onClick={onSend} disabled={streaming || (!input.trim() && attachments.length === 0)} className="px-4 py-1.5 rounded-lg text-[11px] tracking-widest border disabled:opacity-30 transition hover:brightness-125" style={{fontFamily: "Orbitron, sans-serif", color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.3)"}}>
-                        GÖNDER
+                        {t.send}
                     </button>
                 </div>
             </div>
@@ -401,7 +405,7 @@ const CpuRow = React.memo(function CpuRow({
     );
 });
 
-const RamRow = React.memo(function RamRow({pct, usedMB, totalMB, freeMB}: {pct: number; usedMB: number; totalMB: number; freeMB: number}) {
+const RamRow = React.memo(function RamRow({pct, usedMB, totalMB, freeMB, t}: {pct: number; usedMB: number; totalMB: number; freeMB: number; t: LangStrings}) {
     const [open, setOpen] = React.useState(false);
     const color = pct >= 90 ? "248,80,80" : pct >= 75 ? "245,150,40" : "var(--hud)";
     const fill = color === "var(--hud)" ? "rgb(var(--hud))" : `rgb(${color})`;
@@ -419,15 +423,15 @@ const RamRow = React.memo(function RamRow({pct, usedMB, totalMB, freeMB}: {pct: 
             {open && (
                 <div className="mt-1 pl-2 space-y-0.5 text-[9px] opacity-70">
                     <div className="flex justify-between">
-                        <span>KULLANILAN</span>
+                        <span>{t.ramUsed}</span>
                         <span className="tabular-nums" style={{color: fill}}>{fmtGB(usedMB)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>BOŞ</span>
+                        <span>{t.ramFree}</span>
                         <span className="tabular-nums opacity-60">{fmtGB(freeMB)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>TOPLAM</span>
+                        <span>{t.ramTotal}</span>
                         <span className="tabular-nums opacity-60">{fmtGB(totalMB)}</span>
                     </div>
                 </div>
