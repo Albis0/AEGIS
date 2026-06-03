@@ -8,9 +8,7 @@ import HologramSkin from "./HologramSkin";
 import MinimalSkin from "./MinimalSkin";
 import TerminalSkin from "./TerminalSkin";
 import DashboardSkin from "./DashboardSkin";
-import {NebulaAura, NebulaChat, NebulaBoard, NebulaZen} from "./NebulaFamily";
-import {CodexDoc, CodexSplit, CodexGrid, CodexLog} from "./CodexFamily";
-import {RetroCRT, RetroBoot, RetroPanel, RetroWave} from "./RetroFamily";
+import {NbPoster, NbStack, NbSwitch, NbGrid} from "./NeoBrutalismFamily";
 
 export interface SkinDef {
     id: string;
@@ -38,30 +36,12 @@ export const SKIN_FAMILIES: SkinFamily[] = [
         ],
     },
     {
-        id: "nebula", label: "Nebula", sub: "Yumuşak · yuvarlak · bubble",
+        id: "neobrutalism", label: "Neo-brutalism", sub: "Açık · kalın · sert gölge",
         skins: [
-            {id: "nebula-aura",  label: "Aura",  sub: "Nefes alan küre", icon: "◌", Comp: NebulaAura},
-            {id: "nebula-chat",  label: "Chat",  sub: "Modern mesajlaşma", icon: "◍", Comp: NebulaChat},
-            {id: "nebula-board", label: "Board", sub: "Yuvarlak kartlar", icon: "◰", Comp: NebulaBoard},
-            {id: "nebula-zen",   label: "Zen",   sub: "Ultra-minimal",    icon: "○", Comp: NebulaZen},
-        ],
-    },
-    {
-        id: "codex", label: "Codex", sub: "Düz · editöryel · mono",
-        skins: [
-            {id: "codex-doc",   label: "Doc",   sub: "Tek kolon döküman", icon: "▤", Comp: CodexDoc},
-            {id: "codex-split", label: "Split", sub: "Yan panel + feed",  icon: "◫", Comp: CodexSplit},
-            {id: "codex-grid",  label: "Grid",  sub: "Bordürlü hücreler", icon: "▥", Comp: CodexGrid},
-            {id: "codex-log",   label: "Log",   sub: "Kayıt akışı",       icon: "≡", Comp: CodexLog},
-        ],
-    },
-    {
-        id: "retro", label: "Retro", sub: "CRT · beveled · scanline",
-        skins: [
-            {id: "retro-crt",   label: "CRT",   sub: "Tüp ekran",        icon: "▣", Comp: RetroCRT},
-            {id: "retro-boot",  label: "Boot",  sub: "BIOS açılış",      icon: "▤", Comp: RetroBoot},
-            {id: "retro-panel", label: "Panel", sub: "Çentikli paneller", icon: "◫", Comp: RetroPanel},
-            {id: "retro-wave",  label: "Wave",  sub: "Synthwave ızgara", icon: "◢", Comp: RetroWave},
+            {id: "nb-poster", label: "Poster", sub: "Dev tipografi · afiş", icon: "▮", Comp: NbPoster},
+            {id: "nb-stack",  label: "Stack",  sub: "Sticker kartlar",      icon: "◈", Comp: NbStack},
+            {id: "nb-switch", label: "Switch", sub: "Ham kontrol paneli",   icon: "◫", Comp: NbSwitch},
+            {id: "nb-grid",   label: "Grid",   sub: "Telemetri ızgarası",   icon: "▤", Comp: NbGrid},
         ],
     },
 ];
