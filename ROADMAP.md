@@ -672,6 +672,17 @@ no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek
 
 ---
 
+## Faz 32 — Renk/Zemin Palet Presetleri 🎨 ✅
+*Hazır palet preset'leri: accent + arka plan + font tek tıkla. (Not: bu "palet"tir;
+gerçek skin "aileleri" Faz 33'te.)*
+- ✅ `src/themes.ts`: `UI_FAMILIES` — cyber/synthwave/matrix/aurora/ember (bg + accent + font preset)
+- ✅ `--bg`/`--bg-deep` CSS değişkenleri; skin arka planları + body + `.backdrop` bunları kullanıyor (sabit `#03060c` kaldırıldı)
+- ✅ `applyFamilyBg` (App): aile → arka plan; aile seçimi accent + font'u da preset'ler (kullanıcı sonra tek tek ezebilir)
+- ✅ Ayarlar → Görünüm: "UI AİLESİ" seçici (swatch + label); `uiFamily` settings'e kalıcı
+- ✅ Skinlerin sabit fontu da `var(--ui-font)`'a bağlandı (aile fontu etki etsin)
+
+---
+
 ## 🌐 Çalışma Listesi — Tam i18n (geçici, bitince sil)
 *Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde

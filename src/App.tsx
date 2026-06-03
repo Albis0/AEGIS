@@ -10,6 +10,7 @@ import MinimalSkin from "./components/skins/MinimalSkin";
 import TerminalSkin from "./components/skins/TerminalSkin";
 import DashboardSkin from "./components/skins/DashboardSkin";
 import {UI, type Lang} from "./i18n";
+import {getFamily} from "./themes";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -62,6 +63,13 @@ function applyAccent(rgb: string) {
     document.documentElement.style.setProperty("--status-pending", rgb);
 }
 
+// UI ailesi → arka plan değişkenleri (accent/font ayrı uygulanır)
+function applyFamilyBg(familyId: string) {
+    const f = getFamily(familyId);
+    document.documentElement.style.setProperty("--bg", f.bg);
+    document.documentElement.style.setProperty("--bg-deep", f.bgDeep);
+}
+
 
 function hslToRgbStr(h: number, s: number, l: number): string {
     s /= 100; l /= 100;
@@ -94,6 +102,7 @@ export default function App() {
     useEffect(() => {
         window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
+            applyFamilyBg(s.uiFamily ?? "cyber");
             applyAccent(s.accentColor);
             setSkin(s.skin ?? "hologram");
             setLayout(s.layout ?? "normal");
@@ -350,6 +359,7 @@ export default function App() {
         setSettingsOpen(false);
         window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
+            applyFamilyBg(s.uiFamily ?? "cyber");
             setSkin(s.skin ?? "hologram");
             setLayout(s.layout ?? "normal");
             applyFont(s.font ?? "jetbrains");
@@ -383,6 +393,7 @@ export default function App() {
                 open={settingsOpen}
                 onClose={handleSettingsClose}
                 onAccentChange={applyAccent}
+                onFamilyChange={applyFamilyBg}
                 onSkinChange={setSkin}
                 onFontChange={(f) => { applyFont(f); }}
                 onLayoutChange={setLayout}

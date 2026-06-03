@@ -35,9 +35,9 @@ export default function TerminalSkin({
         <div
             className="h-screen w-screen flex flex-col"
             style={{
-                background: "#010408",
+                background: "var(--bg-deep)",
                 color: "rgb(var(--hud))",
-                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontFamily: "var(--ui-font)",
                 fontSize: "13px",
                 WebkitFontSmoothing: "antialiased",
             } as React.CSSProperties}

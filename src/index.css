@@ -17,6 +17,9 @@ body,
 
 :root {
     --ui-font: 'JetBrains Mono', monospace;
+    /* Arka plan — UI ailesi (tema) tarafından applyFamilyBg() ile değiştirilir */
+    --bg: #03060c;
+    --bg-deep: #010408;
     /* Default = idle (cyan). JS swaps these per state + accent. */
     --hud: 34, 211, 238;
     --hud-deep: 8, 145, 178;
@@ -30,7 +33,7 @@ body,
 }
 
 body {
-    background: #03060c;
+    background: var(--bg);
     color: rgb(var(--hud));
     font-family: var(--ui-font);
     overflow: hidden;
@@ -61,7 +64,7 @@ body {
     background:
         radial-gradient(ellipse at 50% 50%, rgba(var(--hud), 0.1), transparent 60%),
         radial-gradient(ellipse at 50% 120%, rgba(var(--hud-soft), 0.06), transparent 55%),
-        #03060c;
+        var(--bg);
     transition: background 0.6s ease;
 }
 

@@ -30,7 +30,7 @@ export default function MinimalSkin({
     return (
         <div
             className="h-screen w-screen flex flex-col"
-            style={{background: "#03060c", color: "rgb(var(--hud))", fontFamily: "'JetBrains Mono', monospace", WebkitFontSmoothing: "antialiased"} as React.CSSProperties}
+            style={{background: "var(--bg)", color: "rgb(var(--hud))", fontFamily: "var(--ui-font)", WebkitFontSmoothing: "antialiased"} as React.CSSProperties}
         >
             {/* Title bar */}
             <div className="drag shrink-0 h-9 flex items-center justify-between px-5 border-b" style={{borderColor: "rgba(var(--hud),0.08)"}}>

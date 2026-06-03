@@ -27,6 +27,7 @@ export interface AppSettings {
     ollamaUrl: string;
     ollamaNumCtx: number;
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
+    uiFamily: string; // UI ailesi/tema (themes.ts): cyber/synthwave/matrix/aurora/ember
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
@@ -70,6 +71,7 @@ const DEFAULTS: AppSettings = {
     ollamaUrl: "http://localhost:11434",
     ollamaNumCtx: 4096,
     skin: "hologram",
+    uiFamily: "cyber",
     font: "jetbrains",
     layout: "normal",
     customCss: "",

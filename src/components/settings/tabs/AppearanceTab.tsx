@@ -1,6 +1,7 @@
 import {useState} from "react";
 import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, Toggle} from "../shared";
+import {UI_FAMILIES, type UiFamily} from "../../../themes";
 
 const ACCENT_COLORS = [
     {id: "34,211,238",  label: "Cyan",    hex: "#22d3ee"},
@@ -42,13 +43,14 @@ interface Props {
     ac: string;
     onApply: (patch: Partial<AppSettings>) => void;
     onAccentChange: (rgb: string) => void;
+    onFamilyChange: (familyId: string) => void;
     onSkinChange: (skin: AppSettings["skin"]) => void;
     onFontChange: (font: AppSettings["font"]) => void;
     onLayoutChange: (layout: AppSettings["layout"]) => void;
     onCustomCssChange: (css: string) => void;
 }
 
-export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
+export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onFamilyChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
 
     function applyWithSideEffect(patch: Partial<AppSettings>) {
         onApply(patch);
@@ -59,8 +61,41 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
         if (patch.customCss !== undefined) onCustomCssChange(patch.customCss);
     }
 
+    // Aile seçimi = tam preset: arka plan + accent + font hep birlikte.
+    function pickFamily(fam: UiFamily) {
+        onApply({uiFamily: fam.id, accentColor: fam.accent, font: fam.font as AppSettings["font"]});
+        onFamilyChange(fam.id);
+        onAccentChange(fam.accent);
+        onFontChange(fam.font as AppSettings["font"]);
+    }
+
     return (
         <div className="space-y-7">
+
+            {/* Renk/zemin preset (hızlı tema) — skin "ailesi" ile karıştırma */}
+            <div>
+                <SectionLabel label="PALET (RENK + ZEMİN)" accent={accent} />
+                <div className="grid grid-cols-2 gap-2">
+                    {UI_FAMILIES.map((fam) => {
+                        const active = (settings.uiFamily ?? "cyber") === fam.id;
+                        return (
+                            <RadioCard key={fam.id} active={active} accent={accent}
+                                onClick={() => pickFamily(fam)}
+                                className="flex items-center gap-3 px-3.5 py-3">
+                                <span className="w-5 h-5 rounded-full shrink-0"
+                                    style={{background: fam.swatch, boxShadow: active ? `0 0 10px ${fam.swatch}` : "none", border: `1px solid ${fam.swatch}66`}} />
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-[13px] font-semibold truncate"
+                                        style={{color: active ? ac : `rgba(${accent},0.65)`}}>{fam.label}</span>
+                                    <span className="block text-[10px] mt-0.5 truncate" style={{color: `rgba(${accent},0.35)`}}>{fam.sub}</span>
+                                </span>
+                                {active && <span className="w-2 h-2 rounded-full shrink-0" style={{background: ac, boxShadow: `0 0 6px ${ac}`}} />}
+                            </RadioCard>
+                        );
+                    })}
+                </div>
+                <Hint accent={accent}>Hazır renk + zemin + font preset'i. Skin (layout) ve rengi yine de tek tek değiştirebilirsin.</Hint>
+            </div>
 
             {/* Accent colors */}
             <div>

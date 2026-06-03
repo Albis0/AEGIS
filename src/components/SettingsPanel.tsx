@@ -26,6 +26,7 @@ interface Props {
     open: boolean;
     onClose: () => void;
     onAccentChange: (rgb: string) => void;
+    onFamilyChange: (familyId: string) => void;
     onSkinChange: (skin: AppSettings["skin"]) => void;
     onFontChange: (font: AppSettings["font"]) => void;
     onLayoutChange: (layout: AppSettings["layout"]) => void;
@@ -34,7 +35,7 @@ interface Props {
 }
 
 export default function SettingsPanel({
-    open, onClose, onAccentChange, onSkinChange, onFontChange,
+    open, onClose, onAccentChange, onFamilyChange, onSkinChange, onFontChange,
     onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange,
 }: Props) {
     const [tab, setTab]         = useState<Tab>("model");
@@ -194,6 +195,7 @@ export default function SettingsPanel({
                             <AppearanceTab settings={settings} accent={a} ac={ac}
                                 onApply={applySettings}
                                 onAccentChange={onAccentChange}
+                                onFamilyChange={onFamilyChange}
                                 onSkinChange={onSkinChange}
                                 onFontChange={onFontChange}
                                 onLayoutChange={onLayoutChange}

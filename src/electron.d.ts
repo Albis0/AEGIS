@@ -99,6 +99,7 @@ export interface AppSettings {
     ollamaUrl: string;
     ollamaNumCtx: number;
     skin: "hologram" | "minimal" | "terminal" | "dashboard";
+    uiFamily: string;
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;

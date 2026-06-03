@@ -68,9 +68,9 @@ export default function DashboardSkin({
         <div
             className="h-screen w-screen flex flex-col"
             style={{
-                background: "#03060c",
+                background: "var(--bg)",
                 color: "rgb(var(--hud))",
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--ui-font)",
                 WebkitFontSmoothing: "antialiased",
             } as React.CSSProperties}
         >
