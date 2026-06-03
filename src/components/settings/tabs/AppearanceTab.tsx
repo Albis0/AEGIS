@@ -20,17 +20,16 @@ const ACCENT_COLORS = [
 ];
 
 const FONTS = [
-    {id: "jetbrains",    label: "JetBrains",     sub: "Mono · varsayılan", family: "'JetBrains Mono', monospace"},
-    {id: "sharetech",    label: "Share Tech",    sub: "Mono · retro",      family: "'Share Tech Mono', monospace"},
-    {id: "orbitron",     label: "Orbitron",      sub: "Sci-fi · display",  family: "Orbitron"},
-    {id: "oxanium",      label: "Oxanium",       sub: "Sci-fi · modern",   family: "Oxanium"},
-    {id: "syne",         label: "Syne",          sub: "Geometric · bold",  family: "Syne"},
-    {id: "rajdhani",     label: "Rajdhani",      sub: "Sans · sharp",      family: "Rajdhani"},
-    {id: "poppins",      label: "Poppins",       sub: "Sans · yuvarlak",   family: "Poppins"},
-    {id: "inter",        label: "Inter",         sub: "Sans · okunaklı",   family: "Inter"},
-    {id: "spacegrotesk", label: "Space Grotesk", sub: "Grotesque · techy", family: "'Space Grotesk'"},
+    {id: "jetbrains",    label: "JetBrains",     sub: "Mono", family: "'JetBrains Mono', monospace"},
+    {id: "sharetech",    label: "Share Tech",    sub: "Mono retro", family: "'Share Tech Mono', monospace"},
+    {id: "orbitron",     label: "Orbitron",      sub: "Sci-fi", family: "Orbitron"},
+    {id: "oxanium",      label: "Oxanium",       sub: "Modern", family: "Oxanium"},
+    {id: "syne",         label: "Syne",          sub: "Bold geo", family: "Syne"},
+    {id: "rajdhani",     label: "Rajdhani",      sub: "Sharp", family: "Rajdhani"},
+    {id: "poppins",      label: "Poppins",       sub: "Yuvarlak", family: "Poppins"},
+    {id: "inter",        label: "Inter",         sub: "Okunaklı", family: "Inter"},
+    {id: "spacegrotesk", label: "Space Grotesk", sub: "Techy", family: "'Space Grotesk'"},
 ] as const;
-
 
 interface Props {
     settings: AppSettings;
@@ -46,6 +45,7 @@ interface Props {
 }
 
 export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onFamilyChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange}: Props) {
+    const [fineOpen, setFineOpen] = useState(false);
 
     function applyWithSideEffect(patch: Partial<AppSettings>) {
         onApply(patch);
@@ -56,142 +56,189 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
         if (patch.customCss !== undefined) onCustomCssChange(patch.customCss);
     }
 
-    // Aile seçimi = tam preset: arka plan + accent + font hep birlikte.
-    function pickFamily(fam: UiFamily) {
+    function pickPalette(fam: UiFamily) {
         onApply({uiFamily: fam.id, accentColor: fam.accent, font: fam.font as AppSettings["font"]});
         onFamilyChange(fam.id);
         onAccentChange(fam.accent);
         onFontChange(fam.font as AppSettings["font"]);
     }
 
+    // Seçili skin hangi aileye ait?
+    const activeFamilyId = SKIN_FAMILIES.find((f) => f.skins.some((s) => s.id === settings.skin))?.id ?? "aegis";
+    const [expandedFamily, setExpandedFamily] = useState<string>(activeFamilyId);
+
     return (
-        <div className="space-y-7">
+        <div className="space-y-6">
 
-            {/* Renk/zemin preset (hızlı tema) — skin "ailesi" ile karıştırma */}
+            {/* ── 1. AİLE + FERDİ: Tek seçim akışı ── */}
             <div>
-                <SectionLabel label="PALET (RENK + ZEMİN)" accent={accent} />
-                <div className="grid grid-cols-2 gap-2">
-                    {UI_FAMILIES.map((fam) => {
-                        const active = (settings.uiFamily ?? "cyber") === fam.id;
-                        return (
-                            <RadioCard key={fam.id} active={active} accent={accent}
-                                onClick={() => pickFamily(fam)}
-                                className="flex items-center gap-3 px-3.5 py-3">
-                                <span className="w-5 h-5 rounded-full shrink-0"
-                                    style={{background: fam.swatch, boxShadow: active ? `0 0 10px ${fam.swatch}` : "none", border: `1px solid ${fam.swatch}66`}} />
-                                <span className="flex-1 min-w-0">
-                                    <span className="block text-[13px] font-semibold truncate"
-                                        style={{color: active ? ac : `rgba(${accent},0.65)`}}>{fam.label}</span>
-                                    <span className="block text-[10px] mt-0.5 truncate" style={{color: `rgba(${accent},0.35)`}}>{fam.sub}</span>
-                                </span>
-                                {active && <span className="w-2 h-2 rounded-full shrink-0" style={{background: ac, boxShadow: `0 0 6px ${ac}`}} />}
-                            </RadioCard>
-                        );
-                    })}
-                </div>
-                <Hint accent={accent}>Hazır renk + zemin + font preset'i. Skin (layout) ve rengi yine de tek tek değiştirebilirsin.</Hint>
-            </div>
+                <SectionLabel label="GÖRÜNÜM" accent={accent} />
 
-            {/* Accent colors */}
-            <div>
-                <SectionLabel label="TEMA RENGİ" accent={accent} />
-                <div className="grid grid-cols-6 gap-3 pt-1">
-                    {ACCENT_COLORS.map((c) => {
-                        const active = settings.accentColor === c.id;
+                {/* Aile listesi — yatay chip'ler */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                    {SKIN_FAMILIES.map((fam) => {
+                        const isExpanded = expandedFamily === fam.id;
+                        const hasActiveSkin = fam.skins.some((s) => s.id === settings.skin);
                         return (
-                            <button key={c.id} onClick={() => applyWithSideEffect({accentColor: c.id})} title={c.label}
-                                className="group relative w-full aspect-square rounded-full transition-all duration-150 hover:scale-110"
+                            <button
+                                key={fam.id}
+                                onClick={() => setExpandedFamily(isExpanded ? "" : fam.id)}
+                                className="flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] transition-all"
                                 style={{
-                                    background: c.hex,
-                                    boxShadow: active
-                                        ? `0 0 0 2px #03060c, 0 0 0 4px ${c.hex}, 0 0 16px ${c.hex}88`
-                                        : `inset 0 0 0 1px rgba(255,255,255,0.08)`,
+                                    background: isExpanded ? `rgba(${accent},0.15)` : hasActiveSkin ? `rgba(${accent},0.08)` : `rgba(${accent},0.03)`,
+                                    border: `1px solid ${isExpanded ? `rgba(${accent},0.5)` : hasActiveSkin ? `rgba(${accent},0.3)` : `rgba(${accent},0.1)`}`,
+                                    color: isExpanded ? ac : hasActiveSkin ? `rgba(${accent},0.85)` : `rgba(${accent},0.45)`,
+                                    fontWeight: isExpanded || hasActiveSkin ? 600 : 400,
                                 }}>
-                                {active && (
-                                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold"
-                                        style={{color: "rgba(0,0,0,0.6)"}}>✓</span>
+                                {hasActiveSkin && (
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: ac}} />
                                 )}
+                                {fam.label}
+                                <span className="text-[10px]" style={{color: `rgba(${accent},0.35)`, fontWeight: 400}}>
+                                    {isExpanded ? "▴" : "▾"}
+                                </span>
                             </button>
                         );
                     })}
                 </div>
-            </div>
 
-            {/* UI Skin — aileye göre gruplu (her aile = bir tasarım dili, 4 ferdi) */}
-            <div>
-                <SectionLabel label="UI SKIN — AİLE › FERDİ" accent={accent} />
-                <div className="space-y-4">
-                    {SKIN_FAMILIES.map((fam) => (
-                        <div key={fam.id}>
-                            <div className="flex items-baseline gap-2 mb-1.5 px-0.5">
-                                <span className="text-[11px] font-semibold tracking-wide" style={{color: `rgba(${accent},0.75)`}}>{fam.label}</span>
-                                <span className="text-[9px]" style={{color: `rgba(${accent},0.35)`}}>{fam.sub}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {fam.skins.map((s) => {
-                                    const active = settings.skin === s.id;
-                                    return (
-                                        <RadioCard key={s.id} active={active} accent={accent}
-                                            onClick={() => applyWithSideEffect({skin: s.id})}
-                                            className="flex items-center gap-2.5 px-3.5 py-2.5">
-                                            <span className="text-xl leading-none shrink-0" style={{color: active ? ac : `rgba(${accent},0.3)`}}>{s.icon}</span>
-                                            <span className="flex-1 min-w-0">
-                                                <span className="block text-[12.5px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{s.label}</span>
-                                                <span className="block text-[10px] truncate" style={{color: `rgba(${accent},0.35)`}}>{s.sub}</span>
-                                            </span>
-                                        </RadioCard>
-                                    );
-                                })}
-                            </div>
+                {/* Seçili ailenin 4 ferdini göster */}
+                {SKIN_FAMILIES.filter((f) => f.id === expandedFamily).map((fam) => (
+                    <div key={fam.id} className="rounded-2xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.12)`, background: `rgba(${accent},0.02)`}}>
+                        <div className="px-4 py-2.5 border-b" style={{borderColor: `rgba(${accent},0.08)`}}>
+                            <span className="text-[10px] tracking-[0.2em] opacity-50">{fam.sub}</span>
                         </div>
-                    ))}
-                </div>
+                        <div className="grid grid-cols-2 gap-px" style={{background: `rgba(${accent},0.06)`}}>
+                            {fam.skins.map((s) => {
+                                const active = settings.skin === s.id;
+                                return (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => applyWithSideEffect({skin: s.id})}
+                                        className="flex flex-col gap-1 px-4 py-3.5 text-left transition-all"
+                                        style={{
+                                            background: active ? `rgba(${accent},0.12)` : "var(--bg)",
+                                        }}>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[16px] leading-none" style={{color: active ? ac : `rgba(${accent},0.35)`}}>{s.icon}</span>
+                                            <span className="text-[13px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.65)`}}>{s.label}</span>
+                                            {active && <span className="ml-auto text-[9px] tracking-widest px-1.5 py-0.5 rounded-full" style={{color: ac, background: `rgba(${accent},0.12)`, border: `1px solid rgba(${accent},0.25)`}}>AKTİF</span>}
+                                        </div>
+                                        <span className="text-[10px] pl-6" style={{color: `rgba(${accent},0.35)`}}>{s.sub}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* Font */}
+            {/* ── 2. LAYOUT yoğunluk ── */}
             <div>
-                <SectionLabel label="FONT" accent={accent} />
-                <div className="grid grid-cols-3 gap-2">
-                    {FONTS.map((f) => {
-                        const active = (settings.font ?? "jetbrains") === f.id;
-                        return (
-                            <RadioCard key={f.id} active={active} accent={accent}
-                                onClick={() => applyWithSideEffect({font: f.id})}
-                                className="flex flex-col gap-0.5 px-3 py-2.5">
-                                <span className="text-[14px] font-semibold leading-tight"
-                                    style={{color: active ? ac : `rgba(${accent},0.6)`, fontFamily: f.family}}>{f.label}</span>
-                                <span className="text-[10px] mt-0.5 leading-tight"
-                                    style={{color: `rgba(${accent},0.35)`}}>{f.sub}</span>
-                            </RadioCard>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Layout density */}
-            <div>
-                <SectionLabel label="LAYOUT" accent={accent} />
+                <SectionLabel label="YOĞUNLUK" accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
                     {([
                         {id: "normal",  label: "Normal",  sub: "Standart boşluklar"},
-                        {id: "compact", label: "Kompakt", sub: "Daha sık, daha fazla içerik"},
+                        {id: "compact", label: "Kompakt", sub: "Daha sık"},
                     ] as const).map((l) => {
                         const active = (settings.layout ?? "normal") === l.id;
                         return (
                             <RadioCard key={l.id} active={active} accent={accent}
                                 onClick={() => applyWithSideEffect({layout: l.id})}
                                 className="flex flex-col gap-0.5 px-4 py-3">
-                                <span className="text-[14px] font-semibold"
-                                    style={{color: active ? ac : `rgba(${accent},0.6)`}}>{l.label}</span>
-                                <span className="text-[11px] mt-0.5"
-                                    style={{color: `rgba(${accent},0.35)`}}>{l.sub}</span>
+                                <span className="text-[13px] font-semibold" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{l.label}</span>
+                                <span className="text-[10px]" style={{color: `rgba(${accent},0.35)`}}>{l.sub}</span>
                             </RadioCard>
                         );
                     })}
                 </div>
             </div>
 
-            {/* App toggles */}
+            {/* ── 3. İNCE AYAR (gizlenebilir) — renk, palet preset, font ── */}
+            <div className="rounded-xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.08)`}}>
+                <button
+                    onClick={() => setFineOpen((o) => !o)}
+                    className="w-full flex items-center justify-between px-4 py-3 transition"
+                    style={{background: fineOpen ? `rgba(${accent},0.05)` : "transparent"}}>
+                    <span className="text-[10px] tracking-[0.3em]" style={{color: `rgba(${accent},0.45)`}}>İNCE AYAR · RENK / PALET / FONT</span>
+                    <span className="text-[10px] transition-transform duration-200"
+                        style={{color: `rgba(${accent},0.35)`, transform: fineOpen ? "rotate(180deg)" : "none"}}>▼</span>
+                </button>
+
+                {fineOpen && (
+                    <div className="px-4 pb-4 space-y-5" style={{borderTop: `1px solid rgba(${accent},0.08)`}}>
+
+                        {/* Tema rengi */}
+                        <div className="pt-4">
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>TEMA RENGİ</span>
+                            <div className="grid grid-cols-6 gap-2.5">
+                                {ACCENT_COLORS.map((c) => {
+                                    const active = settings.accentColor === c.id;
+                                    return (
+                                        <button key={c.id} onClick={() => applyWithSideEffect({accentColor: c.id})} title={c.label}
+                                            className="relative w-full aspect-square rounded-full transition-all hover:scale-110"
+                                            style={{
+                                                background: c.hex,
+                                                boxShadow: active ? `0 0 0 2px var(--bg), 0 0 0 4px ${c.hex}` : `inset 0 0 0 1px rgba(255,255,255,0.1)`,
+                                            }}>
+                                            {active && <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold" style={{color: "rgba(0,0,0,0.55)"}}>✓</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Hızlı palet preset */}
+                        <div>
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>PALET (RENK + ZEMİN + FONT)</span>
+                            <div className="grid grid-cols-2 gap-2">
+                                {UI_FAMILIES.map((fam) => {
+                                    const active = (settings.uiFamily ?? "cyber") === fam.id;
+                                    return (
+                                        <button key={fam.id} onClick={() => pickPalette(fam)}
+                                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
+                                            style={{
+                                                background: active ? `rgba(${accent},0.1)` : `rgba(${accent},0.02)`,
+                                                border: `1px solid ${active ? `rgba(${accent},0.3)` : `rgba(${accent},0.07)`}`,
+                                            }}>
+                                            <span className="w-4 h-4 rounded-full shrink-0" style={{background: fam.swatch, boxShadow: active ? `0 0 8px ${fam.swatch}` : "none"}} />
+                                            <span className="flex-1 text-left">
+                                                <span className="block text-[12px] font-medium" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{fam.label}</span>
+                                                <span className="block text-[9px]" style={{color: `rgba(${accent},0.3)`}}>{fam.sub}</span>
+                                            </span>
+                                            {active && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: ac}} />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <Hint accent={accent}>Palet seçince renk + zemin + font birlikte değişir.</Hint>
+                        </div>
+
+                        {/* Font */}
+                        <div>
+                            <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>FONT</span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {FONTS.map((f) => {
+                                    const active = (settings.font ?? "jetbrains") === f.id;
+                                    return (
+                                        <button key={f.id} onClick={() => applyWithSideEffect({font: f.id})}
+                                            className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg text-left transition-all"
+                                            style={{
+                                                background: active ? `rgba(${accent},0.1)` : `rgba(${accent},0.02)`,
+                                                border: `1px solid ${active ? `rgba(${accent},0.35)` : `rgba(${accent},0.07)`}`,
+                                            }}>
+                                            <span className="text-[12px] font-semibold leading-tight truncate" style={{color: active ? ac : `rgba(${accent},0.6)`, fontFamily: f.family}}>{f.label}</span>
+                                            <span className="text-[9px]" style={{color: `rgba(${accent},0.3)`}}>{f.sub}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ── 4. UYGULAMA toggle'ları ── */}
             <div>
                 <SectionLabel label="UYGULAMA" accent={accent} />
                 <div className="space-y-2">
@@ -209,10 +256,8 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                                     border: `1px solid ${active ? `rgba(${accent},0.25)` : `rgba(${accent},0.08)`}`,
                                 }}>
                                 <span className="flex-1 min-w-0">
-                                    <span className="block text-[13px] font-medium"
-                                        style={{color: active ? ac : `rgba(${accent},0.6)`}}>{label}</span>
-                                    <span className="block text-[11px] mt-0.5"
-                                        style={{color: `rgba(${accent},0.3)`}}>{sub}</span>
+                                    <span className="block text-[13px] font-medium" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{label}</span>
+                                    <span className="block text-[11px] mt-0.5" style={{color: `rgba(${accent},0.3)`}}>{sub}</span>
                                 </span>
                                 <Toggle active={active} onChange={() => onApply({[key]: !active} as Partial<typeof settings>)} accent={accent} />
                             </div>
@@ -221,7 +266,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* Custom CSS */}
+            {/* ── 5. ÖZEL CSS ── */}
             <div>
                 <SectionLabel label="ÖZEL CSS" accent={accent} />
                 <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} />
@@ -235,29 +280,19 @@ function CustomCssField({value, onSave, accent}: {value: string; onSave: (v: str
     const [val, setVal] = useState(value);
     const changed = val !== value;
     const ac = `rgb(${accent})`;
-
     return (
         <div className="space-y-2">
-            <textarea
-                value={val}
-                onChange={(e) => setVal(e.target.value)}
-                placeholder=".my-class { color: red; }"
-                rows={5}
+            <textarea value={val} onChange={(e) => setVal(e.target.value)}
+                placeholder=".my-class { color: red; }" rows={4}
                 className="w-full bg-transparent rounded-xl px-3.5 py-2.5 text-[11px] outline-none border transition resize-none"
-                style={{
-                    borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.1)`,
-                    color: ac, fontFamily: "'JetBrains Mono', monospace",
-                    lineHeight: "1.6",
-                }}
-            />
+                style={{borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.1)`, color: ac, fontFamily: "'JetBrains Mono', monospace", lineHeight: "1.6"}} />
             {changed && (
                 <button onClick={() => onSave(val)}
                     className="px-4 py-2 rounded-lg border text-[10px] tracking-widest transition hover:brightness-125"
                     style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}>
-                    ✓ UYGULA
+                    UYGULA
                 </button>
             )}
         </div>
     );
 }
-
