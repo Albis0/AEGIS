@@ -697,7 +697,40 @@ bağımsız aile eklendi — her biri gerçek farklı tasarım dili (recolor de�
 
 ---
 
-## 🌐 Çalışma Listesi — Tam i18n (geçici, bitince sil)
+## Faz 34 — Benzersiz UI Aileleri + Zengin Ana Ekran 🎨 (planlı · tek tek)
+**Problem:** Faz 33 aileleri birbirine benziyor — çünkü (a) hepsi tek seçili
+rengi/zemini kullanıyor (renk = "palet", layout = "aile" diye ayrılmıştı), (b)
+ana ekran sadece telemetri + chat'ten oluştuğu için UI'da işlenecek malzeme az.
+**Karar (kullanıcı):** Her aile KENDİ tam kimliğini dayatsın; hepsi birbirinden
+tamamen unique olsun; tek tek yapılacak, her aile bitince dur–göster–onay.
+
+### 34.1 Aile kimlik sistemi (altyapı) ⬜
+- Aile = TAM preset: kendi `--hud/--hud-soft/--hud-deep/--bg/--bg-deep/status` +
+  font + vibe flag'leri (glow, köşe yarıçapı, scanline, light/dark). Aile seçince
+  hepsi uygulanır; accent yine de opsiyonel ezilebilir.
+- "PALET" (Faz 32) ile çakışmayı çöz: aile tam kimlik verir, palet ince ayar kalır.
+- Mevcut Nebula/Codex/Retro bu sisteme taşınır (kendi renkleriyle) — recolor değil.
+
+### 34.2 Ana ekran içerik genişletme (ailelere malzeme) ⬜
+Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havuzu:
+- Hızlı aksiyon dock'u / uygulama başlatıcı
+- Bugünün ajandası (takvim) + notlar/hatırlatıcılar paneli
+- Medya / now-playing widget
+- CPU/RAM/GPU mini geçmiş grafikleri (sparkline)
+- Ses dalga görselleştirici (dinlerken)
+- Komut önerisi chip'leri / selamlama başlığı
+- Saat varyantları (analog, dünya saatleri); aktif otomasyon/izleme, persona göstergesi
+
+### 34.3 Aileler — her biri UNIQUE, tur başına 1 (menü, sıra kullanıcıya) ⬜
+1. **Aegis HUD** (mevcut, dokunulmaz) — cyan neon sci-fi HUD
+2. **Paper** — açık/kağıt tema (tek LIGHT), serif+mono, ince çizgi, döküman hissi
+3. **Nebula** — derin mor/indigo cam, yuvarlak, sakin (kendi moru)
+4. **Retro** — yeşil/amber CRT, scanline, beveled (kendi yeşili)
+5. **Brutalist** — siyah-beyaz, dev tipografi, kalın çerçeve, sıfır süs
+*(Liste bir menü; hangisi/ne sırayla kullanıcı seçer.)*
+
+**Yaklaşım:** Önce 34.1 (kimlik altyapısı) + 34.2'den birkaç widget → sonra 34.3'te
+aileleri TEK TEK, her aile bitince dur–göster–onay. Churn yok, plan-önce.
 *Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
 i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es).*
