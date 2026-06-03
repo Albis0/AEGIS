@@ -9,6 +9,7 @@ import MinimalSkin from "./MinimalSkin";
 import TerminalSkin from "./TerminalSkin";
 import DashboardSkin from "./DashboardSkin";
 import {NbPoster, NbStack, NbSwitch, NbGrid} from "./NeoBrutalismFamily";
+import {SkDesk, SkJournal, SkWalkman, SkCockpit} from "./SkeuomorphismFamily";
 
 export interface SkinDef {
     id: string;
@@ -36,7 +37,16 @@ export const SKIN_FAMILIES: SkinFamily[] = [
         ],
     },
     {
-        id: "neobrutalism", label: "Neo-brutalism", sub: "Açık · kalın · sert gölge",
+        id: "skeuomorphism", label: "Skeuomorphism", sub: "Deri · pirinç · bevel · doku",
+        skins: [
+            {id: "sk-desk",    label: "Desk",    sub: "Ahşap masa · notepad",   icon: "◫", Comp: SkDesk},
+            {id: "sk-journal", label: "Journal", sub: "Deri defter · dikiş",    icon: "▤", Comp: SkJournal},
+            {id: "sk-walkman", label: "Walkman", sub: "Retro cihaz · LCD",      icon: "◎", Comp: SkWalkman},
+            {id: "sk-cockpit", label: "Cockpit", sub: "Analog kadran · metal",  icon: "◉", Comp: SkCockpit},
+        ],
+    },
+    {
+        id: "neobrutalism", label: "Neo-brutalism", sub: "Koyu · kalın · sert gölge",
         skins: [
             {id: "nb-poster", label: "Poster", sub: "Dev tipografi · afiş", icon: "▮", Comp: NbPoster},
             {id: "nb-stack",  label: "Stack",  sub: "Sticker kartlar",      icon: "◈", Comp: NbStack},
