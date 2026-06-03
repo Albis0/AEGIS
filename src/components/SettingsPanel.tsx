@@ -76,11 +76,12 @@ export default function SettingsPanel({
     const ac = `rgb(${a})`;
 
     return (
-        <div
-            className="absolute inset-0 z-50 flex items-center justify-center"
-            style={{background: "rgba(2,4,10,0.88)", backdropFilter: "blur(12px) saturate(0.7)"}}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
+        <div className="absolute inset-0 z-50 flex items-center justify-center">
+            {/* Bulanık zemin AYRI katman — panel içeriğinin atası DEĞİL. backdrop-filter
+               uygulanan elemanın içindeki yazı subpixel-AA'i kaybedip bulanıklaşır; bu yüzden
+               blur'u sadece bu arka katmana koyuyoruz, metin net kalsın. */}
+            <div className="absolute inset-0" onClick={onClose}
+                style={{background: "rgba(2,4,10,0.88)", backdropFilter: "blur(12px) saturate(0.7)"}} />
             <div
                 className="relative flex overflow-hidden"
                 style={{

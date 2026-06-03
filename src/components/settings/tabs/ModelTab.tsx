@@ -343,37 +343,73 @@ function fmtTok(n: number): string {
 
 // Seçili modelin yeteneklerini rozet olarak gösterir. Yeşil = destekliyor,
 // soluk/kırmızı = desteklemiyor. Kullanıcı modelin sınırlarını net görür.
+// Çizgi (stroke) ikonlar — currentColor ile rozetin rengini alır. Emoji yok.
+const svgProps = {width: 15, height: 15, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const};
+const IconTerminal = () => (<svg {...svgProps}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>);
+const IconEye = () => (<svg {...svgProps}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>);
+const IconDiamond = () => (<svg {...svgProps}><path d="M12 2 22 12 12 22 2 12Z" /></svg>);
+const IconCheck = () => (<svg {...svgProps}><polyline points="20 6 9 17 4 12" /></svg>);
+const IconCross = () => (<svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>);
+
 function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: string}) {
-    const yes = "74,222,128", no = "248,113,113";
-    const Pill = ({on, label}: {on: boolean; label: string}) => (
-        <span className="text-[10px] px-2 py-1 rounded-full font-medium inline-flex items-center gap-1"
-            style={{
-                color: on ? `rgb(${yes})` : `rgba(${no},0.75)`,
-                background: on ? `rgba(${yes},0.1)` : `rgba(${no},0.07)`,
-                border: `1px solid ${on ? `rgba(${yes},0.25)` : `rgba(${no},0.2)`}`,
-            }}>
-            {on ? "✓" : "✕"} {label}
-        </span>
+    const yes = "74,222,128", no = "248,113,113", purp = "192,132,252";
+
+    // Destekleniyor/desteklenmiyor büyük rozet
+    const Cap = ({on, label, icon}: {on: boolean; label: string; icon: React.ReactNode}) => {
+        const col = on ? `rgb(${yes})` : `rgba(${no},0.8)`;
+        return (
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl transition"
+                style={{
+                    background: on ? `rgba(${yes},0.09)` : `rgba(${no},0.07)`,
+                    border: `1px solid ${on ? `rgba(${yes},0.3)` : `rgba(${no},0.22)`}`,
+                }}>
+                <span className="shrink-0" style={{color: col}}>{icon}</span>
+                <span className="flex-1 text-[12.5px] font-semibold" style={{color: col}}>{label}</span>
+                <span className="shrink-0" style={{color: col}}>{on ? <IconCheck /> : <IconCross />}</span>
+            </div>
+        );
+    };
+
+    // Sayısal istatistik kutusu (bağlam / çıktı)
+    const Stat = ({label, value, sub}: {label: string; value: string; sub: string}) => (
+        <div className="flex flex-col gap-0.5 px-3.5 py-2.5 rounded-xl"
+            style={{background: `rgba(${accent},0.07)`, border: `1px solid rgba(${accent},0.16)`}}>
+            <span className="text-[9px] tracking-[0.2em]" style={{color: `rgba(${accent},0.5)`}}>{label}</span>
+            <div className="flex items-baseline gap-1">
+                <span className="text-[18px] font-bold leading-none" style={{fontFamily: "Orbitron, sans-serif", color: ac}}>{value}</span>
+                <span className="text-[9px]" style={{color: `rgba(${accent},0.4)`}}>{sub}</span>
+            </div>
+        </div>
     );
-    const Info = ({label, value}: {label: string; value: string}) => (
-        <span className="text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1"
-            style={{color: `rgba(${accent},0.55)`, background: `rgba(${accent},0.06)`, border: `1px solid rgba(${accent},0.12)`}}>
-            <span style={{opacity: 0.6}}>{label}</span><span style={{color: ac}}>{value}</span>
-        </span>
-    );
+
     return (
-        <div className="flex flex-wrap gap-1.5">
-            <Pill on={caps.supportsTools} label="Araçlar" />
-            <Pill on={caps.supportsVision} label="Görüntü" />
-            {caps.reasoning && (
-                <span className="text-[10px] px-2 py-1 rounded-full font-medium"
-                    style={{color: "rgb(192,132,252)", background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.25)"}}>
-                    ◆ Reasoning
-                </span>
+        <div className="rounded-2xl p-3 space-y-2.5"
+            style={{background: `rgba(${accent},0.035)`, border: `1px solid rgba(${accent},0.12)`}}>
+            <div className="grid grid-cols-2 gap-2">
+                <Cap on={caps.supportsTools} label="Araç / Komut" icon={<IconTerminal />} />
+                <Cap on={caps.supportsVision} label="Görüntü" icon={<IconEye />} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <Stat label="BAĞLAM" value={fmtTok(caps.contextWindow)} sub="token" />
+                <Stat label="MAKS ÇIKTI" value={fmtTok(caps.maxOutputTokens)} sub="token" />
+            </div>
+            {(caps.reasoning || !caps.supportsTemperature) && (
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                    {caps.reasoning && (
+                        <span className="text-[11px] px-3 py-1.5 rounded-full font-semibold inline-flex items-center gap-1.5"
+                            style={{color: `rgb(${purp})`, background: `rgba(${purp},0.12)`, border: `1px solid rgba(${purp},0.3)`}}>
+                            <IconDiamond /> Reasoning · adım adım düşünür
+                        </span>
+                    )}
+                    {!caps.supportsTemperature && (
+                        <span className="text-[11px] px-3 py-1.5 rounded-full font-medium inline-flex items-center gap-1.5"
+                            style={{color: `rgba(${no},0.8)`, background: `rgba(${no},0.07)`, border: `1px solid rgba(${no},0.22)`}}>
+                            <IconCross /> Temperature ayarı yok
+                        </span>
+                    )}
+                </div>
             )}
-            <Info label="Bağlam" value={`${fmtTok(caps.contextWindow)} tok`} />
-            <Info label="Çıktı" value={`${fmtTok(caps.maxOutputTokens)} tok`} />
-            {!caps.supportsTemperature && <Pill on={false} label="Temperature" />}
         </div>
     );
 }

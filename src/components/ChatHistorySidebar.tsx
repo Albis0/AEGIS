@@ -79,9 +79,10 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession}: Props
             <div
                 className="relative ml-auto w-[clamp(300px,32vw,460px)] h-full flex flex-col border-l overflow-hidden"
                 style={{
-                    background: "rgba(4,7,13,0.97)",
+                    // backdrop-filter kaldırıldı — içindeki yazıları bulanıklaştırıyordu.
+                    // Zemin zaten %99 opak; arkadaki bg-black/60 ile cam görünümü korunur.
+                    background: "rgba(4,7,13,0.99)",
                     borderColor: "rgba(var(--hud),0.25)",
-                    backdropFilter: "blur(12px)",
                 }}
             >
                 {/* Header */}
