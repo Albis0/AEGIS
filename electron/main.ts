@@ -980,7 +980,7 @@ function trimToBudget(messages: OAIMessage[], caps: ModelCaps, maxOut: number): 
     return sysMsg ? [sysMsg, ...kept] : kept;
 }
 
-async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void): Promise<OAICompletion> {
+async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, lockedSchemas?: ReturnType<typeof getAllToolSchemas>): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = getProviderKey(provider);
     const temp = currentSettings.temperature ?? 0.7;
@@ -1003,10 +1003,14 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
     messages = mergeSystemIfNeeded(messages, caps);
     messages = trimToBudget(messages, caps, maxTok);
 
-    // Bağlama göre tool seçimi (token tasarrufu) — model tool desteklemiyorsa HİÇ gönderme.
-    const lastUserMsg = [...messages].reverse().find((mm) => mm.role === "user");
-    const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
-    const activeSchemas = caps.supportsTools ? getAllToolSchemas(effectiveProvider, toolContext) : [];
+    // Bağlama göre tool seçimi — ilk çağrıda hesapla, tool call zincirinde kilitle.
+    // lockedSchemas verilmişse onu kullan (zincir tutarlılığı), yoksa context'ten hesapla.
+    const activeSchemas: ReturnType<typeof getAllToolSchemas> = lockedSchemas ?? (() => {
+        if (!caps.supportsTools) return [];
+        const lastUserMsg = [...messages].reverse().find((mm) => mm.role === "user");
+        const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
+        return getAllToolSchemas(effectiveProvider, toolContext);
+    })();
 
     // ── Deneme modu (proxy) ──
     if (trialMode) {
@@ -1300,9 +1304,15 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         else if (channel === "tool-event") broadcastFeedEvent("tool", payload);
     };
 
+    // Tool listesini döngü başlamadan bir kez hesapla — zincirde her adımda aynı
+    // liste gönderilsin. Groq "tool not in request.tools" hatasını bu önler.
+    const lastUserForTools = [...messages].reverse().find((m) => m.role === "user");
+    const toolContextStr = lastUserForTools ? extractTextContent(lastUserForTools.content) : "";
+    const lockedTools = getAllToolSchemas(currentSettings.aiProvider, toolContextStr);
+
     for (let step = 0; step < 8; step++) {
         // Groq: tokens stream via onDelta. Other providers: full response returned.
-        const completion = await callAI(messages, (text) => send("chat-delta", {text}));
+        const completion = await callAI(messages, (text) => send("chat-delta", {text}), lockedTools);
 
         const msg = completion.choices[0]?.message;
         const content = msg?.content ?? "";
