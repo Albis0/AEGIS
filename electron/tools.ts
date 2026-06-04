@@ -16,6 +16,16 @@ import {pomodoroStart, pomodoroStop, timeTrackStart, timeTrackStop, timeTrackRep
 import {addPersona, listPersonas, setActivePersona, getActivePersona, startRoleplay, stopRoleplay, getRoleplayPrompt} from "./persona";
 import {addFlashcard, reviewFlashcard, addReadingItem, getReadingList, summarizeUrl, setGoal, checkInGoal, listGoals} from "./learning";
 import {modelCompare, pipelineRun, listPipelines, savePipeline, getModelRoutingRules, setModelRoutingRule} from "./model-router";
+import {translationStart, translationStop, translateText, translateFile, subtitleToggle} from "./translator";
+import {getRecentNotifications, notifFilterSet, notifFilterList, dndSet, dndOff, getNotifHistory} from "./notif-monitor";
+import {detectProject, buildProject, runTests, lintProject, formatCode, getProjectInfo} from "./dev-runner";
+import {rssAdd, rssRemove, rssList, rssFetch, getPrice, getCryptoPrice, getFxRate, priceAlertSet, portfolioSummary} from "./feeds";
+import {meetingStart, meetingStop, meetingList, meetingSummarize, meetingExport, meetingActionItems} from "./meeting";
+import {getActiveContext, contextRuleSet, contextRuleList, clipboardWatch, clipboardHistory, clipboardSearch} from "./context-actions";
+import {fileSearch, contentSearch, appSearch} from "./search-plus";
+import {killHeavyProcesses, suspendProcess, resumeProcess, clearTemp, flushDns, startupManager, perfModeStart, perfModeStop} from "./sys-optimizer";
+import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, workspaceExport, workspaceImport} from "./workspace";
+import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
 
 type ToolResult = string;
 
@@ -1036,6 +1046,81 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"pipeline_list",description:"Kaydedilmiş pipeline'ları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"model_route_set",description:"Görev türüne göre model yönlendirme kuralı ekle.",parameters:{type:"object",properties:{task_type:{type:"string",description:"Görev türü (örn: code, vision, fast, creative)"},model:{type:"string",description:"Kullanılacak model (örn: groq:qwen3-32b, openai:gpt-4o)"},description:{type:"string",description:"Kural açıklaması"}},required:["task_type","model"],additionalProperties:false}}},
     {type:"function",function:{name:"model_route_list",description:"Mevcut model yönlendirme kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+
+    // ── Faz 35: Sesli Çeviri ─────────────────────────────────────────────────
+    {type:"function",function:{name:"translation_start",description:"Gerçek zamanlı sesli çeviri modunu başlat. Kullanıcı konuştukça otomatik çeviri yapılır.",parameters:{type:"object",properties:{source_lang:{type:"string",description:"Kaynak dil kodu (tr, en, de, fr, es, ar, ru, zh...)"},target_lang:{type:"string",description:"Hedef dil kodu"}},required:["source_lang","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"translation_stop",description:"Gerçek zamanlı çeviri modunu durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"translate_text",description:"Verilen metni hedef dile çevir.",parameters:{type:"object",properties:{text:{type:"string",description:"Çevrilecek metin"},target_lang:{type:"string",description:"Hedef dil kodu (tr, en, de, fr, es...)"},tone:{type:"string",enum:["formal","casual","technical"],description:"Çeviri tonu"}},required:["text","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"translate_file",description:".txt veya .md dosyasını hedef dile çevir.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Çevrilecek dosya yolu"},target_lang:{type:"string",description:"Hedef dil kodu"}},required:["file_path","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"subtitle_toggle",description:"Ekran üstü altyazı overlay'ini aç veya kapat.",parameters:{type:"object",properties:{enable:{type:"boolean",description:"true=aç, false=kapat"}},required:["enable"],additionalProperties:false}}},
+
+    // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
+    {type:"function",function:{name:"notification_recent",description:"Son N Windows bildirimini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç bildirim (varsayılan 20, max 100)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_history",description:"AEGIS'in kaydettiği bildirim geçmişini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç bildirim gösterilsin"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_filter_set",description:"Belirli bir uygulamanın bildirimlerini göster veya gizle.",parameters:{type:"object",properties:{app:{type:"string",description:"Uygulama adı (örn: Spotify, WhatsApp, Teams)"},action:{type:"string",enum:["show","hide"],description:"show=göster, hide=gizle"}},required:["app","action"],additionalProperties:false}}},
+    {type:"function",function:{name:"notification_filter_list",description:"Kayıtlı bildirim filtre kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"do_not_disturb",description:"Rahatsız etme modunu belirtilen dakika boyunca etkinleştir.",parameters:{type:"object",properties:{minutes:{type:"number",description:"DND süresi (dakika)"},off:{type:"boolean",description:"true ise DND'yi kapat"}},additionalProperties:false}}},
+
+    // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
+    {type:"function",function:{name:"project_detect",description:"Klasördeki proje tipini tespit et (Node.js, Rust, Python, Go, Java vb.)",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"build_project",description:"Projeyi derle/build et. Hataları analiz eder ve öneriler sunar.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"run_tests",description:"Proje testlerini koştur. Sonuçları özetler.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"},test_file:{type:"string",description:"Belirli bir test dosyası (opsiyonel)"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"lint_project",description:"Proje lint kontrolü yap.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"format_code",description:"Kodu otomatik formatla (prettier, black, rustfmt, gofmt).",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
+
+    // ── Faz 38: Haber & Fiyat Takibi ─────────────────────────────────────────
+    {type:"function",function:{name:"rss_add",description:"RSS/Atom feed ekle.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL"},label:{type:"string",description:"Feed etiketi"}},required:["url"],additionalProperties:false}}},
+    {type:"function",function:{name:"rss_remove",description:"Feed kaldır.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL veya etiketi"}},required:["url"],additionalProperties:false}}},
+    {type:"function",function:{name:"rss_list",description:"Kayıtlı feed'leri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"rss_fetch",description:"Kayıtlı feed'lerden son haberleri çek ve özetle.",parameters:{type:"object",properties:{count:{type:"number",description:"Toplam haber sayısı (varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"price_get",description:"Hisse senedi veya döviz fiyatı al (Yahoo Finance). Örn: AAPL, GOOG, BIST:THYAO",parameters:{type:"object",properties:{symbols:{type:"string",description:"Virgülle ayrılmış semboller (örn: AAPL,TSLA)"}},required:["symbols"],additionalProperties:false}}},
+    {type:"function",function:{name:"crypto_price",description:"Kripto para fiyatı al (CoinGecko). USD ve TRY cinsinden.",parameters:{type:"object",properties:{coins:{type:"string",description:"Virgülle ayrılmış coin adları (örn: bitcoin,ethereum,solana)"}},required:["coins"],additionalProperties:false}}},
+    {type:"function",function:{name:"fx_rate",description:"Döviz kuru al (exchangerate-api). Örn: USD/TRY, EUR/USD",parameters:{type:"object",properties:{pairs:{type:"string",description:"Virgülle ayrılmış döviz çiftleri (örn: USD/TRY,EUR/TRY)"}},required:["pairs"],additionalProperties:false}}},
+    {type:"function",function:{name:"price_alert_set",description:"Fiyat aleti kur. Belirtilen fiyata ulaşınca bildirim gelir.",parameters:{type:"object",properties:{symbol:{type:"string",description:"Sembol (örn: bitcoin, AAPL, USD/TRY)"},type:{type:"string",enum:["crypto","stock","fx"]},above:{type:"number",description:"Bu fiyatın üstüne çıkarsa uyar"},below:{type:"number",description:"Bu fiyatın altına düşerse uyar"}},required:["symbol","type"],additionalProperties:false}}},
+
+    // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
+    {type:"function",function:{name:"meeting_start",description:"Toplantı kaydını başlat. Konuşmalar transkript edilir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_stop",description:"Toplantı kaydını durdur ve kaydet.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_list",description:"Kaydedilmiş toplantıları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_summarize",description:"Toplantıyı özetle: kararlar, eylem maddeleri, katılımcılar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID (boş bırakılırsa son toplantı)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_export",description:"Toplantıyı .md dosyası olarak dışa aktar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_action_items",description:"Toplantıdan eylem maddelerini çıkar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID"}},required:["id"],additionalProperties:false}}},
+
+    // ── Faz 40: Bağlam-Duyarlı Eylemler ─────────────────────────────────────
+    {type:"function",function:{name:"get_active_context",description:"Aktif uygulamayı ve bağlamı tespit et. Önerilen araçları göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"context_rule_set",description:"Belirli bir uygulama açıkken özel öneri veya otomatik eylem tanımla.",parameters:{type:"object",properties:{app_pattern:{type:"string",description:"Uygulama adı veya pencere başlığında aranacak desen"},suggestion:{type:"string",description:"Öneri metni"},auto_action:{type:"string",description:"Otomatik çalıştırılacak araç (opsiyonel)"}},required:["app_pattern","suggestion"],additionalProperties:false}}},
+    {type:"function",function:{name:"context_rule_list",description:"Bağlam kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_watch",description:"Panodaki içeriği analiz et ve öneriler sun.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_history",description:"Pano geçmişini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç giriş gösterilsin (varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_search",description:"Pano geçmişinde arama yap.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak metin"}},required:["query"],additionalProperties:false}}},
+
+    // ── Faz 41: Güçlü Yerel Arama ──────────────────────────────────────────
+    {type:"function",function:{name:"file_search",description:"Dosya sisteminde dosya adına göre ara (Everything veya PowerShell).",parameters:{type:"object",properties:{query:{type:"string",description:"Dosya adı veya deseni"},dir:{type:"string",description:"Aranacak klasör (opsiyonel, varsayılan: ev dizini)"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"content_search",description:"Klasördeki dosyaların içeriğinde metin ara. Satır numarasıyla sonuç döner.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak metin veya regex"},dir:{type:"string",description:"Aranacak klasör"},extension:{type:"string",description:"Dosya uzantısı filtresi (örn: ts, py, md)"}},required:["query","dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"app_search",description:"Uygulama ara ve gerekirse başlat. Fuzzy arama destekler.",parameters:{type:"object",properties:{query:{type:"string",description:"Uygulama adı (kısmi yazılabilir, örn: 'chr' için Chrome)"},launch:{type:"boolean",description:"true ise en iyi eşleşmeyi başlat"}},required:["query"],additionalProperties:false}}},
+
+    // ── Faz 42: Sistem Optimizasyonu ─────────────────────────────────────────
+    {type:"function",function:{name:"kill_heavy_process",description:"En fazla CPU/RAM tüketen prosesleri listele ve isteğe bağlı kapat.",parameters:{type:"object",properties:{top_n:{type:"number",description:"Kaç proses listele (varsayılan 3)"},confirm:{type:"boolean",description:"true ise prosesleri gerçekten kapat"}},additionalProperties:false}}},
+    {type:"function",function:{name:"suspend_process",description:"Prosesin önceliğini Idle'a düşür (duraklatmaya benzer, RAM'den atmaz).",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"resume_process",description:"Prosesin önceliğini Normal'e döndür.",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"clear_temp",description:"Windows temp klasörlerini temizle ve boşaltılan alanı raporla.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"flush_dns",description:"DNS önbelleğini temizle.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"startup_manager",description:"Windows başlangıç uygulamalarını listele veya devre dışı bırak.",parameters:{type:"object",properties:{action:{type:"string",enum:["list","disable"],description:"list=listele, disable=devre dışı bırak"},name:{type:"string",description:"Devre dışı bırakılacak uygulama adı (disable için)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"perf_mode_start",description:"Performans modunu başlat: güç planı Yüksek Performans, arka plan uygulamaları yavaşlatılır.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"perf_mode_stop",description:"Performans modunu durdur, normal moda geri dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+
+    // ── Faz 43: Workspace Sistemi ─────────────────────────────────────────────
+    {type:"function",function:{name:"workspace_create",description:"İsimli çalışma alanı oluştur. Kendi system promptu, modeli ve geçmişiyle izole.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace adı"},description:{type:"string",description:"Workspace açıklaması"},system_prompt:{type:"string",description:"Bu workspace'e özel system prompt"},model:{type:"string",description:"Varsayılan model (örn: groq:qwen3-32b)"},working_dir:{type:"string",description:"Bu workspace'in çalışma dizini"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_switch",description:"Farklı bir workspace'e geç.",parameters:{type:"object",properties:{name:{type:"string",description:"Geçilecek workspace adı"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_list",description:"Mevcut workspace'leri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_delete",description:"Workspace'i sil.",parameters:{type:"object",properties:{name:{type:"string",description:"Silinecek workspace adı"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_export",description:"Workspace'i JSON dosyası olarak dışa aktar.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace adı"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_import",description:"JSON dosyasından workspace içe aktar.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Export JSON dosyası yolu"}},required:["file_path"],additionalProperties:false}}},
+
+    // ── Faz 44: Rapor & Analitik ──────────────────────────────────────────────
+    {type:"function",function:{name:"daily_report",description:"Bugünkü aktivite raporunu oluştur: araç kullanımı, zaman takibi, hedef ilerlemesi.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"weekly_report",description:"Son 7 günün haftalık aktivite raporunu oluştur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"productivity_insights",description:"Kişisel verimlilik analizi: güçlü yönler, gelişim alanları ve öneriler.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
 const PROVIDER_TOOL_LIMITS: Record<string, number> = {
@@ -2313,6 +2398,194 @@ else{
     },
     async model_route_list() {
         return getModelRoutingRules();
+    },
+
+    // ── Faz 35: Sesli Çeviri ─────────────────────────────────────────────────
+    async translation_start({source_lang, target_lang}) {
+        return translationStart(source_lang ?? "tr", target_lang ?? "en");
+    },
+    async translation_stop() {
+        return translationStop();
+    },
+    async translate_text({text, target_lang, tone}) {
+        if (!text) return "HATA: Metin gerekli.";
+        return translateText(text, target_lang ?? "en", tone ?? "formal");
+    },
+    async translate_file({file_path, target_lang}) {
+        return translateFile(file_path ?? "", target_lang ?? "en");
+    },
+    async subtitle_toggle({enable}) {
+        return subtitleToggle(!!enable);
+    },
+
+    // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
+    async notification_recent({count}) {
+        return getRecentNotifications(count ?? 20);
+    },
+    async notification_history({count}) {
+        return getNotifHistory(count ?? 20);
+    },
+    async notification_filter_set({app, action}) {
+        return notifFilterSet(app ?? "", (action as "show" | "hide") ?? "show");
+    },
+    async notification_filter_list() {
+        return notifFilterList();
+    },
+    async do_not_disturb({minutes, off}) {
+        if (off) return dndOff();
+        return dndSet(minutes ?? 30);
+    },
+
+    // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
+    async project_detect({dir}) {
+        return getProjectInfo(dir ?? ".");
+    },
+    async build_project({dir}) {
+        return buildProject(dir ?? ".");
+    },
+    async run_tests({dir, test_file}) {
+        return runTests(dir ?? ".", test_file);
+    },
+    async lint_project({dir}) {
+        return lintProject(dir ?? ".");
+    },
+    async format_code({dir}) {
+        return formatCode(dir ?? ".");
+    },
+
+    // ── Faz 38: Haber & Fiyat Takibi ─────────────────────────────────────────
+    async rss_add({url, label}) {
+        return rssAdd(url ?? "", label ?? "");
+    },
+    async rss_remove({url}) {
+        return rssRemove(url ?? "");
+    },
+    async rss_list() {
+        return rssList();
+    },
+    async rss_fetch({count}) {
+        return rssFetch(count ?? 10);
+    },
+    async price_get({symbols}) {
+        return getPrice(symbols ?? "");
+    },
+    async crypto_price({coins}) {
+        return getCryptoPrice(coins ?? "bitcoin");
+    },
+    async fx_rate({pairs}) {
+        return getFxRate(pairs ?? "USD/TRY");
+    },
+    async price_alert_set({symbol, type, above, below}) {
+        return priceAlertSet(symbol ?? "", (type as "crypto" | "stock" | "fx") ?? "crypto", above, below);
+    },
+
+    // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
+    async meeting_start() {
+        return meetingStart();
+    },
+    async meeting_stop() {
+        return meetingStop();
+    },
+    async meeting_list() {
+        return meetingList();
+    },
+    async meeting_summarize({id}) {
+        return meetingSummarize(id ?? "");
+    },
+    async meeting_export({id}) {
+        return meetingExport(id ?? "");
+    },
+    async meeting_action_items({id}) {
+        return meetingActionItems(id ?? "");
+    },
+
+    // ── Faz 40: Bağlam-Duyarlı Eylemler ─────────────────────────────────────
+    async get_active_context() {
+        return getActiveContext();
+    },
+    async context_rule_set({app_pattern, suggestion, auto_action}) {
+        return contextRuleSet(app_pattern ?? "", suggestion ?? "", auto_action);
+    },
+    async context_rule_list() {
+        return contextRuleList();
+    },
+    async clipboard_watch() {
+        return clipboardWatch();
+    },
+    async clipboard_history({count}) {
+        return clipboardHistory(count ?? 10);
+    },
+    async clipboard_search({query}) {
+        return clipboardSearch(query ?? "");
+    },
+
+    // ── Faz 41: Güçlü Yerel Arama ──────────────────────────────────────────
+    async file_search({query, dir}) {
+        return fileSearch(query ?? "", dir);
+    },
+    async content_search({query, dir, extension}) {
+        return contentSearch(query ?? "", dir ?? ".", extension);
+    },
+    async app_search({query, launch}) {
+        return appSearch(query ?? "", !!launch);
+    },
+
+    // ── Faz 42: Sistem Optimizasyonu ─────────────────────────────────────────
+    async kill_heavy_process({top_n, confirm}) {
+        return killHeavyProcesses(top_n ?? 3, !!confirm);
+    },
+    async suspend_process({name}) {
+        return suspendProcess(name ?? "");
+    },
+    async resume_process({name}) {
+        return resumeProcess(name ?? "");
+    },
+    async clear_temp() {
+        return clearTemp();
+    },
+    async flush_dns() {
+        return flushDns();
+    },
+    async startup_manager({action, name}) {
+        return startupManager((action as "list" | "disable") ?? "list", name);
+    },
+    async perf_mode_start() {
+        return perfModeStart();
+    },
+    async perf_mode_stop() {
+        return perfModeStop();
+    },
+
+    // ── Faz 43: Workspace Sistemi ─────────────────────────────────────────────
+    async workspace_create({name, description, system_prompt, model, working_dir}) {
+        return workspaceCreate(name ?? "", description ?? "", system_prompt, model, working_dir);
+    },
+    async workspace_switch({name}) {
+        const {result} = workspaceSwitch(name ?? "");
+        return result;
+    },
+    async workspace_list() {
+        return workspaceList();
+    },
+    async workspace_delete({name}) {
+        return workspaceDelete(name ?? "");
+    },
+    async workspace_export({name}) {
+        return workspaceExport(name ?? "");
+    },
+    async workspace_import({file_path}) {
+        return workspaceImport(file_path ?? "");
+    },
+
+    // ── Faz 44: Rapor & Analitik ──────────────────────────────────────────────
+    async daily_report() {
+        return dailyReport();
+    },
+    async weekly_report() {
+        return weeklyReport();
+    },
+    async productivity_insights() {
+        return productivityInsights();
     },
 };
 
