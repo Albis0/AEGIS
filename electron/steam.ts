@@ -50,18 +50,26 @@ async function steamRunning(): Promise<boolean> {
     return out.toLowerCase().includes("steam.exe");
 }
 
-async function ensureSteam(): Promise<{ok: boolean; exe: string}> {
+async function steamWebHelperRunning(): Promise<boolean> {
+    const out = await run(`tasklist /FI "IMAGENAME eq steamwebhelper.exe" /NH 2>nul`);
+    return out.toLowerCase().includes("steamwebhelper.exe");
+}
+
+async function ensureSteam(): Promise<{ok: boolean; exe: string; wasRunning: boolean}> {
     const exe = await findSteamExe();
-    if (!exe) return {ok: false, exe: ""};
-    if (!(await steamRunning())) {
-        // Steam'i başlat ve tam açılmasını bekle (max 15sn)
+    if (!exe) return {ok: false, exe: "", wasRunning: false};
+    const wasRunning = await steamRunning();
+    if (!wasRunning) {
+        // Steam'i başlat, hem steam.exe hem steamwebhelper.exe çıkana kadar bekle (max 30sn)
         execCb(`"${exe}"`, {windowsHide: false}, () => {});
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 30; i++) {
             await new Promise((r) => setTimeout(r, 1000));
-            if (await steamRunning()) break;
+            if ((await steamRunning()) && (await steamWebHelperRunning())) break;
         }
+        // steamwebhelper hazır olsa bile UI login için birkaç sn daha bekle
+        await new Promise((r) => setTimeout(r, 4000));
     }
-    return {ok: true, exe};
+    return {ok: true, exe, wasRunning};
 }
 
 // Steam libraryfolders.vdf'den oyun listesi çıkar
@@ -134,7 +142,7 @@ export async function steamLaunchGame(nameOrId: string): Promise<string> {
 
     // Sayısal ise direkt AppID olarak kullan
     if (/^\d+$/.test(nameOrId.trim())) {
-        await run(`start steam://rungameid/${nameOrId.trim()}`, 5000);
+        await run(`cmd /c start steam://rungameid/${nameOrId.trim()}`, 5000);
         return `AppID ${nameOrId} başlatıldı.`;
     }
 
@@ -152,7 +160,7 @@ export async function steamLaunchGame(nameOrId: string): Promise<string> {
     }
 
     const best = scored[0];
-    await run(`start steam://rungameid/${best.appid}`, 5000);
+    await run(`cmd /c start steam://rungameid/${best.appid}`, 5000);
     return `"${best.name}" başlatılıyor (AppID: ${best.appid}).`;
 }
 
@@ -176,7 +184,7 @@ else { Start-Process "${exe.replace(/\\/g, "\\\\")}" }`);
 
 export async function steamClose(): Promise<string> {
     if (!(await steamRunning())) return "Steam zaten kapalı.";
-    await run(`start steam://exit`, 5000);
+    await run(`cmd /c start steam://exit`, 5000);
     return "Steam kapatılıyor.";
 }
 
