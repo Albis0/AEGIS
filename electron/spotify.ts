@@ -273,18 +273,22 @@ export async function spotifyPause(): Promise<string> {
 
 export async function spotifyNext(): Promise<string> {
     try {
-        const r = await api("POST", "/me/player/next");
+        const deviceId = await ensureDevice();
+        const endpoint = deviceId ? `/me/player/next?device_id=${deviceId}` : "/me/player/next";
+        const r = await api("POST", endpoint);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((res) => setTimeout(res, 1000));
         return await spotifyGetState();
     } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }
 
 export async function spotifyPrev(): Promise<string> {
     try {
-        const r = await api("POST", "/me/player/previous");
+        const deviceId = await ensureDevice();
+        const endpoint = deviceId ? `/me/player/previous?device_id=${deviceId}` : "/me/player/previous";
+        const r = await api("POST", endpoint);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((res) => setTimeout(res, 1000));
         return await spotifyGetState();
     } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }

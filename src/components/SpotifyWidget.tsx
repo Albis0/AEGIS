@@ -57,8 +57,13 @@ export default function SpotifyWidget() {
         if (busy) return;
         setBusy(true);
         try {
-            await window.jarvis.spotifyControl(action, value);
-            setTimeout(refresh, 600);
+            const result = await window.jarvis.spotifyControl(action, value);
+            // next/prev already return updated state after 1s delay
+            if (action === "next" || action === "prev") {
+                const parsed = parseTrack(result);
+                if (parsed) { setTrack(parsed); return; }
+            }
+            setTimeout(refresh, 800);
         } finally {
             setBusy(false);
         }
