@@ -22,6 +22,15 @@ test-tts.mp3
 *.log
 *.pid
 
+# Spotify token (runtime kullanıcı verisi)
+~/.aegis/spotify-token.json
+
+# Uygulama çalışma zamanı verileri
+~/.aegis/
+
+# Geçici / bozuk path dosyaları
+C:Users*
+
 # OS
 .DS_Store
 Thumbs.db
