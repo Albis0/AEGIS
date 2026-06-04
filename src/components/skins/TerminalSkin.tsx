@@ -84,7 +84,7 @@ export default function TerminalSkin({
                                 return (
                                     <div key={i} className="flex gap-2 text-[11px]" style={{color: "rgba(var(--hud),0.5)"}}>
                                         <span className={t.status === "running" ? "flick" : ""}>[{t.status === "running" ? "…" : "✓"}]</span>
-                                        <span>{TOOL_VERB[t.name] || t.name}</span>
+                                        <span>{TOOL_VERB[t.name] || t.name.replace(/_/g," ")}</span>
                                         {source && <span>({source})</span>}
                                         {t.status === "running" && <span className="opacity-60">running…</span>}
                                     </div>

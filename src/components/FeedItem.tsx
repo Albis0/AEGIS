@@ -1,5 +1,6 @@
-import React from "react";
+import React, {useState} from "react";
 import type {LangStrings} from "../i18n";
+import {toolLabel} from "./skins/toolLabels";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
@@ -7,14 +8,6 @@ export type FeedItemType =
     | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
     | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
     | {id: string; kind: "error"; text: string};
-
-function toolVerb(name: string, t: LangStrings): string {
-    const map: Record<string, string> = {
-        run_command: t.vRun, read_file: t.vRead, write_file: t.vWrite,
-        list_directory: t.vList, web_search: t.vSearch,
-    };
-    return map[name] || name.toUpperCase();
-}
 
 function parseSearchSource(detail?: string): string | null {
     if (!detail) return null;
@@ -27,6 +20,59 @@ interface Props {
     streaming: boolean;
     isLast: boolean;
     t: LangStrings;
+}
+
+function ToolRow({tool, t}: {tool: ToolLine; t: LangStrings}) {
+    const [open, setOpen] = useState(false);
+    const source = tool.name === "web_search" && tool.status === "done" ? parseSearchSource(tool.detail) : null;
+    const hasDetail = tool.status === "done" && !!tool.detail;
+
+    return (
+        <div className="mb-0.5">
+            <div
+                className="flex items-center gap-2 text-[10.5px] tracking-wider"
+                style={{cursor: hasDetail ? "pointer" : "default"}}
+                onClick={() => hasDetail && setOpen((o) => !o)}
+            >
+                <span
+                    className={tool.status === "running" ? "flick" : ""}
+                    style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}
+                >
+                    {tool.status === "running" ? "▸" : "✓"}
+                </span>
+                <span style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
+                    {toolLabel(tool.name, t)}{tool.status === "running" ? "…" : ""}
+                </span>
+                {source && (
+                    <span
+                        className="text-[9px] px-1.5 py-0.5 rounded tracking-widest"
+                        style={{background: "rgb(var(--status-ok) / 0.12)", color: "rgb(var(--status-ok))", border: "1px solid rgb(var(--status-ok) / 0.25)"}}
+                    >
+                        {source}
+                    </span>
+                )}
+                {hasDetail && (
+                    <span style={{color: "rgb(var(--status-ok) / 0.4)", fontSize: "9px", marginLeft: "auto"}}>
+                        {open ? "▴" : "▾"}
+                    </span>
+                )}
+            </div>
+            {open && tool.detail && (
+                <div
+                    className="mt-0.5 ml-4 px-2 py-1.5 rounded text-[10px] leading-relaxed whitespace-pre-wrap break-words"
+                    style={{
+                        background: "rgb(var(--hud) / 0.05)",
+                        border: "1px solid rgb(var(--status-ok) / 0.15)",
+                        color: "rgb(var(--status-ok) / 0.65)",
+                        maxHeight: "160px",
+                        overflowY: "auto",
+                    }}
+                >
+                    {tool.detail}
+                </div>
+            )}
+        </div>
+    );
 }
 
 const FeedItem = React.memo(function FeedItem({item, streaming, isLast, t}: Props) {
@@ -94,30 +140,9 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast, t}: Prop
 
     return (
         <div className="rise">
-            {item.tools.map((tool, i) => {
-                const source = tool.name === "web_search" && tool.status === "done" ? parseSearchSource(tool.detail) : null;
-                return (
-                    <div key={i} className="flex items-center gap-2 text-[10.5px] tracking-wider mb-0.5">
-                        <span
-                            className={tool.status === "running" ? "flick" : ""}
-                            style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}
-                        >
-                            {tool.status === "running" ? "▸" : "✓"}
-                        </span>
-                        <span style={{color: tool.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok) / 0.7)"}}>
-                            {toolVerb(tool.name, t)}{tool.status === "running" ? "…" : ""}
-                        </span>
-                        {source && (
-                            <span
-                                className="text-[9px] px-1.5 py-0.5 rounded tracking-widest"
-                                style={{background: "rgb(var(--status-ok) / 0.12)", color: "rgb(var(--status-ok))", border: "1px solid rgb(var(--status-ok) / 0.25)"}}
-                            >
-                                {source}
-                            </span>
-                        )}
-                    </div>
-                );
-            })}
+            {item.tools.map((tool, i) => (
+                <ToolRow key={i} tool={tool} t={t} />
+            ))}
             {item.text && (
                 <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap break-words text-cyan-50/90">
                     {item.text}
@@ -129,7 +154,7 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast, t}: Prop
         </div>
     );
 }, (prev, next) => {
-    if (prev.t !== next.t) return false; // dil değişince yeniden çiz
+    if (prev.t !== next.t) return false;
     if (prev.item.id !== next.item.id) return false;
     if (prev.item.kind !== next.item.kind) return false;
     if (prev.item.kind === "assistant" && next.item.kind === "assistant") {

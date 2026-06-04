@@ -9,9 +9,8 @@ import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
 
-const TOOL_VERB = (name: string, t: SkinProps["t"]): string => ({
-    run_command: t.vRun, read_file: t.vRead, write_file: t.vWrite, list_directory: t.vList, web_search: t.vSearch,
-} as Record<string, string>)[name] || name.toUpperCase();
+import {toolLabel as TOOL_VERB_fn} from "./toolLabels";
+const TOOL_VERB = (name: string, t: SkinProps["t"]) => TOOL_VERB_fn(name, t);
 
 const retroBg: React.CSSProperties = {
     background: "var(--bg)",

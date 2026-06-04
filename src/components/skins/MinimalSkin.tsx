@@ -84,7 +84,7 @@ export default function MinimalSkin({
                                             <span className={t.status === "running" ? "flick" : ""}>
                                                 {t.status === "running" ? "·" : "✓"}
                                             </span>
-                                            <span>{TOOL_VERB[t.name] || t.name}</span>
+                                            <span>{TOOL_VERB[t.name] || t.name.replace(/_/g," ")}</span>
                                             {source && <span className="opacity-70">({source})</span>}
                                         </div>
                                     );

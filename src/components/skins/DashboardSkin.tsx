@@ -183,7 +183,7 @@ export default function DashboardSkin({
                                     return (
                                         <div key={i} className="flex items-center gap-2 text-[10px] mb-1" style={{color: t.status === "running" ? "rgb(var(--hud))" : "rgb(var(--status-ok))"}}>
                                             <span className={t.status === "running" ? "flick" : ""}>{t.status === "running" ? "▸" : "✓"}</span>
-                                            <span>{TOOL_VERB[t.name] || t.name.toUpperCase()}</span>
+                                            <span>{TOOL_VERB[t.name] || t.name.replace(/_/g," ").toUpperCase()}</span>
                                             {source && <span className="opacity-60">· {source}</span>}
                                         </div>
                                     );
