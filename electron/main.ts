@@ -138,7 +138,12 @@ const _winBuild = parseInt((os.release().split(".")[2]) ?? "0");
 const _winLabel = _winBuild >= 22000 ? "Windows 11" : "Windows 10";
 
 function getSystemPrompt(lang: string, fullPcAccess = false): string {
-    const base = (SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr).replace(/Windows 11/g, _winLabel);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const datetimeNote = `\n\nŞu anki tarih ve saat (yerel): ${dateStr} ${timeStr}`;
+    const base = (SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr).replace(/Windows 11/g, _winLabel) + datetimeNote;
     if (!fullPcAccess) return base;
     const note: Record<string, string> = {
         tr: "\n\nTAM PC ERİŞİMİ AKTİF: Kullanıcı tam sistem yetkisi verdi. Shutdown, format, delete_file, move_file dahil her komutu onay istemeden çalıştır.",
