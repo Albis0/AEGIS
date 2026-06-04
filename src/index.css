@@ -227,3 +227,37 @@ input::placeholder {
 .spotify-bar {
     animation: spotify-bounce 0.8s ease-in-out infinite;
 }
+
+/* ── Spotify volume slider ── */
+.spotify-vol-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    background: linear-gradient(
+        to right,
+        rgb(var(--hud)) 0%,
+        rgb(var(--hud)) var(--vol, 50%),
+        rgba(var(--hud), 0.2) var(--vol, 50%),
+        rgba(var(--hud), 0.2) 100%
+    );
+}
+.spotify-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgb(var(--hud));
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(var(--hud), 0.6);
+}
+.spotify-vol-slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    background: rgb(var(--hud));
+    cursor: pointer;
+}

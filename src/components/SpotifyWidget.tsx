@@ -1,21 +1,24 @@
-import {useState, useEffect, useCallback} from "react";
+import {useState, useEffect, useCallback, useRef} from "react";
 
 interface TrackInfo {
     playing: boolean;
     title: string;
     artist: string;
     progress: number; // 0-100
+    volume: number;   // 0-100, -1 = unknown
 }
 
-// "Oynuyor: Title — Artist (Album) [0:32/3:21]" formatını parse et
+// "Oynuyor: Title — Artist (Album) [0:32/3:21] {vol:72}" formatını parse et
 function parseTrack(raw: string): TrackInfo | null {
     if (!raw || raw.includes("hiçbir şey çalmıyor") || raw.includes("bağlı değil")) return null;
     const isPlaying = raw.startsWith("Oynuyor");
-    // "Oynuyor: Title — Artist (Album) [prog/dur]"
     const colonIdx = raw.indexOf(": ");
     if (colonIdx === -1) return null;
     const rest = raw.slice(colonIdx + 2);
-    // progress: "[0:32/3:21]"
+
+    const volMatch = rest.match(/\{vol:(-?\d+)\}/);
+    const volume = volMatch ? parseInt(volMatch[1]) : -1;
+
     const timeMatch = rest.match(/\[(\d+):(\d+)\/(\d+):(\d+)\]/);
     let progress = 0;
     if (timeMatch) {
@@ -23,25 +26,31 @@ function parseTrack(raw: string): TrackInfo | null {
         const durSec  = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
         progress = durSec > 0 ? Math.round((progSec / durSec) * 100) : 0;
     }
-    // title — artist (album)
-    const noTime = rest.replace(/\s*\[.*?\]/, "").trim();
-    const dashIdx = noTime.indexOf(" — ");
-    const title  = dashIdx !== -1 ? noTime.slice(0, dashIdx).trim() : noTime;
-    const afterDash = dashIdx !== -1 ? noTime.slice(dashIdx + 3).trim() : "";
-    // "Artist (Album)" → just artist
+
+    const noExtra = rest.replace(/\s*\[.*?\]/, "").replace(/\s*\{.*?\}/, "").trim();
+    const dashIdx = noExtra.indexOf(" — ");
+    const title  = dashIdx !== -1 ? noExtra.slice(0, dashIdx).trim() : noExtra;
+    const afterDash = dashIdx !== -1 ? noExtra.slice(dashIdx + 3).trim() : "";
     const parenIdx = afterDash.lastIndexOf(" (");
     const artist = parenIdx !== -1 ? afterDash.slice(0, parenIdx).trim() : afterDash;
-    return {playing: isPlaying, title, artist, progress};
+
+    return {playing: isPlaying, title, artist, progress, volume};
 }
 
 export default function SpotifyWidget() {
     const [track, setTrack] = useState<TrackInfo | null>(null);
     const [busy, setBusy] = useState(false);
+    const [localVol, setLocalVol] = useState<number | null>(null);
+    const volDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const dragging = useRef(false);
 
     const refresh = useCallback(async () => {
+        if (dragging.current) return;
         try {
             const raw = await window.jarvis.spotifyNowPlaying();
-            setTrack(parseTrack(raw));
+            const parsed = parseTrack(raw);
+            setTrack(parsed);
+            if (parsed && !dragging.current) setLocalVol(parsed.volume);
         } catch {
             setTrack(null);
         }
@@ -58,10 +67,9 @@ export default function SpotifyWidget() {
         setBusy(true);
         try {
             const result = await window.jarvis.spotifyControl(action, value);
-            // next/prev already return updated state after 1s delay
             if (action === "next" || action === "prev") {
                 const parsed = parseTrack(result);
-                if (parsed) { setTrack(parsed); return; }
+                if (parsed) { setTrack(parsed); setLocalVol(parsed.volume); return; }
             }
             setTimeout(refresh, 800);
         } finally {
@@ -69,7 +77,20 @@ export default function SpotifyWidget() {
         }
     };
 
+    const handleVolChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = parseInt(e.target.value);
+        setLocalVol(v);
+        dragging.current = true;
+        if (volDebounce.current) clearTimeout(volDebounce.current);
+        volDebounce.current = setTimeout(async () => {
+            await window.jarvis.spotifyControl("volume", v);
+            dragging.current = false;
+        }, 300);
+    };
+
     if (!track) return null;
+
+    const vol = localVol ?? track.volume;
 
     return (
         <div
@@ -78,7 +99,6 @@ export default function SpotifyWidget() {
         >
             {/* Track info */}
             <div className="flex items-center gap-2 mb-1.5">
-                {/* Animated bars when playing */}
                 <div className="flex items-end gap-[2px] shrink-0" style={{height: 14}}>
                     {[0.6, 1, 0.7, 0.9, 0.5].map((h, i) => (
                         <div
@@ -123,7 +143,7 @@ export default function SpotifyWidget() {
             </div>
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3 mb-2">
                 <CtrlBtn onClick={() => ctrl("prev")} disabled={busy}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>
@@ -146,6 +166,25 @@ export default function SpotifyWidget() {
                     </svg>
                 </CtrlBtn>
             </div>
+
+            {/* Volume slider */}
+            {vol >= 0 && (
+                <div className="flex items-center gap-2">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{color: "rgba(var(--hud),0.5)", flexShrink: 0}}>
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={vol}
+                        onChange={handleVolChange}
+                        className="spotify-vol-slider flex-1"
+                        style={{"--vol": `${vol}%`} as React.CSSProperties}
+                    />
+                    <span className="text-[9px] w-5 text-right" style={{color: "rgba(var(--hud),0.5)"}}>{vol}</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -308,19 +308,21 @@ export async function spotifySetVolume(level: number): Promise<string> {
 
 export async function spotifyGetState(): Promise<string> {
     try {
-        const r = await api("GET", "/me/player/currently-playing");
+        const r = await api("GET", "/me/player");
         if (r.status === 204 || !r.data) return "Spotify'da şu an hiçbir şey çalmıyor.";
         const d = r.data as {
             is_playing: boolean;
             item: {name: string; artists: {name: string}[]; album: {name: string}; duration_ms: number};
             progress_ms: number;
+            device: {volume_percent: number};
         };
         if (!d.item) return "Spotify'da şu an hiçbir şey çalmıyor.";
         const artists = d.item.artists.map((a) => a.name).join(", ");
         const prog = Math.round(d.progress_ms / 1000);
         const dur = Math.round(d.item.duration_ms / 1000);
+        const vol = d.device?.volume_percent ?? -1;
         const m = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-        return `${d.is_playing ? "Oynuyor" : "Duraklatildi"}: ${d.item.name} — ${artists} (${d.item.album.name}) [${m(prog)}/${m(dur)}]`;
+        return `${d.is_playing ? "Oynuyor" : "Duraklatildi"}: ${d.item.name} — ${artists} (${d.item.album.name}) [${m(prog)}/${m(dur)}] {vol:${vol}}`;
     } catch (e) {
         const msg = (e as Error).message;
         if (msg.includes("bağlı değil")) return "Spotify hesabı bağlı değil. 'Spotify bağla' de.";
