@@ -224,20 +224,27 @@ async function api(
 
 // ── Spotify bağlantı hatası çevirici ─────────────────────────────────────────
 function spotifyConnErr(e: unknown): string {
-    if (isTimeoutError(e)) return TIMEOUT_MSG;
+    if (isTimeoutError(e)) return "Spotify'a bağlanırken zaman aşımı. İnternet bağlantını kontrol et.";
     const msg = (e as Error).message ?? String(e);
-    if (msg.includes("bağlı değil")) return `${msg} — önce Spotify bağla.`;
-    return `Spotify bağlantı hatası: ${msg}`;
+    if (/ENOTFOUND|ECONNREFUSED|fetch failed/i.test(msg)) return "Spotify sunucusuna ulaşılamıyor. İnternet bağlantını kontrol et.";
+    if (msg.includes("bağlı değil") || msg.includes("not authorized")) return "Spotify AEGIS'e bağlı değil. 'spotify bağla' diyerek yetkilendir.";
+    if (msg.includes("No active device")) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç ve bir şey çal.";
+    return `Spotify hatası: ${msg}`;
 }
 
-// ── Spotify hata mesajı çevirici ─────────────────────────────────────────────
+// ── Spotify HTTP hata mesajı çevirici ─────────────────────────────────────────
 function spotifyErr(status: number, data?: unknown): string {
     const msg = (data as {error?: {message?: string}})?.error?.message ?? "";
-    if (status === 401) return "Spotify oturumu sona erdi. 'Spotify bağla' diyerek yeniden bağlan.";
-    if (status === 403) return `Spotify izin hatası${msg ? ": " + msg : " (403)"}. Hesabında Premium gerekiyor olabilir veya bu özellik kısıtlı.`;
-    if (status === 404) return "Spotify'da aktif çalar bulunamadı. Spotify uygulamasını aç ve bir şey çalmayı dene.";
-    if (status === 429) return "Spotify hız sınırına takıldı. Birkaç saniye bekleyip tekrar dene.";
-    if (status >= 500) return "Spotify sunucusu geçici olarak yanıt vermiyor. Tekrar dene.";
+    const low = msg.toLowerCase();
+    if (status === 401) return "Spotify oturumu sona erdi. 'Spotify bağla' diyerek yeniden yetkilendir.";
+    if (status === 403) {
+        if (/premium/i.test(low)) return "Bu özellik için Spotify Premium gerekiyor.";
+        if (/not.*register|developer/i.test(low)) return "Bu Spotify hesabı uygulamaya kayıtlı değil. Geliştirici panelinden eklenmen gerekiyor.";
+        return `Spotify: Erişim reddedildi (403)${msg ? " — " + msg : ""}`;
+    }
+    if (status === 404) return "Spotify'da aktif çalar bulunamadı. Spotify'ı aç ve müzik çalmayı başlat.";
+    if (status === 429) return "Spotify çok fazla istek aldı. Birkaç saniye bekleyip tekrar dene.";
+    if (status >= 500) return "Spotify sunucusu geçici hata verdi. Biraz bekleyip tekrar dene.";
     return msg ? `Spotify: ${msg}` : `Spotify hatası (${status})`;
 }
 

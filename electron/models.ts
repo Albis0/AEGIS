@@ -50,8 +50,17 @@ async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
     return (data.models ?? []).map((m) => ({id: m.name}));
 }
 
-// provider + key (+ ollama url) → canlı model listesi. Hata olursa boş döner;
-// çağıran taraf hardcoded fallback'e düşebilir.
+// Groq fallback — API erişilemez olduğunda gösterilecek bilinen modeller
+const GROQ_FALLBACK: LiveModel[] = [
+    {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout (Groq)"},
+    {id: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick (Groq)"},
+    {id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)"},
+    {id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq)"},
+    {id: "gemma2-9b-it", label: "Gemma2 9B (Groq)"},
+    {id: "mistral-saba-24b", label: "Mistral Saba 24B (Groq)"},
+];
+
+// provider + key (+ ollama url) → canlı model listesi. Hata olursa fallback döner.
 export async function fetchModels(provider: string, key: string, ollamaUrl?: string): Promise<LiveModel[]> {
     try {
         switch (provider) {
@@ -65,7 +74,9 @@ export async function fetchModels(provider: string, key: string, ollamaUrl?: str
             case "ollama":   return await fetchOllama(ollamaUrl ?? "http://localhost:11434");
             default:         return [];
         }
-    } catch {
+    } catch (e) {
+        console.error(`[models] ${provider} model listesi çekilemedi:`, (e as Error).message);
+        if (provider === "groq") return GROQ_FALLBACK;
         return [];
     }
 }

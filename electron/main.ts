@@ -59,7 +59,8 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 ARAÇ KURALLARI (KESİNLİKLE UYULMALI):
 - Steam oyunu veya Steam uygulaması açmak için DAIMA steam_launch aracını kullan. run_command ile Start-Process ASLA YAZMA.
 - "Steam aç", "steam ac", "cs aç", "dota aç" gibi her steam isteğinde steam_launch kullan.
-- Spotify kontrolü için spotify_play/pause/next/prev/search araçlarını kullan.
+- Spotify kontrolü için spotify_play/pause/next/prev/search/open araçlarını kullan.
+- "spotify aç", "spotify ac", "müzik aç" → DAIMA spotify_open aracını kullan, run_command YAZMA.
 - Genel uygulama açmak için run_command ile Start-Process kullan (Steam ve Spotify hariç).
 - Araç çağırırken yanıta kod bloğu veya komut metni YAZMA, sadece aracı çağır.
 
@@ -794,19 +795,46 @@ async function friendlyHttpError(providerLabel: string, resp: Response): Promise
         const j = JSON.parse(bodyText);
         detail = j?.error?.message ?? j?.message ?? j?.error?.code ?? "";
     } catch {
-        detail = bodyText.slice(0, 160);
+        detail = bodyText.slice(0, 200);
     }
     const s = resp.status;
-    if (s === 401 || s === 403) return `${providerLabel}: API anahtarın geçersiz veya yetkisiz (${s}). Ayarlar → Model'den anahtarı kontrol et.`;
-    if (s === 404) return `${providerLabel}: Model bulunamadı (404). Seçili model bu sağlayıcıda mevcut değil — Ayarlar → Model'den başka bir model seç.`;
-    if (s === 429 && /quota|billing|insufficient|credit|payment/i.test(detail)) {
-        return `${providerLabel}: Hesabında yeterli bakiye/kota yok. ${providerLabel} hesabına ödeme/kredi eklemen gerekiyor.`;
+    const d = detail.toLowerCase();
+
+    if (s === 401) return `${providerLabel}: API anahtarın geçersiz veya süresi dolmuş. Ayarlar → Model'den anahtarı güncelle.`;
+    if (s === 403) {
+        if (/duplicate|already declared|function declaration/i.test(detail)) {
+            return `${providerLabel}: İç hata — tekrarlı araç tanımı (400). Lütfen konuşmayı yenile.`;
+        }
+        return `${providerLabel}: Bu işlem için yetkin yok (403). Ayarlar → Model'den API anahtarını kontrol et.`;
     }
-    if (s === 429) return `${providerLabel}: Hız sınırına takıldın (429). Birkaç saniye sonra tekrar dene.`;
-    if (s === 400 && /model|not found|does not exist|decommission/i.test(detail)) {
-        return `${providerLabel}: Bu model artık geçersiz veya desteklenmiyor. Ayarlar → Model'den güncel bir model seç.`;
+    if (s === 400) {
+        if (/duplicate.*function|function.*declaration.*found/i.test(detail)) {
+            return `${providerLabel}: Tekrarlı araç tanımı hatası. Konuşmayı yenile (Ctrl+R).`;
+        }
+        if (/model|not found|does not exist|decommission/i.test(detail)) {
+            return `${providerLabel}: Seçili model bu sağlayıcıda mevcut değil. Ayarlar → Model'den başka bir model seç.`;
+        }
+        if (/context.*length|too.*long|max.*token/i.test(d)) {
+            return `${providerLabel}: Mesaj çok uzun, bağlam penceresine sığmıyor. Sohbeti temizle veya daha kısa yaz.`;
+        }
+        return `${providerLabel}: Geçersiz istek (400)${detail ? " — " + detail.slice(0, 140) : ""}. Ayarlar → Model'den yapılandırmayı kontrol et.`;
     }
-    if (s >= 500) return `${providerLabel}: Sağlayıcı sunucu hatası (${s}). Geçici olabilir, tekrar dene.`;
+    if (s === 404) return `${providerLabel}: Model bulunamadı. Ayarlar → Model'den güncel bir model seç.`;
+    if (s === 429) {
+        if (/quota|billing|insufficient|credit|payment/i.test(d)) {
+            return `${providerLabel}: Hesap kredisi/kotası yetersiz. ${providerLabel} hesabına bakiye ekle.`;
+        }
+        if (/tpm|tokens per minute/i.test(d)) {
+            return `${providerLabel}: Dakikalık token limiti aşıldı. Birkaç saniye bekle veya daha kısa mesaj yaz.`;
+        }
+        return `${providerLabel}: Çok fazla istek gönderildi (hız limiti). Birkaç saniye bekleyip tekrar dene.`;
+    }
+    if (s === 413) return `${providerLabel}: Mesaj veya dosya çok büyük. Daha kısa içerikle tekrar dene.`;
+    if (s === 422) return `${providerLabel}: İstek formatı geçersiz (422)${detail ? " — " + detail.slice(0, 120) : ""}.`;
+    if (s >= 500 && s < 600) return `${providerLabel}: Sağlayıcı sunucusunda geçici hata (${s}). Birkaç saniye sonra tekrar dene.`;
+    if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(detail)) {
+        return `${providerLabel}: Sunucuya ulaşılamıyor. İnternet bağlantını ve VPN durumunu kontrol et.`;
+    }
     return `${providerLabel} hatası (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
 }
 
@@ -816,14 +844,14 @@ function friendlyGroqError(e: unknown): string {
     const status = err?.status ?? 0;
     const detail = (err?.error?.message ?? err?.message ?? "").toString();
     const low = detail.toLowerCase();
-    if (status === 401 || status === 403) return "Groq: API anahtarın geçersiz. Ayarlar → Model'den anahtarı kontrol et.";
-    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: Bu model artık geçersiz. Ayarlar → Model'den güncel bir model seç.";
-    if (status === 413 || /too large|tpm|tokens per minute|reduce your message/.test(low)) {
-        return "Seçili model bu kadar metni tek seferde kaldıramıyor (dakikalık token limiti). Daha kısa bir mesajla dene veya Ayarlar → Model'den daha geniş limitli bir model (örn. Llama 4 Scout) seç.";
-    }
-    if (status === 429) return "Groq: Çok hızlı istek attın (hız limiti). Birkaç saniye sonra tekrar dene.";
-    if (status >= 500) return "Groq: Sağlayıcı sunucu hatası. Geçici olabilir, tekrar dene.";
-    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "İnternet bağlantısı kurulamadı. Ağını kontrol et.";
+    if (isTimeoutError(e)) return `Groq: ${TIMEOUT_MSG}`;
+    if (status === 401 || status === 403) return "Groq: API anahtarın geçersiz veya süresi dolmuş. Ayarlar → Model'den anahtarı güncelle.";
+    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: Seçili model artık mevcut değil. Ayarlar → Model'den güncel bir model seç.";
+    if (status === 413 || /too large|reduce your message/.test(low)) return "Groq: Mesajın çok uzun. Sohbeti temizle veya daha kısa yaz.";
+    if (status === 429 || /rate.limit|tpm|tokens per minute/.test(low)) return "Groq: Hız limitine takıldı (otomatik retry yapıldı). Birkaç saniye bekle veya farklı bir model seç.";
+    if (status >= 500) return "Groq: Sunucu geçici hata verdi. Birkaç saniye sonra tekrar dene.";
+    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "Groq'a ulaşılamıyor. İnternet bağlantını kontrol et.";
+    if (/failed_generation/.test(low)) return "Groq: Model yanıt üretemedi. Tekrar dene.";
     return `Groq hatası${detail ? ": " + detail.slice(0, 140) : ""}`;
 }
 
@@ -851,10 +879,10 @@ async function callProxy(
                 temperature: opts.temperature,
                 max_tokens: opts.max_tokens,
             }),
-        });
-    } catch {
-        // Proxy/Supabase'e ulaşılamadı (servis down veya ağ yok) → gelişmiş moda düşme öner.
-        throw new Error("Deneme servisine ulaşılamıyor (sunucu veya internet bağlantısı). Ayarlar → Model'den kendi API anahtarınla Gelişmiş moda geçebilirsin.");
+        }, 90_000); // proxy SSE stream için uzun timeout
+    } catch (e) {
+        if (isTimeoutError(e)) throw new Error("Deneme servisi yanıt vermedi (zaman aşımı). İnternet bağlantını kontrol et veya Ayarlar → Model'den kendi anahtarınla Gelişmiş moda geç.");
+        throw new Error("Deneme servisine ulaşılamıyor. İnternet bağlantını kontrol et veya Ayarlar → Model'den Gelişmiş moda geçebilirsin.");
     }
 
     if (resp.status === 429) {
@@ -1075,6 +1103,12 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
                         : undefined,
                 }}]};
             } catch (e) {
+                const errObj = e as {status?: number};
+                // 429 rate limit — 1 kez 3s bekleyip otomatik yeniden dene
+                if (errObj?.status === 429 && attempt === 0) {
+                    await new Promise((r) => setTimeout(r, 3000));
+                    continue;
+                }
                 throw new Error(friendlyGroqError(e));
             }
         }

@@ -1,22 +1,43 @@
 # AEGIS — Personal AI Assistant
 
-Electron + React desktop AI assistant. Talks, listens, runs PowerShell, searches the web.
+> Windows için kişisel AI asistanı. Dinler, düşünür, yapar.
 
-**Built with:** Electron · React · TypeScript · Vite · Tailwind CSS · Groq SDK · Supabase
-
----
-
-## Requirements
-
-- **Node.js 18+** — https://nodejs.org
-- **Windows 10/11** (msedge-tts is Windows-only)
-- NVIDIA GPU — optional, GPU telemetry shows empty without one
+**AEGIS**, konuşma tanıma, LLM zekası ve 150+ araçla donatılmış, Windows masaüstüne entegre bir yapay zeka asistanıdır. Groq, OpenAI, Anthropic, Gemini ve daha fazlasını destekler. Sesle veya yazıyla komut verebilir, sistem kontrolü, Spotify, Steam, web araması, dosya yönetimi ve çok daha fazlasını yapabilirsiniz.
 
 ---
 
-## Setup
+## Özellikler
 
-### 1. Clone the repo
+| Kategori | Neler yapabilir |
+|---|---|
+| **Sohbet** | Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama |
+| **Ses** | Mikrofon → Whisper transkripsiyon, TTS (Edge / ElevenLabs), wake-word |
+| **Sistem** | PowerShell, ses/parlaklık, pencere yönetimi, process, disk temizliği |
+| **Spotify** | Çal/duraklat/atla/ses/ara/playlist — Spotify Web API entegrasyonu |
+| **Steam** | Oyun başlat, kütüphane listesi, Steam aç/kapat |
+| **Web** | Tavily/Serper/DuckDuckGo arama, URL içerik okuma |
+| **Dosya** | Oku/yaz/listele/organize/yinelenen bul/toplu yeniden adlandır |
+| **Vision** | Ekran görüntüsü al + AI analiz, görsel soru-cevap |
+| **Computer Use** | AI fareyi ve klavyeyi kontrol eder, serbest dil hedefleri |
+| **Hafıza** | Kullanıcı profili, notlar, gerçekler, session özeti, bulut sync |
+| **Otomasyon** | Zamanlanmış görevler, koşullu otomasyon, makrolar, ajans modu |
+| **Telemetri** | CPU/RAM/GPU/Disk/Batarya/Ağ anlık izleme + uyarılar |
+| **Güvenlik** | API key vault (OS DPAPI/Keychain), gizlilik denetimi |
+| **UI** | 4 skin ailesi × 4 ferdi (16 skin), 5 dil, özel CSS |
+
+---
+
+## Gereksinimler
+
+- **Windows 10/11**
+- **Node.js 18+** — [nodejs.org](https://nodejs.org)
+- **npm 9+** (Node ile gelir)
+
+---
+
+## Kurulum (Geliştirici)
+
+### 1. Repoyu klonla
 
 ```bash
 git clone https://github.com/Albis0/AEGIS.git
@@ -24,84 +45,103 @@ cd AEGIS
 npm install
 ```
 
-### 2. Get API keys
+### 2. Groq API anahtarı al (ücretsiz, zorunlu)
 
-#### Groq (REQUIRED — free)
-1. Go to https://console.groq.com
-2. Sign up → **API Keys** → **Create API Key**
-3. Copy the key
+1. [console.groq.com](https://console.groq.com) → Kayıt ol
+2. **API Keys → Create API Key**
+3. Anahtarı kopyala
 
-#### Supabase (REQUIRED — free)
-1. https://supabase.com → Create a **New Project**
-2. Open **Settings → API**
-3. Copy the **Project URL** and **service_role** key (not `anon`, use `service_role`)
-
-#### Web Search (optional)
-- Tavily: https://app.tavily.com → API Keys (free tier available)
-- Serper: https://serper.dev → API Key (free tier available)
-- Falls back to DuckDuckGo if neither is configured
-
-### 3. Create .env file
-
-Copy `.env.example` and fill in your keys:
-
-```bash
-cp .env.example .env
-```
-
-`.env` contents:
-
-```
-GROQ_API_KEY=gsk_...
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
-TAVILY_API_KEY=tvly-...   # optional
-SERPER_API_KEY=...        # optional
-```
-
-### 4. Create Supabase tables
-
-1. Supabase Dashboard → **SQL Editor**
-2. Paste the contents of `supabase/schema.sql`
-3. Hit **Run**
-
-### 5. Run
+### 3. Uygulamayı başlat
 
 ```bash
 npm run dev
 ```
 
-### 6. Build a distributable (optional)
+İlk açılışta onboarding ekranı çıkar. Groq anahtarını buradan girebilirsin.
+
+### 4. Opsiyonel API anahtarları
+
+| Servis | Neden | Nereden |
+|---|---|---|
+| Supabase | Bulut sync, oturum kaydı | supabase.com |
+| ElevenLabs | Gerçekçi TTS sesi | elevenlabs.io |
+| Tavily / Serper | Web araması | tavily.com / serper.dev |
+| OpenAI / Anthropic / Gemini | Alternatif AI provider | provider siteleri |
+
+Anahtarlar **Ayarlar → API Anahtarları** sekmesinden girilir.
+
+---
+
+## Spotify Entegrasyonu
+
+AEGIS, Spotify Web API kullanır (Premium gerektirir):
+
+1. [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → Uygulama oluştur
+2. Redirect URI olarak `http://localhost:17832/callback` ekle
+3. Client ID ve Secret'ı **Ayarlar → API Anahtarları → Spotify** bölümüne gir
+4. "AEGIS'e Bağla" diyerek OAuth yetkilendirmesini tamamla
+
+---
+
+## Kullanım
+
+| Kısayol | Eylem |
+|---|---|
+| `M` | Mikrofon: Kapalı → Sürekli → Wake-word → Kapalı |
+| `Ctrl+L` | Mesaj kutusuna odaklan |
+| `Ctrl+Space` | Komut paleti |
+| `ESC` | Konuşmayı durdur |
+| `F11` | Tam ekran |
+| ⚙ (başlık çubuğu) | Ayarlar paneli |
+
+**Wake-word:** "Jarvis, hava nasıl?" ya da sadece "Jarvis" deyip bekle.
+
+**Dosya/görüntü ekleme:** `⊕` butonuyla veya `Ctrl+V` ile yapıştır (`Win+Shift+S` sonrası).
+
+---
+
+## Derleme (Release)
 
 ```bash
 npm run electron:build
 ```
 
-Produces a portable `.exe` under `dist/`. Pushing a `v*` git tag also triggers the GitHub Actions release workflow.
+`dist/` altında `.exe` installer + portable üretir.
 
 ---
 
-## Usage
+## Proje Yapısı
 
-| Shortcut | Action |
-|---|---|
-| `M` | Mic: Off → Always-on → Wake-word → Off |
-| `Ctrl+L` | Focus the message input |
-| `Ctrl+Space` | Command palette |
-| `ESC` | Stop speaking |
-| `F11` | Fullscreen |
-| ⚙ (title bar) | Settings panel |
-
-**Wake-word mode:** Say "Jarvis, what's the weather?" or just "Jarvis", then speak.
-
-**Attachments:** Click `⊕` to attach images/files, or paste a screenshot directly with `Ctrl+V` (e.g. after `Win+Shift+S`).
+```
+electron/          # Ana süreç (main.ts, tools.ts, spotify.ts, vb.)
+src/               # Renderer (React UI)
+  components/
+    skins/         # 16 UI skin
+tests/             # Vitest testleri (30 test)
+supabase/          # Edge Function + schema
+```
 
 ---
 
-## Settings (⚙)
+## Teknolojiler
 
-- **AI Model** — Switch between Groq models (takes effect immediately)
-- **TTS Voice** — Turkish/English voice selection
-- **Speech Rate** — 0.5x – 2.0x
+- **Electron 31** + **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**
+- **Groq SDK** (streaming, tool calling)
+- **Supabase** (auth, DB, Edge Functions)
+- **electron-updater** (otomatik güncelleme)
+- **msedge-tts** (ücretsiz Edge TTS)
 
-Settings are stored in `~/.aegis/settings.json`.
+---
+
+## Güvenlik
+
+- API anahtarları OS şifrelemesiyle saklanır (Windows DPAPI)
+- `.env` asla commit edilmez
+- `service_role` key yalnızca Supabase Edge Function'da, repo'da yok
+- RLS ile her kullanıcı yalnızca kendi verisini okur
+
+---
+
+## Lisans
+
+MIT

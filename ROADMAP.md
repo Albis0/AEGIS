@@ -982,6 +982,48 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
+## Faz 48 — Sağlamlık v2 & Hata Mesajları 🔧 ✅
+*Her ağda, her PC'de çalışır. Hata olunca kullanıcı ne olduğunu anlar.*
+
+### 48.1 Fetch Timeout (Aşama A) ✅
+- ✅ `electron/fetch-utils.ts` — `fetchWithTimeout` + `anySignal` + `isTimeoutError` + `TIMEOUT_MSG`
+- ✅ Spotify (token exchange/refresh/API), weather, proxy, Anthropic, Gemini, Ollama, xAI, DeepSeek, OpenAI-compat, ElevenLabs, vision, model listing — tüm fetch çağrıları 8–90 saniye arasında timeout'a bağlandı
+- ✅ Timeout anında "İstek zaman aşımına uğradı. Ağ bağlantını kontrol et" mesajı
+
+### 48.2 Tool Hata İzolasyonu (Aşama B) ✅
+- ✅ `Promise.all` → `Promise.allSettled` — bir tool patlasa diğerleri çalışmaya devam eder
+- ✅ Başarısız tool "Araç hatası: …" mesajıyla modele bildirilir
+
+### 48.3 Global Handler + Spotify FS (Aşama C & D) ✅
+- ✅ `process.on('unhandledRejection')` + `uncaughtException` — sessiz crash'ler loglanır
+- ✅ `saveToken` EACCES/ENOSPC durumlarında anlamlı hata yazar, crash etmez
+
+### 48.4 Streaming Finally + Port Bildirimi (Aşama E & F) ✅
+- ✅ `chat-stream` handler'ına `finally` eklendi — her koşulda `chat-done` gönderilir
+- ✅ API server port çakışması → UI'da feed uyarısı (`feed-event`)
+
+### 48.5 Diğer Düzeltmeler (Aşama G, H, I) ✅
+- ✅ Windows sürümü `os.release()` ile dinamik (`build ≥ 22000 = Win11`, aksi = Win10)
+- ✅ Min pencere boyutu 800×550 (küçük ekranlarda UI bozulmaz)
+- ✅ Tüm `.catch(() => {})` → `.catch((e) => console.error(…))` — hata loglanır
+
+### 48.6 Gelişmiş Hata Mesajları ✅
+- ✅ `friendlyHttpError` — 400/401/403/404/413/422/429/5xx ayrı ayrı Türkçe, hangi servis hangisini verdi belli
+- ✅ `friendlyGroqError` — timeout, rate limit, model geçersiz, ağ hatası ayrıştırılır
+- ✅ Spotify hata mesajları — 401/403/404/429/5xx + Premium/kayıtlı değil özel mesajları
+- ✅ `executeTool` bilinmeyen araç → anlamlı Türkçe hata (önceden boş dönerdi)
+- ✅ Proxy timeout mesajı servis adıyla birlikte gösterilir
+
+### 48.7 Güvenilirlik İyileştirmeleri ✅
+- ✅ Groq 429 → 3s bekle, otomatik 1x retry
+- ✅ Groq model listesi çekilemezse hardcoded fallback (6 bilinen model) gösterilir
+- ✅ Proxy (trial mod) timeout 10s → 90s (SSE stream için yeterli süre)
+- ✅ Spotify duplicate tool fix — `CORE_SCHEMAS`'dan çıkarıldı, sadece bağlama göre ekleniyor
+- ✅ Sistem prompt'a yerel tarih/saat inject — "saat kaç?" soruları çalışır
+- ✅ `spotify_open` sistem prompt kurallarına eklendi — AI artık `run_command` değil `spotify_open` kullanır
+
+---
+
 ## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖
 *AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder.*
 
@@ -1058,4 +1100,5 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 45   Sağlamlık & Test Altyapısı   ← TAMAMLANDI
 ✅  Faz 46   Spotify & Steam built-in     ← TAMAMLANDI
 ✅  Faz 47   Computer Use (mouse/kb AI)   ← TAMAMLANDI
+✅  Faz 48   Sağlamlık v2 & Hata Mesajları ← TAMAMLANDI
 ```

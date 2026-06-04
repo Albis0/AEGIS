@@ -1187,11 +1187,9 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
     ollama:     64,
 };
 
-// Çekirdek tool'lar — yalnızca bir AKSİYON niyeti olduğunda gönderilir
-// (komut çalıştır, dosya, web arama, ekran). Düşük-TPM modelleri (gpt-oss-120b
-// gibi 8K) korumak için olabildiğince küçük tutulur.
-// Spotify her zaman core'da — tool call zincirinde context kayması yaşanmasın.
-const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas, ...spotifySchemas];
+// Çekirdek tool'lar — yalnızca bir AKSİYON niyeti olduğunda gönderilir.
+// NOT: spotifySchemas burada YOK — TOOL_GROUPS üzerinden gelir. İkiye çıkmasın.
+const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
 
 // Aksiyon fiil/isim KÖKLERİ — hepsi NORMALIZE (ASCII, ç→c ş→s ı→i ö→o ü→u ğ→g).
 // Eşleştirme normalize edilmiş kelimeler üzerinde startsWith ile yapılır; Türkçe
@@ -2887,16 +2885,22 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
     if (_disabledTools.has(name)) return `ENGELLENDI: "${name}" aracı ayarlardan devre dışı bırakılmış.`;
     const fn = executors[name] ?? _pluginExecutors[name];
-    if (!fn) return `HATA: bilinmeyen araç "${name}"`;
+    if (!fn) {
+        console.error(`[executeTool] Bilinmeyen araç: "${name}"`);
+        return `Bu araç tanımlı değil: "${name}". Model yanlış bir araç adı üretiyor olabilir — konuşmayı yenile.`;
+    }
     let args: Record<string, string> = {};
     try {
         args = argsJson ? JSON.parse(argsJson) : {};
     } catch {
-        return `HATA: araç argümanları çözümlenemedi: ${argsJson}`;
+        console.error(`[executeTool] JSON parse hatası — araç: ${name}, args: ${argsJson}`);
+        return `Araç argümanları geçersiz format içeriyor. Tekrar dene.`;
     }
     try {
         return await fn(args);
     } catch (e) {
-        return `HATA: ${(e as Error).message}`;
+        const msg = (e as Error).message ?? String(e);
+        console.error(`[executeTool] "${name}" çalışırken hata:`, msg);
+        return `"${name}" aracı çalışırken hata oluştu: ${msg}`;
     }
 }
