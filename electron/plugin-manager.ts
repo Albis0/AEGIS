@@ -114,12 +114,15 @@ export async function pluginInstall(repoOrUrl: string): Promise<string> {
     const zipPath = path.join(tmpDir, "plugin.zip");
     fs.writeFileSync(zipPath, zipBuffer);
 
-    // Node'un yerleşik zip desteği yok — PowerShell ile çıkar
+    // Node'un yerleşik zip desteği yok — PowerShell stdin üzerinden çalıştır (injection-proof)
     const {exec} = await import("child_process");
     await new Promise<void>((resolve, reject) => {
-        exec(`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${tmpDir}' -Force"`,
+        const child = exec(
+            "powershell -NoProfile -NonInteractive -Command -",
             {timeout: 15000, windowsHide: true},
-            (err) => { err ? reject(err) : resolve(); });
+            (err) => { err ? reject(err) : resolve(); }
+        );
+        child.stdin?.end(`Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${tmpDir.replace(/'/g, "''")}' -Force`);
     });
 
     // İçeriği bul

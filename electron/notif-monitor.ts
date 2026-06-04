@@ -33,12 +33,14 @@ function save(p: string, data: unknown): void {
     fs.writeFileSync(p, JSON.stringify(data, null, 2));
 }
 
-function runPs(cmd: string): Promise<string> {
+function runPs(script: string): Promise<string> {
     return new Promise((res) => {
-        execCb(`powershell -NoProfile -Command "${cmd.replace(/"/g, '\\"')}"`,
+        const child = execCb(
+            "powershell -NoProfile -NonInteractive -Command -",
             {timeout: 15000, windowsHide: true},
             (err, stdout) => res(err ? "" : (stdout ?? "").trim())
         );
+        child.stdin?.end(script);
     });
 }
 

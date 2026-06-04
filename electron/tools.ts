@@ -948,10 +948,17 @@ const soundSchemas: ChatCompletionTool[] = [
 // ───────────────────────────────────────────────────────────── Faz 20 Schemas
 const codeToolSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"git_status",description:"Git repo durumunu göster: staged, unstaged, untracked dosyalar.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu (varsayılan: mevcut dizin)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_log",description:"Son commit'leri listele.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},count:{type:"number",description:"Gösterilecek commit sayısı (varsayılan 10)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_diff",description:"Staged veya unstaged değişiklikleri göster.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},staged:{type:"boolean",description:"true = staged değişiklikler, false = unstaged (varsayılan false)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_commit",description:"Staged değişiklikleri commit et.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},message:{type:"string",description:"Commit mesajı"}},required:["message"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_branch",description:"Branch oluştur, değiştir veya listele.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, create veya switch"},branch_name:{type:"string",description:"Branch adı (create/switch için)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_log",description:"Son commit'leri listele. Graph/tree görünümü destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},count:{type:"number",description:"Gösterilecek commit sayısı (varsayılan 10)"},graph:{type:"boolean",description:"true = ASCII branch grafiği göster"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_diff",description:"Staged veya unstaged değişiklikleri göster. Belirli dosya verilebilir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},staged:{type:"boolean",description:"true = staged değişiklikler, false = unstaged (varsayılan false)"},file:{type:"string",description:"Sadece bu dosyanın diff'ini göster (opsiyonel)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_add",description:"Dosyaları stage'e ekle (git add). '.' = tüm değişiklikler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},files:{type:"string",description:"Stage'e eklenecek dosya/desen. '.' = hepsi, veya spesifik dosya/klasör adı"}},required:["files"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_commit",description:"Staged değişiklikleri commit et. add_all=true ile önce tüm değişiklikleri stage'e alır.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},message:{type:"string",description:"Commit mesajı"},add_all:{type:"boolean",description:"true = önce git add . çalıştır, sonra commit et"}},required:["message"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_push",description:"Değişiklikleri remote'a gönder (git push).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},branch:{type:"string",description:"Branch adı (varsayılan: aktif branch)"},force:{type:"boolean",description:"true = --force-with-lease ile zorla it"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_pull",description:"Remote'dan değişiklikleri çek (git pull).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},rebase:{type:"boolean",description:"true = --rebase ile çek"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_branch",description:"Branch oluştur, değiştir, sil veya listele. Görsel branch haritası için action=graph.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, create, switch, delete, graph (görsel ağaç)"},branch_name:{type:"string",description:"Branch adı (create/switch/delete için)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_stash",description:"Değişiklikleri geçici olarak sakla veya geri yükle.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"save, pop, list, drop, apply"},message:{type:"string",description:"Stash mesajı (save için opsiyonel)"},index:{type:"number",description:"Stash indeksi (drop/apply için, varsayılan 0)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_merge",description:"Branch merge et. fast-forward veya no-ff destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},branch:{type:"string",description:"Merge edilecek branch"},no_ff:{type:"boolean",description:"true = --no-ff (merge commit oluştur)"}},required:["branch"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_reset",description:"Staged dosyaları unstage et veya son commit'i geri al.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},mode:{type:"string",description:"soft (commit geri al, dosyalar staged kalır), mixed (varsayılan, staged temizle), hard (dikkat! tüm değişiklikleri sil)"},commits:{type:"number",description:"Kaç commit geri git (varsayılan 1)"},file:{type:"string",description:"Belirli dosyayı unstage et (mode yerine kullanılır)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_remote",description:"Remote URL'leri listele veya ekle/değiştir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, add, set-url"},name:{type:"string",description:"Remote adı"},url:{type:"string",description:"Remote URL"}},required:["action"],additionalProperties:false}}},
     {type:"function",function:{name:"run_and_analyze",description:"Bir komutu çalıştır ve çıktısını analiz et. Hata mesajlarını açıkla, çözüm öner.",parameters:{type:"object",properties:{command:{type:"string",description:"Çalıştırılacak komut"},context:{type:"string",description:"Ek bağlam (örn: bu bir Node.js projesi)"}},required:["command"],additionalProperties:false}}},
     {type:"function",function:{name:"scaffold_project",description:"Hazır şablondan yeni proje oluştur. Örnek: 'Python FastAPI', 'React Tailwind', 'Node Express'.",parameters:{type:"object",properties:{template:{type:"string",description:"Şablon adı: python-fastapi, react-tailwind, node-express, electron-app, next-ts"},target_path:{type:"string",description:"Projenin oluşturulacağı dizin (varsayılan: Desktop)"}},required:["template"],additionalProperties:false}}},
     {type:"function",function:{name:"list_templates",description:"Mevcut proje şablonlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1228,7 +1235,7 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => agentSchemas,       roots: ["ajan", "agent", "otonom"]},
     {schemas: () => watchSchemas,       roots: ["izle", "watch", "uyar", "alert", "esik", "threshold", "takip"]},
     {schemas: () => soundSchemas,       roots: ["bip", "beep", "calar"]},
-    {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon"]},
+    {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon", "push", "pull", "branch", "merge", "stash", "diff", "staged", "unstaged", "remote", "checkout"]},
     {schemas: () => timeSchemas,        roots: ["saat", "tarih", "zaman", "time", "takvim", "calendar", "timezone", "hafta"]},
     {schemas: () => mediaSchemas,       roots: ["resim", "resm", "gorsel", "image", "video", "medya", "media", "foto", "donustur", "convert", "kirp"]},
     {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
@@ -1350,11 +1357,16 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             const danger = isDangerous(command);
             if (danger) return `ENGELLENDI: ${danger}`;
         }
-        return run(`powershell -NoProfile -Command "${command.replace(/"/g, '\\"')}"`);
+        // Script dosyasına yaz → PowerShell'e -File ile çalıştır (injection-proof)
+        return runScript(command);
     },
     async read_file({path: p}) {
         try {
-            const full = resolvePath(p);
+            const full = path.resolve(resolvePath(p));
+            // Tam PC erişimi yoksa yalnızca ev dizinine izin ver
+            if (!_fullPcAccess && !full.startsWith(path.resolve(os.homedir()))) {
+                return `ENGELLENDI: Tam PC erişimi kapalıyken sadece ev dizinindeki dosyalar okunabilir (${os.homedir()}).`;
+            }
             const data = fs.readFileSync(full, "utf-8");
             return data.length > 8000 ? data.slice(0, 8000) + "\n...(kısaltıldı)" : data;
         } catch (e) {
@@ -1808,34 +1820,119 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
 
     // ── Faz 20: Kod Asistanı ─────────────────────────────────────────────────
     async git_status({repo_path}) {
-        const cwd = repo_path ? resolvePath(repo_path) : process.cwd();
-        return run(`git -C "${cwd}" status --short --branch`);
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        const out = await run(`git -C "${cwd}" status -sb`);
+        return out || "(clean — değişiklik yok)";
     },
-    async git_log({repo_path, count}) {
-        const cwd = repo_path ? resolvePath(repo_path) : process.cwd();
-        const n = count ? parseInt(String(count)) : 10;
-        return run(`git -C "${cwd}" log --oneline -${n} --decorate`);
+    async git_log({repo_path, count, graph}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        const n = count ? Math.min(parseInt(String(count)), 100) : 10;
+        if (String(graph) === "true") {
+            return run(`git -C "${cwd}" log --oneline --graph --decorate --all -${n}`);
+        }
+        return run(`git -C "${cwd}" log --oneline -${n} --decorate --format="%C(yellow)%h%Creset %C(cyan)%ar%Creset %s%C(auto)%d"`);
     },
-    async git_diff({repo_path, staged}) {
-        const cwd = repo_path ? resolvePath(repo_path) : process.cwd();
+    async git_diff({repo_path, staged, file}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
         const flag = String(staged) === "true" ? "--cached" : "";
-        const out = await run(`git -C "${cwd}" diff ${flag} --stat`);
+        const filePart = file ? `-- "${path.resolve(resolvePath(file))}"` : "";
+        const out = await run(`git -C "${cwd}" diff ${flag} --stat ${filePart}`);
         return out || "(değişiklik yok)";
     },
-    async git_commit({repo_path, message}) {
-        const cwd = repo_path ? resolvePath(repo_path) : process.cwd();
+    async git_add({repo_path, files}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        if (!files) return "HATA: files parametresi gerekli ('.' = hepsi)";
+        const target = files.trim() === "." ? "." : `"${path.resolve(resolvePath(files))}"`;
+        return run(`git -C "${cwd}" add ${target}`);
+    },
+    async git_commit({repo_path, message, add_all}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
         if (!message) return "HATA: commit mesajı gerekli";
-        return run(`git -C "${cwd}" commit -m "${message.replace(/"/g, '\\"')}"`);
+        if (String(add_all) === "true") {
+            await run(`git -C "${cwd}" add .`);
+        }
+        // Mesajı stdin değil temp dosya üzerinden geç — injection yok
+        const tmpMsg = path.join(os.tmpdir(), `aegis-commit-${Date.now()}.txt`);
+        fs.writeFileSync(tmpMsg, message, "utf-8");
+        const out = await run(`git -C "${cwd}" commit -F "${tmpMsg}"`);
+        try { fs.unlinkSync(tmpMsg); } catch {}
+        return out;
+    },
+    async git_push({repo_path, remote, branch, force}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        const rem = (remote || "origin").replace(/[^a-zA-Z0-9._-]/g, "");
+        const br = branch ? (branch as string).replace(/[^a-zA-Z0-9._/-]/g, "") : "";
+        const forceFlag = String(force) === "true" ? "--force-with-lease" : "";
+        return run(`git -C "${cwd}" push ${forceFlag} ${rem} ${br}`.trim());
+    },
+    async git_pull({repo_path, remote, rebase}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        const rem = (remote || "origin").replace(/[^a-zA-Z0-9._-]/g, "");
+        const rebaseFlag = String(rebase) === "true" ? "--rebase" : "";
+        return run(`git -C "${cwd}" pull ${rebaseFlag} ${rem}`.trim());
     },
     async git_branch({repo_path, action, branch_name}) {
-        const cwd = repo_path ? resolvePath(repo_path) : process.cwd();
-        if (action === "list") return run(`git -C "${cwd}" branch -a`);
-        if (action === "create" && branch_name) return run(`git -C "${cwd}" checkout -b "${branch_name}"`);
-        if (action === "switch" && branch_name) return run(`git -C "${cwd}" checkout "${branch_name}"`);
-        return "HATA: action = list | create | switch; create/switch için branch_name gerekli";
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        if (action === "list") return run(`git -C "${cwd}" branch -avv`);
+        if (action === "graph") return run(`git -C "${cwd}" log --oneline --graph --decorate --all -20`);
+        const safe = branch_name ? (branch_name as string).replace(/[^a-zA-Z0-9._/-]/g, "") : "";
+        if (!safe) return "HATA: branch_name gerekli";
+        if (action === "create") return run(`git -C "${cwd}" checkout -b "${safe}"`);
+        if (action === "switch") return run(`git -C "${cwd}" checkout "${safe}"`);
+        if (action === "delete") return run(`git -C "${cwd}" branch -d "${safe}"`);
+        return "HATA: action = list | create | switch | delete | graph";
+    },
+    async git_stash({repo_path, action, message, index}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        const idx = index !== undefined ? parseInt(String(index)) : 0;
+        if (action === "list") return run(`git -C "${cwd}" stash list`);
+        if (action === "pop") return run(`git -C "${cwd}" stash pop stash@{${idx}}`);
+        if (action === "apply") return run(`git -C "${cwd}" stash apply stash@{${idx}}`);
+        if (action === "drop") return run(`git -C "${cwd}" stash drop stash@{${idx}}`);
+        if (action === "save") {
+            const tmpMsg = path.join(os.tmpdir(), `aegis-stash-${Date.now()}.txt`);
+            const msg = message || `aegis-stash-${new Date().toISOString()}`;
+            fs.writeFileSync(tmpMsg, msg, "utf-8");
+            const out = await run(`git -C "${cwd}" stash push -m "${msg.replace(/"/g, '\\"').slice(0, 100)}"`);
+            try { fs.unlinkSync(tmpMsg); } catch {}
+            return out;
+        }
+        return "HATA: action = save | pop | list | drop | apply";
+    },
+    async git_merge({repo_path, branch, no_ff}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        if (!branch) return "HATA: branch adı gerekli";
+        const safe = (branch as string).replace(/[^a-zA-Z0-9._/-]/g, "");
+        const flag = String(no_ff) === "true" ? "--no-ff" : "";
+        return run(`git -C "${cwd}" merge ${flag} "${safe}"`.trim());
+    },
+    async git_reset({repo_path, mode, commits, file}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        if (file) {
+            const safeFile = path.resolve(resolvePath(file as string));
+            return run(`git -C "${cwd}" reset HEAD -- "${safeFile}"`);
+        }
+        const validModes = ["soft", "mixed", "hard"];
+        const m = validModes.includes(mode as string) ? (mode as string) : "mixed";
+        const n = commits ? parseInt(String(commits)) : 1;
+        if (m === "hard") {
+            const confirm = await run(`git -C "${cwd}" status --short`);
+            if (confirm.trim()) {
+                return `UYARI: --hard reset tüm değişiklikleri siler.\nMevcut değişiklikler:\n${confirm}\n\nEmin misin? Onaylamak için git_reset mode=hard commits=${n} şeklinde tekrar çağır.`;
+            }
+        }
+        return run(`git -C "${cwd}" reset --${m} HEAD~${n}`);
+    },
+    async git_remote({repo_path, action, name, url}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        if (action === "list") return run(`git -C "${cwd}" remote -v`);
+        const safeName = (name || "origin").replace(/[^a-zA-Z0-9._-]/g, "");
+        if (action === "add" && url) return run(`git -C "${cwd}" remote add "${safeName}" "${(url as string).replace(/"/g, '\\"')}"`);
+        if (action === "set-url" && url) return run(`git -C "${cwd}" remote set-url "${safeName}" "${(url as string).replace(/"/g, '\\"')}"`);
+        return "HATA: action = list | add | set-url";
     },
     async run_and_analyze({command, context}) {
-        const output = await run(`powershell -NoProfile -Command "${(command ?? "").replace(/"/g, '\\"')}"`, 30000);
+        const output = await runScript(command ?? "", 30000);
         return `Komut çıktısı:\n${output}\n\nBağlam: ${context || "yok"}\n\n[Yukarıdaki çıktıyı analiz et, hata varsa açıkla ve çözüm öner.]`;
     },
     async scaffold_project({template, target_path}) {

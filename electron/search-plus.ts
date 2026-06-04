@@ -5,12 +5,14 @@ import {exec as execCb} from "child_process";
 
 const LAUNCH_HIST_PATH = path.join(os.homedir(), ".aegis", "app-launch-history.json");
 
-function runPs(cmd: string, timeoutMs = 15000): Promise<string> {
+function runPs(script: string, timeoutMs = 15000): Promise<string> {
     return new Promise((res) => {
-        execCb(`powershell -NoProfile -Command "${cmd.replace(/"/g, '\\"')}"`,
+        const child = execCb(
+            "powershell -NoProfile -NonInteractive -Command -",
             {timeout: timeoutMs, windowsHide: true, maxBuffer: 2 * 1024 * 1024},
             (err, stdout) => res(err ? "" : (stdout ?? "").trim())
         );
+        child.stdin?.end(script);
     });
 }
 function load<T>(p: string, def: T): T {
@@ -37,15 +39,21 @@ function fuzzyScore(query: string, target: string): number {
 export async function fileSearch(query: string, dir?: string): Promise<string> {
     if (!query) return "HATA: Arama terimi gerekli.";
     const searchDir = dir || os.homedir();
-    // Try Everything first (if installed), then PowerShell recursive
-    const everythingCmd = `& 'C:\\Program Files\\Everything\\es.exe' "${query}" -n 20 2>$null`;
-    const esResult = await runPs(everythingCmd, 5000);
+    // Path'leri PS değişkeni olarak aktar — injection yok
+    const esResult = await runPs(
+        `$q = '${query.replace(/'/g, "''")}'\n` +
+        `& 'C:\\Program Files\\Everything\\es.exe' $q -n 20 2>$null`,
+        5000
+    );
     if (esResult && esResult.length > 5 && !esResult.includes("HATA")) {
         return `Arama sonuçları (Everything):\n${esResult}`;
     }
-    // Fallback: PowerShell
-    const ps = `Get-ChildItem -Path "${searchDir.replace(/\\/g, "\\\\")}" -Recurse -ErrorAction SilentlyContinue -Filter "*${query}*" | Select-Object -First 20 FullName | ForEach-Object {$_.FullName}`;
-    const result = await runPs(ps, 20000);
+    const result = await runPs(
+        `$p = '${searchDir.replace(/'/g, "''")}'\n` +
+        `$q = '*${query.replace(/'/g, "''")}*'\n` +
+        `Get-ChildItem -Path $p -Recurse -ErrorAction SilentlyContinue -Filter $q | Select-Object -First 20 -ExpandProperty FullName`,
+        20000
+    );
     if (!result) return `"${query}" için dosya bulunamadı.`;
     return `Dosya arama sonuçları:\n${result}`;
 }
@@ -53,9 +61,13 @@ export async function fileSearch(query: string, dir?: string): Promise<string> {
 export async function contentSearch(query: string, dir: string, extension?: string): Promise<string> {
     if (!query || !dir) return "HATA: Arama terimi ve klasör gerekli.";
     if (!fs.existsSync(dir)) return `HATA: Klasör bulunamadı: ${dir}`;
-    const extFilter = extension ? `-Include "*.${extension.replace(".", "")}"` : "-Include '*.txt','*.md','*.ts','*.js','*.py','*.json','*.cs','*.cpp','*.java','*.go'";
-    const ps = `Get-ChildItem -Path "${dir.replace(/\\/g, "\\\\")}" -Recurse -ErrorAction SilentlyContinue ${extFilter} | Select-String -Pattern "${query.replace(/"/g, "'")}" -ErrorAction SilentlyContinue | Select-Object -First 30 | ForEach-Object {"$($_.Filename):$($_.LineNumber): $($_.Line.Trim())"}`;
-    const result = await runPs(ps, 30000);
+    const extFilter = extension ? `-Include '*.${extension.replace(/'/g, "").replace(".", "")}'` : "-Include '*.txt','*.md','*.ts','*.js','*.py','*.json','*.cs','*.cpp','*.java','*.go'";
+    const result = await runPs(
+        `$p = '${dir.replace(/'/g, "''")}'\n` +
+        `$q = '${query.replace(/'/g, "''")}'\n` +
+        `Get-ChildItem -Path $p -Recurse -ErrorAction SilentlyContinue ${extFilter} | Select-String -Pattern $q -ErrorAction SilentlyContinue | Select-Object -First 30 | ForEach-Object {"$($_.Filename):$($_.LineNumber): $($_.Line.Trim())"}`,
+        30000
+    );
     if (!result) return `"${query}" içerik araması: sonuç bulunamadı.`;
     return `İçerik arama (${dir}):\n${result}`;
 }

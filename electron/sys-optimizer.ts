@@ -5,9 +5,11 @@ import * as os from "os";
 
 const PERF_STATE_PATH = path.join(os.homedir(), ".aegis", "perf-mode-state.json");
 
-function runPs(cmd: string, timeoutMs = 30000): Promise<string> {
+function runPs(script: string, timeoutMs = 30000): Promise<string> {
+    // Scripti stdin üzerinden gönder — injection-proof
     return new Promise((res) => {
-        execCb(`powershell -NoProfile -Command "${cmd.replace(/\\/g, "\\\\")}"`,
+        const child = execCb(
+            "powershell -NoProfile -NonInteractive -Command -",
             {timeout: timeoutMs, windowsHide: true, maxBuffer: 2 * 1024 * 1024},
             (err, stdout, stderr) => {
                 const out = (stdout ?? "").trim();
@@ -16,6 +18,7 @@ function runPs(cmd: string, timeoutMs = 30000): Promise<string> {
                 else res((out || errOut || "(çıktı yok)").slice(0, 2000));
             }
         );
+        child.stdin?.end(script);
     });
 }
 function save(p: string, data: unknown): void {
@@ -44,12 +47,14 @@ export async function killHeavyProcesses(topN: number, confirm: boolean): Promis
 }
 
 export async function suspendProcess(name: string): Promise<string> {
-    const result = await runPs(`$proc = Get-Process -Name "${name}" -ErrorAction SilentlyContinue; if ($proc) { $proc | ForEach-Object { $_.PriorityClass = 'Idle' }; "OK: ${name} önceliği düşürüldü (Idle)" } else { "HATA: ${name} bulunamadı" }`);
+    const safeName = name.replace(/['"`;$&|<>(){}]/g, "");
+    const result = await runPs(`$n = '${safeName}'; $proc = Get-Process -Name $n -ErrorAction SilentlyContinue; if ($proc) { $proc | ForEach-Object { $_.PriorityClass = 'Idle' }; "OK: $n onceligi dusuruldu (Idle)" } else { "HATA: $n bulunamadi" }`);
     return result;
 }
 
 export async function resumeProcess(name: string): Promise<string> {
-    const result = await runPs(`$proc = Get-Process -Name "${name}" -ErrorAction SilentlyContinue; if ($proc) { $proc | ForEach-Object { $_.PriorityClass = 'Normal' }; "OK: ${name} önceliği normal'e döndürüldü" } else { "HATA: ${name} bulunamadı" }`);
+    const safeName = name.replace(/['"`;$&|<>(){}]/g, "");
+    const result = await runPs(`$n = '${safeName}'; $proc = Get-Process -Name $n -ErrorAction SilentlyContinue; if ($proc) { $proc | ForEach-Object { $_.PriorityClass = 'Normal' }; "OK: $n onceligi normale dondu" } else { "HATA: $n bulunamadi" }`);
     return result;
 }
 
@@ -76,7 +81,8 @@ export async function startupManager(action: "list" | "disable", name?: string):
         return runPs("Get-CimInstance Win32_StartupCommand | Select-Object Name,Command,Location | ConvertTo-Json -Compress");
     }
     if (action === "disable" && name) {
-        return runPs(`$item = Get-CimInstance Win32_StartupCommand | Where-Object {$_.Name -like "*${name}*"} | Select-Object -First 1; if ($item) { Remove-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "$($item.Name)" -ErrorAction SilentlyContinue; "Devre dışı bırakıldı: $($item.Name)" } else { "Bulunamadı: ${name}" }`);
+        const safeName = name.replace(/['"`;$&|<>(){}]/g, "");
+        return runPs(`$n = '${safeName}'; $item = Get-CimInstance Win32_StartupCommand | Where-Object {$_.Name -like "*$n*"} | Select-Object -First 1; if ($item) { Remove-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name $item.Name -ErrorAction SilentlyContinue; "Devre disi birakildi: $($item.Name)" } else { "Bulunamadi: $n" }`);
     }
     return "HATA: Geçersiz eylem.";
 }
