@@ -17,8 +17,8 @@ function ps(script: string): Promise<string> {
 
 // Spotify process var mı?
 async function spotifyRunning(): Promise<boolean> {
-    const out = await ps("(Get-Process -Name Spotify -ErrorAction SilentlyContinue) -ne $null");
-    return out.trim().toLowerCase() === "true";
+    const out = await run(`tasklist /FI "IMAGENAME eq Spotify.exe" /NH 2>nul`);
+    return out.toLowerCase().includes("spotify.exe");
 }
 
 // Spotify'ı aç (zaten açıksa dokunma)

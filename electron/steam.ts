@@ -46,16 +46,20 @@ async function findSteamExe(): Promise<string | null> {
 }
 
 async function steamRunning(): Promise<boolean> {
-    const out = await ps("(Get-Process -Name steam -ErrorAction SilentlyContinue) -ne $null");
-    return out.trim().toLowerCase() === "true";
+    const out = await run(`tasklist /FI "IMAGENAME eq steam.exe" /NH 2>nul`);
+    return out.toLowerCase().includes("steam.exe");
 }
 
 async function ensureSteam(): Promise<{ok: boolean; exe: string}> {
     const exe = await findSteamExe();
     if (!exe) return {ok: false, exe: ""};
     if (!(await steamRunning())) {
-        await run(`"${exe}"`, 3000);
-        await new Promise((r) => setTimeout(r, 3000));
+        // Steam'i başlat ve tam açılmasını bekle (max 15sn)
+        execCb(`"${exe}"`, {windowsHide: false}, () => {});
+        for (let i = 0; i < 15; i++) {
+            await new Promise((r) => setTimeout(r, 1000));
+            if (await steamRunning()) break;
+        }
     }
     return {ok: true, exe};
 }
