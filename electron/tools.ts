@@ -12,6 +12,7 @@ import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./mem
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
+import {fetchWithTimeout} from "./fetch-utils";
 import {pomodoroStart, pomodoroStop, timeTrackStart, timeTrackStop, timeTrackReport} from "./time-manager";
 import {addPersona, listPersonas, setActivePersona, getActivePersona, startRoleplay, stopRoleplay, getRoleplayPrompt} from "./persona";
 import {addFlashcard, reviewFlashcard, addReadingItem, getReadingList, summarizeUrl, setGoal, checkInGoal, listGoals} from "./learning";
@@ -2520,18 +2521,20 @@ else{
         try {
             let lat: number, lon: number, city: string, country: string;
             if (location && location.trim()) {
-                const geo = await (await fetch(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.trim())}&count=1&language=tr&format=json`
+                const geo = await (await fetchWithTimeout(
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.trim())}&count=1&language=tr&format=json`,
+                    {}, 8_000
                 )).json() as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
                 if (!geo.results?.length) return `"${location}" konumu bulunamadı.`;
                 const r = geo.results[0];
                 lat = r.latitude; lon = r.longitude; city = r.name; country = r.country;
             } else {
-                const geo = await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json() as {city: string; country: string; lat: number; lon: number};
+                const geo = await (await fetchWithTimeout("http://ip-api.com/json/?fields=city,country,lat,lon", {}, 8_000)).json() as {city: string; country: string; lat: number; lon: number};
                 lat = geo.lat; lon = geo.lon; city = geo.city; country = geo.country;
             }
-            const w = await (await fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure`
+            const w = await (await fetchWithTimeout(
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure`,
+                {}, 8_000
             )).json() as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number; wind_speed_10m: number; surface_pressure: number}};
             const c = w.current;
             return `${city}, ${country} Hava Durumu:\nSıcaklık: ${Math.round(c.temperature_2m)}°C (hissedilen ${Math.round(c.apparent_temperature)}°C)\nNem: %${c.relative_humidity_2m}\nBasınç: ${Math.round(c.surface_pressure)} hPa\nRüzgar: ${c.wind_speed_10m} km/s\nDurum: ${WEATHER_CODES[c.weather_code] ?? "—"}`;

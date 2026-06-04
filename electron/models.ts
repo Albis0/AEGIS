@@ -5,6 +5,8 @@
 // endpoint'inden canlı çekiyoruz. API key girilince gerçek, çalışan modeller
 // gelir; uydurma ID kalmaz.
 
+import {fetchWithTimeout} from "./fetch-utils";
+
 export interface LiveModel {
     id: string;
     label?: string;
@@ -16,14 +18,14 @@ function isChatModel(id: string): boolean {
 }
 
 async function fetchOpenAICompat(baseUrl: string, key: string): Promise<LiveModel[]> {
-    const resp = await fetch(`${baseUrl}/models`, {headers: {Authorization: `Bearer ${key}`}});
+    const resp = await fetchWithTimeout(`${baseUrl}/models`, {headers: {Authorization: `Bearer ${key}`}}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {data?: {id: string}[]};
     return (data.data ?? []).map((m) => ({id: m.id})).filter((m) => isChatModel(m.id));
 }
 
 async function fetchGemini(key: string): Promise<LiveModel[]> {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+    const resp = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string; supportedGenerationMethods?: string[]}[]};
     return (data.models ?? [])
@@ -33,16 +35,16 @@ async function fetchGemini(key: string): Promise<LiveModel[]> {
 }
 
 async function fetchAnthropic(key: string): Promise<LiveModel[]> {
-    const resp = await fetch("https://api.anthropic.com/v1/models", {
+    const resp = await fetchWithTimeout("https://api.anthropic.com/v1/models", {
         headers: {"x-api-key": key, "anthropic-version": "2023-06-01"},
-    });
+    }, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {data?: {id: string; display_name?: string}[]};
     return (data.data ?? []).map((m) => ({id: m.id, label: m.display_name}));
 }
 
 async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
-    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/api/tags`);
+    const resp = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}/api/tags`, {}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string}[]};
     return (data.models ?? []).map((m) => ({id: m.name}));

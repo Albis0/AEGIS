@@ -169,6 +169,11 @@ inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e
 }
 
 let server: http.Server | null = null;
+let _notifyWindow: {webContents: {send: (ch: string, data: unknown) => void}} | null = null;
+
+export function setApiServerWindow(win: {webContents: {send: (ch: string, data: unknown) => void}} | null): void {
+    _notifyWindow = win;
+}
 
 export function startApiServer(port = DEFAULT_PORT): string {
     if (server) return `API sunucusu zaten çalışıyor (port ${port}).`;
@@ -266,8 +271,13 @@ export function startApiServer(port = DEFAULT_PORT): string {
     });
 
     server.on("error", (e: NodeJS.ErrnoException) => {
-        if (e.code === "EADDRINUSE") console.warn(`[API] Port ${port} kullanımda, sunucu başlatılamadı.`);
-        else console.error("[API] Sunucu hatası:", e.message);
+        if (e.code === "EADDRINUSE") {
+            const msg = `API sunucusu başlatılamadı: port ${port} başka bir uygulama tarafından kullanılıyor. Ayarlardan farklı bir port dene.`;
+            console.warn("[API]", msg);
+            _notifyWindow?.webContents.send("feed-event", {type: "warn", text: msg});
+        } else {
+            console.error("[API] Sunucu hatası:", e.message);
+        }
         server = null;
     });
 

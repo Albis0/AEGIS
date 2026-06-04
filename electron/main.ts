@@ -19,7 +19,7 @@ import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorni
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
-import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent} from "./api-server";
+import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent, setApiServerWindow} from "./api-server";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 // @ts-ignore
@@ -29,6 +29,7 @@ import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
+import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -48,7 +49,7 @@ let _cloudPushTimer: NodeJS.Timeout | null = null;
 function scheduleCloudPush(): void {
     if (_cloudPushTimer) clearTimeout(_cloudPushTimer);
     _cloudPushTimer = setTimeout(() => {
-        pushToCloud().catch(() => {}); // sessiz başarısızlık — giriş yoksa/sync kapalıysa zaten no-op
+        pushToCloud().catch((e) => console.error("[cloud-push]", e.message)); // giriş yoksa/sync kapalıysa no-op
     }, 3000);
 }
 
@@ -133,8 +134,11 @@ REGLAS DE SEGURIDAD (SOLO ESTAS):
 - Todo lo demás — ejecútalo directamente si el usuario lo pide.`,
 };
 
+const _winBuild = parseInt((os.release().split(".")[2]) ?? "0");
+const _winLabel = _winBuild >= 22000 ? "Windows 11" : "Windows 10";
+
 function getSystemPrompt(lang: string, fullPcAccess = false): string {
-    const base = SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr;
+    const base = (SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr).replace(/Windows 11/g, _winLabel);
     if (!fullPcAccess) return base;
     const note: Record<string, string> = {
         tr: "\n\nTAM PC ERİŞİMİ AKTİF: Kullanıcı tam sistem yetkisi verdi. Shutdown, format, delete_file, move_file dahil her komutu onay istemeden çalıştır.",
@@ -236,8 +240,8 @@ function createWindow(): void {
     mainWindow = new BrowserWindow({
         width: 1100,
         height: 760,
-        minWidth: 720,
-        minHeight: 540,
+        minWidth: 800,
+        minHeight: 550,
         show: true,
         resizable: true,
         autoHideMenuBar: true,
@@ -676,8 +680,9 @@ async function getWeather(): Promise<object> {
         const manualCity = (currentSettings.weatherCity ?? "").trim();
         if (manualCity) {
             // Geocoding via Open-Meteo (no API key needed)
-            const geo = (await (await fetch(
-                `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manualCity)}&count=1&language=tr&format=json`
+            const geo = (await (await fetchWithTimeout(
+                `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manualCity)}&count=1&language=tr&format=json`,
+                {}, 8_000
             )).json()) as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
             if (!geo.results?.length) return {error: `"${manualCity}" bulunamadı`};
             const r = geo.results[0];
@@ -685,13 +690,13 @@ async function getWeather(): Promise<object> {
             city = r.name; country = r.country;
         } else {
             // IP geolocation fallback
-            const geo = (await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json()) as {city: string; country: string; lat: number; lon: number};
+            const geo = (await (await fetchWithTimeout("http://ip-api.com/json/?fields=city,country,lat,lon", {}, 8_000)).json()) as {city: string; country: string; lat: number; lon: number};
             lat = geo.lat; lon = geo.lon;
             city = geo.city; country = geo.country;
         }
 
         const w = (await (
-            await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`)
+            await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`, {}, 8_000)
         ).json()) as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number}};
         const c = w.current;
         return {
@@ -830,7 +835,7 @@ async function callProxy(
 
     let resp: Response;
     try {
-        resp = await fetch(AEGIS_PROXY_URL, {
+        resp = await fetchWithTimeout(AEGIS_PROXY_URL, {
             method: "POST",
             headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
             body: JSON.stringify({
@@ -1093,11 +1098,11 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
                 input_schema: t.function?.parameters,
             }))} : {}),
         };
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        const resp = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             body: JSON.stringify(body),
-        });
+        }, 60_000);
         if (!resp.ok) throw new Error(await friendlyHttpError("Anthropic", resp));
         const data = await resp.json() as {content: {type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown>}[]};
         const textBlock = data.content.find((b) => b.type === "text");
@@ -1162,9 +1167,10 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
         if (sysMsg?.content) body.systemInstruction = {parts: [{text: extractTextContent(sysMsg.content)}]};
         if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
 
-        const resp = await fetch(
+        const resp = await fetchWithTimeout(
             `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
             {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+            60_000,
         );
         if (!resp.ok) throw new Error(await friendlyHttpError("Gemini", resp));
 
@@ -1193,7 +1199,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
         const ollamaUrl = (currentSettings.ollamaUrl || "http://localhost:11434") + "/v1/chat/completions";
         let resp: Response;
         try {
-            resp = await fetch(ollamaUrl, {
+            resp = await fetchWithTimeout(ollamaUrl, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
@@ -1204,7 +1210,7 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
                     ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
                     options: {num_ctx: currentSettings.ollamaNumCtx ?? 4096},
                 }),
-            });
+            }, 60_000);
         } catch {
             throw new Error("Ollama bağlantı hatası. Ollama çalışıyor mu? (ollama serve)");
         }
@@ -1221,11 +1227,11 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
         const body: Record<string, unknown> = {model: MODEL, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;
-        const resp = await fetch("https://api.x.ai/v1/chat/completions", {
+        const resp = await fetchWithTimeout("https://api.x.ai/v1/chat/completions", {
             method: "POST",
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
             body: JSON.stringify(body),
-        });
+        }, 60_000);
         if (!resp.ok) throw new Error(`xAI ${resp.status}: ${await resp.text()}`);
         const result = await resp.json() as OAICompletion;
         const text = result.choices[0]?.message?.content;
@@ -1239,11 +1245,11 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
         const body: Record<string, unknown> = {model: MODEL, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;
-        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        const resp = await fetchWithTimeout("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
             body: JSON.stringify(body),
-        });
+        }, 60_000);
         if (!resp.ok) throw new Error(`DeepSeek ${resp.status}: ${await resp.text()}`);
         const result = await resp.json() as OAICompletion;
         const text = result.choices[0]?.message?.content;
@@ -1272,11 +1278,11 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
     if (provider === "openai" && caps.supportsTemperature && currentSettings.frequencyPenalty !== 0) body.frequency_penalty = currentSettings.frequencyPenalty;
     if (provider === "mistral" && currentSettings.mistralSafeMode) body.safe_prompt = true;
 
-    const resp = await fetch(url, {
+    const resp = await fetchWithTimeout(url, {
         method: "POST",
         headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
         body: JSON.stringify(body),
-    });
+    }, 60_000);
     if (!resp.ok) throw new Error(await friendlyHttpError(provider.toUpperCase(), resp));
     const result = await resp.json() as OAICompletion;
     const text = result.choices[0]?.message?.content;
@@ -1336,15 +1342,15 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         // callAI tüm providerlar için onDelta'yı çağırıyor — burada tekrar gönderme.
 
         if (toolCalls.length === 0) {
-            if (content) await saveMessage("assistant", content).catch(() => {});
+            if (content) await saveMessage("assistant", content).catch((e) => console.error("[saveMessage]", e.message));
             send("chat-done", {});
             return;
         }
 
         messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as OAIMessage);
 
-        // Run all tool calls in parallel
-        const toolResults = await Promise.all(
+        // Run all tool calls in parallel — allSettled so one failure doesn't abort others
+        const settled = await Promise.allSettled(
             toolCalls.map(async (call) => {
                 const name = call.function.name;
                 const argsJson = call.function.arguments || "{}";
@@ -1352,15 +1358,18 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
-                await saveMessage("tool", String(result).slice(0, 1000), name).catch(() => {});
-                // Modele geri beslenen sonucu da kırp — devasa tool çıktıları (büyük
-                // dizin listesi, koca dosya, uzun web sonucu) TPM/token limitini patlatmasın.
+                await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
                 const clipped = forModel.length > 6000
                     ? forModel.slice(0, 6000) + `\n\n[...kısaltıldı, toplam ${forModel.length} karakter]`
                     : forModel;
                 return {id: call.id, content: clipped};
             })
+        );
+        const toolResults = settled.map((r, i) =>
+            r.status === "fulfilled"
+                ? r.value
+                : {id: toolCalls[i].id, content: `Araç hatası: ${(r.reason as Error).message ?? String(r.reason)}`}
         );
         for (const r of toolResults) {
             messages.push({role: "tool", tool_call_id: r.id, content: r.content});
@@ -1517,11 +1526,11 @@ async function bootApp(): Promise<void> {
                     ],
                 }],
             };
-            const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            const resp = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
                 method: "POST",
                 headers: {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
                 body: JSON.stringify(body),
-            });
+            }, 60_000);
             if (!resp.ok) throw new Error(await friendlyHttpError("Anthropic vision", resp));
             const data = await resp.json() as {content: {type: string; text?: string}[]};
             return data.content.find((b) => b.type === "text")?.text ?? "(yanıt alınamadı)";
@@ -1536,9 +1545,10 @@ async function bootApp(): Promise<void> {
                 ]}],
                 generationConfig: {maxOutputTokens: 1024},
             };
-            const resp = await fetch(
+            const resp = await fetchWithTimeout(
                 `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
                 {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+                60_000,
             );
             if (!resp.ok) throw new Error(await friendlyHttpError("Gemini vision", resp));
             const data = await resp.json() as {candidates: {content: {parts: {text?: string}[]}}[]};
@@ -1570,11 +1580,11 @@ async function bootApp(): Promise<void> {
                     ],
                 }],
             };
-            const resp = await fetch(endpoints[provider], {
+            const resp = await fetchWithTimeout(endpoints[provider], {
                 method: "POST",
                 headers: {"Authorization": `Bearer ${key}`, "content-type": "application/json"},
                 body: JSON.stringify(body),
-            });
+            }, 60_000);
             if (!resp.ok) throw new Error(await friendlyHttpError(`${provider.toUpperCase()} vision`, resp));
             const data = await resp.json() as {choices: {message: {content: string}}[]};
             return data.choices[0]?.message?.content ?? "(yanıt alınamadı)";
@@ -1606,7 +1616,7 @@ async function bootApp(): Promise<void> {
             mainWindow.webContents.send("language-changed", {language: lang, ttsVoice: voice});
         }
     });
-    await startSession().catch(() => {});
+    await startSession().catch((e) => console.error("[startSession]", e.message));
 
     // Load previous session summaries + pending reminders into system prompt context
     try {
@@ -1657,25 +1667,32 @@ async function bootApp(): Promise<void> {
     });
 
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string | MsgPart[]}[]; reqId: string}) => {
+        let errSent = false;
         try {
             const last = messages[messages.length - 1];
             if (last?.role === "user") {
                 const textForSave = typeof last.content === "string" ? last.content : extractTextContent(last.content);
-                await saveMessage("user", textForSave).catch(() => {});
+                await saveMessage("user", textForSave).catch((e) => console.error("[saveMessage]", e.message));
                 if (isRecording()) addMacroStep(textForSave);
             }
             await runAgent(messages, reqId);
         } catch (e) {
+            errSent = true;
             let msg = (e as Error).message ?? String(e);
-            // Ağ/bağlantı hatalarını da kullanıcı diline çevir
-            if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
+            if (isTimeoutError(e)) {
+                msg = TIMEOUT_MSG;
+            } else if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
                 msg = "İnternet bağlantısı kurulamadı. Ağ bağlantını kontrol et ve tekrar dene.";
             }
             if (mainWindow && !mainWindow.isDestroyed()) {
-                // Hata ayrı bir "error" feed öğesi olarak gösterilir (chat-delta ile
-                // assistant balonuna yazılmaz — yoksa normal cevap gibi görünüyordu).
                 mainWindow.webContents.send("chat-error", {reqId, message: msg});
-                mainWindow.webContents.send("chat-done", {reqId});
+            }
+        } finally {
+            // chat-done her zaman gönderilmeli — streaming state sıfırlanır
+            if (!errSent || true) {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("chat-done", {reqId});
+                }
             }
         }
     });
@@ -1731,7 +1748,7 @@ async function bootApp(): Promise<void> {
                     currentSettings.ttsVoice.slice(3) :
                     "cgSgspJ2msm6clMCkdW9"; // Jessica (default)
                 const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
-                const resp = await fetch(
+                const resp = await fetchWithTimeout(
                     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
                     {
                         method: "POST",
@@ -1903,11 +1920,11 @@ async function bootApp(): Promise<void> {
         if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
             const voiceId = currentSettings.ttsVoice.startsWith("el:") ? currentSettings.ttsVoice.slice(3) : "cgSgspJ2msm6clMCkdW9";
             const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
-            const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            const resp = await fetchWithTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
                 method: "POST",
                 headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
                 body: JSON.stringify({text, model_id: "eleven_flash_v2_5", voice_settings: {stability: 0.5, similarity_boost: 0.75}, output_format: "mp3_44100_128", speed}),
-            });
+            }, 30_000);
             if (!resp.ok) return null;
             return Buffer.from(await resp.arrayBuffer());
         }
@@ -1933,6 +1950,7 @@ async function bootApp(): Promise<void> {
     });
 
     createWindow();
+    setApiServerWindow(mainWindow);
     startTelemetry();
     createTray();
     app.setLoginItemSettings({openAtLogin: currentSettings.autoLaunch});
@@ -1974,9 +1992,8 @@ async function bootApp(): Promise<void> {
             }
         });
 
-        autoUpdater.checkForUpdates().catch(() => {});
-        // Her 4 saatte bir kontrol
-        setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+        autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message));
+        setInterval(() => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message)), 4 * 60 * 60 * 1000);
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
@@ -2058,6 +2075,14 @@ async function trialReady(): Promise<boolean> {
         return false;
     }
 }
+
+// ── Global hata yakalayıcılar — sessiz crash'leri logla ─────────────────────
+process.on("unhandledRejection", (reason) => {
+    console.error("[AEGIS] Unhandled rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+    console.error("[AEGIS] Uncaught exception:", err.message, err.stack);
+});
 
 app.whenReady().then(async () => {
     // Gelişmiş mod hazır mı? (kendi Groq key'i config'te veya env'de)

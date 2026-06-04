@@ -17,6 +17,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 
 // ── Credentials (set from main.ts after vault init) ──────────────────────────
 const CLIENT_ID = "3650da8ef6774cc99e857cfdc1d9999a";
@@ -48,8 +49,18 @@ function loadToken(): TokenData | null {
 }
 
 function saveToken(data: TokenData): void {
-    fs.mkdirSync(path.dirname(TOKEN_PATH), {recursive: true});
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(data), "utf-8");
+    try {
+        fs.mkdirSync(path.dirname(TOKEN_PATH), {recursive: true});
+        fs.writeFileSync(TOKEN_PATH, JSON.stringify(data), "utf-8");
+    } catch (e) {
+        const code = (e as NodeJS.ErrnoException).code;
+        const msg = code === "EACCES"
+            ? "Spotify token kaydedilemedi: dosya izni hatası."
+            : code === "ENOSPC"
+            ? "Spotify token kaydedilemedi: disk dolu."
+            : `Spotify token kaydedilemedi: ${(e as Error).message}`;
+        console.error("[spotify]", msg);
+    }
 }
 
 // ── PKCE helpers ─────────────────────────────────────────────────────────────
@@ -139,11 +150,11 @@ async function exchangeCode(code: string, verifier: string): Promise<TokenData> 
         code_verifier: verifier,
     });
 
-    const resp = await fetch("https://accounts.spotify.com/api/token", {
+    const resp = await fetchWithTimeout("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: body.toString(),
-    });
+    }, 10_000);
 
     if (!resp.ok) throw new Error(`Token exchange failed: ${resp.status} ${await resp.text()}`);
     const data = await resp.json() as {access_token: string; refresh_token: string; expires_in: number};
@@ -161,11 +172,11 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
         client_id: CLIENT_ID,
     });
 
-    const resp = await fetch("https://accounts.spotify.com/api/token", {
+    const resp = await fetchWithTimeout("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: body.toString(),
-    });
+    }, 10_000);
 
     if (!resp.ok) throw new Error(`Token refresh failed: ${resp.status} ${await resp.text()}`);
     const data = await resp.json() as {access_token: string; refresh_token?: string; expires_in: number};
@@ -195,20 +206,28 @@ async function api(
     body?: unknown
 ): Promise<{ok: boolean; status: number; data: unknown}> {
     const tok = await getToken();
-    const resp = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+    const resp = await fetchWithTimeout(`https://api.spotify.com/v1${endpoint}`, {
         method,
         headers: {
             "Authorization": `Bearer ${tok}`,
             ...(body ? {"Content-Type": "application/json"} : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
-    });
+    }, 10_000);
 
     if (resp.status === 204) return {ok: true, status: 204, data: null};
     const text = await resp.text();
     let data: unknown = text;
     try { data = JSON.parse(text); } catch {}
     return {ok: resp.ok, status: resp.status, data};
+}
+
+// ── Spotify bağlantı hatası çevirici ─────────────────────────────────────────
+function spotifyConnErr(e: unknown): string {
+    if (isTimeoutError(e)) return TIMEOUT_MSG;
+    const msg = (e as Error).message ?? String(e);
+    if (msg.includes("bağlı değil")) return `${msg} — önce Spotify bağla.`;
+    return `Spotify bağlantı hatası: ${msg}`;
 }
 
 // ── Spotify hata mesajı çevirici ─────────────────────────────────────────────
@@ -268,7 +287,7 @@ export async function spotifyPause(): Promise<string> {
         const r = await api("PUT", "/me/player/pause");
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         return "Spotify duraklatıldı.";
-    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
+    } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyNext(): Promise<string> {
@@ -279,7 +298,7 @@ export async function spotifyNext(): Promise<string> {
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         await new Promise((res) => setTimeout(res, 1000));
         return await spotifyGetState();
-    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
+    } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyPrev(): Promise<string> {
@@ -290,7 +309,7 @@ export async function spotifyPrev(): Promise<string> {
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         await new Promise((res) => setTimeout(res, 1000));
         return await spotifyGetState();
-    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
+    } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifySetVolume(level: number): Promise<string> {
@@ -303,7 +322,7 @@ export async function spotifySetVolume(level: number): Promise<string> {
         const r = await api("PUT", endpoint);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         return `Ses seviyesi %${clamped} yapıldı.`;
-    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
+    } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetState(): Promise<string> {
