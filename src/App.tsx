@@ -89,6 +89,7 @@ export default function App() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
+    const [updateInfo, setUpdateInfo] = useState<{version?: string; ready: boolean} | null>(null);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
     const [lang, setLang] = useState<Lang>("tr");
@@ -245,6 +246,16 @@ export default function App() {
         const t = setInterval(load, 600000);
         const unsub = window.jarvis.on("weather-update", (w) => setWeather(w as Weather));
         return () => { clearInterval(t); unsub(); };
+    }, []);
+
+    useEffect(() => {
+        const unsubAvail = window.jarvis.on("update-available", (info: {version: string}) => {
+            setUpdateInfo({version: info.version, ready: false});
+        });
+        const unsubDone = window.jarvis.on("update-downloaded", () => {
+            setUpdateInfo((prev) => ({...prev, ready: true}));
+        });
+        return () => { unsubAvail(); unsubDone(); };
     }, []);
 
     useEffect(() => {
@@ -443,6 +454,27 @@ export default function App() {
                 lang={lang}
             />
             {(() => { const SkinComp = getSkinComp(skin); return <SkinComp {...skinProps} />; })()}
+            {updateInfo && (
+                <div
+                    className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 flex items-center gap-3 text-[11px] tracking-wide shadow-lg"
+                    style={{background: "rgba(4,7,13,0.97)", border: "1px solid rgba(var(--hud),0.4)", color: "rgb(var(--hud))"}}
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
+                    </svg>
+                    {updateInfo.ready ? (
+                        <span>v{updateInfo.version} indirildi —{" "}
+                            <button
+                                className="underline hover:brightness-125"
+                                onClick={() => window.jarvis.updateInstall()}
+                            >yeniden başlat</button>
+                        </span>
+                    ) : (
+                        <span>v{updateInfo.version} indiriliyor…</span>
+                    )}
+                    <button className="opacity-40 hover:opacity-100 ml-1" onClick={() => setUpdateInfo(null)}>✕</button>
+                </div>
+            )}
         </>
     );
 }

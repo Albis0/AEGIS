@@ -28,6 +28,7 @@ import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecent
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
+import {autoUpdater} from "electron-updater";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -1955,6 +1956,30 @@ async function bootApp(): Promise<void> {
         }
     });
     startScheduler();
+
+    // ── Auto-update (production only) ────────────────────────────────────────
+    if (process.env.NODE_ENV !== "development") {
+        autoUpdater.autoDownload = true;
+        autoUpdater.autoInstallOnAppQuit = true;
+
+        autoUpdater.on("update-available", (info) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("update-available", {version: info.version});
+            }
+        });
+
+        autoUpdater.on("update-downloaded", () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("update-downloaded", {});
+            }
+        });
+
+        autoUpdater.checkForUpdates().catch(() => {});
+        // Her 4 saatte bir kontrol
+        setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+    }
+
+    ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
 }
 
 let onboardingWin: BrowserWindow | null = null;

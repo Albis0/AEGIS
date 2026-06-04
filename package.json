@@ -16,6 +16,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "dotenv": "^16.4.5",
+    "electron-updater": "^6.8.3",
     "groq-sdk": "^1.2.1",
     "msedge-tts": "^2.0.5"
   },
@@ -53,8 +54,18 @@
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        {"target": "nsis", "arch": ["x64"]},
-        {"target": "portable", "arch": ["x64"]}
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "signAndEditExecutable": false
     },
@@ -69,6 +80,11 @@
     },
     "electronDownload": {
       "mirror": "https://npmmirror.com/mirrors/electron/"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Albis0",
+      "repo": "AEGIS"
     }
   }
 }

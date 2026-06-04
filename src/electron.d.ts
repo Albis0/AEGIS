@@ -181,6 +181,7 @@ declare global {
             close: () => void;
             apiInfo: () => Promise<{ip: string; port: number; token: string; running: boolean}>;
             apiServerToggle: (enable: boolean) => Promise<string>;
+            updateInstall: () => Promise<void>;
         };
     }
 }
