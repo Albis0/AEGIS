@@ -1189,7 +1189,8 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
 // Çekirdek tool'lar — yalnızca bir AKSİYON niyeti olduğunda gönderilir
 // (komut çalıştır, dosya, web arama, ekran). Düşük-TPM modelleri (gpt-oss-120b
 // gibi 8K) korumak için olabildiğince küçük tutulur.
-const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
+// Spotify her zaman core'da — tool call zincirinde context kayması yaşanmasın.
+const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas, ...spotifySchemas];
 
 // Aksiyon fiil/isim KÖKLERİ — hepsi NORMALIZE (ASCII, ç→c ş→s ı→i ö→o ü→u ğ→g).
 // Eşleştirme normalize edilmiş kelimeler üzerinde startsWith ile yapılır; Türkçe
