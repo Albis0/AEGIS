@@ -215,7 +215,7 @@ async function api(
 function spotifyErr(status: number, data?: unknown): string {
     const msg = (data as {error?: {message?: string}})?.error?.message ?? "";
     if (status === 401) return "Spotify oturumu sona erdi. 'Spotify bağla' diyerek yeniden bağlan.";
-    if (status === 403) return "Spotify bu işlem için izin vermedi. Hesabında Premium abonelik gerekiyor olabilir.";
+    if (status === 403) return `Spotify izin hatası${msg ? ": " + msg : " (403)"}. Hesabında Premium gerekiyor olabilir veya bu özellik kısıtlı.`;
     if (status === 404) return "Spotify'da aktif çalar bulunamadı. Spotify uygulamasını aç ve bir şey çalmayı dene.";
     if (status === 429) return "Spotify hız sınırına takıldı. Birkaç saniye bekleyip tekrar dene.";
     if (status >= 500) return "Spotify sunucusu geçici olarak yanıt vermiyor. Tekrar dene.";
