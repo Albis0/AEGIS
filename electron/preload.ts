@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     modelsList: (provider: string, key?: string) => ipcRenderer.invoke("models-list", {provider, key}),
     capsGet: (provider: string, model: string) => ipcRenderer.invoke("caps-get", {provider, model}),
     onboardingComplete: (mode: string) => ipcRenderer.invoke("onboarding-complete", mode),
+    restartOnboarding: () => ipcRenderer.invoke("restart-onboarding"),
 
     screenshot: () => ipcRenderer.invoke("screenshot"),
 

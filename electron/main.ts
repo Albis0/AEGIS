@@ -1951,6 +1951,15 @@ ipcMain.handle("onboarding-complete", async (_e, mode: "trial" | "own") => {
     await startMainAppFromOnboarding();
 });
 
+// Ana uygulamadan onboarding'i yeniden başlat (Ayarlar → Hesap).
+ipcMain.handle("restart-onboarding", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.close();
+        mainWindow = null;
+    }
+    createOnboardingWindow();
+});
+
 // Deneme modu kullanıma hazır mı? (aiMode=trial + geçerli oturum)
 async function trialReady(): Promise<boolean> {
     if (currentSettings.aiMode !== "trial") return false;

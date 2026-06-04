@@ -438,6 +438,13 @@ export interface SettingsStrings {
     tlTitle: string; tlHint: string;
     // SettingsPanel nav footer
     saved: string;
+    // AccountTab — inline auth form
+    accSignIn: string; accSignUp: string;
+    accFormEmail: string; accFormPassword: string; accFormPasswordHint: string;
+    accSignInBtn: string; accSignUpBtn: string;
+    accHaveAccount: string; accNoAccount: string;
+    accAuthError: string;
+    accRestartOnboarding: string; accRestartOnboardingHint: string;
 }
 
 export const SETTINGS: Record<Lang, SettingsStrings> = {
@@ -478,6 +485,12 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         scTitle: "KLAVYE KISAYOLLARI", scHint: "Kısayollar sistem genelinde çalışır.",
         tlTitle: "MEVCUT ARAÇLAR", tlHint: "Aktif araçlar AI'ın kullanabileceği işlevleri gösterir.",
         saved: "Kaydedildi",
+        accSignIn: "Giriş Yap", accSignUp: "Hesap Oluştur",
+        accFormEmail: "E-POSTA", accFormPassword: "ŞİFRE", accFormPasswordHint: "en az 6 karakter",
+        accSignInBtn: "GİRİŞ YAP", accSignUpBtn: "KAYIT OL",
+        accHaveAccount: "Zaten hesabım var → Giriş yap", accNoAccount: "Hesabım yok → Kayıt ol",
+        accAuthError: "Giriş başarısız. E-posta veya şifreyi kontrol et.",
+        accRestartOnboarding: "Kurulumu Yeniden Başlat", accRestartOnboardingHint: "Dil, mod ve API key kurulum ekranını yeniden açar.",
     },
     en: {
         navAccount: "Account", navAccountSub: "Mode, session & quota",
@@ -516,6 +529,12 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         scTitle: "KEYBOARD SHORTCUTS", scHint: "Shortcuts work system-wide.",
         tlTitle: "AVAILABLE TOOLS", tlHint: "Active tools show what functions the AI can use.",
         saved: "Saved",
+        accSignIn: "Sign In", accSignUp: "Create Account",
+        accFormEmail: "EMAIL", accFormPassword: "PASSWORD", accFormPasswordHint: "at least 6 characters",
+        accSignInBtn: "SIGN IN", accSignUpBtn: "SIGN UP",
+        accHaveAccount: "I already have an account → Sign in", accNoAccount: "I don't have an account → Sign up",
+        accAuthError: "Sign in failed. Check your email or password.",
+        accRestartOnboarding: "Restart Setup", accRestartOnboardingHint: "Re-opens the language, mode and API key setup screen.",
     },
     de: {
         navAccount: "Konto", navAccountSub: "Modus, Sitzung & Kontingent",
@@ -554,6 +573,12 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         scTitle: "TASTATURKÜRZEL", scHint: "Kürzel funktionieren systemweit.",
         tlTitle: "VERFÜGBARE WERKZEUGE", tlHint: "Aktive Tools zeigen, welche Funktionen die KI nutzen kann.",
         saved: "Gespeichert",
+        accSignIn: "Anmelden", accSignUp: "Konto erstellen",
+        accFormEmail: "E-MAIL", accFormPassword: "PASSWORT", accFormPasswordHint: "mindestens 6 Zeichen",
+        accSignInBtn: "ANMELDEN", accSignUpBtn: "REGISTRIEREN",
+        accHaveAccount: "Ich habe bereits ein Konto → Anmelden", accNoAccount: "Ich habe kein Konto → Registrieren",
+        accAuthError: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen.",
+        accRestartOnboarding: "Einrichtung neu starten", accRestartOnboardingHint: "Öffnet den Sprach-, Modus- und API-Key-Setup-Bildschirm erneut.",
     },
     fr: {
         navAccount: "Compte", navAccountSub: "Mode, session & quota",
@@ -592,6 +617,12 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         scTitle: "RACCOURCIS CLAVIER", scHint: "Les raccourcis fonctionnent à l'échelle du système.",
         tlTitle: "OUTILS DISPONIBLES", tlHint: "Les outils actifs montrent les fonctions que l'IA peut utiliser.",
         saved: "Enregistré",
+        accSignIn: "Se Connecter", accSignUp: "Créer un Compte",
+        accFormEmail: "E-MAIL", accFormPassword: "MOT DE PASSE", accFormPasswordHint: "au moins 6 caractères",
+        accSignInBtn: "SE CONNECTER", accSignUpBtn: "S'INSCRIRE",
+        accHaveAccount: "J'ai déjà un compte → Se connecter", accNoAccount: "Je n'ai pas de compte → S'inscrire",
+        accAuthError: "Connexion échouée. Vérifiez votre e-mail ou mot de passe.",
+        accRestartOnboarding: "Relancer la Configuration", accRestartOnboardingHint: "Rouvre l'écran de configuration de la langue, du mode et des clés API.",
     },
     es: {
         navAccount: "Cuenta", navAccountSub: "Modo, sesión y cuota",
@@ -630,5 +661,11 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         scTitle: "ATAJOS DE TECLADO", scHint: "Los atajos funcionan a nivel del sistema.",
         tlTitle: "HERRAMIENTAS DISPONIBLES", tlHint: "Las herramientas activas muestran las funciones que puede usar la IA.",
         saved: "Guardado",
+        accSignIn: "Iniciar Sesión", accSignUp: "Crear Cuenta",
+        accFormEmail: "CORREO", accFormPassword: "CONTRASEÑA", accFormPasswordHint: "al menos 6 caracteres",
+        accSignInBtn: "INICIAR SESIÓN", accSignUpBtn: "REGISTRARSE",
+        accHaveAccount: "Ya tengo una cuenta → Iniciar sesión", accNoAccount: "No tengo cuenta → Registrarse",
+        accAuthError: "Inicio de sesión fallido. Verifica tu correo o contraseña.",
+        accRestartOnboarding: "Reiniciar Configuración", accRestartOnboardingHint: "Reabre la pantalla de configuración de idioma, modo y claves API.",
     },
 };
