@@ -1,4 +1,4 @@
-// AEGIS — "Claymorphism" skin ailesi (4 ferdi: Orb / Pillow / Pebble / Tiles)
+﻿// AEGIS — "Claymorphism" skin ailesi (4 ferdi: Orb / Pillow / Pebble / Tiles)
 // =============================================================================
 // Tasarım dili: Pastel KOYU. Derin mor-lacivert zemin (#1a1530), soft pastel
 // vurgu (lila/mint/şeftali), çok yuvarlak (rounded-3xl/full), çift gölge
@@ -105,8 +105,8 @@ function ClFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
 }
 
 // ─── Ortak: input ─────────────────────────────────────────────────────────────
-function ClInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t}: Pick<SkinProps,
-    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"mode"|"setMode"|"listening"|"activated"|"t">) {
+function ClInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
+    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
         <div className="shrink-0 px-3 pb-3 pt-1">
             {attachments.length > 0 && (
@@ -123,7 +123,7 @@ function ClInput({input, setInput, attachments, setAttachments, state, streaming
             <div className="flex gap-2 items-stretch">
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 px-4 py-2.5 text-[13px] font-medium disabled:opacity-40 outline-none"
                     style={{

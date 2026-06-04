@@ -1,4 +1,4 @@
-// AEGIS — "Skeuomorphism" skin ailesi (4 ferdi: Desk / Journal / Walkman / Cockpit)
+﻿// AEGIS — "Skeuomorphism" skin ailesi (4 ferdi: Desk / Journal / Walkman / Cockpit)
 // =============================================================================
 // Tasarım dili: Gerçek nesne & doku. Sıcak koyu ceviz/deri zemin (~#1c1209),
 // pirinç/amber vurgu, içe gömülü bevel (inset gölge), fiziksel düğme hissi,
@@ -116,8 +116,8 @@ function SkFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
 }
 
 // ─── Ortak: input ─────────────────────────────────────────────────────────────
-function SkInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t}: Pick<SkinProps,
-    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"mode"|"setMode"|"listening"|"activated"|"t">) {
+function SkInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
+    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
         <div className="shrink-0 px-3 pb-3 pt-2">
             {attachments.length > 0 && (
@@ -133,7 +133,7 @@ function SkInput({input, setInput, attachments, setAttachments, state, streaming
             <div className="flex gap-2 items-stretch">
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 px-3 py-2 text-[13px] disabled:opacity-40 outline-none"
                     style={{...inset(), color: SK.cream, caretColor: SK.brass, background: SK.bgInput}}

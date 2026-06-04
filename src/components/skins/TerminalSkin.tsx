@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+﻿import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -22,7 +22,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", {hour: "2-digit", min
 export default function TerminalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel,
     mode, setMode, listening, activated, placeholder, t,
-    onSend, onStop, onSettingsOpen, feedRef, inputRef,
+    onSend, onStop, onSettingsOpen, onNavigateHistory, feedRef, inputRef,
 }: SkinProps) {
     const promptColor = state === "error" ? "rgb(var(--status-danger))" : state === "thinking" ? "rgb(var(--status-warn))" : "rgb(var(--hud))";
     const [clock, setClock] = useState(new Date());
@@ -132,7 +132,7 @@ export default function TerminalSkin({
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && onSend()}
+                        onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                         placeholder={placeholder}
                         disabled={streaming}
                         autoFocus

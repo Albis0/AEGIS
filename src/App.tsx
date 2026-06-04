@@ -115,6 +115,32 @@ export default function App() {
     const activeIdRef = useRef<string | null>(null);
     const reqIdRef = useRef<string | null>(null);
     const feedRef = useRef<HTMLDivElement>(null);
+
+    // Terminal tarzı input geçmişi — ArrowUp/Down ile gezme
+    const inputHistoryRef = useRef<string[]>([]);
+    const inputHistoryIdxRef = useRef(-1);
+    const inputDraftRef = useRef(""); // gezinirken orijinal draft'ı koru
+    const navigateInputHistory = useCallback((dir: "up" | "down") => {
+        const hist = inputHistoryRef.current;
+        if (hist.length === 0) return;
+        const cur = inputHistoryIdxRef.current;
+        if (dir === "up") {
+            if (cur === -1) inputDraftRef.current = input; // draft kaydet
+            const next = cur === -1 ? hist.length - 1 : Math.max(0, cur - 1);
+            inputHistoryIdxRef.current = next;
+            setInput(hist[next]);
+        } else {
+            if (cur === -1) return;
+            const next = cur + 1;
+            if (next >= hist.length) {
+                inputHistoryIdxRef.current = -1;
+                setInput(inputDraftRef.current);
+            } else {
+                inputHistoryIdxRef.current = next;
+                setInput(hist[next]);
+            }
+        }
+    }, [input]);
     const isBusyRef = useRef(false);
     const modeRef = useRef<VoiceMode>("off");
 
@@ -190,6 +216,10 @@ export default function App() {
     const send = useCallback(() => {
         if (!input.trim() && attachments.length === 0) return;
         if (streaming) return;
+        if (input.trim()) {
+            inputHistoryRef.current = [...inputHistoryRef.current, input.trim()].slice(-100);
+            inputHistoryIdxRef.current = -1;
+        }
         sendWithAttachments(input, attachments);
         setInput("");
         setAttachments([]);
@@ -380,10 +410,11 @@ export default function App() {
         attachments, setAttachments,
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
+        onNavigateHistory: navigateInputHistory,
         feedRef, inputRef, layout, telemetryWidgets, t,
     }), [feed, input, attachments, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
-        send, handleStop, handleSettingsOpen, handleHistoryOpen, layout, telemetryWidgets, t]);
+        send, handleStop, handleSettingsOpen, handleHistoryOpen, navigateInputHistory, layout, telemetryWidgets, t]);
 
     return (
         <>

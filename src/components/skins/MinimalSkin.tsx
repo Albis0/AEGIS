@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+﻿import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -20,7 +20,7 @@ function parseSearchSource(detail?: string): string | null {
 export default function MinimalSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming,
     mode, setMode, listening, activated, placeholder, t,
-    onSend, onStop, onSettingsOpen, feedRef, inputRef,
+    onSend, onStop, onSettingsOpen, onNavigateHistory, feedRef, inputRef,
 }: SkinProps) {
     const [clock, setClock] = useState(new Date());
     useEffect(() => {
@@ -128,7 +128,7 @@ export default function MinimalSkin({
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && onSend()}
+                        onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                         placeholder={placeholder}
                         disabled={streaming}
                         autoFocus

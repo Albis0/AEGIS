@@ -1,4 +1,4 @@
-// AEGIS — "Retro" skin ailesi (4 ferdi: CRT / Boot / Panel / Wave)
+﻿// AEGIS — "Retro" skin ailesi (4 ferdi: CRT / Boot / Panel / Wave)
 // =============================================================================
 // Tasarım dili: vintage bilgisayar / CRT. Çentikli (beveled) kutular, scanline
 // kaplama, blok BÜYÜK HARF mono, sıcak fosfor hissi. Diğer üç aileden (neon HUD,
@@ -67,8 +67,8 @@ function RtFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "streami
     );
 }
 
-function RtInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t}: Pick<SkinProps,
-    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "mode" | "setMode" | "listening" | "activated" | "t">) {
+function RtInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
+    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "onNavigateHistory" | "mode" | "setMode" | "listening" | "activated" | "t">) {
     return (
         <div className="shrink-0 m-3 mt-1" style={bevel}>
             {attachments.length > 0 && (
@@ -85,7 +85,7 @@ function RtInput({input, setInput, attachments, setAttachments, state, streaming
                 <span className="shrink-0 flick" style={{color: "rgb(var(--hud))"}}>█</span>
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 bg-transparent outline-none text-[13px] uppercase disabled:opacity-40"
                     style={{color: "rgb(var(--hud-soft))", caretColor: "rgb(var(--hud))"}}

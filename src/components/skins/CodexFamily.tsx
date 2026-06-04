@@ -1,4 +1,4 @@
-// AEGIS — "Codex" skin ailesi (4 ferdi: Doc / Split / Grid / Log)
+﻿// AEGIS — "Codex" skin ailesi (4 ferdi: Doc / Split / Grid / Log)
 // =============================================================================
 // Tasarım dili: DÜZ / editöryel / brutalist mono. Glow yok, yuvarlaklık yok;
 // keskin dikdörtgenler, görünür çerçeveler, BÜYÜK HARF mini etiketler, monospace,
@@ -68,8 +68,8 @@ function CdxFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "stream
 }
 
 // ───────── Ortak: düz bordürlü input ─────────
-function CdxInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t}: Pick<SkinProps,
-    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "mode" | "setMode" | "listening" | "activated" | "t">) {
+function CdxInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
+    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "onNavigateHistory" | "mode" | "setMode" | "listening" | "activated" | "t">) {
     return (
         <div className="shrink-0" style={{borderTop: `1px solid ${line}`}}>
             {attachments.length > 0 && (
@@ -87,7 +87,7 @@ function CdxInput({input, setInput, attachments, setAttachments, state, streamin
                 <span className="opacity-30">|</span>
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 bg-transparent outline-none text-[13px] disabled:opacity-40"
                     style={{color: "rgb(var(--hud-soft))", caretColor: "rgb(var(--hud))"}}

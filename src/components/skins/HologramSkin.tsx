@@ -52,6 +52,7 @@ export interface SkinProps {
     onStop: () => void;
     onSettingsOpen: () => void;
     onHistoryOpen?: () => void;
+    onNavigateHistory?: (dir: "up" | "down") => void;
     feedRef: React.RefObject<HTMLDivElement>;
     inputRef?: React.RefObject<HTMLInputElement>;
     layout: "normal" | "compact";
@@ -64,7 +65,7 @@ const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "networ
 export default function HologramSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
-    onSend, onStop, onSettingsOpen, onHistoryOpen, feedRef, inputRef, layout,
+    onSend, onStop, onSettingsOpen, onHistoryOpen, onNavigateHistory, feedRef, inputRef, layout,
     telemetryWidgets, t,
 }: SkinProps) {
     const compact = layout === "compact";
@@ -297,7 +298,11 @@ export default function HologramSkin({
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && onSend()}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") { onSend(); return; }
+                            if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); }
+                            if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); }
+                        }}
                         placeholder={placeholder}
                         disabled={streaming}
                         autoFocus

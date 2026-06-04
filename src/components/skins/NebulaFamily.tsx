@@ -1,4 +1,4 @@
-// AEGIS — "Nebula" skin ailesi (4 ferdi: Aura / Chat / Board / Zen)
+﻿// AEGIS — "Nebula" skin ailesi (4 ferdi: Aura / Chat / Board / Zen)
 // =============================================================================
 // Cyber/HUD ailesinden bambaşka bir tasarım dili: yumuşak, yuvarlak (rounded-3xl),
 // gradient-glow, bubble-sohbet, köşesiz. Aynı SkinProps'u tüketir. 4 skin ortak
@@ -76,8 +76,8 @@ function NebFeed({feed, streaming, t, feedRef, center}: Pick<SkinProps, "feed" |
 }
 
 // ───────── Ortak: yuvarlak input dock ─────────
-function NebInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t, glass}: Pick<SkinProps,
-    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "mode" | "setMode" | "listening" | "activated" | "t"> & {glass?: boolean}) {
+function NebInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t, glass}: Pick<SkinProps,
+    "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "onNavigateHistory" | "mode" | "setMode" | "listening" | "activated" | "t"> & {glass?: boolean}) {
     return (
         <div className="shrink-0 px-4 pb-4 pt-1">
             {attachments.length > 0 && (
@@ -100,7 +100,7 @@ function NebInput({input, setInput, attachments, setAttachments, state, streamin
                 }} />
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 bg-transparent outline-none text-[13px] px-1 disabled:opacity-40"
                     style={{color: "rgb(var(--hud-soft))"}}

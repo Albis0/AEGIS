@@ -1,4 +1,4 @@
-// AEGIS — "Neo-brutalism" skin ailesi (4 ferdi: Poster / Stack / Switch / Grid)
+﻿// AEGIS — "Neo-brutalism" skin ailesi (4 ferdi: Poster / Stack / Switch / Grid)
 // =============================================================================
 // Tasarım dili: KOYU TEMA. Siyah zemin (#0d0d0d), beyaz kalın çerçeve,
 // elektrik vurgu rengi, sert ofset drop-shadow (4px 4px 0 #fff / renkli),
@@ -95,8 +95,8 @@ function NbFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps, "feed"|"
 }
 
 // ─── Ortak: input ─────────────────────────────────────────────────────────────
-function NbInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, mode, setMode, listening, activated, t}: Pick<SkinProps,
-    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"mode"|"setMode"|"listening"|"activated"|"t">) {
+function NbInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
+    "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
         <div className="shrink-0 p-3 pt-2">
             {attachments.length > 0 && (
@@ -113,7 +113,7 @@ function NbInput({input, setInput, attachments, setAttachments, state, streaming
             <div className="flex gap-2 items-stretch">
                 <input
                     value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && onSend()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { onSend(); return; } if (e.key === "ArrowUp") { e.preventDefault(); onNavigateHistory?.("up"); } if (e.key === "ArrowDown") { e.preventDefault(); onNavigateHistory?.("down"); } }}
                     placeholder={placeholder} disabled={streaming} autoFocus
                     className="flex-1 px-3 py-2.5 text-[14px] font-semibold disabled:opacity-40 outline-none"
                     style={{...card(), caretColor: NB.accent, color: NB.ink, background: NB.bgCard}}
