@@ -20,12 +20,16 @@ function ensureDir(): void {
 export function loadConfig(): AegisConfig | null {
     try {
         const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-        const c = JSON.parse(raw) as AegisConfig;
-        if (!c.groqApiKey || !c.supabaseUrl || !c.supabaseServiceKey) return null;
-        return c;
+        return JSON.parse(raw) as AegisConfig;
     } catch {
         return null;
     }
+}
+
+export function loadConfigStrict(): AegisConfig | null {
+    const c = loadConfig();
+    if (!c?.groqApiKey || !c.supabaseUrl || !c.supabaseServiceKey) return null;
+    return c;
 }
 
 export function saveConfig(config: AegisConfig): void {
@@ -34,9 +38,10 @@ export function saveConfig(config: AegisConfig): void {
 }
 
 export function applyConfig(config: AegisConfig): void {
-    process.env.GROQ_API_KEY = config.groqApiKey;
-    process.env.SUPABASE_URL = config.supabaseUrl;
-    process.env.SUPABASE_SERVICE_KEY = config.supabaseServiceKey;
+    if (config.groqApiKey) process.env.GROQ_API_KEY = config.groqApiKey;
+    if (config.supabaseUrl) process.env.SUPABASE_URL = config.supabaseUrl;
+    if (config.supabaseServiceKey) process.env.SUPABASE_SERVICE_KEY = config.supabaseServiceKey;
     if (config.tavilyApiKey) process.env.TAVILY_API_KEY = config.tavilyApiKey;
     if (config.serperApiKey) process.env.SERPER_API_KEY = config.serperApiKey;
+    if (config.elevenlabsApiKey) process.env.ELEVENLABS_API_KEY = config.elevenlabsApiKey;
 }
