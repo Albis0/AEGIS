@@ -107,6 +107,23 @@ function ensureDir(): void {
     fs.mkdirSync(path.dirname(SETTINGS_PATH), {recursive: true});
 }
 
+// Hex (#rrggbb) → "r,g,b" string dönüştür — accentColor her zaman "r,g,b" formatında olmalı
+function normalizeAccent(color: string | undefined): string {
+    if (!color) return DEFAULTS.accentColor;
+    const hex = color.trim();
+    if (hex.startsWith("#")) {
+        const h = hex.slice(1);
+        const full = h.length === 3
+            ? h.split("").map((c) => c + c).join("")
+            : h;
+        const r = parseInt(full.slice(0, 2), 16);
+        const g = parseInt(full.slice(2, 4), 16);
+        const b = parseInt(full.slice(4, 6), 16);
+        if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return `${r},${g},${b}`;
+    }
+    return color;
+}
+
 export function loadSettings(): AppSettings {
     try {
         const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
@@ -119,6 +136,8 @@ export function loadSettings(): AppSettings {
                 merged.providerKeys = {...(merged.providerKeys ?? {}), [p]: saved.aiApiKey};
             }
         }
+        // Normalize accentColor: hex → "r,g,b"
+        merged.accentColor = normalizeAccent(merged.accentColor);
         return merged;
     } catch {
         return {...DEFAULTS};

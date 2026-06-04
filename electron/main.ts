@@ -249,7 +249,7 @@ function createWindow(): void {
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
         mainWindow.loadURL("http://127.0.0.1:5173");
-        // mainWindow.webContents.openDevTools({mode: "detach", activate: false});
+        mainWindow.webContents.openDevTools({mode: "detach", activate: false});
     } else {
         mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
     }
