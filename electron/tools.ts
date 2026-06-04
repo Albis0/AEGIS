@@ -28,6 +28,7 @@ import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, worksp
 import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
 import {spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay} from "./spotify";
 import {steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning} from "./steam";
+import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 
 type ToolResult = string;
 
@@ -1138,6 +1139,15 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"steam_open",description:"Steam uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_close",description:"Steam'i kapat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_game_running",description:"Şu an Steam üzerinden çalışan oyun var mı, varsa hangisi?",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Faz 47: Computer Use ─────────────────────────────────────────────────
+    {type:"function",function:{name:"mouse_move",description:"Fare imlecini ekranda (x,y) koordinatına taşı.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_click",description:"Fare tıklaması yap. Tıklamadan önce otomatik o konuma gider. button: left/right/middle. double: çift tıklama.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_scroll",description:"Fare tekerleği ile kaydır. direction: up/down. amount: kaç adım (varsayılan 3).",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},direction:{type:"string",enum:["up","down"]},amount:{type:"number"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_drag",description:"Bir noktadan diğerine sürükle bırak.",parameters:{type:"object",properties:{x1:{type:"number"},y1:{type:"number"},x2:{type:"number"},y2:{type:"number"}},required:["x1","y1","x2","y2"],additionalProperties:false}}},
+    {type:"function",function:{name:"key_press",description:"Klavye tuşuna veya kısayoluna bas. Örnekler: 'ctrl+c', 'alt+tab', 'win+d', 'enter', 'esc', 'f5'.",parameters:{type:"object",properties:{keys:{type:"string",description:"Tuş kombinasyonu, '+' ile ayır (ör: 'ctrl+shift+t')"}},required:["keys"],additionalProperties:false}}},
+    {type:"function",function:{name:"type_text",description:"Aktif alana metin yaz (klavyeden yazılıyormuş gibi).",parameters:{type:"object",properties:{text:{type:"string",description:"Yazılacak metin"}},required:["text"],additionalProperties:false}}},
+    {type:"function",function:{name:"computer_use",description:"Ekran görüntüsü alıp AI ile analiz ederek hedefi gerçekleştir. Mouse+klavye ile bilgisayarı kullanır. 'Spotify'da şu şarkıyı çal', 'Chrome'da şu siteyi aç', 'Şu dosyayı bul ve sil' gibi serbest komutlar.",parameters:{type:"object",properties:{goal:{type:"string",description:"Ne yapmak istediğin (serbest dil, ör: 'Chrome aç ve youtube.com git')"},max_steps:{type:"number",description:"Maksimum adım sayısı (varsayılan 10)"}},required:["goal"],additionalProperties:false}}},
+    {type:"function",function:{name:"screen_size",description:"Ekran çözünürlüğünü öğren (mouse_click koordinatları için gerekebilir).",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
 const PROVIDER_TOOL_LIMITS: Record<string, number> = {
@@ -2621,6 +2631,112 @@ else{
     async steam_open() { return steamOpen(); },
     async steam_close() { return steamClose(); },
     async steam_game_running() { return steamGameRunning(); },
+
+    // ── Faz 47: Computer Use ─────────────────────────────────────────────────
+    async mouse_move({x, y}: {x?: unknown; y?: unknown}) {
+        return mouseMove(Number(x ?? 0), Number(y ?? 0));
+    },
+    async mouse_click({x, y, button, double: dbl}: {x?: unknown; y?: unknown; button?: unknown; double?: unknown}) {
+        return mouseClick(Number(x ?? 0), Number(y ?? 0), (String(button ?? "left")) as "left"|"right"|"middle", Boolean(dbl));
+    },
+    async mouse_scroll({x, y, direction, amount}: {x?: unknown; y?: unknown; direction?: unknown; amount?: unknown}) {
+        return mouseScroll(Number(x ?? 0), Number(y ?? 0), (String(direction ?? "down")) as "up"|"down", Number(amount ?? 3));
+    },
+    async mouse_drag({x1, y1, x2, y2}: {x1?: unknown; y1?: unknown; x2?: unknown; y2?: unknown}) {
+        return mouseDrag(Number(x1 ?? 0), Number(y1 ?? 0), Number(x2 ?? 0), Number(y2 ?? 0));
+    },
+    async key_press({keys}: {keys?: unknown}) {
+        return keyPress(String(keys ?? ""));
+    },
+    async type_text({text}: {text?: unknown}) {
+        return typeText(String(text ?? ""));
+    },
+    async screen_size() {
+        const s = await getScreenSize();
+        return `Ekran çözünürlüğü: ${s.width}x${s.height}`;
+    },
+    async computer_use({goal, max_steps}: {goal?: unknown; max_steps?: unknown}) {
+        if (!_screenshotCallback) return "HATA: Screenshot callback kayıtlı değil.";
+        if (!_analyzeScreenCallback) return "HATA: Vision callback kayıtlı değil.";
+        if (!goal) return "HATA: Hedef belirtilmedi.";
+
+        const maxSteps = Math.min(Number(max_steps ?? 10), 20);
+        const log: string[] = [];
+
+        const screenSize = await getScreenSize();
+        const systemPrompt = `Sen bir bilgisayar kullanıcısısın. Ekran görüntüsüne bakıp mouse/klavye ile hedefi gerçekleştiriyorsun.
+Ekran boyutu: ${screenSize.width}x${screenSize.height}.
+Her yanıtında SADECE JSON formatında bir eylem döndür:
+{"action": "click", "x": 100, "y": 200, "button": "left"}
+{"action": "double_click", "x": 100, "y": 200}
+{"action": "right_click", "x": 100, "y": 200}
+{"action": "type", "text": "yazılacak metin"}
+{"action": "key", "keys": "ctrl+c"}
+{"action": "scroll", "x": 500, "y": 400, "direction": "down", "amount": 3}
+{"action": "move", "x": 300, "y": 150}
+{"action": "done", "result": "Açıklama"}
+{"action": "fail", "reason": "Neden başarısız"}
+Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
+
+        for (let step = 0; step < maxSteps; step++) {
+            const scResult = await _screenshotCallback();
+            if ("error" in scResult) {
+                log.push(`[Adım ${step + 1}] Screenshot hatası: ${scResult.error}`);
+                break;
+            }
+
+            const prompt = `Hedef: ${String(goal)}\nTamamlanan adımlar: ${log.join("; ") || "yok"}\nEkrana bak ve sonraki eylemi JSON olarak döndür.`;
+            const response = await _analyzeScreenCallback(scResult.base64, `${systemPrompt}\n\n${prompt}`);
+
+            // JSON çıkar
+            const jsonMatch = response.match(/\{[^}]+\}/);
+            if (!jsonMatch) {
+                log.push(`[Adım ${step + 1}] JSON parse hatası`);
+                break;
+            }
+
+            let action: Record<string, unknown>;
+            try {
+                action = JSON.parse(jsonMatch[0]);
+            } catch {
+                log.push(`[Adım ${step + 1}] JSON geçersiz`);
+                break;
+            }
+
+            const act = String(action.action ?? "");
+
+            if (act === "done") {
+                log.push(`[Adım ${step + 1}] Tamamlandı: ${action.result}`);
+                return `Hedef tamamlandı (${step + 1} adımda):\n${log.join("\n")}`;
+            }
+            if (act === "fail") {
+                log.push(`[Adım ${step + 1}] Başarısız: ${action.reason}`);
+                return `Hedef tamamlanamadı:\n${log.join("\n")}`;
+            }
+
+            let stepResult = "";
+            const x = Number(action.x ?? 0);
+            const y = Number(action.y ?? 0);
+
+            if (act === "click")        stepResult = await mouseClick(x, y, "left", false);
+            else if (act === "double_click") stepResult = await mouseClick(x, y, "left", true);
+            else if (act === "right_click") stepResult = await mouseClick(x, y, "right", false);
+            else if (act === "move")    stepResult = await mouseMove(x, y);
+            else if (act === "type")    stepResult = await typeText(String(action.text ?? ""));
+            else if (act === "key")     stepResult = await keyPress(String(action.keys ?? ""));
+            else if (act === "scroll")  stepResult = await mouseScroll(x, y, String(action.direction ?? "down") as "up"|"down", Number(action.amount ?? 3));
+            else {
+                log.push(`[Adım ${step + 1}] Bilinmeyen eylem: ${act}`);
+                break;
+            }
+
+            log.push(`[Adım ${step + 1}] ${act}: ${stepResult}`);
+            // Ekranın güncellenmesi için kısa bekleme
+            await new Promise((r) => setTimeout(r, 600));
+        }
+
+        return `Computer Use tamamlandı (${maxSteps} adım limiti):\n${log.join("\n")}`;
+    },
 };
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {

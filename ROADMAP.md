@@ -985,18 +985,22 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖
 *AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder.*
 
-### 47.1 Temel Input Kontrolü ⬜
-- ⬜ `mouse_click(x, y)` — sol/sağ/orta tıklama
-- ⬜ `mouse_move(x, y)` — fare imleci taşı
-- ⬜ `mouse_scroll(x, y, direction, amount)` — kaydır
-- ⬜ `key_press(keys)` — klavye kısayolu (Ctrl+C, Alt+Tab, Win+D vb.)
-- ⬜ `type_text(text)` — metin yaz
-- ⬜ `drag(x1, y1, x2, y2)` — sürükle bırak
+### 47.1 Temel Input Kontrolü ✅
+- ✅ `mouse_move(x, y)` — fare imleci taşı
+- ✅ `mouse_click(x, y, button, double)` — sol/sağ/orta, tek/çift tıklama
+- ✅ `mouse_scroll(x, y, direction, amount)` — kaydır
+- ✅ `mouse_drag(x1, y1, x2, y2)` — sürükle bırak
+- ✅ `key_press(keys)` — klavye kısayolu (ctrl+c, alt+tab, win+d, f5 vb.)
+- ✅ `type_text(text)` — aktif alana metin yaz (WScript.Shell SendKeys)
+- ✅ `screen_size` — ekran çözünürlüğünü öğren
+- Yöntem: WinAPI P/Invoke (Add-Type + user32.dll SendInput / SetCursorPos)
 
-### 47.2 Vision Döngüsü ⬜
-- ⬜ screenshot → AI görür → eylem → screenshot → ... döngüsü (`computer_use` tool)
-- ⬜ Hedef: "Spotify'da Weeknd'in son albümünü çal" gibi serbest dil komutları
-- ⬜ Maksimum adım limiti + timeout koruması
+### 47.2 Vision Döngüsü ✅
+- ✅ `computer_use(goal, max_steps)` — serbest dil hedefi → screenshot → AI analiz → eylem → tekrar
+- ✅ AI her adımda JSON eylem döndürür: click/double_click/right_click/type/key/scroll/move/done/fail
+- ✅ Maksimum 20 adım limiti; `done`/`fail` ile erken çıkış
+- ✅ Her adım arası 600ms bekleme (UI güncellemesi için)
+- Örnek: "Chrome aç ve youtube.com'a git", "Spotify'da arama yap"
 
 ---
 
@@ -1053,5 +1057,5 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 🔶  i18n Ö2  Ayarlar paneli ~200 metin   ← DEVAM EDİYOR
 ✅  Faz 45   Sağlamlık & Test Altyapısı   ← TAMAMLANDI
 ✅  Faz 46   Spotify & Steam built-in     ← TAMAMLANDI
-⬜  Faz 47   Computer Use (mouse/kb AI)   ← SIRADAKI
+✅  Faz 47   Computer Use (mouse/kb AI)   ← TAMAMLANDI
 ```
