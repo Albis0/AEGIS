@@ -1045,7 +1045,7 @@ const iotSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"list_printers",description:"Kurulu yazıcıları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"print_file",description:"Belirtilen dosyayı yazdır.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Yazdırılacak dosya yolu"},printer_name:{type:"string",description:"Yazıcı adı (opsiyonel, varsayılan: varsayılan yazıcı)"}},required:["file_path"],additionalProperties:false}}},
     {type:"function",function:{name:"printer_status",description:"Yazıcı durumunu sorgula (kağıt, mürekkep, kuyruk).",parameters:{type:"object",properties:{printer_name:{type:"string",description:"Yazıcı adı (opsiyonel)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"weather_station",description:"Yerel hava istasyonu verileri: sıcaklık, nem, basınç. OpenWeatherMap kişisel API key ile çalışır.",parameters:{type:"object",properties:{location:{type:"string",description:"Konum (şehir adı veya koordinatlar, varsayılan: settings'teki konum)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"weather_station",description:"Hava durumu: sıcaklık, nem, basınç, rüzgar. Konum belirtilmezse kullanıcının IP konumunu kullanır. API key gerektirmez.",parameters:{type:"object",properties:{location:{type:"string",description:"Şehir adı (örn: Ankara, Istanbul, London). Boş bırakılırsa kullanıcının konumu otomatik algılanır."}},additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 29 Schemas
@@ -2508,20 +2508,33 @@ else{
         return runScript(`Get-Printer ${filter} | Select-Object Name,PrinterStatus,WorkOffline | ConvertTo-Json -Compress`, 10000);
     },
     async weather_station({location}) {
-        const loc = location ?? "Istanbul";
-        const apiKey = process.env.OPENWEATHER_API_KEY ?? "";
-        if (!apiKey) {
-            return `Hava istasyonu için OpenWeatherMap API key gerekli. Ayarlar > API Keys'e OPENWEATHER_API_KEY ekle.\nKonum: ${loc}`;
-        }
+        const WEATHER_CODES: Record<number, string> = {
+            0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
+            45: "sisli", 48: "sisli",
+            51: "çiseliyor", 53: "çiseliyor", 55: "çiseliyor",
+            61: "yağmurlu", 63: "yağmurlu", 65: "kuvvetli yağmur",
+            71: "karlı", 73: "karlı", 75: "yoğun kar",
+            80: "sağanak", 81: "sağanak", 82: "kuvvetli sağanak",
+            95: "gök gürültülü",
+        };
         try {
-            const ac = new AbortController();
-            const tid = setTimeout(() => ac.abort(), 8000);
-            const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${apiKey}&units=metric&lang=tr`, {signal: ac.signal});
-            clearTimeout(tid);
-            if (!resp.ok) return `HATA: OpenWeatherMap yanıtı ${resp.status}`;
-            const d = await resp.json() as {name?: string; main?: {temp?: number; feels_like?: number; humidity?: number; pressure?: number}; weather?: {description?: string}[]; wind?: {speed?: number}; uvi?: number};
-            const m = d.main ?? {};
-            return `${d.name} Hava Durumu:\nSıcaklık: ${m.temp?.toFixed(1)}°C (hissedilen ${m.feels_like?.toFixed(1)}°C)\nNem: %${m.humidity}\nBasınç: ${m.pressure} hPa\nRüzgar: ${d.wind?.speed} m/s\nDurum: ${d.weather?.[0]?.description}`;
+            let lat: number, lon: number, city: string, country: string;
+            if (location && location.trim()) {
+                const geo = await (await fetch(
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.trim())}&count=1&language=tr&format=json`
+                )).json() as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
+                if (!geo.results?.length) return `"${location}" konumu bulunamadı.`;
+                const r = geo.results[0];
+                lat = r.latitude; lon = r.longitude; city = r.name; country = r.country;
+            } else {
+                const geo = await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json() as {city: string; country: string; lat: number; lon: number};
+                lat = geo.lat; lon = geo.lon; city = geo.city; country = geo.country;
+            }
+            const w = await (await fetch(
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,surface_pressure`
+            )).json() as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number; wind_speed_10m: number; surface_pressure: number}};
+            const c = w.current;
+            return `${city}, ${country} Hava Durumu:\nSıcaklık: ${Math.round(c.temperature_2m)}°C (hissedilen ${Math.round(c.apparent_temperature)}°C)\nNem: %${c.relative_humidity_2m}\nBasınç: ${Math.round(c.surface_pressure)} hPa\nRüzgar: ${c.wind_speed_10m} km/s\nDurum: ${WEATHER_CODES[c.weather_code] ?? "—"}`;
         } catch (e) {
             return `HATA: ${(e as Error).message}`;
         }

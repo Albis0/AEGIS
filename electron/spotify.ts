@@ -278,7 +278,15 @@ export async function spotifyPrev(): Promise<string> {
 export async function spotifySetVolume(level: number): Promise<string> {
     try {
         const clamped = Math.max(0, Math.min(100, Math.round(level)));
-        await api("PUT", `/me/player/volume?volume_percent=${clamped}`);
+        const deviceId = await ensureDevice();
+        const endpoint = deviceId
+            ? `/me/player/volume?volume_percent=${clamped}&device_id=${deviceId}`
+            : `/me/player/volume?volume_percent=${clamped}`;
+        const r = await api("PUT", endpoint);
+        if (!r.ok && r.status !== 204) {
+            const msg = (r.data as {error?: {message?: string}})?.error?.message ?? `HTTP ${r.status}`;
+            return `Ses ayarlanamadı: ${msg}`;
+        }
         return `Ses seviyesi %${clamped} yapıldı.`;
     } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
