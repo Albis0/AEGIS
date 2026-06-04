@@ -1116,10 +1116,23 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void):
             }
         }
 
+        // Gemini, JSON Schema'da "additionalProperties" field'ını tanımıyor — strip et
+        function stripAdditionalProps(obj: unknown): unknown {
+            if (Array.isArray(obj)) return obj.map(stripAdditionalProps);
+            if (obj && typeof obj === "object") {
+                const out: Record<string, unknown> = {};
+                for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+                    if (k === "additionalProperties") continue;
+                    out[k] = stripAdditionalProps(v);
+                }
+                return out;
+            }
+            return obj;
+        }
         const functionDeclarations = activeSchemas.map((s) => ({
             name: s.function?.name,
             description: s.function?.description,
-            parameters: s.function?.parameters,
+            parameters: stripAdditionalProps(s.function?.parameters),
         }));
 
         const generationConfig: Record<string, unknown> = {maxOutputTokens: maxTok, topP};
