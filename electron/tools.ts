@@ -26,6 +26,8 @@ import {fileSearch, contentSearch, appSearch} from "./search-plus";
 import {killHeavyProcesses, suspendProcess, resumeProcess, clearTemp, flushDns, startupManager, perfModeStart, perfModeStop} from "./sys-optimizer";
 import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, workspaceExport, workspaceImport} from "./workspace";
 import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
+import {spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay} from "./spotify";
+import {steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning} from "./steam";
 
 type ToolResult = string;
 
@@ -1121,6 +1123,21 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"daily_report",description:"Bugünkü aktivite raporunu oluştur: araç kullanımı, zaman takibi, hedef ilerlemesi.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"weekly_report",description:"Son 7 günün haftalık aktivite raporunu oluştur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"productivity_insights",description:"Kişisel verimlilik analizi: güçlü yönler, gelişim alanları ve öneriler.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Faz 46: Spotify ──────────────────────────────────────────────────────────
+    {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Spotify kapalıysa açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_volume",description:"Spotify / sistem ses seviyesini ayarla (0-100).",parameters:{type:"object",properties:{level:{type:"number",description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve ilk sonucu çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
+    // ── Faz 46: Steam ────────────────────────────────────────────────────────────
+    {type:"function",function:{name:"steam_launch",description:"Steam oyunu başlat. Oyun adı veya AppID ver. Steam kapalıysa açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı (ör: 'Cyberpunk 2077') veya Steam AppID (ör: '1091500')"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_list",description:"Bilgisayarda yüklü Steam oyunlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open",description:"Steam uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_close",description:"Steam'i kapat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_running",description:"Şu an Steam üzerinden çalışan oyun var mı, varsa hangisi?",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
 const PROVIDER_TOOL_LIMITS: Record<string, number> = {
@@ -2587,6 +2604,23 @@ else{
     async productivity_insights() {
         return productivityInsights();
     },
+
+    // ── Faz 46: Spotify ──────────────────────────────────────────────────────
+    async spotify_play() { return spotifyPlay(); },
+    async spotify_pause() { return spotifyPause(); },
+    async spotify_next() { return spotifyNext(); },
+    async spotify_prev() { return spotifyPrev(); },
+    async spotify_volume({level}: {level?: unknown}) { return spotifySetVolume(Number(level ?? 50)); },
+    async spotify_now_playing() { return spotifyGetState(); },
+    async spotify_open() { return spotifyOpen(); },
+    async spotify_search({query}: {query?: unknown}) { return spotifySearchPlay(String(query ?? "")); },
+
+    // ── Faz 46: Steam ────────────────────────────────────────────────────────
+    async steam_launch({game}: {game?: unknown}) { return steamLaunchGame(String(game ?? "")); },
+    async steam_list() { return steamListGames(); },
+    async steam_open() { return steamOpen(); },
+    async steam_close() { return steamClose(); },
+    async steam_game_running() { return steamGameRunning(); },
 };
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {

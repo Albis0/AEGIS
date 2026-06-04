@@ -959,6 +959,47 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
+## Faz 46 — Spotify & Steam Built-in Kontrol 🎵🎮 ✅
+*Plugin kurma gerektirmeden, direkt built-in tool olarak Spotify ve Steam kontrolü.*
+
+### 46.1 Spotify ✅
+- ✅ `spotify_play` — müziği başlat / devam ettir (Spotify kapalıysa açar)
+- ✅ `spotify_pause` — duraklat
+- ✅ `spotify_next` / `spotify_prev` — parça atla / geri dön
+- ✅ `spotify_volume` — ses seviyesi ayarla (0-100)
+- ✅ `spotify_now_playing` — şu an ne çalıyor?
+- ✅ `spotify_open` — Spotify'ı aç ve öne getir
+- ✅ `spotify_search` — şarkı/sanatçı ara ve çal
+- Yöntem: media key simülasyonu (WinAPI keybd_event) — Spotify Web API key gerekmez
+
+### 46.2 Steam ✅
+- ✅ `steam_launch` — oyun adı veya AppID ile oyun başlat (Steam kapalıysa açar)
+- ✅ `steam_list` — bilgisayarda yüklü Steam oyunlarını listele (appmanifest_*.acf parse)
+- ✅ `steam_open` — Steam'i aç ve öne getir
+- ✅ `steam_close` — Steam'i kapat
+- ✅ `steam_game_running` — şu an çalışan oyun var mı?
+- Yöntem: `steam://rungameid/` URI protokolü + acf dosyalarından oyun listesi
+
+---
+
+## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖
+*AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder.*
+
+### 47.1 Temel Input Kontrolü ⬜
+- ⬜ `mouse_click(x, y)` — sol/sağ/orta tıklama
+- ⬜ `mouse_move(x, y)` — fare imleci taşı
+- ⬜ `mouse_scroll(x, y, direction, amount)` — kaydır
+- ⬜ `key_press(keys)` — klavye kısayolu (Ctrl+C, Alt+Tab, Win+D vb.)
+- ⬜ `type_text(text)` — metin yaz
+- ⬜ `drag(x1, y1, x2, y2)` — sürükle bırak
+
+### 47.2 Vision Döngüsü ⬜
+- ⬜ screenshot → AI görür → eylem → screenshot → ... döngüsü (`computer_use` tool)
+- ⬜ Hedef: "Spotify'da Weeknd'in son albümünü çal" gibi serbest dil komutları
+- ⬜ Maksimum adım limiti + timeout koruması
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -1011,4 +1052,6 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 44   Günlük rapor & analitik      ← TAMAMLANDI
 🔶  i18n Ö2  Ayarlar paneli ~200 metin   ← DEVAM EDİYOR
 ✅  Faz 45   Sağlamlık & Test Altyapısı   ← TAMAMLANDI
+✅  Faz 46   Spotify & Steam built-in     ← TAMAMLANDI
+⬜  Faz 47   Computer Use (mouse/kb AI)   ← SIRADAKI
 ```
