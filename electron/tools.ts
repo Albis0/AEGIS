@@ -67,7 +67,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "run_command",
-            description: "Windows PowerShell komutu çalıştır.",
+            description: "Windows PowerShell komutu çalıştır. YASAK: Steam oyunu açmak için ASLA kullanma — bunun için steam_launch aracı var. Spotify için de spotify_* araçlarını kullan.",
             parameters: {
                 type: "object",
                 properties: {command: {type: "string", description: "Çalıştırılacak PowerShell komutu"}},
