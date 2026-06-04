@@ -43,7 +43,8 @@ describe("settings persist", () => {
         saveSettings(s);
 
         const reloaded = loadSettings();
-        expect(reloaded.accentColor).toBe("#ff0000");
+        // hex → rgb normalize edilmeli
+        expect(reloaded.accentColor).toBe("255,0,0");
         expect(reloaded.model).toBe(original);
     });
 });
