@@ -104,7 +104,12 @@ export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; e
     if (!data) return {ok: true, applied: false}; // bulutta kayıt yok (ilk kez)
 
     const local = loadSettings();
-    const merged: AppSettings = {...local, ...(data.settings ?? {})};
+    // data.settings güvenli mi kontrol et — bozuk cloud verisi local'i ezmesin
+    let cloudSettings: Partial<AppSettings> = {};
+    if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+        cloudSettings = data.settings as Partial<AppSettings>;
+    }
+    const merged: AppSettings = {...local, ...cloudSettings};
 
     // Şifreli key'leri çöz ve birleştir
     if (data.encrypted_keys) {
@@ -112,8 +117,8 @@ export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; e
         if (dec) {
             try {
                 const {providerKeys, aiApiKey} = JSON.parse(dec);
-                if (providerKeys) merged.providerKeys = {...(local.providerKeys ?? {}), ...providerKeys};
-                if (aiApiKey) merged.aiApiKey = aiApiKey;
+                if (providerKeys && typeof providerKeys === 'object') merged.providerKeys = {...(local.providerKeys ?? {}), ...providerKeys};
+                if (aiApiKey && typeof aiApiKey === 'string') merged.aiApiKey = aiApiKey;
             } catch { /* bozuk blob — yoksay */ }
         }
     }

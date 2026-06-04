@@ -73,7 +73,7 @@ export function workspaceSwitch(name: string): {result: string; config: Workspac
 
 export function workspaceList(): string {
     ensureDir();
-    const active: ActiveWorkspace | null = load(ACTIVE_WS_PATH, null);
+    const active = load<ActiveWorkspace | null>(ACTIVE_WS_PATH, null);
     const dirs = fs.readdirSync(WORKSPACES_DIR).filter((d) => {
         try { return fs.statSync(path.join(WORKSPACES_DIR, d)).isDirectory(); } catch { return false; }
     });
@@ -90,17 +90,17 @@ export function workspaceDelete(name: string): string {
     const dir = wsDir(name);
     if (!fs.existsSync(dir)) return `HATA: "${name}" bulunamadı.`;
     fs.rmSync(dir, {recursive: true, force: true});
-    const active: ActiveWorkspace | null = load(ACTIVE_WS_PATH, null);
+    const active = load<ActiveWorkspace | null>(ACTIVE_WS_PATH, null);
     if (active?.name === name) { try { fs.unlinkSync(ACTIVE_WS_PATH); } catch {} }
     return `Workspace silindi: "${name}"`;
 }
 
 export function getActiveWorkspace(): WorkspaceConfig | null {
-    const active: ActiveWorkspace | null = load(ACTIVE_WS_PATH, null);
+    const active = load<ActiveWorkspace | null>(ACTIVE_WS_PATH, null);
     if (!active) return null;
     const dir = wsDir(active.name);
     if (!fs.existsSync(dir)) return null;
-    return load(path.join(dir, "config.json"), null);
+    return load<WorkspaceConfig | null>(path.join(dir, "config.json"), null);
 }
 
 export function workspaceExport(name: string): string {

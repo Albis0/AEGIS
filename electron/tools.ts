@@ -2420,10 +2420,10 @@ else{
 
     // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
     async notification_recent({count}) {
-        return getRecentNotifications(count ?? 20);
+        return getRecentNotifications(Number(count ?? 20));
     },
     async notification_history({count}) {
-        return getNotifHistory(count ?? 20);
+        return getNotifHistory(Number(count ?? 20));
     },
     async notification_filter_set({app, action}) {
         return notifFilterSet(app ?? "", (action as "show" | "hide") ?? "show");
@@ -2433,7 +2433,7 @@ else{
     },
     async do_not_disturb({minutes, off}) {
         if (off) return dndOff();
-        return dndSet(minutes ?? 30);
+        return dndSet(Number(minutes ?? 30));
     },
 
     // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
@@ -2464,7 +2464,7 @@ else{
         return rssList();
     },
     async rss_fetch({count}) {
-        return rssFetch(count ?? 10);
+        return rssFetch(Number(count ?? 10));
     },
     async price_get({symbols}) {
         return getPrice(symbols ?? "");
@@ -2476,7 +2476,7 @@ else{
         return getFxRate(pairs ?? "USD/TRY");
     },
     async price_alert_set({symbol, type, above, below}) {
-        return priceAlertSet(symbol ?? "", (type as "crypto" | "stock" | "fx") ?? "crypto", above, below);
+        return priceAlertSet(symbol ?? "", (type as "crypto" | "stock" | "fx") ?? "crypto", above != null ? Number(above) : undefined, below != null ? Number(below) : undefined);
     },
 
     // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
@@ -2513,7 +2513,7 @@ else{
         return clipboardWatch();
     },
     async clipboard_history({count}) {
-        return clipboardHistory(count ?? 10);
+        return clipboardHistory(Number(count ?? 10));
     },
     async clipboard_search({query}) {
         return clipboardSearch(query ?? "");
@@ -2532,7 +2532,7 @@ else{
 
     // ── Faz 42: Sistem Optimizasyonu ─────────────────────────────────────────
     async kill_heavy_process({top_n, confirm}) {
-        return killHeavyProcesses(top_n ?? 3, !!confirm);
+        return killHeavyProcesses(Number(top_n ?? 3), !!confirm);
     },
     async suspend_process({name}) {
         return suspendProcess(name ?? "");

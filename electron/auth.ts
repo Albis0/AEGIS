@@ -89,8 +89,13 @@ export async function getSession(): Promise<Session | null> {
 
 // Proxy çağrıları için taze access_token. Süresi dolmuşsa yeniler.
 export async function getAccessToken(): Promise<string | null> {
-    const session = await getSession();
-    return session?.access_token ?? null;
+    try {
+        const session = await getSession();
+        return session?.access_token ?? null;
+    } catch (e) {
+        console.warn('[auth] getAccessToken:', (e as Error).message);
+        return null;
+    }
 }
 
 export async function getCurrentUser(): Promise<{userId: string; email?: string} | null> {

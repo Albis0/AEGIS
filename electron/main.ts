@@ -1243,9 +1243,11 @@ let cachedProfile: Record<string, string> = {};
 let profileCachedAt = 0;
 
 // ---- Agentic streaming chat ----
-async function runAgent(history: {role: string; content: string | MsgPart[]}[], reqId: string): Promise<void> {
-    // Track messages for end-of-session summarization
-    sessionHistory = history.map((m) => ({role: m.role, content: extractTextContent(m.content)}));
+async function runAgent(history: {role: string; content: string | MsgPart[]}[], reqId: string, isSubAgent = false): Promise<void> {
+    // Only update sessionHistory for the main chat flow, not sub-agent calls (prevents race on parallel agents)
+    if (!isSubAgent) {
+        sessionHistory = history.map((m) => ({role: m.role, content: extractTextContent(m.content)}));
+    }
 
     // Refresh profile at most once per minute
     if (Date.now() - profileCachedAt > 60_000) {
@@ -1577,7 +1579,7 @@ async function bootApp(): Promise<void> {
         const agentPrompt = `[AJAN MODU — maks ${maxSteps} adım] Hedef: ${goal}\n\nBu hedefi araçları kullanarak adım adım tamamla. Her adımda kısa bir durum bildirimi yaz. Bitince özet sun.`;
         const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
         saveMessage("user", agentPrompt).catch(() => {});
-        runAgent(messages, reqId).catch(() => {});
+        runAgent(messages, reqId, true).catch(() => {});
     });
 
     registerMacroRunCallback(async (steps) => {
@@ -1879,7 +1881,7 @@ async function bootApp(): Promise<void> {
             const prompt = buildMorningSummaryPrompt();
             const msgs = [...sessionHistory, {role: "user", content: prompt}];
             saveMessage("user", prompt).catch(() => {});
-            runAgent(msgs, `morning-${Date.now()}`).catch(() => {});
+            runAgent(msgs, `morning-${Date.now()}`, true).catch(() => {});
         }, 4000); // pencere yüklendikten 4sn sonra
     }
 

@@ -25,21 +25,27 @@ let currentSessionId: string | null = null
 export async function startSession(): Promise<string> {
     const c = db()
     if (!c) return ''
-    const { data, error } = await c
-        .from('sessions')
-        .insert({ summary: null })
-        .select('id')
-        .single()
-
-    if (error) throw error
-    currentSessionId = data.id
-    return data.id
+    try {
+        const { data, error } = await c
+            .from('sessions')
+            .insert({ summary: null })
+            .select('id')
+            .single()
+        if (error) { console.warn('[db] startSession error:', error.message); return ''; }
+        currentSessionId = data.id
+        return data.id
+    } catch (e) {
+        console.warn('[db] startSession exception:', (e as Error).message);
+        return '';
+    }
 }
 
 export async function saveSessionSummary(summary: string): Promise<void> {
     const c = db()
     if (!c || !currentSessionId) return
-    await c.from('sessions').update({ summary, ended_at: new Date().toISOString() }).eq('id', currentSessionId)
+    try {
+        await c.from('sessions').update({ summary, ended_at: new Date().toISOString() }).eq('id', currentSessionId)
+    } catch (e) { console.warn('[db] saveSessionSummary:', (e as Error).message); }
 }
 
 export async function getRecentSummaries(limit = 5): Promise<{ id: string; summary: string; ended_at: string }[]> {
@@ -61,12 +67,14 @@ export function getSessionId(): string | null {
 export async function saveMessage(role: Role, content: string, toolName?: string): Promise<void> {
     const c = db()
     if (!c || !currentSessionId) return
-    await c.from('messages').insert({
-        session_id: currentSessionId,
-        role,
-        content,
-        tool_name: toolName ?? null,
-    })
+    try {
+        await c.from('messages').insert({
+            session_id: currentSessionId,
+            role,
+            content,
+            tool_name: toolName ?? null,
+        })
+    } catch (e) { console.warn('[db] saveMessage:', (e as Error).message); }
 }
 
 export async function getRecentMessages(limit = 50): Promise<{ role: Role; content: string; tool_name?: string; created_at: string }[]> {
@@ -84,10 +92,12 @@ export async function getRecentMessages(limit = 50): Promise<{ role: Role; conte
 export async function saveNote(content: string, remindAt?: Date): Promise<void> {
     const c = db()
     if (!c) return
-    await c.from('notes').insert({
-        content,
-        remind_at: remindAt?.toISOString() ?? null,
-    })
+    try {
+        await c.from('notes').insert({
+            content,
+            remind_at: remindAt?.toISOString() ?? null,
+        })
+    } catch (e) { console.warn('[db] saveNote:', (e as Error).message); }
 }
 
 export async function getPendingNotes(): Promise<{ id: string; content: string; remind_at: string | null }[]> {
@@ -105,13 +115,17 @@ export async function getPendingNotes(): Promise<{ id: string; content: string; 
 export async function markNoteDone(id: string): Promise<void> {
     const c = db()
     if (!c) return
-    await c.from('notes').update({ done: true }).eq('id', id)
+    try {
+        await c.from('notes').update({ done: true }).eq('id', id)
+    } catch (e) { console.warn('[db] markNoteDone:', (e as Error).message); }
 }
 
 export async function setUserProfile(key: string, value: string): Promise<void> {
     const c = db()
     if (!c) return
-    await c.from('user_profile').upsert({ key, value, updated_at: new Date().toISOString() })
+    try {
+        await c.from('user_profile').upsert({ key, value, updated_at: new Date().toISOString() })
+    } catch (e) { console.warn('[db] setUserProfile:', (e as Error).message); }
 }
 
 export async function getUserProfile(): Promise<Record<string, string>> {

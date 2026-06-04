@@ -1,0 +1,63 @@
+name: CI — Test & Type-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Unit & Integration Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript — electron (strict)
+        run: npx tsc --noEmit -p tsconfig.electron.json
+
+      - name: TypeScript — renderer (strict)
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Run unit & integration tests
+        run: npm test
+        env:
+          # Supabase gerçek bilgiler olmadan — offline testler çalışmalı
+          SUPABASE_URL: ""
+          SUPABASE_SERVICE_KEY: ""
+          GROQ_API_KEY: ""
+
+  benchmark:
+    name: Benchmark (main only)
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run benchmarks
+        run: npm run bench -- --reporter=json > bench-results.json 2>&1 || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench-results.json
+          retention-days: 30
