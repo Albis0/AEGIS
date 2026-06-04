@@ -20,7 +20,7 @@ import * as os from "os";
 
 // ── Credentials (set from main.ts after vault init) ──────────────────────────
 const CLIENT_ID = "3650da8ef6774cc99e857cfdc1d9999a";
-const REDIRECT_URI = "http://localhost:17832/callback";
+const REDIRECT_URI = "http://127.0.0.1:17832/callback";
 const SCOPES = [
     "user-read-playback-state",
     "user-modify-playback-state",
@@ -114,7 +114,7 @@ export async function spotifyAuthorize(): Promise<string> {
             resolve();
         });
 
-        server.listen(17832, "localhost", () => {
+        server.listen(17832, "127.0.0.1", () => {
             _callbackServer = server;
             // Tarayıcıyı aç
             execCb(`cmd /c start "" "${authUrl}"`, {windowsHide: true}, () => {});
