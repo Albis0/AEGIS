@@ -1308,8 +1308,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         const content = msg?.content ?? "";
         const toolCalls = (msg?.tool_calls ?? []) as {id: string; type: "function"; function: {name: string; arguments: string}}[];
 
-        // Non-Groq providers send the full content at once (Groq already streamed it)
-        if (content && currentSettings.aiProvider !== "groq") send("chat-delta", {text: content});
+        // callAI tüm providerlar için onDelta'yı çağırıyor — burada tekrar gönderme.
 
         if (toolCalls.length === 0) {
             if (content) await saveMessage("assistant", content).catch(() => {});

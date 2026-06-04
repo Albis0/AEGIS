@@ -1124,7 +1124,10 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"daily_report",description:"Bugünkü aktivite raporunu oluştur: araç kullanımı, zaman takibi, hedef ilerlemesi.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"weekly_report",description:"Son 7 günün haftalık aktivite raporunu oluştur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"productivity_insights",description:"Kişisel verimlilik analizi: güçlü yönler, gelişim alanları ve öneriler.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    // ── Faz 46: Spotify ──────────────────────────────────────────────────────────
+];
+
+// ── Faz 46: Spotify ──────────────────────────────────────────────────────────
+const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Spotify kapalıysa açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1133,13 +1136,19 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve ilk sonucu çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
-    // ── Faz 46: Steam ────────────────────────────────────────────────────────────
+];
+
+// ── Faz 46: Steam ────────────────────────────────────────────────────────────
+const steamSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"steam_launch",description:"Steam oyunu başlat. Kullanıcı bir Steam oyunu açmak istediğinde DAIMA bu tool'u kullan, run_command KULLANMA. Oyun adı veya AppID ver. Steam kapalıysa açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı (ör: 'Cyberpunk 2077', 'Dead by Daylight', 'dbd') veya Steam AppID (ör: '1091500')"}},required:["game"],additionalProperties:false}}},
     {type:"function",function:{name:"steam_list",description:"Bilgisayarda yüklü Steam oyunlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_open",description:"Steam uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_close",description:"Steam'i kapat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_game_running",description:"Şu an Steam üzerinden çalışan oyun var mı, varsa hangisi?",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    // ── Faz 47: Computer Use ─────────────────────────────────────────────────
+];
+
+// ── Faz 47: Computer Use ─────────────────────────────────────────────────
+const computerUseSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"mouse_move",description:"Fare imlecini ekranda (x,y) koordinatına taşı.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"}},required:["x","y"],additionalProperties:false}}},
     {type:"function",function:{name:"mouse_click",description:"Fare tıklaması yap. Tıklamadan önce otomatik o konuma gider. button: left/right/middle. double: çift tıklama.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"}},required:["x","y"],additionalProperties:false}}},
     {type:"function",function:{name:"mouse_scroll",description:"Fare tekerleği ile kaydır. direction: up/down. amount: kaç adım (varsayılan 3).",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},direction:{type:"string",enum:["up","down"]},amount:{type:"number"}},required:["x","y"],additionalProperties:false}}},
@@ -1229,6 +1238,9 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
     {schemas: () => multiModelSchemas,  roots: ["pipeline", "karsilastir", "compare"]},
+    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume"]},
+    {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite"]},
+    {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use"]},
 ];
 
 // context = son kullanıcı mesajı (düz metin). Verilirse bağlama göre tool seçilir.
@@ -1255,6 +1267,7 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
             ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
             ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
             ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
+            ...spotifySchemas, ...steamSchemas, ...computerUseSchemas,
             ...extraSchemas,
         ];
     }
