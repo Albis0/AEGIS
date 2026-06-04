@@ -911,6 +911,96 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
+## Faz 45 — Sağlamlık & Test Altyapısı 🧪
+*"10 saat açık bırakınca çöküyor mu?" sorusunun cevabı burada.*
+
+### 45.1 Bilinen Kırılganlıkların Düzeltilmesi ⬜
+
+**Memory Leak — interval/listener birikimi**
+- [ ] `electron/main.ts`: `telemetryInterval`, `weatherInterval`, `automationInterval` `before-quit` ve `will-navigate` event'lerinde `clearInterval` ile temizlenmeli
+- [ ] `src/App.tsx` ve skin bileşenleri: her `ipcRenderer.on` çağrısının `useEffect` cleanup'ında karşılığı olan `removeListener` çağrısı var mı denetle; eksikleri kapat
+- [ ] `electron/scheduler.ts`: `startScheduler` / `stopScheduler` çağrı dengesi — uygulama restart'ında çift scheduler açılıyor mu kontrol et
+- [ ] Doğrulama: uygulamayı 30dk açık bırak, `process.memoryUsage()` başlangıç vs bitiş farkını logla; artış 50MB'ı geçmemeli
+
+**Plugin yükle/sil 100x — dosya handle birikimi**
+- [ ] `electron/plugins.ts` / `electron/plugin-manager.ts`: `require.cache` temizlemede `fs.watch` veya `chokidar` watcher'ı kapatılmıyor mu denetle
+- [ ] `pluginInstall` / `pluginRemove` döngüsü: her çağrıda yeni watcher açılıyorsa global watcher map'e al, silerken `watcher.close()` çağır
+- [ ] Doğrulama: 20x yükle/sil döngüsünde `process.openHandleCount()` sabit kalmalı
+
+**500MB bilgi tabanı — bellek patlaması**
+- [ ] `electron/knowledge.ts`: `searchKnowledge` şu an tüm `~/.aegis/index/` dosyalarını `JSON.parse` ile belleğe yüklüyor → streaming + lazy load'a geçir
+- [ ] Yeni yaklaşım: indeks dosyasını satır satır oku (`readline`), BM25 skorunu anlık hesapla, tüm corpus'u RAM'e çekme
+- [ ] `indexFile`: chunk'ları tek büyük JSON yerine her chunk ayrı `.jsonl` satırı olarak yaz (incremental okuma için)
+- [ ] Doğrulama: 10.000 chunk (~100MB indeks) üzerinde `searchKnowledge` çağrısı 500MB'dan fazla RAM tüketmemeli
+
+**10 ajan aynı anda — historyRef yarış koşulu**
+- [ ] `electron/main.ts` `runAgent` döngüsü: `historyRef` global mutable array'dir; paralel ajan çağrıları birbirinin mesajlarını eziyor
+- [ ] Düzeltme: `runAgent(initialMessages, agentHistory)` imzasına geç — her çağrı kendi local history kopyasını taşısın, global state'e dokunmasın
+- [ ] Sonuçları global history'e merge etmeden önce lock mekanizması (basit `Promise` queue yeterli)
+- [ ] Doğrulama: 3 ajan aynı anda `run_command` çalıştırsın; birbirinin çıktısını görmemeli
+
+**Supabase çökünce — chat de çöküyor**
+- [ ] `electron/db.ts`: her `await supabase.x()` çağrısını `try/catch` ile sar; hata logu yaz ama fırlat, `saveMessage` başarısız olsa da chat akışı devam etsin
+- [ ] `electron/cloud-sync.ts`: `pushToCloud` / `pullFromCloud` zaten sessiz başarısızlık var — ama `pullFromCloud` hata atarsa `currentSettings` bozuluyor mu kontrol et
+- [ ] `electron/auth.ts`: token yenileme isteği başarısız olunca `null` dönsün, exception fırlatmasın; `callProxy`'deki `getAccessToken()` null guard ekle
+- [ ] Doğrulama: Supabase URL'yi kasıtlı yanlış yap → chat hâlâ çalışmalı, sadece sync özellikleri sessizce devre dışı olmalı
+
+---
+
+### 45.2 Test Altyapısı Kurulumu ⬜
+
+**Vitest — Unit & Tool Regression**
+- [ ] `npm install -D vitest` ekle; `package.json`'a `"test": "vitest run"` scripti
+- [ ] `tests/tools/` klasörü: her tool executor'u için en az 1 happy-path + 1 hata senaryosu test
+  - `run_command` — geçerli komut, timeout senaryosu
+  - `read_file` / `write_file` — var olan / olmayan dosya
+  - `web_search` — mock fetch ile başarı / hata
+  - `rss_fetch` — gerçek RSS parse (mock XML ile)
+  - `build_project` — package.json'u olan test klasörü
+  - `knowledge` — index/search döngüsü
+  - `scheduler` — görev kayıt / tetiklenme
+- [ ] `tests/memory/` klasörü: `memory-plus`, `vault`, `persona` unit testleri
+
+**Integration Testleri**
+- [ ] `tests/integration/` klasörü: gerçek `~/.aegis-test/` geçici dizini kullanarak
+  - Plugin install/uninstall + executor çalıştırma
+  - Settings kaydet/yükle → restart sonrası aynı değer
+  - Supabase mock (offline) modda chat akışı: mesaj kaydedilmeli, hata fırlatmamalı
+  - Cloud sync: push → pull → settings aynı mı
+
+**E2E Testleri — Playwright + Electron**
+- [ ] `npm install -D @playwright/test playwright` + `electron` paketi ekle
+- [ ] `tests/e2e/` klasörü:
+  - Uygulama başlar, main window açılır
+  - Chat gönder → feed'de yanıt görünür
+  - Ayarlar paneli aç → sekme değiştir → kaydet → yeniden aç → değer korunuyor
+  - Onboarding: dil seç → mod seç → kurulum tamamla → ana ekran
+- [ ] `ELECTRON_RUN_AS_NODE` strip'leme (memory'de kayıtlı gotcha) E2E runner'a da uygulanır
+
+**Benchmark Suite**
+- [ ] `tests/bench/` klasörü (`vitest bench`):
+  - `knowledge_search`: 1.000 / 10.000 / 50.000 chunk → ortalama yanıt süresi < 500ms
+  - `executeTool` 100x hızlı ard arda çağrı → toplam < 2sn
+  - `settings-get` IPC round-trip 1.000x → p99 < 10ms
+  - `chat-stream` ilk token geliş süresi (streaming latency baseline)
+
+**Plugin Uyumluluk Testleri**
+- [ ] `tests/plugins/` klasörü: her hazır plugin için smoke test
+  - Spotify plugin: executor yüklenebiliyor, `what_is_playing` hata fırlatmıyor (Spotify kapalı olsa da graceful)
+  - VS Code plugin: `open_file` var olmayan dosya → hata mesajı dönüyor, çökmüyor
+  - OBS plugin: bağlantı yok → timeout + anlamlı hata mesajı
+  - Plugin install → manifest doğrulama → güvenlik taraması mock
+
+---
+
+### 45.3 CI Pipeline ⬜
+- [ ] `.github/workflows/test.yml`: her PR'da `npm run test` + `npx tsc --noEmit`
+- [ ] E2E testleri sadece `main` branch push'unda çalışsın (ağır olduğu için)
+- [ ] Benchmark sonuçları PR yorumuna otomatik yazılsın (regression tespiti için)
+- [ ] Test başarısız → merge engellenir
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -962,5 +1052,5 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 43   Workspace sistemi            ← TAMAMLANDI
 ✅  Faz 44   Günlük rapor & analitik      ← TAMAMLANDI
 🔶  i18n Ö2  Ayarlar paneli ~200 metin   ← DEVAM EDİYOR
-⬜  Faz 45   Sağlamlık & Test Altyapısı   ← SIRADAKI
+⬜  Faz 45   Sağlamlık & Test Altyapısı   ← SIRADAKI (onay bekliyor)
 ```
