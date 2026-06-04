@@ -1,146 +1,421 @@
-import {exec as execCb} from "child_process";
+/**
+ * Spotify Web API — OAuth2 PKCE + full control
+ *
+ * Client ID ve Secret vault'ta saklanır (aegis-config veya vaultGet).
+ * İlk çalıştırmada tarayıcı açılır, kullanıcı Spotify'a login olur,
+ * callback port:17832'ye gelir, token alınır ve şifreli olarak kaydedilir.
+ *
+ * Scopes: streaming, user-read-playback-state, user-modify-playback-state,
+ *         user-read-currently-playing, playlist-read-private,
+ *         playlist-read-collaborative, user-library-modify,
+ *         user-library-read, user-read-private
+ */
 
-function run(cmd: string, timeoutMs = 10000): Promise<string> {
-    return new Promise((resolve) => {
-        execCb(cmd, {timeout: timeoutMs, windowsHide: true}, (err, stdout, stderr) => {
-            const out = (stdout ?? "").trim();
-            if (err && !out) resolve(`HATA: ${err.message}${stderr ? "\n" + stderr.trim() : ""}`);
-            else resolve(out || "(tamam)");
+import {exec as execCb} from "child_process";
+import * as http from "http";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+
+// ── Credentials (set from main.ts after vault init) ──────────────────────────
+const CLIENT_ID = "3650da8ef6774cc99e857cfdc1d9999a";
+const REDIRECT_URI = "http://localhost:17832/callback";
+const SCOPES = [
+    "user-read-playback-state",
+    "user-modify-playback-state",
+    "user-read-currently-playing",
+    "streaming",
+    "playlist-read-private",
+    "playlist-read-collaborative",
+    "user-library-modify",
+    "user-library-read",
+    "user-read-private",
+].join(" ");
+
+const TOKEN_PATH = path.join(os.homedir(), ".aegis", "spotify-token.json");
+
+interface TokenData {
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+}
+
+// ── Token storage ─────────────────────────────────────────────────────────────
+function loadToken(): TokenData | null {
+    try { return JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8")); }
+    catch { return null; }
+}
+
+function saveToken(data: TokenData): void {
+    fs.mkdirSync(path.dirname(TOKEN_PATH), {recursive: true});
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(data), "utf-8");
+}
+
+// ── PKCE helpers ─────────────────────────────────────────────────────────────
+function generateVerifier(): string {
+    return crypto.randomBytes(48).toString("base64url");
+}
+
+function generateChallenge(verifier: string): string {
+    return crypto.createHash("sha256").update(verifier).digest("base64url");
+}
+
+// ── OAuth2 PKCE flow ──────────────────────────────────────────────────────────
+let _pendingVerifier: string | null = null;
+let _callbackServer: http.Server | null = null;
+
+export async function spotifyAuthorize(): Promise<string> {
+    if (_callbackServer) return "Yetkilendirme zaten devam ediyor. Lütfen tarayıcıda giriş yap.";
+
+    const verifier = generateVerifier();
+    const challenge = generateChallenge(verifier);
+    _pendingVerifier = verifier;
+    const state = crypto.randomBytes(8).toString("hex");
+
+    const params = new URLSearchParams({
+        response_type: "code",
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        redirect_uri: REDIRECT_URI,
+        state,
+        code_challenge_method: "S256",
+        code_challenge: challenge,
+    });
+    const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+
+    // Callback sunucusu — tek seferlik
+    await new Promise<void>((resolve, reject) => {
+        const server = http.createServer(async (req, res) => {
+            const url = new URL(req.url ?? "/", "http://localhost");
+            if (url.pathname !== "/callback") { res.end(); return; }
+
+            const code = url.searchParams.get("code");
+            const err = url.searchParams.get("error");
+
+            if (err || !code) {
+                res.end("<html><body><h2>Hata: " + (err ?? "code yok") + "</h2></body></html>");
+                server.close();
+                _callbackServer = null;
+                reject(new Error(err ?? "code yok"));
+                return;
+            }
+
+            try {
+                const token = await exchangeCode(code, _pendingVerifier ?? "");
+                saveToken(token);
+                res.end("<html><body><h2>AEGIS Spotify yetkilendirmesi tamamlandi! Bu sekmeyi kapatabilirsin.</h2></body></html>");
+            } catch (e) {
+                res.end("<html><body><h2>Token alinamaadi: " + (e as Error).message + "</h2></body></html>");
+            }
+            server.close();
+            _callbackServer = null;
+            _pendingVerifier = null;
+            resolve();
+        });
+
+        server.listen(17832, "localhost", () => {
+            _callbackServer = server;
+            // Tarayıcıyı aç
+            execCb(`cmd /c start "" "${authUrl}"`, {windowsHide: true}, () => {});
+            resolve(); // sunucu açıldı, devam et — callback async gelecek
+        });
+
+        server.on("error", (e) => {
+            _callbackServer = null;
+            reject(e);
         });
     });
+
+    return `Spotify yetkilendirme tarayıcıda açıldı. Giriş yap ve izin ver. Tamamlanınca AEGIS otomatik token alacak.`;
 }
 
-function ps(script: string): Promise<string> {
-    const escaped = script.replace(/"/g, '\\"');
-    return run(`powershell -NoProfile -NonInteractive -Command "${escaped}"`);
+async function exchangeCode(code: string, verifier: string): Promise<TokenData> {
+    const body = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_ID,
+        code_verifier: verifier,
+    });
+
+    const resp = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: body.toString(),
+    });
+
+    if (!resp.ok) throw new Error(`Token exchange failed: ${resp.status} ${await resp.text()}`);
+    const data = await resp.json() as {access_token: string; refresh_token: string; expires_in: number};
+    return {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + data.expires_in * 1000,
+    };
 }
 
-// Spotify process var mı?
-async function spotifyRunning(): Promise<boolean> {
-    const out = await run(`tasklist /FI "IMAGENAME eq Spotify.exe" /NH 2>nul`);
-    return out.toLowerCase().includes("spotify.exe");
+async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
+    const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: CLIENT_ID,
+    });
+
+    const resp = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: body.toString(),
+    });
+
+    if (!resp.ok) throw new Error(`Token refresh failed: ${resp.status} ${await resp.text()}`);
+    const data = await resp.json() as {access_token: string; refresh_token?: string; expires_in: number};
+    return {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token ?? refreshToken,
+        expires_at: Date.now() + data.expires_in * 1000,
+    };
 }
 
-// Spotify'ı aç (zaten açıksa dokunma)
-async function ensureSpotify(): Promise<void> {
-    if (!(await spotifyRunning())) {
-        await run("start spotify:", 5000);
-        // Açılması için bekle
-        await new Promise((r) => setTimeout(r, 2000));
+// ── Token getter — otomatik yenileme ─────────────────────────────────────────
+async function getToken(): Promise<string> {
+    let token = loadToken();
+    if (!token) throw new Error("Spotify hesabı bağlı değil. 'Spotify bağla' veya 'Spotify yetkilendir' de.");
+
+    if (Date.now() > token.expires_at - 30_000) {
+        token = await refreshAccessToken(token.refresh_token);
+        saveToken(token);
     }
+    return token.access_token;
 }
 
-// Media key gönder (Spotify açık olmalı)
-function sendMediaKey(key: "PlayPause" | "NextTrack" | "PrevTrack"): Promise<string> {
-    const keyMap: Record<string, string> = {
-        PlayPause: "{MEDIA_PLAY_PAUSE}",
-        NextTrack: "{MEDIA_NEXT}",
-        PrevTrack: "{MEDIA_PREV}",
-    };
-    const vkMap: Record<string, string> = {
-        PlayPause: "0xB3",
-        NextTrack: "0xB0",
-        PrevTrack: "0xB1",
-    };
-    // SendKeys yerine WScript.Shell ile daha güvenilir
-    const script = `
-$wsh = New-Object -ComObject WScript.Shell
-Add-Type -AssemblyName System.Windows.Forms
-[System.Windows.Forms.SendKeys]::SendWait('${keyMap[key]}')
-`;
-    // Fallback: VK key press
-    const fallback = `
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class KBHook {
-    [DllImport("user32.dll")]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+// ── Spotify Web API fetch wrapper ─────────────────────────────────────────────
+async function api(
+    method: string,
+    endpoint: string,
+    body?: unknown
+): Promise<{ok: boolean; status: number; data: unknown}> {
+    const tok = await getToken();
+    const resp = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+        method,
+        headers: {
+            "Authorization": `Bearer ${tok}`,
+            ...(body ? {"Content-Type": "application/json"} : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (resp.status === 204) return {ok: true, status: 204, data: null};
+    const text = await resp.text();
+    let data: unknown = text;
+    try { data = JSON.parse(text); } catch {}
+    return {ok: resp.ok, status: resp.status, data};
 }
-"@
-[KBHook]::keybd_event(${vkMap[key]}, 0, 1, 0)
-Start-Sleep -Milliseconds 50
-[KBHook]::keybd_event(${vkMap[key]}, 0, 2, 0)
-`;
-    return ps(fallback);
+
+// ── Active device helper ──────────────────────────────────────────────────────
+async function getActiveDeviceId(): Promise<string | null> {
+    const r = await api("GET", "/me/player/devices");
+    if (!r.ok) return null;
+    const devices = (r.data as {devices: {id: string; is_active: boolean; name: string}[]}).devices ?? [];
+    const active = devices.find((d) => d.is_active) ?? devices[0];
+    return active?.id ?? null;
+}
+
+// ── Spotify kontrolü: cihaz yoksa uygulamayı aç ──────────────────────────────
+async function ensureDevice(): Promise<string | null> {
+    let deviceId = await getActiveDeviceId();
+    if (deviceId) return deviceId;
+
+    // Spotify masaüstü uygulamasını aç
+    execCb(`cmd /c start spotify:`, {windowsHide: true}, () => {});
+    await new Promise((r) => setTimeout(r, 3000));
+    deviceId = await getActiveDeviceId();
+    return deviceId;
+}
+
+// ── Public API fonksiyonları ──────────────────────────────────────────────────
+
+export async function spotifyAuthorizeCmd(): Promise<string> {
+    return spotifyAuthorize();
 }
 
 export async function spotifyPlay(): Promise<string> {
-    await ensureSpotify();
-    // Zaten çalıyorsa değiştirme, duraklatılmışsa başlat
-    const state = await spotifyGetState();
-    if (state.includes("Oynuyor")) return "Spotify zaten çalıyor.";
-    await sendMediaKey("PlayPause");
-    return "Spotify başlatıldı.";
+    try {
+        const deviceId = await ensureDevice();
+        const body = deviceId ? {device_ids: [deviceId], play: true} : undefined;
+        await api("PUT", "/me/player", body);
+        await api("PUT", "/me/player/play", deviceId ? {device_id: deviceId} : undefined);
+        return "Spotify başlatıldı.";
+    } catch (e) {
+        const msg = (e as Error).message;
+        if (msg.includes("bağlı değil")) return `${msg} — önce Spotify bağla.`;
+        return `Hata: ${msg}`;
+    }
 }
 
 export async function spotifyPause(): Promise<string> {
-    if (!(await spotifyRunning())) return "Spotify açık değil.";
-    const state = await spotifyGetState();
-    if (state.includes("Duraklatıldı") || state.includes("açık değil")) return "Spotify zaten duraklatılmış.";
-    await sendMediaKey("PlayPause");
-    return "Spotify duraklatıldı.";
+    try {
+        await api("PUT", "/me/player/pause");
+        return "Spotify duraklatıldı.";
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
 
 export async function spotifyNext(): Promise<string> {
-    await ensureSpotify();
-    await sendMediaKey("NextTrack");
-    await new Promise((r) => setTimeout(r, 800));
-    return "Sonraki parçaya geçildi.";
+    try {
+        await api("POST", "/me/player/next");
+        await new Promise((r) => setTimeout(r, 800));
+        return await spotifyGetState();
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
 
 export async function spotifyPrev(): Promise<string> {
-    await ensureSpotify();
-    await sendMediaKey("PrevTrack");
-    await new Promise((r) => setTimeout(r, 800));
-    return "Önceki parçaya geri dönüldü.";
+    try {
+        await api("POST", "/me/player/previous");
+        await new Promise((r) => setTimeout(r, 800));
+        return await spotifyGetState();
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
 
 export async function spotifySetVolume(level: number): Promise<string> {
-    // Spotify'ın kendi ses seviyesi değil, sistem ses seviyesi
-    const clamped = Math.max(0, Math.min(100, Math.round(level)));
-    await ps(`$obj = New-Object -ComObject WScript.Shell; (New-Object -ComObject SAPI.SpVoice).Volume = 0
-$vol = [Math]::Round(65535 * ${clamped} / 100)
-$code = @"
-using System.Runtime.InteropServices;
-public class Vol {
-    [DllImport("winmm.dll")]
-    public static extern int waveOutSetVolume(IntPtr h, uint v);
-}
-"@
-Add-Type -TypeDefinition $code
-[Vol]::waveOutSetVolume([IntPtr]::Zero, [uint]($vol | % { ($_ -shl 16) -bor $_ }))
-`);
-    return `Ses seviyesi %${clamped} yapıldı.`;
+    try {
+        const clamped = Math.max(0, Math.min(100, Math.round(level)));
+        await api("PUT", `/me/player/volume?volume_percent=${clamped}`);
+        return `Ses seviyesi %${clamped} yapıldı.`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
 
 export async function spotifyGetState(): Promise<string> {
-    if (!(await spotifyRunning())) return "Spotify açık değil.";
-    // Spotify pencere başlığından şarkı bilgisi al
-    const title = await ps(
-        "(Get-Process -Name Spotify -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -First 1).MainWindowTitle"
-    );
-    if (!title || title === "(tamam)" || title.toLowerCase().includes("spotify")) {
-        // Pencere başlığı boşsa muhtemelen küçültülmüş + duraklatılmış
-        return "Spotify açık ama şu an duraklatılmış veya bilgi alınamıyor.";
+    try {
+        const r = await api("GET", "/me/player/currently-playing");
+        if (r.status === 204 || !r.data) return "Spotify'da şu an hiçbir şey çalmıyor.";
+        const d = r.data as {
+            is_playing: boolean;
+            item: {name: string; artists: {name: string}[]; album: {name: string}; duration_ms: number};
+            progress_ms: number;
+        };
+        if (!d.item) return "Spotify'da şu an hiçbir şey çalmıyor.";
+        const artists = d.item.artists.map((a) => a.name).join(", ");
+        const prog = Math.round(d.progress_ms / 1000);
+        const dur = Math.round(d.item.duration_ms / 1000);
+        const m = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+        return `${d.is_playing ? "Oynuyor" : "Duraklatildi"}: ${d.item.name} — ${artists} (${d.item.album.name}) [${m(prog)}/${m(dur)}]`;
+    } catch (e) {
+        const msg = (e as Error).message;
+        if (msg.includes("bağlı değil")) return "Spotify hesabı bağlı değil. 'Spotify bağla' de.";
+        return `Hata: ${msg}`;
     }
-    return `Şu an oynuyor: ${title}`;
 }
 
 export async function spotifyOpen(): Promise<string> {
-    await ensureSpotify();
-    // Pencereyi öne getir
-    await ps(
-        "$proc = Get-Process -Name Spotify -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle -ne 0} | Select-Object -First 1; if ($proc) { $hw = $proc.MainWindowHandle; Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.Interaction]::AppActivate($proc.Id) }"
-    );
+    execCb(`cmd /c start spotify:`, {windowsHide: true}, () => {});
+    await new Promise((r) => setTimeout(r, 1500));
     return "Spotify açıldı.";
 }
 
 export async function spotifySearchPlay(query: string): Promise<string> {
     if (!query) return "HATA: Arama sorgusu boş.";
-    // Spotify URI ile arama sayfasını aç (masaüstü uygulamasında)
-    const encoded = encodeURIComponent(query);
-    await run(`start "spotify:search:${encoded}"`, 5000);
-    await new Promise((r) => setTimeout(r, 1500));
-    return `Spotify'da "${query}" arandı. İlk sonucu çalmak için "spotify çal" de.`;
+    try {
+        const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=1`);
+        if (!r.ok) return `Arama hatası: ${r.status}`;
+        const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
+        if (tracks.length === 0) return `"${query}" için sonuç bulunamadı.`;
+        const track = tracks[0];
+        const deviceId = await ensureDevice();
+        await api("PUT", "/me/player/play", {
+            uris: [track.uri],
+            ...(deviceId ? {device_id: deviceId} : {}),
+        });
+        return `Caliniyor: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyListPlaylists(): Promise<string> {
+    try {
+        const r = await api("GET", "/me/playlists?limit=20");
+        if (!r.ok) return `Hata: ${r.status}`;
+        const items = (r.data as {items: {id: string; name: string; tracks: {total: number}}[]}).items ?? [];
+        if (items.length === 0) return "Playlist bulunamadı.";
+        return `Spotify Playlistlerin (${items.length}):\n${items.map((p, i) => `${i + 1}. ${p.name} (${p.tracks.total} sarki) — ID: ${p.id}`).join("\n")}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyPlayPlaylist(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Playlist adı veya ID gerekli.";
+    try {
+        // ID mi isim mi?
+        let playlistUri = "";
+        if (/^[A-Za-z0-9]{22}$/.test(nameOrId.trim())) {
+            playlistUri = `spotify:playlist:${nameOrId.trim()}`;
+        } else {
+            // İsimle ara
+            const r = await api("GET", "/me/playlists?limit=50");
+            const items = (r.data as {items: {id: string; name: string}[]}).items ?? [];
+            const match = items.find((p) => p.name.toLowerCase().includes(nameOrId.toLowerCase()));
+            if (!match) return `"${nameOrId}" adında playlist bulunamadı. "playlist listele" ile kontrol et.`;
+            playlistUri = `spotify:playlist:${match.id}`;
+        }
+        const deviceId = await ensureDevice();
+        await api("PUT", "/me/player/play", {
+            context_uri: playlistUri,
+            ...(deviceId ? {device_id: deviceId} : {}),
+        });
+        return `Playlist baslatildi: ${nameOrId}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyLikeTrack(): Promise<string> {
+    try {
+        const r = await api("GET", "/me/player/currently-playing");
+        const d = r.data as {item: {id: string; name: string}};
+        if (!d?.item) return "Şu an çalan şarkı yok.";
+        await api("PUT", `/me/tracks?ids=${d.item.id}`);
+        return `Beglenildi: ${d.item.name}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyAddToQueue(query: string): Promise<string> {
+    if (!query) return "HATA: Şarkı adı gerekli.";
+    try {
+        const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=1`);
+        const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
+        if (tracks.length === 0) return `"${query}" bulunamadı.`;
+        const track = tracks[0];
+        await api("POST", `/me/player/queue?uri=${encodeURIComponent(track.uri)}`);
+        return `Siraya eklendi: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyListDevices(): Promise<string> {
+    try {
+        const r = await api("GET", "/me/player/devices");
+        const devices = (r.data as {devices: {id: string; name: string; type: string; is_active: boolean; volume_percent: number}[]}).devices ?? [];
+        if (devices.length === 0) return "Aktif Spotify cihazı bulunamadı. Spotify uygulamasını aç.";
+        return `Spotify Cihazlari:\n${devices.map((d) => `${d.is_active ? "[AKTIF] " : ""}${d.name} (${d.type}) — ses: %${d.volume_percent}`).join("\n")}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifyTransferDevice(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Cihaz adı veya ID gerekli.";
+    try {
+        const r = await api("GET", "/me/player/devices");
+        const devices = (r.data as {devices: {id: string; name: string}[]}).devices ?? [];
+        const dev = devices.find((d) => d.id === nameOrId || d.name.toLowerCase().includes(nameOrId.toLowerCase()));
+        if (!dev) return `"${nameOrId}" cihazı bulunamadı. "Spotify cihazları" ile listele.`;
+        await api("PUT", "/me/player", {device_ids: [dev.id], play: true});
+        return `Muzik ${dev.name} cihazına aktarıldı.`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifySetShuffle(enabled: boolean): Promise<string> {
+    try {
+        await api("PUT", `/me/player/shuffle?state=${enabled}`);
+        return `Karistir modu ${enabled ? "acildi" : "kapatildi"}.`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
+}
+
+export async function spotifySetRepeat(mode: "off" | "track" | "context"): Promise<string> {
+    try {
+        await api("PUT", `/me/player/repeat?state=${mode}`);
+        const labels: Record<string, string> = {off: "kapalı", track: "sarki tekrar", context: "liste tekrar"};
+        return `Tekrar modu: ${labels[mode] ?? mode}`;
+    } catch (e) { return `Hata: ${(e as Error).message}`; }
 }

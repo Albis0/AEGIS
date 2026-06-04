@@ -26,7 +26,7 @@ import {fileSearch, contentSearch, appSearch} from "./search-plus";
 import {killHeavyProcesses, suspendProcess, resumeProcess, clearTemp, flushDns, startupManager, perfModeStart, perfModeStop} from "./sys-optimizer";
 import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, workspaceExport, workspaceImport} from "./workspace";
 import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
-import {spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay} from "./spotify";
+import {spotifyAuthorizeCmd, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay, spotifyListPlaylists, spotifyPlayPlaylist, spotifyLikeTrack, spotifyAddToQueue, spotifyListDevices, spotifyTransferDevice, spotifySetShuffle, spotifySetRepeat} from "./spotify";
 import {steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning} from "./steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 
@@ -1135,14 +1135,23 @@ const multiModelSchemas: ChatCompletionTool[] = [
 
 // ── Faz 46: Spotify ──────────────────────────────────────────────────────────
 const spotifySchemas: ChatCompletionTool[] = [
+    {type:"function",function:{name:"spotify_authorize",description:"Spotify hesabını AEGIS'e bağla (ilk kullanımda bir kez yapılır). Tarayıcıda Spotify login sayfası açılır.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Spotify kapalıysa açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_volume",description:"Spotify / sistem ses seviyesini ayarla (0-100).",parameters:{type:"object",properties:{level:{type:"number",description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve ilk sonucu çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100).",parameters:{type:"object",properties:{level:{type:"number",description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster (şarkı, sanatçı, albüm, süre).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlists",description:"Kullanıcının Spotify playlistlerini listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_play_playlist",description:"Belirtilen Spotify playlistini çal (ad veya ID ile).",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist adı (kısmi eşleşir) veya Spotify playlist ID"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_like",description:"Şu an çalan şarkıyı beğen (Liked Songs'a ekle).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_queue",description:"Şarkıyı sıraya ekle.",parameters:{type:"object",properties:{query:{type:"string",description:"Sıraya eklenecek şarkı adı veya sanatçı"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_devices",description:"Mevcut Spotify cihazlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_transfer",description:"Müziği başka bir cihaza aktar (telefon, TV, bilgisayar).",parameters:{type:"object",properties:{device:{type:"string",description:"Cihaz adı veya ID"}},required:["device"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_shuffle",description:"Karıştır modunu aç/kapat.",parameters:{type:"object",properties:{enabled:{type:"boolean",description:"true = aç, false = kapat"}},required:["enabled"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_repeat",description:"Tekrar modunu ayarla.",parameters:{type:"object",properties:{mode:{type:"string",enum:["off","track","context"],description:"off=kapalı, track=şarkı tekrar, context=liste tekrar"}},required:["mode"],additionalProperties:false}}},
 ];
 
 // ── Faz 46: Steam ────────────────────────────────────────────────────────────
@@ -1245,7 +1254,7 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
     {schemas: () => multiModelSchemas,  roots: ["pipeline", "karsilastir", "compare"]},
-    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume"]},
+    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "bagla", "yetki"]},
     {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite"]},
     {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use"]},
 ];
@@ -2726,6 +2735,7 @@ else{
     },
 
     // ── Faz 46: Spotify ──────────────────────────────────────────────────────
+    async spotify_authorize() { return spotifyAuthorizeCmd(); },
     async spotify_play() { return spotifyPlay(); },
     async spotify_pause() { return spotifyPause(); },
     async spotify_next() { return spotifyNext(); },
@@ -2734,6 +2744,14 @@ else{
     async spotify_now_playing() { return spotifyGetState(); },
     async spotify_open() { return spotifyOpen(); },
     async spotify_search({query}: {query?: unknown}) { return spotifySearchPlay(String(query ?? "")); },
+    async spotify_playlists() { return spotifyListPlaylists(); },
+    async spotify_play_playlist({name}: {name?: unknown}) { return spotifyPlayPlaylist(String(name ?? "")); },
+    async spotify_like() { return spotifyLikeTrack(); },
+    async spotify_queue({query}: {query?: unknown}) { return spotifyAddToQueue(String(query ?? "")); },
+    async spotify_devices() { return spotifyListDevices(); },
+    async spotify_transfer({device}: {device?: unknown}) { return spotifyTransferDevice(String(device ?? "")); },
+    async spotify_shuffle({enabled}: {enabled?: unknown}) { return spotifySetShuffle(String(enabled) === "true"); },
+    async spotify_repeat({mode}: {mode?: unknown}) { return spotifySetRepeat((mode as "off" | "track" | "context") ?? "off"); },
 
     // ── Faz 46: Steam ────────────────────────────────────────────────────────
     async steam_launch({game}: {game?: unknown}) { return steamLaunchGame(String(game ?? "")); },
