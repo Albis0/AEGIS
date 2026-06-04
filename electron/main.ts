@@ -27,7 +27,7 @@ import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
-import {spotifyAuthorizeCmd} from "./spotify";
+import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -1682,6 +1682,15 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("weather", () => getWeather());
 
     ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
+    ipcMain.handle("spotify-now-playing", () => spotifyGetState());
+    ipcMain.handle("spotify-control", (_e, {action, value}: {action: string; value?: number}) => {
+        if (action === "play")   return spotifyPlay();
+        if (action === "pause")  return spotifyPause();
+        if (action === "next")   return spotifyNext();
+        if (action === "prev")   return spotifyPrev();
+        if (action === "volume") return spotifySetVolume(Number(value ?? 50));
+        return "Bilinmeyen aksiyon";
+    });
 
     ipcMain.handle("transcribe", async (_e, audioBuffer: ArrayBuffer) => {
         try {

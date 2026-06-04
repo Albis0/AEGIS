@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld("jarvis", {
     onboardingComplete: (mode: string) => ipcRenderer.invoke("onboarding-complete", mode),
     restartOnboarding: () => ipcRenderer.invoke("restart-onboarding"),
     spotifyAuthorize: () => ipcRenderer.invoke("spotify-authorize"),
+    spotifyNowPlaying: () => ipcRenderer.invoke("spotify-now-playing"),
+    spotifyControl: (action: string, value?: number) => ipcRenderer.invoke("spotify-control", {action, value}),
 
     screenshot: () => ipcRenderer.invoke("screenshot"),
 

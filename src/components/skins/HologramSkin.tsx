@@ -7,6 +7,7 @@ import VoiceModeToggle from "../VoiceModeToggle";
 import FeedItem from "../FeedItem";
 import type {FeedItemType} from "../FeedItem";
 import type {LangStrings} from "../../i18n";
+import SpotifyWidget from "../SpotifyWidget";
 
 type ToolLine = {name: string; status: "running" | "done"; detail?: string};
 type Attachment = {name: string; url: string; mime: string; data: string};
@@ -107,6 +108,7 @@ export default function HologramSkin({
             <div className="flex-1 flex min-h-0 z-10 pb-2" style={{gap: "var(--gap)", paddingLeft: "var(--pad-x)", paddingRight: "var(--pad-x)"}}>
                 {/* LEFT */}
                 <div className="shrink-0 w-[clamp(190px,17vw,230px)] flex flex-col overflow-y-auto hud" style={{gap: "var(--gap)", paddingTop: "var(--pad-y)", color: "rgb(var(--hud))"}}>
+                    <SpotifyWidget />
                     <Section title="TIME">
                         <div className="text-3xl tabular-nums glow-text leading-none" style={{fontFamily: "Orbitron, sans-serif"}}>
                             {clock.toLocaleTimeString(t.locale, {hour: "2-digit", minute: "2-digit"})}
