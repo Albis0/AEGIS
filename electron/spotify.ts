@@ -211,6 +211,17 @@ async function api(
     return {ok: resp.ok, status: resp.status, data};
 }
 
+// ── Spotify hata mesajı çevirici ─────────────────────────────────────────────
+function spotifyErr(status: number, data?: unknown): string {
+    const msg = (data as {error?: {message?: string}})?.error?.message ?? "";
+    if (status === 401) return "Spotify oturumu sona erdi. 'Spotify bağla' diyerek yeniden bağlan.";
+    if (status === 403) return "Spotify bu işlem için izin vermedi. Hesabında Premium abonelik gerekiyor olabilir.";
+    if (status === 404) return "Spotify'da aktif çalar bulunamadı. Spotify uygulamasını aç ve bir şey çalmayı dene.";
+    if (status === 429) return "Spotify hız sınırına takıldı. Birkaç saniye bekleyip tekrar dene.";
+    if (status >= 500) return "Spotify sunucusu geçici olarak yanıt vermiyor. Tekrar dene.";
+    return msg ? `Spotify: ${msg}` : `Spotify hatası (${status})`;
+}
+
 // ── Active device helper ──────────────────────────────────────────────────────
 async function getActiveDeviceId(): Promise<string | null> {
     const r = await api("GET", "/me/player/devices");
@@ -254,25 +265,28 @@ export async function spotifyPlay(): Promise<string> {
 
 export async function spotifyPause(): Promise<string> {
     try {
-        await api("PUT", "/me/player/pause");
+        const r = await api("PUT", "/me/player/pause");
+        if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         return "Spotify duraklatıldı.";
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }
 
 export async function spotifyNext(): Promise<string> {
     try {
-        await api("POST", "/me/player/next");
+        const r = await api("POST", "/me/player/next");
+        if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         await new Promise((r) => setTimeout(r, 800));
         return await spotifyGetState();
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }
 
 export async function spotifyPrev(): Promise<string> {
     try {
-        await api("POST", "/me/player/previous");
+        const r = await api("POST", "/me/player/previous");
+        if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         await new Promise((r) => setTimeout(r, 800));
         return await spotifyGetState();
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }
 
 export async function spotifySetVolume(level: number): Promise<string> {
@@ -283,12 +297,9 @@ export async function spotifySetVolume(level: number): Promise<string> {
             ? `/me/player/volume?volume_percent=${clamped}&device_id=${deviceId}`
             : `/me/player/volume?volume_percent=${clamped}`;
         const r = await api("PUT", endpoint);
-        if (!r.ok && r.status !== 204) {
-            const msg = (r.data as {error?: {message?: string}})?.error?.message ?? `HTTP ${r.status}`;
-            return `Ses ayarlanamadı: ${msg}`;
-        }
+        if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         return `Ses seviyesi %${clamped} yapıldı.`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+    } catch (e) { return `Spotify bağlantı hatası: ${(e as Error).message}`; }
 }
 
 export async function spotifyGetState(): Promise<string> {
@@ -323,7 +334,7 @@ export async function spotifySearchPlay(query: string): Promise<string> {
     if (!query) return "HATA: Arama sorgusu boş.";
     try {
         const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=1`);
-        if (!r.ok) return `Arama hatası: ${r.status}`;
+        if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
         if (tracks.length === 0) return `"${query}" için sonuç bulunamadı.`;
         const track = tracks[0];
@@ -339,7 +350,7 @@ export async function spotifySearchPlay(query: string): Promise<string> {
 export async function spotifyListPlaylists(): Promise<string> {
     try {
         const r = await api("GET", "/me/playlists?limit=20");
-        if (!r.ok) return `Hata: ${r.status}`;
+        if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string; tracks: {total: number}}[]}).items ?? [];
         if (items.length === 0) return "Playlist bulunamadı.";
         return `Spotify Playlistlerin (${items.length}):\n${items.map((p, i) => `${i + 1}. ${p.name} (${p.tracks.total} sarki) — ID: ${p.id}`).join("\n")}`;

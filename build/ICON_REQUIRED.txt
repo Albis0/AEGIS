@@ -1,0 +1,7 @@
+Bu klasöre aşağıdaki dosyaları ekle:
+
+  icon.ico  — Windows installer ve uygulama ikonu (256x256 önerilen, minimum 48x48)
+
+Oluşturmak için:
+  - PNG/SVG'yi https://convertio.co/png-ico/ adresinde .ico'ya çevir
+  - Ya da ImageMagick: magick input.png -resize 256x256 icon.ico

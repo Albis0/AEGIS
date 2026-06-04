@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     capsGet: (provider: string, model: string) => ipcRenderer.invoke("caps-get", {provider, model}),
     onboardingComplete: (mode: string) => ipcRenderer.invoke("onboarding-complete", mode),
     restartOnboarding: () => ipcRenderer.invoke("restart-onboarding"),
+    spotifyAuthorize: () => ipcRenderer.invoke("spotify-authorize"),
 
     screenshot: () => ipcRenderer.invoke("screenshot"),
 

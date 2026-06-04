@@ -27,7 +27,7 @@
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^31.7.7",
+    "electron": "31.7.7",
     "electron-builder": "^24.9.1",
     "postcss": "^8.4.38",
     "react": "^18.3.1",
@@ -47,9 +47,25 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "directories": {
+      "buildResources": "build"
+    },
     "win": {
-      "target": "portable",
+      "icon": "build/icon.ico",
+      "target": [
+        {"target": "nsis", "arch": ["x64"]},
+        {"target": "portable", "arch": ["x64"]}
+      ],
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AEGIS"
     },
     "electronDownload": {
       "mirror": "https://npmmirror.com/mirrors/electron/"

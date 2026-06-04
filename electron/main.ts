@@ -27,6 +27,7 @@ import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
+import {spotifyAuthorizeCmd} from "./spotify";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -1019,42 +1020,55 @@ async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, 
 
     // ── Groq (streaming) ──────────────────────────────────────────────────────
     if (provider === "groq") {
-        try {
-            const stream = await groq.chat.completions.create({
-                model: MODEL,
-                messages: messages as ChatCompletionMessageParam[],
-                // Boş tool listesi gönderme — sohbet mesajlarında token tasarrufu (özellikle düşük-TPM modeller).
-                ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
-                stream: true,
-                ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
-                max_tokens: maxTok,
-            });
-            let fullContent = "";
-            const tcMap = new Map<number, {id: string; name: string; args: string}>();
-            for await (const chunk of stream) {
-                const delta = chunk.choices[0]?.delta;
-                if (delta?.content) {
-                    fullContent += delta.content;
-                    onDelta?.(delta.content);
+        // failed_generation geçici bir model hatası — 1 kez otomatik yeniden dene.
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const stream = await groq.chat.completions.create({
+                    model: MODEL,
+                    messages: messages as ChatCompletionMessageParam[],
+                    // Boş tool listesi gönderme — sohbet mesajlarında token tasarrufu (özellikle düşük-TPM modeller).
+                    ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
+                    stream: true,
+                    ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
+                    max_tokens: maxTok,
+                });
+                let fullContent = "";
+                let finishReason = "";
+                const tcMap = new Map<number, {id: string; name: string; args: string}>();
+                for await (const chunk of stream) {
+                    const choice = chunk.choices[0];
+                    const delta = choice?.delta;
+                    finishReason = (choice as any)?.finish_reason ?? finishReason;
+                    if (delta?.content) {
+                        fullContent += delta.content;
+                        onDelta?.(delta.content);
+                    }
+                    for (const tc of (delta as any)?.tool_calls ?? []) {
+                        const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
+                        tcMap.set(tc.index, {
+                            id: tc.id ?? ex.id,
+                            name: tc.function?.name ?? ex.name,
+                            args: ex.args + (tc.function?.arguments ?? ""),
+                        });
+                    }
                 }
-                for (const tc of (delta as any)?.tool_calls ?? []) {
-                    const ex = tcMap.get(tc.index) ?? {id: "", name: "", args: ""};
-                    tcMap.set(tc.index, {
-                        id: tc.id ?? ex.id,
-                        name: tc.function?.name ?? ex.name,
-                        args: ex.args + (tc.function?.arguments ?? ""),
-                    });
+                // failed_generation: model JSON üretemedi — bir kez sessizce yeniden dene.
+                if (finishReason === "failed_generation" && attempt === 0) {
+                    await new Promise((r) => setTimeout(r, 800));
+                    continue;
                 }
+                return {choices: [{message: {
+                    content: fullContent || null,
+                    tool_calls: tcMap.size > 0
+                        ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
+                        : undefined,
+                }}]};
+            } catch (e) {
+                throw new Error(friendlyGroqError(e));
             }
-            return {choices: [{message: {
-                content: fullContent || null,
-                tool_calls: tcMap.size > 0
-                    ? [...tcMap.values()].map((tc) => ({id: tc.id, type: "function" as const, function: {name: tc.name, arguments: tc.args}}))
-                    : undefined,
-            }}]};
-        } catch (e) {
-            throw new Error(friendlyGroqError(e));
         }
+        // İkinci deneme de failed_generation ile bittiyse boş response dön.
+        return {choices: [{message: {content: null, tool_calls: undefined}}]};
     }
 
     // ── Anthropic ────────────────────────────────────────────────────────────
@@ -1666,6 +1680,8 @@ async function bootApp(): Promise<void> {
     });
 
     ipcMain.handle("weather", () => getWeather());
+
+    ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
 
     ipcMain.handle("transcribe", async (_e, audioBuffer: ArrayBuffer) => {
         try {
