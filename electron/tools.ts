@@ -1140,7 +1140,7 @@ const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100).",parameters:{type:"object",properties:{level:{type:"number",description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100). level sayı olmalı, örnek: 20",parameters:{type:"object",properties:{level:{type:["number","string"],description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster (şarkı, sanatçı, albüm, süre).",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
