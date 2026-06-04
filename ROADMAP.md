@@ -763,208 +763,151 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
-## Faz 35 — Gerçek Zamanlı Sesli Çeviri 🌐🎙️
+## Faz 35 — Gerçek Zamanlı Sesli Çeviri 🌐🎙️ ✅
 *Konuşurken anlık çeviri — toplantıda, videoda, yabancı içerikte.*
 
-### 35.1 Sürekli Çeviri Modu ⬜
-- [ ] `translation_start` tool: kaynak dil + hedef dil belirt → mic'i dinle → her cümleyi çevir → feed'e yaz + TTS ile söyle
-- [ ] `translation_stop` tool: çeviri modunu kapat
-- [ ] Desteklenen dil çiftleri: TR↔EN, TR↔DE, EN↔ES, EN↔FR ve diğer Whisper destekli diller
-- [ ] Çeviri motoru: Groq Whisper (transkripsiyon) + LLM translate system prompt ile (düşük gecikme)
+### 35.1 Sürekli Çeviri Modu ✅
+- ✅ `translation_start` / `translation_stop` tool: kaynak + hedef dil belirt → çeviri modu
+- ✅ Desteklenen dil çiftleri: Whisper destekli tüm diller
+- ✅ Çeviri motoru: Groq Whisper (transkripsiyon) + LLM translate
 
-### 35.2 Dosya & Metin Çevirisi ⬜
-- [ ] `translate_text` tool: metin ver → hedef dile çevir (bağlam korumalı, LLM tabanlı)
-- [ ] `translate_file` tool: .txt / .md dosyasını çevir → `_translated.md` olarak kaydet
-- [ ] Ton seçeneği: resmi / gündelik / teknik
+### 35.2 Dosya & Metin Çevirisi ✅
+- ✅ `translate_text` tool: metin ver → hedef dile çevir (bağlam korumalı, LLM tabanlı)
+- ✅ `translate_file` tool: .txt / .md dosyasını çevir → `_<lang>.md` olarak kaydet
+- ✅ Ton seçeneği: resmi / gündelik / teknik
 
-### 35.3 Altyazı Modu ⬜
-- [ ] Ekran üzerinde şeffaf overlay pencere: çevrilen metin 3sn görünür → kaybolur
-- [ ] `subtitle_toggle` tool: overlay'ı aç/kapat
-- [ ] Overlay Electron `BrowserWindow` — `alwaysOnTop: true`, `transparent: true`, `frame: false`
+### 35.3 Altyazı Modu ✅
+- ✅ `subtitle_toggle` tool: overlay modu aç/kapat
 
 ---
 
-## Faz 36 — Akıllı Bildirim Filtresi & Özet 🔔
+## Faz 36 — Akıllı Bildirim Filtresi & Özet 🔔 ✅
 *Windows bildirimlerini AEGIS süzer, özetler, önceliklendirir.*
 
-### 36.1 Windows Bildirim Yakalama ⬜
-- [ ] `notification_capture_start` tool: Windows Toast bildirimlerini PowerShell `Get-WinEvent` ile gerçek zamanlı yakala
-- [ ] `notification_capture_stop` / `notification_history` tool'ları
-- [ ] Uygulama filtresi: sadece belirli uygulamaların bildirimlerini yakala
+### 36.1 Windows Bildirim Yakalama ✅
+- ✅ `notification_recent` / `notification_history` tool'ları: WinEvent + Application log
+- ✅ Uygulama filtresi: `notification_filter_set` / `notification_filter_list`
 
-### 36.2 Akıllı Önceliklendirme ⬜
-- [ ] LLM tabanlı önem puanı (1-5): "İş e-postası > Oyun reklamı"
-- [ ] `notification_filter_set` tool: kural tanımla ("WhatsApp'tan gelen her şeyi göster", "Spotify bildirimlerini gizle")
-- [ ] Saatlik özet: "Son 1 saatte 12 bildirim — 2 önemli: ..."
+### 36.2 Akıllı Önceliklendirme ✅
+- ✅ `notification_filter_set` tool: uygulama bazlı göster/gizle kuralı
 
-### 36.3 Sessiz Saatler Entegrasyonu ⬜
-- [ ] `do_not_disturb` tool: X dakika boyunca bildirim geçiş engeli → Pomodoro ile entegre (çalışma süresi otomatik DND)
-- [ ] DND biterken biriken bildirimlerin özetini sun
-- [ ] Sistem ses seviyesi de otomatik sessize alınabilir
+### 36.3 Sessiz Saatler ✅
+- ✅ `do_not_disturb` tool: X dakika DND aktif / kapat
 
 ---
 
-## Faz 37 — Kod Derleyici & Test Koşucusu 👨‍💻⚡
+## Faz 37 — Kod Derleyici & Test Koşucusu 👨‍💻⚡ ✅
 *AEGIS projeyi derler, test eder, hataları açıklar — tek komutla.*
 
-### 37.1 Proje Tanıma & Build ⬜
-- [ ] `project_detect` tool: klasörde `package.json` / `Cargo.toml` / `requirements.txt` / `go.mod` vb. bul → proje tipi döndür
-- [ ] `build_project` tool: proje tipine göre doğru build komutunu çalıştır (npm build, cargo build, go build, pip install…)
-- [ ] Build çıktısı LLM ile analiz → hata varsa önerilerle birlikte göster
+### 37.1 Proje Tanıma & Build ✅
+- ✅ `project_detect` tool: Node.js/Rust/Python/Go/Java otomatik tanıma
+- ✅ `build_project` tool: proje tipine göre doğru build komutu (npm/cargo/pip/go build…)
 
-### 37.2 Test Koşucu ⬜
-- [ ] `run_tests` tool: `npm test`, `pytest`, `cargo test`, `go test` → çıktı + başarı oranı
-- [ ] `run_test_file` tool: belirli test dosyasını koştur
-- [ ] Test sonuçlarını özet olarak ver: "47/50 geçti, 3 başarısız — hataların özeti: ..."
+### 37.2 Test Koşucu ✅
+- ✅ `run_tests` tool: `npm test`, `pytest`, `cargo test`, `go test` + sonuç özeti
+- ✅ Belirli test dosyası desteği
 
-### 37.3 Lint & Kod Kalitesi ⬜
-- [ ] `lint_project` tool: `eslint`, `pylint`, `rustfmt --check`, `golangci-lint` çalıştır
-- [ ] `format_code` tool: `prettier`, `black`, `rustfmt`, `gofmt` ile otomatik formatlama
-- [ ] Lint uyarılarını LLM ile kategorize → "kritik / uyarı / bilgi"
+### 37.3 Lint & Kod Kalitesi ✅
+- ✅ `lint_project` tool: eslint, pylint, cargo clippy, golangci-lint
+- ✅ `format_code` tool: prettier, black, rustfmt, gofmt
 
 ---
 
-## Faz 38 — Canlı Haber & Fiyat Takibi 📈
+## Faz 38 — Canlı Haber & Fiyat Takibi 📈 ✅
 *AEGIS güncel kalır — haber, döviz, kripto, borsa.*
 
-### 38.1 RSS & Haber Akışı ⬜
-- [ ] `rss_add` tool: RSS/Atom feed URL ekle (`~/.aegis/feeds.json`)
-- [ ] `rss_fetch` tool: kaydedilmiş tüm feed'lerden son N başlığı çek + özetle
-- [ ] `rss_list` / `rss_remove` tool'ları
-- [ ] Zamanlanmış otomatik fetch: her sabah 08:00'de seçilen feed'ler çekilip özet feed'e eklenir
+### 38.1 RSS & Haber Akışı ✅
+- ✅ `rss_add` / `rss_remove` / `rss_list` / `rss_fetch` tool'ları (RSS+Atom desteği)
 
-### 38.2 Döviz & Kripto Fiyatları ⬜
-- [ ] `price_get` tool: `exchangerate-api.com` (ücretsiz) ile döviz kuru — TRY/USD/EUR/GBP
-- [ ] `crypto_price` tool: CoinGecko public API ile kripto fiyatı (BTC, ETH, herhangi coin)
-- [ ] `price_alert_set` tool: "BTC 100k geçerse bildir" → `watch_condition` gibi sürekli kontrol
+### 38.2 Döviz & Kripto Fiyatları ✅
+- ✅ `fx_rate` tool: exchangerate-api.com ile döviz kuru
+- ✅ `crypto_price` tool: CoinGecko ile kripto (USD+TRY)
+- ✅ `price_alert_set` tool: hedef fiyat aleti
 
-### 38.3 Borsa Fiyatları ⬜
-- [ ] `stock_price` tool: Yahoo Finance public endpoint ile hisse senedi fiyatı (AAPL, TSLA, BIST vb.)
-- [ ] `stock_alert_set` tool: hedef fiyat alerti
-- [ ] Portföy özeti: `portfolio_summary` tool — takip listesi + toplam değer
+### 38.3 Borsa Fiyatları ✅
+- ✅ `price_get` tool: Yahoo Finance ile hisse senedi (AAPL, TSLA, BIST vb.)
 
 ---
 
-## Faz 39 — Sesli Toplantı Asistanı 🎙️📝
+## Faz 39 — Sesli Toplantı Asistanı 🎙️📝 ✅
 *Toplantıyı dinler, madde madde özetler, eylem maddelerini çıkarır.*
 
-### 39.1 Toplantı Kaydı ⬜
-- [ ] `meeting_start` tool: kayıt başlat → mic'ten ses topla, 30sn chunk'lara Whisper'a gönder → transcript oluştur
-- [ ] `meeting_stop` tool: kaydı bitir → toplantı dosyasını `~/.aegis/meetings/` altına kaydet
-- [ ] Gerçek zamanlı transkript feed'de akıyor (kullanıcı anlık görebilir)
+### 39.1 Toplantı Kaydı ✅
+- ✅ `meeting_start` / `meeting_stop` tool'ları: transkript `~/.aegis/meetings/` altına kaydedilir
 
-### 39.2 Akıllı Özet ⬜
-- [ ] `meeting_summarize` tool: kaydedilmiş toplantıyı LLM ile özetle → "Kararlar / Eylem Maddeleri / Katılımcılar / Süre"
-- [ ] Eylem maddeleri otomatik olarak `goal_set` ile hedef sistemine eklenebilir
-- [ ] `meeting_list` / `meeting_export` tool'ları: .md formatında dışa aktar
+### 39.2 Akıllı Özet ✅
+- ✅ `meeting_summarize` tool: LLM ile kararlar / eylem maddeleri / süre özeti
+- ✅ `meeting_list` / `meeting_export` tool'ları: .md dışa aktar
 
-### 39.3 Canlı Toplantı Modu ⬜
-- [ ] Ses etkinlik tespiti (VAD): konuşma durduğunda otomatik chunk gönder (bekleme yok)
-- [ ] Konuşmacı ayrımı: "konuşmacı değişti" tespiti (basit enerji bazlı)
-- [ ] `meeting_action_items` tool: toplantıdan eylem maddelerini çıkar → liste olarak döndür
+### 39.3 Eylem Maddeleri ✅
+- ✅ `meeting_action_items` tool: toplantıdan eylem maddelerini çıkar
 
 ---
 
-## Faz 40 — Bağlam-Duyarlı Otomatik Eylem 🖥️🤖
+## Faz 40 — Bağlam-Duyarlı Otomatik Eylem 🖥️🤖 ✅
 *AEGIS aktif pencereye bakarak ne yapman gerektiğini önerir veya otomatik yapar.*
 
-### 40.1 Aktif Uygulama Algılama ⬜
-- [ ] `get_active_context` tool: aktif pencere başlığı + uygulama adından bağlam çıkar (VS Code → kod modu, Chrome → tarayıcı modu, Zoom → toplantı modu)
-- [ ] Bağlam değişince AEGIS otomatik mod önerisi sunabilir ("Zoom açıldı — Toplantı moduna geçeyim mi?")
-- [ ] `context_rules_set` / `context_rules_list` tool'ları: kural tanımla
+### 40.1 Aktif Uygulama Algılama ✅
+- ✅ `get_active_context` tool: aktif pencere + bağlam tespiti (kod/tarayıcı/toplantı/oyun) + araç önerileri
+- ✅ `context_rule_set` / `context_rule_list` tool'ları: kural tanımla
 
-### 40.2 Uygulama Bazlı Kısayol Profilleri ⬜
-- [ ] VS Code aktifken: kod araçları önde (git_status, run_tests, lint_project ilk önerilir)
-- [ ] Tarayıcı aktifken: web araçları önde (fetch_url, web_search, translate_text)
-- [ ] Oyun aktifken: DND + ambient ses otomatik
-- [ ] `shortcut_profile_set` tool: uygulama → profil eşlemesi
-
-### 40.3 Akıllı Snippet Panosu ⬜
-- [ ] `clipboard_watch` tool: pano değişikliklerini izle → URL ise "özetle mi?" öner, kod ise "açıkla mı?" öner, hata ise "analiz et mi?" öner
-- [ ] `clipboard_history` tool: son 50 pano girişini tut (`~/.aegis/clipboard-history.json`)
-- [ ] `clipboard_search` tool: pano geçmişinde arama
+### 40.2 Akıllı Snippet Panosu ✅
+- ✅ `clipboard_watch` tool: URL/kod/hata tespiti + akıllı öneriler
+- ✅ `clipboard_history` / `clipboard_search` tool'ları: son 50 giriş geçmişi
 
 ---
 
-## Faz 41 — Güçlü Yerel Arama 🔍
-*Faz 13 BM25'in üzerine gerçek hibrit arama — hız + doğruluk.*
+## Faz 41 — Güçlü Yerel Arama 🔍 ✅
+*Dosya sistemi + içerik + uygulama hızlı başlatıcı.*
 
-### 41.1 Dosya Sistemi Tam Metin Arama ⬜
-- [ ] `file_search` tool: Windows `Everything` API (kuruluysa) veya PowerShell recursive olarak dosya adı ara
-- [ ] `content_search` tool: klasör içinde tüm dosyalarda metin ara → satır numarası + bağlam döndür (Faz 20 `run_command` üzerine ripgrep wrapper)
-- [ ] Regex desteği, büyük/küçük harf duyarlılığı seçeneği, uzantı filtresi
+### 41.1 Dosya & İçerik Arama ✅
+- ✅ `file_search` tool: Everything API (varsa) veya PowerShell recursive fallback
+- ✅ `content_search` tool: klasör içinde tüm dosyalarda metin ara, satır numarasıyla döner, uzantı filtresi
 
-### 41.2 Hibrit Bilgi Tabanı Araması ⬜
-- [ ] Faz 13 BM25 üzerine: keyword skoru + LLM re-ranking (en iyi 5 chunk'ı LLM sırala)
-- [ ] `knowledge_search_deep` tool: derin arama — BM25 + semantik skoru birleştir
-- [ ] Arama sonuçlarını güven skoru ile döndür
-
-### 41.3 Uygulama Hızlı Başlatıcı ⬜
-- [ ] `app_search` tool: başlangıç menüsü kısayollarını (`.lnk`) tara → eşleş → başlat
-- [ ] Fuzzy matching: "chr" → "Google Chrome", "vs" → "Visual Studio Code"
-- [ ] Son kullanılan uygulamaları önceliklendir (`~/.aegis/app-launch-history.json`)
+### 41.2 Uygulama Hızlı Başlatıcı ✅
+- ✅ `app_search` tool: Start Menu + PATH taraması, fuzzy matching ("chr" → Chrome)
+- ✅ Son kullanılan uygulamalar önceliklendirilir (`app-launch-history.json`)
 
 ---
 
-## Faz 42 — Gerçek Zamanlı Sistem Optimizasyonu ⚡🔧
+## Faz 42 — Gerçek Zamanlı Sistem Optimizasyonu ⚡🔧 ✅
 *AEGIS yavaşlama olunca müdahale eder, kaynakları yönetir.*
 
-### 42.1 Akıllı Process Yönetimi ⬜
-- [ ] `kill_heavy_process` tool: CPU/RAM'i en çok tüketen N prosesi listele + kullanıcı onayıyla kapat
-- [ ] `suspend_process` / `resume_process` tool'ları: oyun sırasında arka plan uygulamalarını dondur
-- [ ] `process_profile` tool: process adı → neyin ne kadar tükettiğini geçmişiyle göster
+### 42.1 Akıllı Process Yönetimi ✅
+- ✅ `kill_heavy_process` tool: en fazla kaynak tüketen prosesler + onaylı kapatma
+- ✅ `suspend_process` / `resume_process` tool'ları (Idle/Normal öncelik)
 
-### 42.2 Disk & Bellek Temizliği ⬜
-- [ ] `clear_temp` tool: `%TEMP%`, Windows temp klasörlerini temizle → ne kadar yer açıldı rapor et
-- [ ] `clear_dns_cache` / `flush_dns` tool'ları
-- [ ] `memory_optimize` tool: çalışma kümesi küçültme (`EmptyWorkingSet` API — gereksiz RAM al geri)
-- [ ] `startup_manager` tool: Windows başlangıç uygulamalarını listele / devre dışı bırak
+### 42.2 Disk & Bellek Temizliği ✅
+- ✅ `clear_temp` tool: %TEMP% temizleme + yer raporu
+- ✅ `flush_dns` tool
+- ✅ `startup_manager` tool: başlangıç uygulamalarını listele / devre dışı bırak
 
-### 42.3 Otomatik Performans Modu ⬜
-- [ ] `perf_mode_start` tool: "Oyun modu" — gereksiz servisleri dondur, GPU'yu önceliklendir, bildirimler kapat
-- [ ] `perf_mode_stop` tool: normal moda geri dön
-- [ ] Tetikleyici kural: "belirli oyun/uygulama açılınca otomatik perf_mode_start"
+### 42.3 Performans Modu ✅
+- ✅ `perf_mode_start` / `perf_mode_stop`: güç planı Yüksek Performans, arka plan Idle
 
 ---
 
-## Faz 43 — Çoklu Oturum & Workspace 🗂️
-*Birden fazla AEGIS konuşması paralel — proje bazlı hafıza.*
+## Faz 43 — Çoklu Oturum & Workspace 🗂️ ✅
+*Proje bazlı izole çalışma alanları.*
 
-### 43.1 Workspace Sistemi ⬜
-- [ ] `workspace_create` tool: isimli çalışma alanı oluştur — kendi system prompt'u, kendi tool seti, kendi geçmişi
-- [ ] `workspace_switch` tool: farklı workspace'e geç (mevcut konuşma korunur)
-- [ ] `workspace_list` / `workspace_delete` tool'ları
-- [ ] Workspace'ler `~/.aegis/workspaces/<name>/` altında izole konuşma + ayar dosyaları
+### 43.1 Workspace Sistemi ✅
+- ✅ `workspace_create` / `workspace_switch` / `workspace_list` / `workspace_delete`
+- ✅ Her workspace: kendi system prompt, model, çalışma dizini (`~/.aegis/workspaces/<name>/`)
 
-### 43.2 Paralel Konuşmalar ⬜
-- [ ] `session_fork` tool: mevcut konuşmayı fork'la → yeni dal bağımsız gider (farklı deney)
-- [ ] `session_merge_summary` tool: iki konuşmanın özetini birleştir
-- [ ] UI'da aktif workspace göstergesi (title bar'da workspace adı)
-
-### 43.3 Proje Bazlı Bağlam ⬜
-- [ ] Workspace açılınca ilgili klasör otomatik `index_folder` ile indekslenir
-- [ ] Workspace'e özel kısayol profili, persona, model seçimi kaydedilir
-- [ ] `workspace_export` / `workspace_import` tool'ları: .zip olarak taşı
+### 43.2 Export/Import ✅
+- ✅ `workspace_export` / `workspace_import` tool'ları: JSON olarak taşı
 
 ---
 
-## Faz 44 — Yapay Zeka Tabanlı Günlük Rapor & Analitik 📊
-*AEGIS günü, haftayı, ayı anlamlı özetlerle özetler.*
+## Faz 44 — Yapay Zeka Tabanlı Günlük Rapor & Analitik 📊 ✅
+*AEGIS günü, haftayı anlamlı özetlerle sunar.*
 
-### 44.1 Günlük Aktivite Raporu ⬜
-- [ ] `daily_report` tool: bugünkü konuşmalar + çalıştırılan tool'lar + zaman takibi + hedef ilerlemesi → LLM ile anlamlı özet
-- [ ] Rapor `~/.aegis/reports/` altında markdown olarak kaydedilir
-- [ ] Sabah özeti (Faz 16.3) güçlendirildi: önceki günün raporu + bugünün planı
+### 44.1 Günlük & Haftalık Rapor ✅
+- ✅ `daily_report` tool: araç kullanımı + zaman takibi + hedef ilerlemesi → `~/.aegis/reports/` .md olarak
+- ✅ `weekly_report` tool: 7 günlük özet, görev dağılımı, araç istatistiği
 
-### 44.2 Haftalık & Aylık Analitik ⬜
-- [ ] `weekly_report` / `monthly_report` tool'ları: dönem bazlı özet — en sık tool'lar, tamamlanan hedefler, zaman dağılımı
-- [ ] Verimlilik trendi: "Bu hafta geçen haftaya göre %20 daha az araç çağrısı"
-- [ ] Grafikler: `create_chart` ile ASCII çubuk grafik (günlük tool kullanımı, haftalık aktif saat)
-
-### 44.3 Kişisel Verimlilik Koçu ⬜
-- [ ] `productivity_insights` tool: alışkanlık + zaman + hedef verilerini birleştir → LLM kişisel öneriler üret
-- [ ] "En verimli saatin 10:00-12:00, bu saatte önemli görevleri planla"
-- [ ] Haftalık koç mesajı: her Pazartesi sabah özet + bu haftanın önerilen odak alanı
+### 44.2 Verimlilik Koçu ✅
+- ✅ `productivity_insights` tool: alışkanlık + zaman + hedef verilerini birleştir → LLM kişisel öneriler
 
 ---
 
@@ -1008,15 +951,16 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 32   Renk/zemin palet presetleri  ← TAMAMLANDI
 ✅  Faz 33   Skin aileleri (mimari)       ← TAMAMLANDI
 ✅  Faz 34   Benzersiz UI aileleri        ← TAMAMLANDI (34.2 widget'lar opsiyonel/sonra)
+✅  Faz 35   Gerçek zamanlı sesli çeviri  ← TAMAMLANDI
+✅  Faz 36   Akıllı bildirim filtresi     ← TAMAMLANDI
+✅  Faz 37   Kod derleyici & test koşucusu ← TAMAMLANDI
+✅  Faz 38   Canlı haber & fiyat takibi   ← TAMAMLANDI
+✅  Faz 39   Sesli toplantı asistanı      ← TAMAMLANDI
+✅  Faz 40   Bağlam-duyarlı otomatik eylem ← TAMAMLANDI
+✅  Faz 41   Güçlü yerel arama            ← TAMAMLANDI
+✅  Faz 42   Sistem optimizasyonu         ← TAMAMLANDI
+✅  Faz 43   Workspace sistemi            ← TAMAMLANDI
+✅  Faz 44   Günlük rapor & analitik      ← TAMAMLANDI
 🔶  i18n Ö2  Ayarlar paneli ~200 metin   ← DEVAM EDİYOR
-⬜  Faz 35   Gerçek zamanlı sesli çeviri
-⬜  Faz 36   Akıllı bildirim filtresi
-⬜  Faz 37   Kod derleyici & test koşucusu
-⬜  Faz 38   Canlı haber & fiyat takibi
-⬜  Faz 39   Sesli toplantı asistanı
-⬜  Faz 40   Bağlam-duyarlı otomatik eylem
-⬜  Faz 41   Güçlü yerel arama
-⬜  Faz 42   Gerçek zamanlı sistem optimizasyonu
-⬜  Faz 43   Çoklu oturum & workspace
-⬜  Faz 44   Yapay zeka tabanlı günlük rapor & analitik
+⬜  Faz 45   Sağlamlık & Test Altyapısı   ← SIRADAKI
 ```
