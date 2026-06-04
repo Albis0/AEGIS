@@ -431,6 +431,7 @@ export interface SettingsStrings {
     keysSection: string; keysHint: string;
     // TelemetryTab
     telWidgets: string; telThresholds: string;
+    telWeatherCity: string; telWeatherCityHint: string; telWeatherCityPlaceholder: string;
     // ShortcutsTab
     scTitle: string; scHint: string;
     // ToolsTab
@@ -473,6 +474,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apCustomCss: "ÖZEL CSS", apCssHint: "Tüm CSS değişkenlerine ve sınıflarına erişebilirsin.", apActive: "AKTİF",
         keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
         telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
+        telWeatherCity: "HAVA DURUMU ŞEHRİ", telWeatherCityHint: "Boş bırakırsan IP adresine göre otomatik tespit edilir (yanlış olabilir). Şehir adı yazarsan Open-Meteo geocoding ile doğru konumu bulur.", telWeatherCityPlaceholder: "örn. İstanbul",
         scTitle: "KLAVYE KISAYOLLARI", scHint: "Kısayollar sistem genelinde çalışır.",
         tlTitle: "MEVCUT ARAÇLAR", tlHint: "Aktif araçlar AI'ın kullanabileceği işlevleri gösterir.",
         saved: "Kaydedildi",
@@ -510,6 +512,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apCustomCss: "CUSTOM CSS", apCssHint: "You have access to all CSS variables and classes.", apActive: "ACTIVE",
         keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
         telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
+        telWeatherCity: "WEATHER CITY", telWeatherCityHint: "Leave blank to auto-detect from your IP (may be inaccurate). Enter a city name to use Open-Meteo geocoding for accurate location.", telWeatherCityPlaceholder: "e.g. Istanbul",
         scTitle: "KEYBOARD SHORTCUTS", scHint: "Shortcuts work system-wide.",
         tlTitle: "AVAILABLE TOOLS", tlHint: "Active tools show what functions the AI can use.",
         saved: "Saved",
@@ -547,6 +550,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apCustomCss: "BENUTZERDEFINIERTES CSS", apCssHint: "Zugriff auf alle CSS-Variablen und Klassen.", apActive: "AKTIV",
         keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
         telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
+        telWeatherCity: "WETTERSTADT", telWeatherCityHint: "Leer lassen für automatische Erkennung per IP (kann ungenau sein). Stadtname eingeben für genauen Standort via Open-Meteo.", telWeatherCityPlaceholder: "z.B. Istanbul",
         scTitle: "TASTATURKÜRZEL", scHint: "Kürzel funktionieren systemweit.",
         tlTitle: "VERFÜGBARE WERKZEUGE", tlHint: "Aktive Tools zeigen, welche Funktionen die KI nutzen kann.",
         saved: "Gespeichert",
@@ -584,6 +588,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apCustomCss: "CSS PERSONNALISÉ", apCssHint: "Accès à toutes les variables et classes CSS.", apActive: "ACTIF",
         keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
         telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
+        telWeatherCity: "VILLE MÉTÉO", telWeatherCityHint: "Laisser vide pour la détection automatique par IP (peut être imprécise). Entrez un nom de ville pour la géolocalisation Open-Meteo.", telWeatherCityPlaceholder: "ex. Istanbul",
         scTitle: "RACCOURCIS CLAVIER", scHint: "Les raccourcis fonctionnent à l'échelle du système.",
         tlTitle: "OUTILS DISPONIBLES", tlHint: "Les outils actifs montrent les fonctions que l'IA peut utiliser.",
         saved: "Enregistré",
@@ -621,6 +626,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apCustomCss: "CSS PERSONALIZADO", apCssHint: "Acceso a todas las variables y clases CSS.", apActive: "ACTIVO",
         keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
         telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",
+        telWeatherCity: "CIUDAD DEL TIEMPO", telWeatherCityHint: "Dejar vacío para detección automática por IP (puede ser inexacta). Introduce un nombre de ciudad para geolocalización precisa con Open-Meteo.", telWeatherCityPlaceholder: "ej. Estambul",
         scTitle: "ATAJOS DE TECLADO", scHint: "Los atajos funcionan a nivel del sistema.",
         tlTitle: "HERRAMIENTAS DISPONIBLES", tlHint: "Las herramientas activas muestran las funciones que puede usar la IA.",
         saved: "Guardado",

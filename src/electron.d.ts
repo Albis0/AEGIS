@@ -125,6 +125,7 @@ export interface AppSettings {
     fullPcAccess: boolean;
     disabledTools: string[];
     cloudSync: boolean;
+    weatherCity: string;
 }
 
 export interface AegisConfig {

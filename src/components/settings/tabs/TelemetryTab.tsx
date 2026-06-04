@@ -1,6 +1,6 @@
 import {useState} from "react";
 import type {AppSettings, TelemetryWidget} from "../../../electron.d";
-import {SectionLabel, Hint} from "../shared";
+import {SectionLabel, Hint, PlainField} from "../shared";
 import type {SettingsStrings} from "../../../i18n";
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu","ram","disk","battery","network","gpu","fans","processes","system","activeWindow"];
@@ -70,6 +70,20 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
 
     return (
         <div className="space-y-7">
+
+            {/* Weather city */}
+            <div>
+                <SectionLabel label={s.telWeatherCity} accent={accent} />
+                <p className="text-[11px] mb-3 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
+                    {s.telWeatherCityHint}
+                </p>
+                <PlainField
+                    value={settings.weatherCity ?? ""}
+                    placeholder={s.telWeatherCityPlaceholder}
+                    onSave={(v) => onApply({weatherCity: v})}
+                    accent={accent}
+                />
+            </div>
 
             {/* Widget toggles */}
             <div>

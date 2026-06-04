@@ -213,7 +213,8 @@ export default function App() {
         const load = () => window.jarvis.weather().then(setWeather).catch(() => {});
         load();
         const t = setInterval(load, 600000);
-        return () => clearInterval(t);
+        const unsub = window.jarvis.on("weather-update", (w) => setWeather(w as Weather));
+        return () => { clearInterval(t); unsub(); };
     }, []);
 
     useEffect(() => {

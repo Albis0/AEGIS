@@ -643,41 +643,48 @@ function startTelemetry(): void {
 }
 
 // ---- Weather ----
+const WEATHER_CODES: Record<number, string> = {
+    0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
+    45: "sisli", 48: "sisli",
+    51: "çiseliyor", 53: "çiseliyor", 55: "çiseliyor",
+    61: "yağmurlu", 63: "yağmurlu", 65: "kuvvetli yağmur",
+    71: "karlı", 73: "karlı", 75: "yoğun kar",
+    80: "sağanak", 81: "sağanak", 82: "kuvvetli sağanak",
+    95: "gök gürültülü",
+};
+
 async function getWeather(): Promise<object> {
     try {
-        const geo = (await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json()) as {city: string; country: string; lat: number; lon: number};
+        let lat: number, lon: number, city: string, country: string;
+
+        const manualCity = (currentSettings.weatherCity ?? "").trim();
+        if (manualCity) {
+            // Geocoding via Open-Meteo (no API key needed)
+            const geo = (await (await fetch(
+                `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manualCity)}&count=1&language=tr&format=json`
+            )).json()) as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
+            if (!geo.results?.length) return {error: `"${manualCity}" bulunamadı`};
+            const r = geo.results[0];
+            lat = r.latitude; lon = r.longitude;
+            city = r.name; country = r.country;
+        } else {
+            // IP geolocation fallback
+            const geo = (await (await fetch("http://ip-api.com/json/?fields=city,country,lat,lon")).json()) as {city: string; country: string; lat: number; lon: number};
+            lat = geo.lat; lon = geo.lon;
+            city = geo.city; country = geo.country;
+        }
+
         const w = (await (
-            await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`)
+            await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code`)
         ).json()) as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number}};
         const c = w.current;
-        const CODES: Record<number, string> = {
-            0: "açık",
-            1: "az bulutlu",
-            2: "parçalı bulutlu",
-            3: "bulutlu",
-            45: "sisli",
-            48: "sisli",
-            51: "çiseliyor",
-            53: "çiseliyor",
-            55: "çiseliyor",
-            61: "yağmurlu",
-            63: "yağmurlu",
-            65: "kuvvetli yağmur",
-            71: "karlı",
-            73: "karlı",
-            75: "yoğun kar",
-            80: "sağanak",
-            81: "sağanak",
-            82: "kuvvetli sağanak",
-            95: "gök gürültülü",
-        };
         return {
-            city: geo.city,
-            country: geo.country,
+            city,
+            country,
             temp: Math.round(c.temperature_2m),
             feels: Math.round(c.apparent_temperature),
             humidity: c.relative_humidity_2m,
-            desc: CODES[c.weather_code] ?? "—",
+            desc: WEATHER_CODES[c.weather_code] ?? "—",
         };
     } catch (e) {
         return {error: (e as Error).message ?? String(e)};
@@ -1781,6 +1788,14 @@ async function bootApp(): Promise<void> {
         }
         // Cloud sync (Faz 30.7) — ayar değişince debounce'lu buluta yaz (giriş + sync açıksa).
         scheduleCloudPush();
+        // Şehir değiştiyse hava durumunu anında yenile ve renderer'a gönder.
+        if (patch.weatherCity !== undefined && mainWindow && !mainWindow.isDestroyed()) {
+            getWeather().then((w) => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("weather-update", w);
+                }
+            }).catch(() => {});
+        }
         return currentSettings;
     });
 
