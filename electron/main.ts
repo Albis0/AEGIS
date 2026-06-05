@@ -10,7 +10,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
-import {AEGIS_PROXY_URL} from "./aegis-config";
+import {AEGIS_PROXY_URL, AEGIS_GITHUB_TOKEN} from "./aegis-config";
 import {fetchModels} from "./models";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
@@ -1993,7 +1993,7 @@ async function bootApp(): Promise<void> {
         try {
             const resp = await fetchWithTimeout(
                 "https://api.github.com/repos/Albis0/AEGIS/releases/latest",
-                {headers: {"User-Agent": "AEGIS-updater", "Accept": "application/vnd.github+json"}},
+                {headers: {"User-Agent": "AEGIS-updater", "Accept": "application/vnd.github+json", "Authorization": `Bearer ${AEGIS_GITHUB_TOKEN}`}},
                 8000,
             );
             if (!resp.ok) throw new Error(`GitHub ${resp.status}`);
