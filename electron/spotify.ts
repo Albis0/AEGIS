@@ -365,11 +365,22 @@ export async function spotifyOpen(): Promise<string> {
 export async function spotifySearchPlay(query: string): Promise<string> {
     if (!query) return "HATA: Arama sorgusu boş.";
     try {
-        const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=1`);
+        const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=5`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
         if (tracks.length === 0) return `"${query}" için sonuç bulunamadı.`;
-        const track = tracks[0];
+
+        // Query kelimelerini track adı + sanatçıyla karşılaştır, en iyi eşleşmeyi seç
+        const qLower = query.toLowerCase();
+        const qWords = qLower.split(/\s+/).filter(Boolean);
+        const scored = tracks.map((t) => {
+            const combined = `${t.name} ${t.artists.map((a) => a.name).join(" ")}`.toLowerCase();
+            const hits = qWords.filter((w) => combined.includes(w)).length;
+            return {t, score: hits};
+        });
+        scored.sort((a, b) => b.score - a.score);
+        const track = scored[0].t;
+
         const deviceId = await ensureDevice();
         const pr = await api("PUT", "/me/player/play", {
             uris: [track.uri],
