@@ -1865,59 +1865,6 @@ async function bootApp(): Promise<void> {
         groq = new Groq({apiKey: updated.groqApiKey});
     });
 
-    ipcMain.handle("settings-get", () => currentSettings);
-    ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
-        const langChanged = patch.language && patch.language !== currentSettings.language;
-        currentSettings = {...currentSettings, ...patch};
-        // Auto-update TTS voice when language changes via settings panel
-        if (langChanged && !patch.ttsVoice) {
-            currentSettings.ttsVoice = LANG_DEFAULT_VOICE[currentSettings.language] ?? currentSettings.ttsVoice;
-        }
-        MODEL = currentSettings.model;
-        setFullPcAccess(currentSettings.fullPcAccess ?? false);
-        setDisabledTools(currentSettings.disabledTools ?? []);
-        saveSettings(currentSettings);
-        if (patch.autoLaunch !== undefined) {
-            app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
-        }
-        if (patch.apiServerEnabled !== undefined) {
-            if (patch.apiServerEnabled) startApiServer();
-            else stopApiServer();
-        }
-        // Sync settings-based watch conditions
-        const alertMap: Record<string, number | null> = {
-            cpu: currentSettings.alertCpuPct ?? null,
-            ram: currentSettings.alertRamPct ?? null,
-            gpu: currentSettings.alertGpuPct ?? null,
-            disk: currentSettings.alertDiskPct ?? null,
-        };
-        for (const [metric, pct] of Object.entries(alertMap)) {
-            if (pct !== null) {
-                _watchConditions.set(metric, {threshold: pct, direction: "above"});
-            } else {
-                // Only remove if it was set via settings (not via watch_condition tool)
-                const existing = _watchConditions.get(metric);
-                if (existing) _watchConditions.delete(metric);
-            }
-        }
-        if (langChanged && mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("language-changed", {
-                language: currentSettings.language,
-                ttsVoice: currentSettings.ttsVoice,
-            });
-        }
-        // Cloud sync (Faz 30.7) — ayar değişince debounce'lu buluta yaz (giriş + sync açıksa).
-        scheduleCloudPush();
-        // Şehir değiştiyse hava durumunu anında yenile ve renderer'a gönder.
-        if (patch.weatherCity !== undefined && mainWindow && !mainWindow.isDestroyed()) {
-            getWeather().then((w) => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send("weather-update", w);
-                }
-            }).catch(() => {});
-        }
-        return currentSettings;
-    });
 
     ipcMain.handle("sessions-list", async () => getSessions(25).catch(() => []));
     ipcMain.handle("session-messages", async (_e, {sessionId}: {sessionId: string}) =>
@@ -2114,6 +2061,58 @@ async function trialReady(): Promise<boolean> {
         return false;
     }
 }
+
+// ── Settings IPC — onboarding öncesinde de erişilebilir olmalı ──────────────
+// Bu handler'lar bootApp() içinde değil burada; onboarding akışı dil seçer ve
+// settingsSet çağırır, o sırada bootApp henüz çalışmamıştır.
+ipcMain.handle("settings-get", () => currentSettings);
+ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
+    const langChanged = patch.language && patch.language !== currentSettings.language;
+    currentSettings = {...currentSettings, ...patch};
+    if (langChanged && !patch.ttsVoice) {
+        currentSettings.ttsVoice = LANG_DEFAULT_VOICE[currentSettings.language] ?? currentSettings.ttsVoice;
+    }
+    MODEL = currentSettings.model;
+    setFullPcAccess(currentSettings.fullPcAccess ?? false);
+    setDisabledTools(currentSettings.disabledTools ?? []);
+    saveSettings(currentSettings);
+    if (patch.autoLaunch !== undefined) {
+        app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
+    }
+    if (patch.apiServerEnabled !== undefined) {
+        if (patch.apiServerEnabled) startApiServer();
+        else stopApiServer();
+    }
+    const alertMap: Record<string, number | null> = {
+        cpu: currentSettings.alertCpuPct ?? null,
+        ram: currentSettings.alertRamPct ?? null,
+        gpu: currentSettings.alertGpuPct ?? null,
+        disk: currentSettings.alertDiskPct ?? null,
+    };
+    for (const [metric, pct] of Object.entries(alertMap)) {
+        if (pct !== null) {
+            _watchConditions.set(metric, {threshold: pct, direction: "above"});
+        } else {
+            const existing = _watchConditions.get(metric);
+            if (existing) _watchConditions.delete(metric);
+        }
+    }
+    if (langChanged && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("language-changed", {
+            language: currentSettings.language,
+            ttsVoice: currentSettings.ttsVoice,
+        });
+    }
+    scheduleCloudPush();
+    if (patch.weatherCity !== undefined && mainWindow && !mainWindow.isDestroyed()) {
+        getWeather().then((w) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("weather-update", w);
+            }
+        }).catch(() => {});
+    }
+    return currentSettings;
+});
 
 // ── Global hata yakalayıcılar — sessiz crash'leri logla ─────────────────────
 process.on("unhandledRejection", (reason) => {
