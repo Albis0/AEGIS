@@ -231,6 +231,10 @@ export default function App() {
         isBusyRef,
         ttsRate,
     });
+    const speakRef = useRef(speak);
+    const stopSpeakingRef = useRef(stopSpeaking);
+    useEffect(() => { speakRef.current = speak; }, [speak]);
+    useEffect(() => { stopSpeakingRef.current = stopSpeaking; }, [stopSpeaking]);
 
     useEffect(() => { isBusyRef.current = streaming; }, [streaming]);
     useEffect(() => { modeRef.current = mode; }, [mode]);
@@ -328,7 +332,7 @@ export default function App() {
                 setFeed((prev) => [...prev, {id, kind: "assistant", text: reminderText, tools: []}]);
                 historyRef.current = [...historyRef.current, {role: "assistant", content: reminderText}];
                 if (modeRef.current !== "off") {
-                    speak(reminderText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+                    speakRef.current(reminderText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
                     setState("speaking");
                 }
             }),
@@ -343,16 +347,17 @@ export default function App() {
                     return "idle";
                 });
                 if (responseText && modeRef.current !== "off") {
-                    stopSpeaking();
+                    stopSpeakingRef.current();
                     setState("speaking");
-                    speak(responseText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+                    speakRef.current(responseText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
                 } else {
                     setTimeout(() => inputRef.current?.focus(), 50);
                 }
             }),
         ];
         return () => offs.forEach((off) => off());
-    }, [speak, stopSpeaking]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const t = UI[lang] ?? UI.tr;
     const placeholder =

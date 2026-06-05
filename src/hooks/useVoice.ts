@@ -355,7 +355,6 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
 
                 const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
-                source.playbackRate.value = ttsRateRef.current;
                 source.connect(audioCtx.destination);
                 ttsSourceRef.current = source;
 

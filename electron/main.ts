@@ -1817,8 +1817,10 @@ async function bootApp(): Promise<void> {
 
             // Edge TTS (default)
             const tts = new MsEdgeTTS();
-            await tts.setMetadata(currentSettings.ttsVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-            const {audioStream} = await tts.toStream(text);
+            await tts.setMetadata(currentSettings.ttsVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+            const rate = currentSettings.ttsRate ?? 1.0;
+            const rateStr = rate === 1.0 ? "+0%" : `${rate > 1 ? "+" : ""}${Math.round((rate - 1) * 100)}%`;
+            const {audioStream} = await tts.toStream(text, {rate: rateStr});
             const chunks: Buffer[] = [];
             await new Promise<void>((resolve, reject) => {
                 audioStream.on("data", (d: Buffer) => chunks.push(d));
