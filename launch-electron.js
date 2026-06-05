@@ -1,7 +1,5 @@
-// Launch Electron with a clean environment.
-// The shell has ELECTRON_RUN_AS_NODE=1 set, which makes electron.exe behave as
-// plain Node.js (require('electron') returns a path string instead of the API).
-// We must strip it before spawning the real Electron GUI process.
+// Launch Electron with a clean environment (no console window).
+// Strips ELECTRON_RUN_AS_NODE so electron.exe runs as GUI, not Node.
 const { spawn } = require('child_process')
 const path = require('path')
 
