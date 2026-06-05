@@ -1,6 +1,6 @@
 {
   "name": "real-jarvis",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Windows için kişisel AI asistanı — konuşma tanıma, 150+ araç, çoklu LLM desteği",
   "main": "dist-electron/main.js",
   "scripts": {
