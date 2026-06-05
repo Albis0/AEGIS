@@ -1988,6 +1988,15 @@ async function bootApp(): Promise<void> {
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
+    ipcMain.handle("check-for-updates", async () => {
+        if (process.env.NODE_ENV === "development") return {checking: false, dev: true};
+        try {
+            const result = await autoUpdater.checkForUpdates();
+            return {checking: true, version: result?.updateInfo?.version ?? null};
+        } catch (e) {
+            return {checking: false, error: (e as Error).message};
+        }
+    });
 }
 
 let onboardingWin: BrowserWindow | null = null;
@@ -2066,6 +2075,8 @@ async function trialReady(): Promise<boolean> {
         return false;
     }
 }
+
+ipcMain.handle("get-app-version", () => app.getVersion());
 
 // ── Auth & Spotify IPC — onboarding sırasında da gerekli ────────────────────
 // trial-auth adımı sign-in/sign-up, spotify-connect adımı spotify-authorize çağırır;

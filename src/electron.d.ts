@@ -182,6 +182,8 @@ declare global {
             apiInfo: () => Promise<{ip: string; port: number; token: string; running: boolean}>;
             apiServerToggle: (enable: boolean) => Promise<string>;
             updateInstall: () => Promise<void>;
+            checkForUpdates: () => Promise<{checking: boolean; dev?: boolean; version?: string | null; error?: string}>;
+            getAppVersion: () => Promise<string>;
         };
     }
 }

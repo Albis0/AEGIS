@@ -8,9 +8,10 @@ import TelemetryTab  from "./settings/tabs/TelemetryTab";
 import ShortcutsTab  from "./settings/tabs/ShortcutsTab";
 import ToolsTab      from "./settings/tabs/ToolsTab";
 import AccountTab    from "./settings/tabs/AccountTab";
+import AboutTab      from "./settings/tabs/AboutTab";
 import {SETTINGS, UI, type Lang} from "../i18n";
 
-type Tab = "account" | "model" | "voice" | "appearance" | "keys" | "telemetry" | "shortcuts" | "tools";
+type Tab = "account" | "model" | "voice" | "appearance" | "keys" | "telemetry" | "shortcuts" | "tools" | "about";
 
 
 interface Props {
@@ -78,6 +79,7 @@ export default function SettingsPanel({
         {id: "telemetry"  as Tab, icon: "▣", label: s.navTelemetry,  sub: s.navTelemetrySub},
         {id: "shortcuts"  as Tab, icon: "⌨", label: s.navShortcuts,  sub: s.navShortcutsSub},
         {id: "tools"      as Tab, icon: "✦", label: s.navTools,      sub: s.navToolsSub},
+        {id: "about"      as Tab, icon: "◎", label: "Hakkında",       sub: "Sürüm & güncelleme"},
     ];
 
     return (
@@ -221,6 +223,9 @@ export default function SettingsPanel({
                         )}
                         {tab === "tools" && (
                             <ToolsTab settings={settings} accent={a} ac={ac} onApply={applySettings} s={s} />
+                        )}
+                        {tab === "about" && (
+                            <AboutTab accent={a} ac={ac} />
                         )}
                     </div>
                 </main>
