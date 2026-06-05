@@ -1738,7 +1738,6 @@ async function bootApp(): Promise<void> {
 
     ipcMain.handle("weather", () => getWeather());
 
-    ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
     ipcMain.handle("spotify-now-playing", () => spotifyGetState());
     ipcMain.handle("spotify-control", (_e, {action, value}: {action: string; value?: number}) => {
         if (action === "play")   return spotifyPlay();
@@ -1825,9 +1824,6 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    // ── Auth (Faz 30) ───────────────────────────────────────────────────────
-    ipcMain.handle("auth-sign-up", (_e, {email, password}: {email: string; password: string}) => signUp(email, password));
-    ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());
     ipcMain.handle("usage-get", () => getUsage());
@@ -2061,6 +2057,13 @@ async function trialReady(): Promise<boolean> {
         return false;
     }
 }
+
+// ── Auth & Spotify IPC — onboarding sırasında da gerekli ────────────────────
+// trial-auth adımı sign-in/sign-up, spotify-connect adımı spotify-authorize çağırır;
+// o sırada bootApp henüz çalışmamıştır.
+ipcMain.handle("auth-sign-up", (_e, {email, password}: {email: string; password: string}) => signUp(email, password));
+ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
+ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
 
 // ── Settings IPC — onboarding öncesinde de erişilebilir olmalı ──────────────
 // Bu handler'lar bootApp() içinde değil burada; onboarding akışı dil seçer ve
