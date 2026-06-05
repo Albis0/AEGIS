@@ -1046,6 +1046,20 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
+## Faz 49 — Onboarding Fix & Bun Geçişi ✅
+*Kurulum ekranı düzeltmesi + paket yöneticisi modernizasyonu.*
+
+### 49.1 Onboarding Dil Seçimi Fix ✅
+- ✅ `settings-set` IPC handler'ı `bootApp()` dışına taşındı — onboarding sırasında da erişilebilir
+- ✅ Dil seçim düğmelerine tıklanınca adım ilerliyor, ayar kaydediliyor
+
+### 49.2 Bun Paket Yöneticisi ✅
+- ✅ `npm` → `bun` geçişi: `package-lock.json` → `bun.lock`
+- ✅ CI workflow güncellendi (`oven-sh/setup-bun@v2`, `--frozen-lockfile`)
+- ✅ Kurulum süresi ~45s → ~9s
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -1101,4 +1115,5 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 46   Spotify & Steam built-in     ← TAMAMLANDI
 ✅  Faz 47   Computer Use (mouse/kb AI)   ← TAMAMLANDI
 ✅  Faz 48   Sağlamlık v2 & Hata Mesajları ← TAMAMLANDI
+✅  Faz 49   Onboarding fix & Bun geçişi  ← TAMAMLANDI
 ```
