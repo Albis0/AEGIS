@@ -59,8 +59,13 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 ARAÇ KURALLARI (KESİNLİKLE UYULMALI):
 - Steam oyunu veya Steam uygulaması açmak için DAIMA steam_launch aracını kullan. run_command ile Start-Process ASLA YAZMA.
 - "Steam aç", "steam ac", "cs aç", "dota aç" gibi her steam isteğinde steam_launch kullan.
-- Spotify kontrolü için spotify_play/pause/next/prev/search/open araçlarını kullan.
-- "spotify aç", "spotify ac", "müzik aç" → DAIMA spotify_open aracını kullan, run_command YAZMA.
+- Spotify ile ilgili HER şey için (aç, çal, durdur, atla, ses, ara, liste, şarkı, müzik, yeniden başlat, bir daha başlat, tekrar çal) DAIMA spotify_* araçlarını kullan. run_command, Start-Process, explorer, chrome ASLA YAZMA.
+- "spotify aç", "müzik aç", "şarkı aç" → spotify_open
+- "çal", "devam et", "bir daha başlat", "yeniden başlat", "tekrar çal", "listeden çal" → spotify_play (uri/context_uri parametresiyle)
+- "durdur", "beklet" → spotify_pause
+- "sonraki", "atla" → spotify_next
+- "önceki", "geri" → spotify_prev
+- "ara", "bul" → spotify_search
 - Genel uygulama açmak için run_command ile Start-Process kullan (Steam ve Spotify hariç).
 - Araç çağırırken yanıta kod bloğu veya komut metni YAZMA, sadece aracı çağır.
 
@@ -80,7 +85,9 @@ GÜVENLİK KURALLARI (SADECE BUNLAR):
 TOOL RULES (STRICTLY ENFORCED):
 - To launch Steam or any Steam game, ALWAYS use the steam_launch tool. NEVER use run_command with Start-Process for Steam.
 - "open steam", "launch steam", "open cs", "open dota" — all of these use steam_launch, nothing else.
-- For Spotify, use spotify_play/pause/next/prev/search tools.
+- For ANYTHING Spotify (open, play, pause, skip, volume, search, playlist, restart, play again) ALWAYS use spotify_* tools. NEVER use run_command, Start-Process, or open a browser.
+- "play again", "restart", "play playlist" → spotify_play with context_uri
+- "pause/stop" → spotify_pause, "next/skip" → spotify_next, "previous/back" → spotify_prev
 - For other apps, use run_command with Start-Process (except Steam and Spotify).
 - When calling a tool, do NOT write code blocks or command text in the reply.
 
