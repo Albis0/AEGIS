@@ -371,10 +371,11 @@ export async function spotifySearchPlay(query: string): Promise<string> {
         if (tracks.length === 0) return `"${query}" için sonuç bulunamadı.`;
         const track = tracks[0];
         const deviceId = await ensureDevice();
-        await api("PUT", "/me/player/play", {
+        const pr = await api("PUT", "/me/player/play", {
             uris: [track.uri],
             ...(deviceId ? {device_id: deviceId} : {}),
         });
+        if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
         return `Caliniyor: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
     } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
@@ -405,10 +406,11 @@ export async function spotifyPlayPlaylist(nameOrId: string): Promise<string> {
             playlistUri = `spotify:playlist:${match.id}`;
         }
         const deviceId = await ensureDevice();
-        await api("PUT", "/me/player/play", {
+        const pr2 = await api("PUT", "/me/player/play", {
             context_uri: playlistUri,
             ...(deviceId ? {device_id: deviceId} : {}),
         });
+        if (!pr2.ok && pr2.status !== 204) return spotifyErr(pr2.status, pr2.data);
         return `Playlist baslatildi: ${nameOrId}`;
     } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
