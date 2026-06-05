@@ -1989,12 +1989,20 @@ async function bootApp(): Promise<void> {
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
     ipcMain.handle("check-for-updates", async () => {
-        if (process.env.NODE_ENV === "development") return {checking: false, dev: true};
+        if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};
         try {
-            const result = await autoUpdater.checkForUpdates();
-            return {checking: true, version: result?.updateInfo?.version ?? null};
+            const resp = await fetchWithTimeout(
+                "https://api.github.com/repos/Albis0/AEGIS/releases/latest",
+                {headers: {"User-Agent": "AEGIS-updater", "Accept": "application/vnd.github+json"}},
+                8000,
+            );
+            if (!resp.ok) throw new Error(`GitHub ${resp.status}`);
+            const data = await resp.json() as {tag_name: string};
+            const latest = data.tag_name.replace(/^v/, "");
+            const current = app.getVersion();
+            return {current, latest, hasUpdate: latest !== current};
         } catch (e) {
-            return {checking: false, error: (e as Error).message};
+            return {current: app.getVersion(), error: (e as Error).message};
         }
     });
 }

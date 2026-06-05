@@ -20,17 +20,10 @@ export default function AboutTab({accent: a, ac}: Props) {
         setErrorMsg("");
         try {
             const r = await window.jarvis.checkForUpdates();
-            if (r.dev) {
-                setStatus("uptodate");
-                return;
-            }
-            if (r.error) {
-                setErrorMsg(r.error);
-                setStatus("error");
-                return;
-            }
-            if (r.version && r.version !== version) {
-                setLatestVersion(r.version);
+            if (r.dev) { setStatus("uptodate"); return; }
+            if (r.error) { setErrorMsg(r.error); setStatus("error"); return; }
+            if (r.hasUpdate && r.latest) {
+                setLatestVersion(r.latest);
                 setStatus("available");
             } else {
                 setStatus("uptodate");
