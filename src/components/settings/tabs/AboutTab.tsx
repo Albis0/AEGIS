@@ -111,10 +111,18 @@ export default function AboutTab({accent: a, ac}: Props) {
                         style={{background: `rgba(${a},0.06)`, border: `1px solid rgba(${a},0.2)`}}>
                         {/* Başlık */}
                         <div className="flex items-center justify-between px-4 py-2.5 text-[12px]" style={{color: ac}}>
-                            <span>v{latestVersion} mevcut{status === "downloading" ? " — indiriliyor" : ""}</span>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
-                            </svg>
+                            <span>v{latestVersion} mevcut{status === "downloading" ? " — indiriliyor…" : ""}</span>
+                            {status === "available" && (
+                                <button
+                                    onClick={() => { setStatus("downloading"); window.jarvis.updateDownload(); }}
+                                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg transition hover:brightness-125"
+                                    style={{background: `rgba(${a},0.15)`, border: `1px solid rgba(${a},0.35)`, color: ac}}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
+                                    </svg>
+                                    İNDİR
+                                </button>
+                            )}
                         </div>
 
                         {/* Progress bar */}

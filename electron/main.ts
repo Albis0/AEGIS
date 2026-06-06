@@ -2006,6 +2006,7 @@ async function bootApp(): Promise<void> {
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
+    ipcMain.handle("update-download", () => autoUpdater.downloadUpdate());
     ipcMain.handle("check-for-updates", async () => {
         if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};
         try {

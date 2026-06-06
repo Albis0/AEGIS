@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     apiInfo: () => ipcRenderer.invoke("api-info"),
     apiServerToggle: (enable: boolean) => ipcRenderer.invoke("api-server-toggle", enable),
     updateInstall: () => ipcRenderer.invoke("update-install"),
+    updateDownload: () => ipcRenderer.invoke("update-download"),
     checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
     getAppVersion: () => ipcRenderer.invoke("get-app-version"),
 });
