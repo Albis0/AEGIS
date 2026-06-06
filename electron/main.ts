@@ -1968,6 +1968,13 @@ async function bootApp(): Promise<void> {
 
     // ── Auto-update (production only) ────────────────────────────────────────
     if (process.env.NODE_ENV !== "development") {
+        autoUpdater.setFeedURL({
+            provider: "github",
+            owner: "Albis0",
+            repo: "AEGIS",
+            private: true,
+            token: AEGIS_GITHUB_TOKEN,
+        });
         autoUpdater.autoDownload = true;
         autoUpdater.autoInstallOnAppQuit = true;
 
