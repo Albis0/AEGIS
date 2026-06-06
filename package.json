@@ -84,7 +84,8 @@
     "publish": {
       "provider": "github",
       "owner": "Albis0",
-      "repo": "AEGIS"
+      "repo": "AEGIS",
+      "releaseType": "release"
     }
   }
 }
