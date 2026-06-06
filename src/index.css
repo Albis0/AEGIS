@@ -205,6 +205,24 @@ input::placeholder {
     100% { transform: scale(1.8); opacity: 0; }
 }
 
+@keyframes dash-flow {
+    to { stroke-dashoffset: -100; }
+}
+
+@keyframes dash-flow-rev {
+    to { stroke-dashoffset: 100; }
+}
+
+@keyframes sonar-expand {
+    0%   { transform: scale(0.3); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes glow-pulse {
+    0%, 100% { opacity: 0.7; }
+    50%       { opacity: 1; }
+}
+
 @keyframes hex-spin {
     to { transform: rotate(360deg); }
 }
@@ -248,6 +266,86 @@ input::placeholder {
 .vortex-c {
     animation: spin-cw 12s linear infinite;
     will-change: transform;
+}
+
+.dash-flow {
+    animation: dash-flow calc(3s / var(--rx-speed, 1)) linear infinite;
+    will-change: stroke-dashoffset;
+}
+
+.dash-flow-rev {
+    animation: dash-flow-rev calc(3s / var(--rx-speed, 1)) linear infinite;
+    will-change: stroke-dashoffset;
+}
+
+.rx-spin-1 {
+    animation: spin-cw calc(20s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-spin-2 {
+    animation: spin-ccw calc(14s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-spin-3 {
+    animation: spin-cw calc(9s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-spin-fast {
+    animation: spin-ccw calc(5s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-hex-slow {
+    animation: hex-spin calc(18s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-hex-mid {
+    animation: hex-spin calc(10s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-hex-fast {
+    animation: hex-spin calc(6s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-vortex-a {
+    animation: spin-cw calc(4s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-vortex-b {
+    animation: vortex-spin calc(7s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-vortex-c {
+    animation: spin-cw calc(12s / var(--rx-speed, 1)) linear infinite;
+    will-change: transform;
+}
+
+.rx-glow-pulse {
+    animation: glow-pulse calc(2s / var(--rx-speed, 1)) ease-in-out infinite;
+    will-change: opacity;
+}
+
+.rx-sonar {
+    animation: sonar-expand calc(2.4s / var(--rx-speed, 1)) ease-out infinite;
+    will-change: transform, opacity;
+}
+
+.rx-sonar-2 {
+    animation: sonar-expand calc(2.4s / var(--rx-speed, 1)) ease-out calc(0.8s / var(--rx-speed, 1)) infinite;
+    will-change: transform, opacity;
+}
+
+.rx-sonar-3 {
+    animation: sonar-expand calc(2.4s / var(--rx-speed, 1)) ease-out calc(1.6s / var(--rx-speed, 1)) infinite;
+    will-change: transform, opacity;
 }
 
 /* ── Layout density CSS variables ── */

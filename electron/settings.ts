@@ -55,7 +55,7 @@ export interface AppSettings {
     disabledTools: string[];
     cloudSync: boolean; // "Bu cihazı senkronla" (Faz 30.7) — giriş varsa ayar/key bulut sync
     weatherCity: string; // manuel şehir adı; boşsa IP geolocation fallback
-    reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex";
+    reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];

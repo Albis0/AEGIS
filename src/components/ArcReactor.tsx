@@ -1,7 +1,10 @@
+import {lazy, Suspense} from "react";
 import ParticleGlobe from "./ParticleGlobe";
 
 export type CoreState = "idle" | "listening" | "thinking" | "speaking" | "error";
-export type ReactorStyle = "rings" | "hexcore" | "pulsar" | "vortex";
+export type ReactorStyle = "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
+
+const ArcReactor3D = lazy(() => import("./ArcReactor3D"));
 
 const LABEL: Record<CoreState, string> = {
     idle: "STANDBY",
@@ -11,7 +14,20 @@ const LABEL: Record<CoreState, string> = {
     error: "ERROR",
 };
 
-// ── Hexagon path helper ───────────────────────────────────────────────────────
+const IS_3D: Record<ReactorStyle, boolean> = {
+    rings: false, hexcore: false, pulsar: false, vortex: false,
+    orb: true, plasma: true, helix: true, quantum: true,
+};
+
+// ── Speed multiplier per state ────────────────────────────────────────────────
+function rxSpeed(state: CoreState): number {
+    return state === "thinking" ? 2.5
+        : state === "listening" ? 1.6
+        : state === "speaking"  ? 1.2
+        : 1.0;
+}
+
+// ── Hex path helper ───────────────────────────────────────────────────────────
 function hexPath(cx: number, cy: number, r: number, rot = 0): string {
     const pts = Array.from({length: 6}, (_, i) => {
         const a = (Math.PI / 180) * (60 * i + rot);
@@ -20,173 +36,298 @@ function hexPath(cx: number, cy: number, r: number, rot = 0): string {
     return `M ${pts.join(" L ")} Z`;
 }
 
-// ── Reactor variants ──────────────────────────────────────────────────────────
-
-function RingsReactor({state, capturing}: {state: CoreState; capturing?: boolean}) {
-    const midSpin =
-        state === "thinking" ? "spin-fast"
-        : state === "listening" ? "breathe-fast"
-        : "spin-3";
+// ── LITE: Chronos (Rings) ─────────────────────────────────────────────────────
+function RingsReactor({state}: {state: CoreState; capturing?: boolean}) {
+    const active = state !== "idle";
+    const errColor = state === "error" ? "rgba(239,68,68,VAR)" : "rgba(var(--hud),VAR)";
+    const c = (op: number) => errColor.replace("VAR", String(op));
 
     return (
-        <>
-            <div
-                className={`absolute rounded-full transition-opacity duration-700 ${state !== "idle" ? "w-[80%] h-[80%] opacity-60" : "w-[80%] h-[80%] opacity-20"}`}
-                style={{background: "radial-gradient(circle, rgba(var(--hud),0.35) 0%, rgba(var(--hud),0.12) 40%, transparent 70%)"}}
-            />
-            <svg className="absolute w-[98%] h-[98%] spin-1" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <circle cx="100" cy="100" r="97" strokeWidth="0.4" strokeOpacity="0.35" strokeDasharray="1 5" />
-            </svg>
-            <svg className="absolute w-[90%] h-[90%] spin-2" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <circle cx="100" cy="100" r="92" strokeWidth="0.3" strokeOpacity="0.18" />
+        <svg className="absolute w-full h-full" viewBox="0 0 200 200" fill="none">
+            <defs>
+                <radialGradient id="rg-rings-center" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor={`rgba(var(--hud),${active ? 0.9 : 0.4})`} />
+                    <stop offset="60%"  stopColor={`rgba(var(--hud),${active ? 0.3 : 0.1})`} />
+                    <stop offset="100%" stopColor="rgba(var(--hud),0)" />
+                </radialGradient>
+                <filter id="glow-rings" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation={active ? "2.5" : "1.5"} result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="glow-rings-soft" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+            </defs>
+
+            {/* Outer dotted orbit */}
+            <circle cx="100" cy="100" r="96" className="rx-spin-1"
+                stroke={c(0.15)} strokeWidth="0.4" strokeDasharray="1 5" />
+
+            {/* Tick ring */}
+            <g className="rx-spin-2">
                 {Array.from({length: 60}).map((_, i) => (
-                    <line key={i} x1="100" y1="8" x2="100" y2={i % 5 === 0 ? "15" : "12"}
-                        strokeWidth={i % 5 === 0 ? "0.7" : "0.35"}
-                        strokeOpacity={i % 5 === 0 ? "0.55" : "0.28"}
+                    <line key={i} x1="100" y1="8" x2="100" y2={i % 5 === 0 ? "16" : "12"}
+                        stroke={c(i % 5 === 0 ? 0.55 : 0.25)}
+                        strokeWidth={i % 5 === 0 ? "0.8" : "0.35"}
                         transform={`rotate(${i * 6} 100 100)`} />
                 ))}
-            </svg>
-            <svg className="absolute w-[80%] h-[80%] spin-2" viewBox="0 0 200 200" fill="none" stroke="currentColor">
+            </g>
+
+            {/* Ring 1 — bracket arcs */}
+            <g className="rx-spin-2" filter="url(#glow-rings)">
                 {[0, 90, 180, 270].map((a) => (
-                    <path key={a} d="M 100 18 A 82 82 0 0 1 158 42" strokeWidth="1.4" strokeOpacity="0.5" strokeLinecap="round" transform={`rotate(${a} 100 100)`} />
+                    <path key={a} d="M 100 20 A 80 80 0 0 1 155 45"
+                        stroke={c(0.6)} strokeWidth="1.6" strokeLinecap="round"
+                        transform={`rotate(${a} 100 100)`} />
                 ))}
-            </svg>
-            <svg className={`absolute w-[74%] h-[74%] ${midSpin}`} viewBox="0 0 200 200" fill="none" stroke="currentColor">
+            </g>
+
+            {/* Ring 2 — dashed flow */}
+            <circle cx="100" cy="100" r="68" className="rx-spin-3 dash-flow"
+                filter="url(#glow-rings)"
+                stroke={c(0.55)} strokeWidth="1.4" strokeLinecap="round"
+                strokeDasharray="18 10" />
+
+            {/* Ring 3 — triple arc segments */}
+            <g className="rx-spin-fast" filter="url(#glow-rings)">
                 {Array.from({length: 3}).map((_, i) => (
-                    <circle key={i} cx="100" cy="100" r="80" strokeWidth="1.5" strokeOpacity="0.45" strokeDasharray="80 87.5" strokeDashoffset={-i * 167.5} strokeLinecap="round" />
+                    <circle key={i} cx="100" cy="100" r="52"
+                        stroke={c(0.5)} strokeWidth="1.8" strokeLinecap="round"
+                        strokeDasharray="48 57" strokeDashoffset={-i * 105} />
                 ))}
-            </svg>
-        </>
+            </g>
+
+            {/* Ring 4 — inner tight dashes */}
+            <circle cx="100" cy="100" r="36" className="rx-spin-2 dash-flow-rev"
+                stroke={c(0.45)} strokeWidth="1.2"
+                strokeDasharray="8 6" />
+
+            {/* Center radial glow */}
+            <circle cx="100" cy="100" r={active ? "14" : "9"}
+                fill="url(#rg-rings-center)"
+                filter="url(#glow-rings-soft)"
+                style={{transition: "r 0.5s ease"}} />
+            <circle cx="100" cy="100" r={active ? "5" : "3"}
+                fill={c(active ? 1.0 : 0.5)}
+                filter="url(#glow-rings-soft)"
+                className="rx-glow-pulse" />
+        </svg>
     );
 }
 
+// ── LITE: Tesseract (Hex Core) ────────────────────────────────────────────────
 function HexCoreReactor({state}: {state: CoreState}) {
     const active = state !== "idle";
     const fast = state === "thinking";
+    const errC = state === "error";
+    const c = (op: number) => errC ? `rgba(239,68,68,${op})` : `rgba(var(--hud),${op})`;
 
     return (
-        <>
-            <div
-                className={`absolute rounded-full transition-opacity duration-700 ${active ? "opacity-50" : "opacity-15"}`}
-                style={{width: "75%", height: "75%", background: "radial-gradient(circle, rgba(var(--hud),0.4) 0%, rgba(var(--hud),0.08) 55%, transparent 75%)"}}
-            />
-            {/* Outer slow hex ring */}
-            <svg className={`absolute w-[96%] h-[96%] hex-spin-slow`} viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                {Array.from({length: 6}).map((_, i) => (
-                    <path key={i} d={hexPath(100, 100, 92, i * 60)} strokeWidth="0.4" strokeOpacity="0.25" />
-                ))}
-                <path d={hexPath(100, 100, 94)} strokeWidth="0.5" strokeOpacity="0.3" strokeDasharray="8 6" />
-            </svg>
-            {/* Mid hex ring */}
-            <svg className={`absolute w-[80%] h-[80%] ${fast ? "hex-spin-fast" : "hex-spin-mid"}`} viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <path d={hexPath(100, 100, 82)} strokeWidth="1.2" strokeOpacity="0.45" />
+        <svg className="absolute w-full h-full" viewBox="0 0 200 200" fill="none">
+            <defs>
+                <radialGradient id="rg-hex-center" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor={c(active ? 0.35 : 0.12)} />
+                    <stop offset="100%" stopColor={c(0)} />
+                </radialGradient>
+                <filter id="glow-hex" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="glow-hex-vertex" x="-100%" y="-100%" width="300%" height="300%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+            </defs>
+
+            {/* Outer hex ring with flowing dash */}
+            <g className={`rx-hex-slow`}>
+                <path d={hexPath(100, 100, 90)} stroke={c(0.25)} strokeWidth="0.5" strokeDasharray="6 8"
+                    className="dash-flow" />
                 {Array.from({length: 6}).map((_, i) => {
                     const a = (Math.PI / 3) * i;
-                    const x = 100 + 82 * Math.cos(a);
-                    const y = 100 + 82 * Math.sin(a);
-                    return <path key={i} d={hexPath(x, y, 7)} strokeWidth="0.8" strokeOpacity="0.5" />;
+                    const x = 100 + 90 * Math.cos(a);
+                    const y = 100 + 90 * Math.sin(a);
+                    return <path key={i} d={hexPath(x, y, 6)} stroke={c(0.3)} strokeWidth="0.6"
+                        filter="url(#glow-hex-vertex)" fill={c(0.05)} />;
                 })}
-            </svg>
-            {/* Inner hex */}
-            <svg className={`absolute w-[60%] h-[60%] ${fast ? "hex-spin-mid" : "hex-spin-slow"}`} style={{animationDirection: "reverse"}} viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <path d={hexPath(100, 100, 70)} strokeWidth="1.5" strokeOpacity="0.6" />
-                <path d={hexPath(100, 100, 55)} strokeWidth="0.7" strokeOpacity="0.3" strokeDasharray="5 8" />
-            </svg>
-            {/* Center hex */}
-            <svg className="absolute w-[30%] h-[30%]" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <path d={hexPath(100, 100, 70)} strokeWidth="2.5" strokeOpacity={active ? 0.9 : 0.5} fill="rgba(var(--hud),0.08)" />
-                <path d={hexPath(100, 100, 50)} strokeWidth="1" strokeOpacity="0.4" />
-            </svg>
-        </>
+            </g>
+
+            {/* Mid hex — flowing edges */}
+            <g className={fast ? "rx-hex-fast" : "rx-hex-mid"} filter="url(#glow-hex)">
+                <path d={hexPath(100, 100, 72)} stroke={c(0.5)} strokeWidth="1.2"
+                    strokeDasharray="12 6" className="dash-flow" />
+                {Array.from({length: 6}).map((_, i) => {
+                    const a = (Math.PI / 3) * i;
+                    const x = 100 + 72 * Math.cos(a);
+                    const y = 100 + 72 * Math.sin(a);
+                    return <circle key={i} cx={x} cy={y} r="3.5"
+                        fill={c(active ? 0.9 : 0.4)}
+                        filter="url(#glow-hex-vertex)" className="rx-glow-pulse" />;
+                })}
+            </g>
+
+            {/* Inner hex — reverse spin */}
+            <g className={fast ? "rx-hex-mid" : "rx-hex-slow"} style={{animationDirection: "reverse"}}
+                filter="url(#glow-hex)">
+                <path d={hexPath(100, 100, 52)} stroke={c(0.65)} strokeWidth="1.6"
+                    strokeDasharray="10 4" className="dash-flow-rev" />
+                <path d={hexPath(100, 100, 40)} stroke={c(0.3)} strokeWidth="0.6" strokeDasharray="4 8" />
+            </g>
+
+            {/* Center hex — filled */}
+            <path d={hexPath(100, 100, 26)} fill="url(#rg-hex-center)"
+                stroke={c(active ? 0.9 : 0.45)} strokeWidth="2"
+                filter="url(#glow-hex)" className="rx-glow-pulse" />
+            <path d={hexPath(100, 100, 16)} stroke={c(0.35)} strokeWidth="0.8" strokeDasharray="3 5" />
+
+            {/* Center dot */}
+            <circle cx="100" cy="100" r={active ? "5" : "3"}
+                fill={c(active ? 1 : 0.5)} filter="url(#glow-hex-vertex)" className="rx-glow-pulse" />
+        </svg>
     );
 }
 
+// ── LITE: Sonar (Pulsar) ──────────────────────────────────────────────────────
 function PulsarReactor({state}: {state: CoreState}) {
     const active = state !== "idle";
-    const speed = state === "thinking" ? "1.1s" : state === "listening" ? "1.5s" : "2.2s";
+    const errC = state === "error";
+    const c = (op: number) => errC ? `rgba(239,68,68,${op})` : `rgba(var(--hud),${op})`;
 
     return (
-        <>
-            {/* Expanding wave rings */}
-            {[0, 1, 2].map((i) => (
-                <div key={i} className="absolute rounded-full"
-                    style={{
-                        width: "60%", height: "60%",
-                        border: "1px solid rgba(var(--hud),0.6)",
-                        animation: `pulsar-ring ${speed} ease-out ${(i * parseFloat(speed)) / 3}s infinite`,
-                        opacity: active ? 0.8 : 0.4,
-                    }} />
-            ))}
-            {/* Static outer guide ring */}
-            <svg className="absolute w-[90%] h-[90%] spin-1" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <circle cx="100" cy="100" r="92" strokeWidth="0.3" strokeOpacity="0.2" strokeDasharray="2 8" />
-            </svg>
-            {/* Inner accent ring */}
-            <svg className="absolute w-[65%] h-[65%] spin-3" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                {Array.from({length: 4}).map((_, i) => (
-                    <circle key={i} cx="100" cy="100" r="80" strokeWidth="1.2" strokeOpacity="0.35"
-                        strokeDasharray="40 80" strokeDashoffset={-i * 120} strokeLinecap="round" />
+        <svg className="absolute w-full h-full" viewBox="0 0 200 200" fill="none">
+            <defs>
+                <radialGradient id="rg-pulsar-core" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor={c(active ? 1 : 0.6)} />
+                    <stop offset="40%"  stopColor={c(active ? 0.4 : 0.15)} />
+                    <stop offset="100%" stopColor={c(0)} />
+                </radialGradient>
+                <radialGradient id="rg-pulsar-wave" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor={c(0)} />
+                    <stop offset="60%"  stopColor={c(0.25)} />
+                    <stop offset="100%" stopColor={c(0)} />
+                </radialGradient>
+                <filter id="glow-pulsar" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation={active ? "4" : "2"} result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="glow-pulsar-core" x="-100%" y="-100%" width="300%" height="300%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+            </defs>
+
+            {/* Sonar expand waves (3 staggered) */}
+            <circle cx="100" cy="100" r="50" className="rx-sonar"
+                stroke={c(0.6)} strokeWidth="1" fill="url(#rg-pulsar-wave)" />
+            <circle cx="100" cy="100" r="50" className="rx-sonar-2"
+                stroke={c(0.5)} strokeWidth="0.8" fill="none" />
+            <circle cx="100" cy="100" r="50" className="rx-sonar-3"
+                stroke={c(0.4)} strokeWidth="0.6" fill="none" />
+
+            {/* Outer guide ring */}
+            <circle cx="100" cy="100" r="92" className="rx-spin-1"
+                stroke={c(0.15)} strokeWidth="0.35" strokeDasharray="2 8" />
+
+            {/* Static rings with flowing dash */}
+            <circle cx="100" cy="100" r="78" className="rx-spin-2 dash-flow"
+                filter="url(#glow-pulsar)"
+                stroke={c(0.35)} strokeWidth="0.8" strokeDasharray="6 10" />
+            <circle cx="100" cy="100" r="60" className="rx-spin-3 dash-flow-rev"
+                filter="url(#glow-pulsar)"
+                stroke={c(0.45)} strokeWidth="1.0" strokeDasharray="8 8" />
+
+            {/* 3 arc segments 120° apart */}
+            <g className="rx-spin-fast" filter="url(#glow-pulsar)">
+                {[0, 120, 240].map((a) => (
+                    <path key={a} d="M 100 54 A 46 46 0 0 1 130 62"
+                        stroke={c(0.65)} strokeWidth="2" strokeLinecap="round"
+                        transform={`rotate(${a} 100 100)`} />
                 ))}
-            </svg>
-            {/* Center glow dot */}
-            <div className="absolute rounded-full transition-all duration-500"
-                style={{
-                    width: active ? "8%" : "5%",
-                    height: active ? "8%" : "5%",
-                    background: "radial-gradient(circle, rgba(var(--hud),1) 0%, rgba(var(--hud),0.3) 60%, transparent 100%)",
-                    boxShadow: `0 0 ${active ? 20 : 8}px rgba(var(--hud),0.8)`,
-                }} />
-        </>
+            </g>
+
+            {/* Center core glow */}
+            <circle cx="100" cy="100" r={active ? "20" : "12"}
+                fill="url(#rg-pulsar-core)" filter="url(#glow-pulsar-core)"
+                style={{transition: "r 0.5s ease"}} className="rx-glow-pulse" />
+            <circle cx="100" cy="100" r={active ? "6" : "4"}
+                fill={c(active ? 1 : 0.6)} filter="url(#glow-pulsar-core)" />
+        </svg>
     );
 }
 
+// ── LITE: Singularity (Vortex) ────────────────────────────────────────────────
 function VortexReactor({state}: {state: CoreState}) {
     const active = state !== "idle";
     const fast = state === "thinking";
+    const errC = state === "error";
+    const c = (op: number) => errC ? `rgba(239,68,68,${op})` : `rgba(var(--hud),${op})`;
 
-    // Spiral segments: 3 arcs at different radii, each rotated
-    const arcs = [
-        {r: 85, sw: 1.0, op: 0.5, dash: "60 95", cls: "vortex-a"},
-        {r: 68, sw: 1.4, op: 0.6, dash: "50 78", cls: "vortex-b"},
-        {r: 50, sw: 1.8, op: 0.7, dash: "40 58", cls: fast ? "spin-fast" : "vortex-a"},
-        {r: 33, sw: 2.0, op: 0.8, dash: "28 38", cls: fast ? "vortex-b" : "vortex-c"},
+    // 4 rings: inside out — fewer longer dashes → more shorter dashes
+    const rings = [
+        {r: 30, sw: 2.2, dash: "16 10", cls: fast ? "rx-spin-fast" : "rx-vortex-a", flow: "dash-flow"},
+        {r: 48, sw: 1.8, dash: "12 10", cls: fast ? "rx-vortex-a" : "rx-vortex-b", flow: "dash-flow-rev"},
+        {r: 65, sw: 1.4, dash: "9 10",  cls: fast ? "rx-vortex-b" : "rx-vortex-c", flow: "dash-flow"},
+        {r: 82, sw: 1.0, dash: "6 10",  cls: "rx-vortex-c",                        flow: "dash-flow-rev"},
     ];
 
     return (
-        <>
-            <div
-                className={`absolute rounded-full transition-opacity duration-700 ${active ? "opacity-55" : "opacity-18"}`}
-                style={{width: "80%", height: "80%", background: "radial-gradient(circle, rgba(var(--hud),0.3) 0%, rgba(var(--hud),0.05) 60%, transparent 80%)"}}
-            />
-            {/* Outer dashed guide */}
-            <svg className="absolute w-[98%] h-[98%] spin-1" viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                <circle cx="100" cy="100" r="96" strokeWidth="0.35" strokeOpacity="0.25" strokeDasharray="1 6" />
-            </svg>
-            {/* Vortex spirals */}
-            {arcs.map((arc, i) => (
-                <svg key={i} className={`absolute w-full h-full ${arc.cls}`} viewBox="0 0 200 200" fill="none" stroke="currentColor">
-                    {Array.from({length: 3}).map((_, j) => (
-                        <circle key={j} cx="100" cy="100" r={arc.r}
-                            strokeWidth={arc.sw} strokeOpacity={arc.op * (active ? 1 : 0.55)}
-                            strokeDasharray={arc.dash}
-                            strokeDashoffset={-(j * (parseFloat(arc.dash.split(" ")[0]) + parseFloat(arc.dash.split(" ")[1])) / 3)}
-                            strokeLinecap="round" />
-                    ))}
-                </svg>
+        <svg className="absolute w-full h-full" viewBox="0 0 200 200" fill="none">
+            <defs>
+                <radialGradient id="rg-vortex" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stopColor={c(active ? 0.55 : 0.2)} />
+                    <stop offset="50%"  stopColor={c(active ? 0.15 : 0.05)} />
+                    <stop offset="100%" stopColor={c(0)} />
+                </radialGradient>
+                <filter id="glow-vortex" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="glow-vortex-core" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+            </defs>
+
+            {/* Radial fill */}
+            <circle cx="100" cy="100" r="88" fill="url(#rg-vortex)" />
+
+            {/* Outer guide */}
+            <circle cx="100" cy="100" r="96" className="rx-spin-1"
+                stroke={c(0.15)} strokeWidth="0.4" strokeDasharray="1 6" />
+
+            {/* Vortex rings */}
+            {rings.map((ring, i) => (
+                <circle key={i} cx="100" cy="100" r={ring.r}
+                    className={`${ring.cls} ${ring.flow}`}
+                    filter="url(#glow-vortex)"
+                    stroke={c((active ? 0.7 : 0.35) - i * 0.04)}
+                    strokeWidth={ring.sw}
+                    strokeLinecap="round"
+                    strokeDasharray={ring.dash} />
             ))}
-            {/* Center core */}
-            <div className="absolute rounded-full transition-all duration-500"
-                style={{
-                    width: "12%", height: "12%",
-                    background: "radial-gradient(circle, rgba(var(--hud),0.9) 0%, rgba(var(--hud),0.2) 70%, transparent 100%)",
-                    boxShadow: active ? `0 0 18px rgba(var(--hud),0.7), 0 0 40px rgba(var(--hud),0.2)` : `0 0 6px rgba(var(--hud),0.4)`,
-                }} />
-        </>
+
+            {/* Double spiral center paths */}
+            <g filter="url(#glow-vortex)">
+                <path d="M 100 88 Q 112 94 100 100 Q 88 106 100 112"
+                    stroke={c(active ? 0.8 : 0.4)} strokeWidth="1.5" strokeLinecap="round"
+                    className="rx-spin-3" />
+                <path d="M 100 88 Q 88 94 100 100 Q 112 106 100 112"
+                    stroke={c(active ? 0.6 : 0.3)} strokeWidth="1.2" strokeLinecap="round"
+                    className="rx-vortex-b" />
+            </g>
+
+            {/* Core */}
+            <circle cx="100" cy="100" r={active ? "10" : "7"}
+                fill={c(active ? 0.9 : 0.4)} filter="url(#glow-vortex-core)"
+                className="rx-glow-pulse" style={{transition: "r 0.5s ease"}} />
+            <circle cx="100" cy="100" r={active ? "4" : "2.5"}
+                fill={c(1)} filter="url(#glow-vortex-core)" />
+        </svg>
     );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-
 export default function ArcReactor({
     state,
     capturing,
@@ -197,21 +338,42 @@ export default function ArcReactor({
     reactorStyle?: ReactorStyle;
 }) {
     const active = state !== "idle";
+    const speed = rxSpeed(state);
+    const is3D = IS_3D[reactorStyle];
 
     return (
-        <div className="relative grid place-items-center w-full h-full hud" style={{color: "rgb(var(--hud))"}}>
-            {reactorStyle === "rings"   && <RingsReactor   state={state} capturing={capturing} />}
-            {reactorStyle === "hexcore" && <HexCoreReactor state={state} />}
-            {reactorStyle === "pulsar"  && <PulsarReactor  state={state} />}
-            {reactorStyle === "vortex"  && <VortexReactor  state={state} />}
+        <div className="relative grid place-items-center w-full h-full hud"
+            style={{"--rx-speed": speed, color: "rgb(var(--hud))"} as React.CSSProperties}>
 
-            {/* Particle globe — shown for all styles */}
-            <div className="absolute w-[70%] h-[70%]">
-                <ParticleGlobe state={state} capturing={capturing} />
-            </div>
+            {/* Lite SVG reactors */}
+            {!is3D && (
+                <div className="absolute inset-0 grid place-items-center">
+                    {reactorStyle === "rings"   && <RingsReactor   state={state} capturing={capturing} />}
+                    {reactorStyle === "hexcore" && <HexCoreReactor state={state} />}
+                    {reactorStyle === "pulsar"  && <PulsarReactor  state={state} />}
+                    {reactorStyle === "vortex"  && <VortexReactor  state={state} />}
+                </div>
+            )}
+
+            {/* 3D reactors */}
+            {is3D && (
+                <div className="absolute inset-0">
+                    <Suspense fallback={null}>
+                        <ArcReactor3D state={state} capturing={capturing} reactorStyle={reactorStyle} />
+                    </Suspense>
+                </div>
+            )}
+
+            {/* Particle globe — Lite modda 3D reaktörlerin üzerinde değil */}
+            {!is3D && (
+                <div className="absolute w-[70%] h-[70%]">
+                    <ParticleGlobe state={state} capturing={capturing} />
+                </div>
+            )}
 
             {/* State label */}
-            <div className="absolute bottom-[2%] text-[10px] tracking-[0.5em] glow-text flex items-center gap-2" style={{fontFamily: "Orbitron, sans-serif"}}>
+            <div className="absolute bottom-[2%] text-[10px] tracking-[0.5em] glow-text flex items-center gap-2"
+                style={{fontFamily: "Orbitron, sans-serif"}}>
                 {LABEL[state]}
                 {active && <span className="flick">●</span>}
             </div>

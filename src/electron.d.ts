@@ -126,7 +126,7 @@ export interface AppSettings {
     disabledTools: string[];
     cloudSync: boolean;
     weatherCity: string;
-    reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex";
+    reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
 }
 
 export interface AegisConfig {
