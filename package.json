@@ -78,9 +78,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "AEGIS"
     },
-    "electronDownload": {
-      "mirror": "https://npmmirror.com/mirrors/electron/"
-    },
     "publish": {
       "provider": "github",
       "owner": "Albis0",
