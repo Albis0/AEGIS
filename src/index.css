@@ -200,6 +200,56 @@ input::placeholder {
     will-change: transform, opacity;
 }
 
+@keyframes pulsar-ring {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes hex-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes vortex-spin {
+    to { transform: rotate(-360deg); }
+}
+
+.pulsar-wave {
+    animation: pulsar-ring 2.2s ease-out infinite;
+    will-change: transform, opacity;
+}
+.pulsar-wave-2 {
+    animation: pulsar-ring 2.2s ease-out 0.7s infinite;
+    will-change: transform, opacity;
+}
+.pulsar-wave-3 {
+    animation: pulsar-ring 2.2s ease-out 1.4s infinite;
+    will-change: transform, opacity;
+}
+.hex-spin-slow {
+    animation: hex-spin 18s linear infinite;
+    will-change: transform;
+}
+.hex-spin-mid {
+    animation: hex-spin 10s linear infinite;
+    will-change: transform;
+}
+.hex-spin-fast {
+    animation: hex-spin 6s linear infinite;
+    will-change: transform;
+}
+.vortex-a {
+    animation: spin-cw 4s linear infinite;
+    will-change: transform;
+}
+.vortex-b {
+    animation: vortex-spin 7s linear infinite;
+    will-change: transform;
+}
+.vortex-c {
+    animation: spin-cw 12s linear infinite;
+    will-change: transform;
+}
+
 /* ── Layout density CSS variables ── */
 :root {
     --gap:   1rem;      /* gap between panels */

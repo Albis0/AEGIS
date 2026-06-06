@@ -24,12 +24,13 @@ interface Props {
     onLayoutChange: (layout: AppSettings["layout"]) => void;
     onCustomCssChange: (css: string) => void;
     onTelemetryWidgetsChange: (widgets: TelemetryWidget[]) => void;
+    onReactorStyleChange: (style: AppSettings["reactorStyle"]) => void;
     lang: Lang;
 }
 
 export default function SettingsPanel({
     open, onClose, onAccentChange, onFamilyChange, onSkinChange, onFontChange,
-    onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange, lang,
+    onLayoutChange, onCustomCssChange, onTelemetryWidgetsChange, onReactorStyleChange, lang,
 }: Props) {
     const [tab, setTab]         = useState<Tab>("model");
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -53,9 +54,10 @@ export default function SettingsPanel({
     const applySettings = useCallback(async (patch: Partial<AppSettings>) => {
         const updated = await window.jarvis.settingsSet(patch);
         setSettings(updated);
+        if (patch.reactorStyle) onReactorStyleChange(patch.reactorStyle);
         setSaved(true);
         setTimeout(() => setSaved(false), 1800);
-    }, []);
+    }, [onReactorStyleChange]);
 
     const applyConfig = useCallback(async (patch: Partial<AegisConfig>) => {
         await window.jarvis.configSet(patch);

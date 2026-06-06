@@ -55,6 +55,7 @@ export interface AppSettings {
     disabledTools: string[];
     cloudSync: boolean; // "Bu cihazı senkronla" (Faz 30.7) — giriş varsa ayar/key bulut sync
     weatherCity: string; // manuel şehir adı; boşsa IP geolocation fallback
+    reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex";
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -99,6 +100,7 @@ const DEFAULTS: AppSettings = {
     disabledTools: [],
     cloudSync: true,
     weatherCity: "",
+    reactorStyle: "rings",
 };
 
 const SETTINGS_PATH = path.join(os.homedir(), ".aegis", "settings.json");

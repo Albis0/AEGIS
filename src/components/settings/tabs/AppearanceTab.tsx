@@ -135,7 +135,32 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 ))}
             </div>
 
-            {/* ── 2. LAYOUT yoğunluk ── */}
+            {/* ── 2. REAKTÖR TİPİ (sadece Hologram skin'de görünür) ── */}
+            {settings.skin === "hologram" && (
+                <div>
+                    <SectionLabel label="Reaktör Tipi" accent={accent} />
+                    <div className="grid grid-cols-2 gap-2">
+                        {([
+                            {id: "rings",   label: "Rings",    sub: "Klasik halka sistemi"},
+                            {id: "hexcore", label: "Hex Core", sub: "Altıgen enerji çekirdeği"},
+                            {id: "pulsar",  label: "Pulsar",   sub: "Yayılan dalga halkalar"},
+                            {id: "vortex",  label: "Vortex",   sub: "Sarmal enerji akışı"},
+                        ] as const).map((r) => {
+                            const isActive = (settings.reactorStyle ?? "rings") === r.id;
+                            return (
+                                <RadioCard key={r.id} active={isActive} accent={accent}
+                                    onClick={() => applyWithSideEffect({reactorStyle: r.id})}
+                                    className="flex flex-col gap-0.5 px-4 py-3">
+                                    <span className="text-[13px] font-semibold" style={{color: isActive ? ac : `rgba(${accent},0.6)`}}>{r.label}</span>
+                                    <span className="text-[10px]" style={{color: `rgba(${accent},0.35)`}}>{r.sub}</span>
+                                </RadioCard>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ── 4. LAYOUT yoğunluk ── */}
             <div>
                 <SectionLabel label={s.apDensity} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
@@ -156,7 +181,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* ── 3. İNCE AYAR (gizlenebilir) — renk, palet preset, font ── */}
+            {/* ── 5. İNCE AYAR (gizlenebilir) — renk, palet preset, font ── */}
             <div className="rounded-xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.08)`}}>
                 <button
                     onClick={() => setFineOpen((o) => !o)}

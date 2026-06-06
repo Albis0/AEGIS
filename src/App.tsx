@@ -91,6 +91,7 @@ export default function App() {
     const [ttsRate, setTtsRate] = useState(1.0);
     const [updateInfo, setUpdateInfo] = useState<{version?: string; ready: boolean} | null>(null);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
+    const [reactorStyle, setReactorStyle] = useState<AppSettings["reactorStyle"]>("rings");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
     const [lang, setLang] = useState<Lang>("tr");
     const [telemetryWidgets, setTelemetryWidgets] = useState<TelemetryWidget[]>([
@@ -108,6 +109,7 @@ export default function App() {
             applyCustomCss(s.customCss ?? "");
             setLang((s.language ?? "tr") as Lang);
             if (s.telemetryWidgets) setTelemetryWidgets(s.telemetryWidgets);
+            if (s.reactorStyle) setReactorStyle(s.reactorStyle);
         });
     }, []);
 
@@ -427,10 +429,10 @@ export default function App() {
         onSend: send, onStop: handleStop, onSettingsOpen: handleSettingsOpen,
         onHistoryOpen: handleHistoryOpen,
         onNavigateHistory: navigateInputHistory,
-        feedRef, inputRef, layout, telemetryWidgets, t,
+        feedRef, inputRef, layout, telemetryWidgets, t, reactorStyle,
     }), [feed, input, attachments, state, streaming, tel, weather,
         mode, listening, activated, capturing, placeholder,
-        send, handleStop, handleSettingsOpen, handleHistoryOpen, navigateInputHistory, layout, telemetryWidgets, t]);
+        send, handleStop, handleSettingsOpen, handleHistoryOpen, navigateInputHistory, layout, telemetryWidgets, t, reactorStyle]);
 
     return (
         <>
@@ -444,6 +446,7 @@ export default function App() {
                 onLayoutChange={setLayout}
                 onCustomCssChange={applyCustomCss}
                 onTelemetryWidgetsChange={setTelemetryWidgets}
+                onReactorStyleChange={setReactorStyle}
                 lang={lang}
             />
             <ChatHistorySidebar

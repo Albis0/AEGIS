@@ -2,7 +2,7 @@ import React, {type ReactNode, useState, useEffect} from "react";
 import type {CoreState} from "../ArcReactor";
 import type {Telemetry, Weather, TelemetryWidget} from "../../electron.d";
 import type {VoiceMode} from "../../hooks/useVoice";
-import ArcReactor from "../ArcReactor";
+import ArcReactor, {type ReactorStyle} from "../ArcReactor";
 import VoiceModeToggle from "../VoiceModeToggle";
 import FeedItem from "../FeedItem";
 import type {FeedItemType} from "../FeedItem";
@@ -59,6 +59,7 @@ export interface SkinProps {
     layout: "normal" | "compact";
     telemetryWidgets?: TelemetryWidget[];
     t: LangStrings;
+    reactorStyle?: ReactorStyle;
 }
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow"];
@@ -67,7 +68,7 @@ export default function HologramSkin({
     feed, input, setInput, attachments, setAttachments, state, streaming, tel, weather,
     mode, setMode, listening, activated, capturing, placeholder,
     onSend, onStop, onSettingsOpen, onHistoryOpen, onNavigateHistory, feedRef, inputRef, layout,
-    telemetryWidgets, t,
+    telemetryWidgets, t, reactorStyle,
 }: SkinProps) {
     const compact = layout === "compact";
     const active = (s: CoreState) => s !== "idle";
@@ -223,7 +224,7 @@ export default function HologramSkin({
                 {/* CENTER */}
                 <div className="flex-1 min-w-0 grid place-items-center relative">
                     <div className="aspect-square h-full max-h-[72vh] max-w-full">
-                        <ArcReactor state={state} capturing={capturing} />
+                        <ArcReactor state={state} capturing={capturing} reactorStyle={reactorStyle} />
                     </div>
                 </div>
 
