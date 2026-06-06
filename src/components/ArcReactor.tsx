@@ -39,78 +39,80 @@ function hexPath(cx: number, cy: number, r: number, rot = 0): string {
 // ── LITE: Chronos (Rings) ─────────────────────────────────────────────────────
 function RingsReactor({state}: {state: CoreState; capturing?: boolean}) {
     const active = state !== "idle";
-    const errColor = state === "error" ? "rgba(239,68,68,VAR)" : "rgba(var(--hud),VAR)";
-    const c = (op: number) => errColor.replace("VAR", String(op));
+    const err = state === "error";
+    const c = (op: number) => err ? `rgba(239,68,68,${op})` : `rgba(var(--hud),${op})`;
 
     return (
         <svg className="absolute w-full h-full" viewBox="0 0 200 200" fill="none">
             <defs>
                 <radialGradient id="rg-rings-center" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%"   stopColor={`rgba(var(--hud),${active ? 0.9 : 0.4})`} />
-                    <stop offset="60%"  stopColor={`rgba(var(--hud),${active ? 0.3 : 0.1})`} />
-                    <stop offset="100%" stopColor="rgba(var(--hud),0)" />
+                    <stop offset="0%"   stopColor={c(active ? 1.0 : 0.5)} />
+                    <stop offset="50%"  stopColor={c(active ? 0.35 : 0.12)} />
+                    <stop offset="100%" stopColor={c(0)} />
                 </radialGradient>
-                <filter id="glow-rings" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur stdDeviation={active ? "2.5" : "1.5"} result="blur" />
+                <filter id="glow-rings" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
                     <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
-                <filter id="glow-rings-soft" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
+                <filter id="glow-rings-core" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
                     <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
             </defs>
 
-            {/* Outer dotted orbit */}
-            <circle cx="100" cy="100" r="96" className="rx-spin-1"
-                stroke={c(0.15)} strokeWidth="0.4" strokeDasharray="1 5" />
-
-            {/* Tick ring */}
-            <g className="rx-spin-2">
-                {Array.from({length: 60}).map((_, i) => (
-                    <line key={i} x1="100" y1="8" x2="100" y2={i % 5 === 0 ? "16" : "12"}
-                        stroke={c(i % 5 === 0 ? 0.55 : 0.25)}
-                        strokeWidth={i % 5 === 0 ? "0.8" : "0.35"}
-                        transform={`rotate(${i * 6} 100 100)`} />
+            {/* Outer tick ring — 48 marks */}
+            <g className="rx-spin-1">
+                {Array.from({length: 48}).map((_, i) => (
+                    <line key={i}
+                        x1="100" y1="6"
+                        x2="100" y2={i % 4 === 0 ? "13" : "10"}
+                        stroke={c(i % 4 === 0 ? 0.5 : 0.2)}
+                        strokeWidth={i % 4 === 0 ? "0.9" : "0.4"}
+                        transform={`rotate(${i * 7.5} 100 100)`} />
                 ))}
             </g>
 
-            {/* Ring 1 — bracket arcs */}
-            <g className="rx-spin-2" filter="url(#glow-rings)">
+            {/* Ring 1 — 4 bracket arcs, counter-rotate */}
+            <g className="rx-spin-2" style={{transformOrigin: "100px 100px"}} filter="url(#glow-rings)">
                 {[0, 90, 180, 270].map((a) => (
-                    <path key={a} d="M 100 20 A 80 80 0 0 1 155 45"
-                        stroke={c(0.6)} strokeWidth="1.6" strokeLinecap="round"
+                    <path key={a}
+                        d="M 100 18 A 82 82 0 0 1 158 50"
+                        stroke={c(0.65)} strokeWidth="1.8" strokeLinecap="round"
                         transform={`rotate(${a} 100 100)`} />
                 ))}
             </g>
 
-            {/* Ring 2 — dashed flow */}
-            <circle cx="100" cy="100" r="68" className="rx-spin-3 dash-flow"
+            {/* Ring 2 — flowing dash, larger */}
+            <circle cx="100" cy="100" r="70"
+                className="rx-spin-3 dash-flow"
                 filter="url(#glow-rings)"
-                stroke={c(0.55)} strokeWidth="1.4" strokeLinecap="round"
-                strokeDasharray="18 10" />
+                stroke={c(0.55)} strokeWidth="1.3" strokeLinecap="round"
+                strokeDasharray="20 12" />
 
-            {/* Ring 3 — triple arc segments */}
+            {/* Ring 3 — 3 arc segments */}
             <g className="rx-spin-fast" filter="url(#glow-rings)">
-                {Array.from({length: 3}).map((_, i) => (
-                    <circle key={i} cx="100" cy="100" r="52"
-                        stroke={c(0.5)} strokeWidth="1.8" strokeLinecap="round"
-                        strokeDasharray="48 57" strokeDashoffset={-i * 105} />
+                {[0, 1, 2].map((i) => (
+                    <circle key={i} cx="100" cy="100" r="54"
+                        stroke={c(0.5)} strokeWidth="2.0" strokeLinecap="round"
+                        strokeDasharray="46 60" strokeDashoffset={i * -106} />
                 ))}
             </g>
 
-            {/* Ring 4 — inner tight dashes */}
-            <circle cx="100" cy="100" r="36" className="rx-spin-2 dash-flow-rev"
-                stroke={c(0.45)} strokeWidth="1.2"
-                strokeDasharray="8 6" />
+            {/* Ring 4 — inner reverse dashes */}
+            <circle cx="100" cy="100" r="38"
+                className="rx-spin-2 dash-flow-rev"
+                filter="url(#glow-rings)"
+                stroke={c(0.45)} strokeWidth="1.1"
+                strokeLinecap="round" strokeDasharray="10 8" />
 
-            {/* Center radial glow */}
-            <circle cx="100" cy="100" r={active ? "14" : "9"}
+            {/* Center core glow */}
+            <circle cx="100" cy="100" r={active ? "18" : "11"}
                 fill="url(#rg-rings-center)"
-                filter="url(#glow-rings-soft)"
+                filter="url(#glow-rings-core)"
                 style={{transition: "r 0.5s ease"}} />
-            <circle cx="100" cy="100" r={active ? "5" : "3"}
-                fill={c(active ? 1.0 : 0.5)}
-                filter="url(#glow-rings-soft)"
+            <circle cx="100" cy="100" r={active ? "5.5" : "3.5"}
+                fill={c(active ? 1.0 : 0.6)}
+                filter="url(#glow-rings-core)"
                 className="rx-glow-pulse" />
         </svg>
     );

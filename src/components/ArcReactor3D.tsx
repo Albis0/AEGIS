@@ -35,7 +35,7 @@ function OrbScene({state}: ReactorProps) {
     const pts   = useRef<THREE.Points>(null!);
 
     // fibonacci sphere particles
-    const [positions, colors] = useMemo(() => {
+    const orbGeo = useMemo(() => {
         const count = 220;
         const pos = new Float32Array(count * 3);
         const col = new Float32Array(count * 3);
@@ -51,7 +51,10 @@ function OrbScene({state}: ReactorProps) {
             col[i * 3 + 1] = color.g;
             col[i * 3 + 2] = color.b;
         }
-        return [pos, col];
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("color",    new THREE.BufferAttribute(col, 3));
+        return geo;
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state]);
 
@@ -79,11 +82,7 @@ function OrbScene({state}: ReactorProps) {
     return (
         <>
             {/* Particle sphere */}
-            <points ref={pts}>
-                <bufferGeometry>
-                    <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-                    <bufferAttribute attach="attributes-color"    args={[colors, 3]} />
-                </bufferGeometry>
+            <points ref={pts} geometry={orbGeo}>
                 <pointsMaterial size={0.04} vertexColors {...mat} />
             </points>
 
@@ -300,7 +299,7 @@ function QuantumScene({state}: ReactorProps) {
     const ptRef = useRef<THREE.Points>(null!);
 
     // Torus-shaped particle ring
-    const ptPositions = useMemo(() => {
+    const ptGeo = useMemo(() => {
         const count = 320;
         const pos = new Float32Array(count * 3);
         const R = 1.8; const r = 0.18;
@@ -311,7 +310,9 @@ function QuantumScene({state}: ReactorProps) {
             pos[i * 3 + 1] = r * Math.sin(v);
             pos[i * 3 + 2] = (R + r * Math.cos(v)) * Math.sin(u);
         }
-        return pos;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        return geo;
     }, []);
 
     useFrame((_, delta) => {
@@ -340,10 +341,7 @@ function QuantumScene({state}: ReactorProps) {
     return (
         <>
             {/* Particle torus ring */}
-            <points ref={ptRef}>
-                <bufferGeometry>
-                    <bufferAttribute attach="attributes-position" args={[ptPositions, 3]} />
-                </bufferGeometry>
+            <points ref={ptRef} geometry={ptGeo}>
                 <pointsMaterial size={0.035} color={color} {...mat} />
             </points>
 
