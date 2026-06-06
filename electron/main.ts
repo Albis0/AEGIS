@@ -1984,6 +1984,17 @@ async function bootApp(): Promise<void> {
             }
         });
 
+        autoUpdater.on("download-progress", (prog) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("update-progress", {
+                    percent: Math.round(prog.percent),
+                    transferred: prog.transferred,
+                    total: prog.total,
+                    bytesPerSecond: prog.bytesPerSecond,
+                });
+            }
+        });
+
         autoUpdater.on("update-downloaded", () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send("update-downloaded", {});
