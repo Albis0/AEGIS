@@ -1975,7 +1975,7 @@ async function bootApp(): Promise<void> {
             private: true,
             token: AEGIS_GITHUB_TOKEN,
         });
-        autoUpdater.autoDownload = true;
+        autoUpdater.autoDownload = false;
         autoUpdater.autoInstallOnAppQuit = true;
 
         autoUpdater.on("update-available", (info) => {
