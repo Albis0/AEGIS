@@ -1027,6 +1027,8 @@ function trimToBudget(messages: OAIMessage[], caps: ModelCaps, maxOut: number): 
     return sysMsg ? [sysMsg, ...kept] : kept;
 }
 
+// ── AI çağrısı — tüm provider'lar burada (groq/anthropic/gemini/ollama/xai/deepseek/openai/mistral)
+// TODO: electron/ai-client.ts'e taşı — currentSettings/MODEL/groq bağımlılıkları çözülünce
 async function callAI(messages: OAIMessage[], onDelta?: (text: string) => void, lockedSchemas?: ReturnType<typeof getAllToolSchemas>): Promise<OAICompletion> {
     const provider = currentSettings.aiProvider;
     const key = getProviderKey(provider);
