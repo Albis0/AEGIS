@@ -1,13 +1,8 @@
 import React, {useState} from "react";
 import type {LangStrings} from "../i18n";
 import {toolLabel} from "./skins/toolLabels";
-
-type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type Attachment = {name: string; url: string; mime: string; data: string};
-export type FeedItemType =
-    | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
-    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
-    | {id: string; kind: "error"; text: string};
+import type {ToolLine, FeedItem as FeedItemType} from "../types/feed";
+export type {FeedItemType};
 
 function parseSearchSource(detail?: string): string | null {
     if (!detail) return null;

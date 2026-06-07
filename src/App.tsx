@@ -9,15 +9,10 @@ import {getSkinComp} from "./components/skins/registry";
 import {UI, type Lang} from "./i18n";
 import {getFamily} from "./themes";
 import {applyAccent} from "./utils/color";
+import type {FeedItem, Attachment} from "./types/feed";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
-type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type Attachment = {name: string; url: string; mime: string; data: string};
-type FeedItem =
-    | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
-    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
-    | {id: string; kind: "error"; text: string};
 
 const FONT_FAMILIES: Record<string, string> = {
     jetbrains:    "'JetBrains Mono', monospace",

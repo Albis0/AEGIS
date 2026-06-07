@@ -10,14 +10,7 @@ import FeedItem from "../FeedItem";
 import type {FeedItemType} from "../FeedItem";
 import type {LangStrings} from "../../i18n";
 import SpotifyWidget from "../SpotifyWidget";
-
-type ToolLine = {name: string; status: "running" | "done"; detail?: string};
-type Attachment = {name: string; url: string; mime: string; data: string};
-type FeedItemLocal =
-    | {id: string; kind: "user"; text: string; attachments?: Attachment[]}
-    | {id: string; kind: "assistant"; text: string; tools: ToolLine[]}
-    | {id: string; kind: "error"; text: string};
-
+import type {FeedItem as FeedItemLocal, Attachment} from "../../types/feed";
 
 export interface SkinProps {
     feed: FeedItemLocal[];
