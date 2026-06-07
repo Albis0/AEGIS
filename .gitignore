@@ -16,6 +16,12 @@ coverage/
 # npm lockfile — proje bun kullanıyor, package-lock.json CI'ı karıştırır
 package-lock.json
 
+# Electron installer çıktıları
+AEGIS*.exe
+AEGIS Setup*.exe
+AEGIS-*.exe
+release/
+
 # Junk / test dosyaları
 electron-out.log
 main.js

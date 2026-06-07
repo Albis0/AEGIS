@@ -4,7 +4,8 @@
 // pirinç/amber vurgu, içe gömülü bevel (inset gölge), fiziksel düğme hissi,
 // kâğıt-deri-metal doku katmanları. Oxanium / Rajdhani font.
 
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -466,8 +467,7 @@ function Gauge({label, value, max = 100, color = SK.brass}: {label: string; valu
 
 export function SkCockpit(p: SkinProps) {
     const {tel, weather} = p;
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => { const i = setInterval(() => setClock(new Date()), 1000); return () => clearInterval(i); }, []);
+    const clock = useClock();
 
     return (
         <div className="h-screen w-screen flex flex-col" style={{

@@ -5,6 +5,7 @@
 // (dış yumuşak drop + iç highlight), kabarık/samimi yüzeyler. Poppins font.
 
 import React, {useState, useEffect} from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -359,8 +360,7 @@ export function ClPebble(p: SkinProps) {
 // ══════════════════════════════════════════════════════════════════════════════
 export function ClTiles(p: SkinProps) {
     const {tel, weather} = p;
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => { const i = setInterval(() => setClock(new Date()), 1000); return () => clearInterval(i); }, []);
+    const clock = useClock();
 
     const tiles: {label: string; value: string; accent: string; bg: string}[] = [
         {label: "CPU",  value: `${tel?.cpu ?? 0}%`,  accent: CL.lila,  bg: "#2d2050"},

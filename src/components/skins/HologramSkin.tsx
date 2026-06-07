@@ -1,4 +1,5 @@
-import React, {type ReactNode, useState, useEffect} from "react";
+import React, {type ReactNode, useState} from "react";
+import {useClock} from "../../hooks/useClock";
 import type {CoreState} from "../ArcReactor";
 import type {Telemetry, Weather, TelemetryWidget} from "../../electron.d";
 import type {VoiceMode} from "../../hooks/useVoice";
@@ -75,12 +76,7 @@ export default function HologramSkin({
     const widgets = telemetryWidgets ?? ALL_WIDGETS;
     const show = (w: TelemetryWidget) => widgets.includes(w);
 
-    // Clock lives here — ticking every second must not bust the parent memo
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => {
-        const t = setInterval(() => setClock(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
+    const clock = useClock();
 
     return (
         <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col${compact ? " compact" : ""}`}>

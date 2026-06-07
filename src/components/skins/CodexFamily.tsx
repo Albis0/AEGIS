@@ -5,7 +5,8 @@
 // yüksek kontrast — bir kod editörü / teknik döküman havası. HUD (neon) ve Nebula
 // (yumuşak bubble) ailelerinden bilinçli olarak tamamen farklı.
 
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -153,8 +154,7 @@ export function CodexDoc(p: SkinProps) {
 // ───────────────────────────── 2) Codex · Split ─────────────────────────────
 export function CodexSplit(p: SkinProps) {
     const {tel} = p;
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => { const i = setInterval(() => setClock(new Date()), 1000); return () => clearInterval(i); }, []);
+    const clock = useClock();
     const Row = ({k, v}: {k: string; v: string}) => (
         <div className="flex justify-between text-[10px] py-0.5"><span className="opacity-45 tracking-wider">{k}</span><span className="tabular-nums" style={{color: "rgb(var(--hud-soft))"}}>{v}</span></div>
     );

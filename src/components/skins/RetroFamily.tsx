@@ -4,7 +4,8 @@
 // kaplama, blok BÜYÜK HARF mono, sıcak fosfor hissi. Diğer üç aileden (neon HUD,
 // yumuşak Nebula, düz Codex) bilinçli olarak tamamen farklı.
 
-import React, {useState, useEffect} from "react";
+import React from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -152,8 +153,7 @@ export function RetroCRT(p: SkinProps) {
 
 // ───────────────────────────── 2) Retro · Boot ──────────────────────────────
 export function RetroBoot(p: SkinProps) {
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => { const i = setInterval(() => setClock(new Date()), 1000); return () => clearInterval(i); }, []);
+    const clock = useClock();
     return (
         <div className="h-screen w-screen flex flex-col relative" style={retroBg as React.CSSProperties}>
             <Scanlines />

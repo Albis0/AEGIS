@@ -4,7 +4,8 @@
 // elektrik vurgu rengi, sert ofset drop-shadow (4px 4px 0 #fff / renkli),
 // düz renk (gradyan yok), dev/kalın tipografi. Syne / Space Grotesk.
 
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -318,8 +319,7 @@ export function NbSwitch(p: SkinProps) {
 // ══════════════════════════════════════════════════════════════════════════════
 export function NbGrid(p: SkinProps) {
     const {tel, weather} = p;
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => { const i = setInterval(() => setClock(new Date()), 1000); return () => clearInterval(i); }, []);
+    const clock = useClock();
 
     const cells: {k: string; v: string; color: string}[] = [
         {k: "CPU",  v: `${tel?.cpu ?? 0}%`,  color: NB.accent},

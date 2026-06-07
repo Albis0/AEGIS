@@ -1,4 +1,5 @@
-﻿import React, {useState, useEffect} from "react";
+﻿import React from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -22,11 +23,7 @@ export default function MinimalSkin({
     mode, setMode, listening, activated, placeholder, t,
     onSend, onStop, onSettingsOpen, onNavigateHistory, feedRef, inputRef,
 }: SkinProps) {
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => {
-        const t = setInterval(() => setClock(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
+    const clock = useClock();
     return (
         <div
             className="h-screen w-screen flex flex-col"

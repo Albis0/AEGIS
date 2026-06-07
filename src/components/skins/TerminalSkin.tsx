@@ -1,4 +1,5 @@
-﻿import React, {useState, useEffect} from "react";
+﻿import React from "react";
+import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -25,11 +26,7 @@ export default function TerminalSkin({
     onSend, onStop, onSettingsOpen, onNavigateHistory, feedRef, inputRef,
 }: SkinProps) {
     const promptColor = state === "error" ? "rgb(var(--status-danger))" : state === "thinking" ? "rgb(var(--status-warn))" : "rgb(var(--hud))";
-    const [clock, setClock] = useState(new Date());
-    useEffect(() => {
-        const t = setInterval(() => setClock(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
+    const clock = useClock();
 
     return (
         <div

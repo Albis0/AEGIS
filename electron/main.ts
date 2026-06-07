@@ -166,6 +166,11 @@ function getSystemPrompt(lang: string, fullPcAccess = false): string {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+function sendToRenderer(channel: string, payload: object = {}): void {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send(channel, payload);
+}
+
 // ---- System tray icon (16x16 cyan circle, no external files) ----
 function buildTrayIconBuffer(): Buffer {
     const W = 16, H = 16;
@@ -657,9 +662,7 @@ function startTelemetry(): void {
             checkWatchConditions(
                 liveMetrics,
                 (msg) => {
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send("reminder-fired", {message: msg});
-                    }
+                    sendToRenderer("reminder-fired", {message: msg});
                     if (ElectronNotification.isSupported()) {
                         new ElectronNotification({title: "AEGIS · Eşik Uyarısı", body: msg}).show();
                     }
@@ -668,9 +671,7 @@ function startTelemetry(): void {
         }
 
         checkAutomations(liveMetrics, (action) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("chat-stream-inject", {command: action});
-            }
+            sendToRenderer("chat-stream-inject", {command: action});
         });
     }, 1500));
 }
@@ -1365,7 +1366,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     const trimmedHistory = history.length > 60 ? history.slice(-60) : history;
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...trimmedHistory];
     const send = (channel: string, payload: object) => {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, {reqId, ...payload});
+        sendToRenderer(channel, {reqId, ...payload});
         if (channel === "chat-delta") broadcastFeedEvent("delta", payload);
         else if (channel === "chat-done") broadcastFeedEvent("done", payload);
         else if (channel === "tool-event") broadcastFeedEvent("tool", payload);
@@ -1498,9 +1499,7 @@ async function bootApp(): Promise<void> {
     registerQuitCallback(() => app.quit());
 
     registerRemindCallback((message) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("reminder-fired", {message});
-        }
+        sendToRenderer("reminder-fired", {message});
     });
 
     registerNotificationCallback((title, body) => {
@@ -1658,9 +1657,7 @@ async function bootApp(): Promise<void> {
         const voice = LANG_DEFAULT_VOICE[lang] ?? LANG_DEFAULT_VOICE.tr;
         currentSettings = {...currentSettings, language: lang as AppSettings["language"], ttsVoice: voice};
         saveSettings(currentSettings);
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("language-changed", {language: lang, ttsVoice: voice});
-        }
+        sendToRenderer("language-changed", {language: lang, ttsVoice: voice});
     });
     await startSession().catch((e) => console.error("[startSession]", e.message));
 
@@ -1691,9 +1688,7 @@ async function bootApp(): Promise<void> {
 
     registerMacroRunCallback(async (steps) => {
         for (const step of steps) {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("chat-stream-inject", {command: step});
-            }
+            sendToRenderer("chat-stream-inject", {command: step});
             await new Promise<void>((r) => setTimeout(r, 3000));
         }
     });
@@ -1730,16 +1725,10 @@ async function bootApp(): Promise<void> {
             } else if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
                 msg = "İnternet bağlantısı kurulamadı. Ağ bağlantını kontrol et ve tekrar dene.";
             }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("chat-error", {reqId, message: msg});
-            }
+            sendToRenderer("chat-error", {reqId, message: msg});
         } finally {
             // chat-done her zaman gönderilmeli — streaming state sıfırlanır
-            if (!errSent || true) {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send("chat-done", {reqId});
-                }
-            }
+            sendToRenderer("chat-done", {reqId});
         }
     });
 
@@ -1957,9 +1946,7 @@ async function bootApp(): Promise<void> {
     }
 
     registerSchedulerCallback((task) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("chat-stream-inject", {command: task.command});
-        }
+        sendToRenderer("chat-stream-inject", {command: task.command});
         if (ElectronNotification.isSupported()) {
             new ElectronNotification({title: "AEGIS · Zamanlanmış Görev", body: task.name}).show();
         }
@@ -1979,26 +1966,20 @@ async function bootApp(): Promise<void> {
         autoUpdater.autoInstallOnAppQuit = true;
 
         autoUpdater.on("update-available", (info) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("update-available", {version: info.version});
-            }
+            sendToRenderer("update-available", {version: info.version});
         });
 
         autoUpdater.on("download-progress", (prog) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("update-progress", {
-                    percent: Math.round(prog.percent),
-                    transferred: prog.transferred,
-                    total: prog.total,
-                    bytesPerSecond: prog.bytesPerSecond,
-                });
-            }
+            sendToRenderer("update-progress", {
+                percent: Math.round(prog.percent),
+                transferred: prog.transferred,
+                total: prog.total,
+                bytesPerSecond: prog.bytesPerSecond,
+            });
         });
 
         autoUpdater.on("update-downloaded", () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("update-downloaded", {});
-            }
+            sendToRenderer("update-downloaded", {});
         });
 
         autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message));
@@ -2147,19 +2128,15 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
             if (existing) _watchConditions.delete(metric);
         }
     }
-    if (langChanged && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("language-changed", {
+    if (langChanged) {
+        sendToRenderer("language-changed", {
             language: currentSettings.language,
             ttsVoice: currentSettings.ttsVoice,
         });
     }
     scheduleCloudPush();
-    if (patch.weatherCity !== undefined && mainWindow && !mainWindow.isDestroyed()) {
-        getWeather().then((w) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("weather-update", w);
-            }
-        }).catch(() => {});
+    if (patch.weatherCity !== undefined) {
+        getWeather().then((w) => sendToRenderer("weather-update", w as object)).catch(() => {});
     }
     return currentSettings;
 });
