@@ -8,6 +8,7 @@ import type {Telemetry, Weather, AppSettings, TelemetryWidget} from "./electron.
 import {getSkinComp} from "./components/skins/registry";
 import {UI, type Lang} from "./i18n";
 import {getFamily} from "./themes";
+import {applyAccent} from "./utils/color";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -44,36 +45,11 @@ function applyCustomCss(css: string) {
     el.textContent = css;
 }
 
-function applyAccent(rgb: string) {
-    const [r, g, b] = rgb.split(",").map((x) => parseInt(x.trim(), 10));
-    const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;
-    const soft = `${Math.min(255, Math.round(r * 1.2))}, ${Math.min(255, Math.round(g * 1.1))}, ${Math.min(255, Math.round(b * 1.05))}`;
-    const ok = hslToRgbStr(140, 70, 55);
-    const warn = hslToRgbStr(45, 90, 60);
-    const danger = hslToRgbStr(0, 85, 60);
-    document.documentElement.style.setProperty("--hud", rgb);
-    document.documentElement.style.setProperty("--hud-deep", deep);
-    document.documentElement.style.setProperty("--hud-soft", soft);
-    document.documentElement.style.setProperty("--status-ok", ok);
-    document.documentElement.style.setProperty("--status-warn", warn);
-    document.documentElement.style.setProperty("--status-danger", danger);
-    document.documentElement.style.setProperty("--status-pending", rgb);
-}
-
 // UI ailesi → arka plan değişkenleri (accent/font ayrı uygulanır)
 function applyFamilyBg(familyId: string) {
     const f = getFamily(familyId);
     document.documentElement.style.setProperty("--bg", f.bg);
     document.documentElement.style.setProperty("--bg-deep", f.bgDeep);
-}
-
-
-function hslToRgbStr(h: number, s: number, l: number): string {
-    s /= 100; l /= 100;
-    const k = (n: number) => (n + h / 30) % 12;
-    const a = s * Math.min(l, 1 - l);
-    const f = (n: number) => Math.round((l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))) * 255);
-    return `${f(0)}, ${f(8)}, ${f(4)}`;
 }
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);

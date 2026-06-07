@@ -22,14 +22,13 @@ import {checkAutomations} from "./automations";
 import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent, setApiServerWindow} from "./api-server";
 import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
-// @ts-ignore
-import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
+import {generateTts} from "./tts";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -1775,48 +1774,13 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("tts", async (_e, text: string) => {
         try {
             const cfg = loadConfig();
-            const elKey = cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "";
-
-            if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
-                const voiceId = currentSettings.ttsVoice.startsWith("el:") ?
-                    currentSettings.ttsVoice.slice(3) :
-                    "cgSgspJ2msm6clMCkdW9"; // Jessica (default)
-                const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
-                const resp = await fetchWithTimeout(
-                    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-                    {
-                        method: "POST",
-                        headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
-                        body: JSON.stringify({
-                            text,
-                            model_id: "eleven_flash_v2_5",
-                            voice_settings: {stability: 0.5, similarity_boost: 0.75},
-                            output_format: "mp3_44100_128",
-                            speed,
-                        }),
-                    },
-                );
-                if (!resp.ok) {
-                    const body = await resp.text().catch(() => "");
-                    throw new Error(`ElevenLabs ${resp.status}: ${body || "Bilinmeyen hata. API key doğru mu?"}`);
-                }
-                const ab = await resp.arrayBuffer();
-                return {buffer: Buffer.from(ab)};
-            }
-
-            // Edge TTS (default)
-            const tts = new MsEdgeTTS();
-            await tts.setMetadata(currentSettings.ttsVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
-            const rate = currentSettings.ttsRate ?? 1.0;
-            const rateStr = rate === 1.0 ? "+0%" : `${rate > 1 ? "+" : ""}${Math.round((rate - 1) * 100)}%`;
-            const {audioStream} = await tts.toStream(text, {rate: rateStr});
-            const chunks: Buffer[] = [];
-            await new Promise<void>((resolve, reject) => {
-                audioStream.on("data", (d: Buffer) => chunks.push(d));
-                audioStream.on("close", resolve);
-                audioStream.on("error", reject);
+            const buffer = await generateTts(text, {
+                provider: currentSettings.ttsProvider,
+                voice: currentSettings.ttsVoice,
+                rate: currentSettings.ttsRate ?? 1.0,
+                elevenlabsKey: cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "",
             });
-            return {buffer: Buffer.concat(chunks)};
+            return {buffer};
         } catch (e) {
             return {error: (e as Error).message ?? String(e)};
         }
@@ -1896,29 +1860,12 @@ async function bootApp(): Promise<void> {
 
     registerTtsHandler(async (text) => {
         const cfg = loadConfig();
-        const elKey = cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "";
-        if (currentSettings.ttsProvider === "elevenlabs" && elKey) {
-            const voiceId = currentSettings.ttsVoice.startsWith("el:") ? currentSettings.ttsVoice.slice(3) : "cgSgspJ2msm6clMCkdW9";
-            const speed = Math.max(0.7, Math.min(1.2, currentSettings.ttsRate ?? 1.0));
-            const resp = await fetchWithTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-                method: "POST",
-                headers: {"xi-api-key": elKey, "Content-Type": "application/json"},
-                body: JSON.stringify({text, model_id: "eleven_flash_v2_5", voice_settings: {stability: 0.5, similarity_boost: 0.75}, output_format: "mp3_44100_128", speed}),
-            }, 30_000);
-            if (!resp.ok) return null;
-            return Buffer.from(await resp.arrayBuffer());
-        }
-        const {MsEdgeTTS: EdgeTTS, OUTPUT_FORMAT: FMT} = await import("msedge-tts") as typeof import("msedge-tts");
-        const tts = new EdgeTTS();
-        await tts.setMetadata(currentSettings.ttsVoice, FMT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-        const {audioStream} = await tts.toStream(text);
-        const chunks: Buffer[] = [];
-        await new Promise<void>((resolve, reject) => {
-            audioStream.on("data", (d: Buffer) => chunks.push(d));
-            audioStream.on("close", resolve);
-            audioStream.on("error", reject);
+        return generateTts(text, {
+            provider: currentSettings.ttsProvider,
+            voice: currentSettings.ttsVoice,
+            rate: currentSettings.ttsRate ?? 1.0,
+            elevenlabsKey: cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "",
         });
-        return Buffer.concat(chunks);
     });
 
     if (currentSettings.apiServerEnabled) startApiServer();
