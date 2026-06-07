@@ -27,8 +27,9 @@ import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
+import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {generateTts} from "./tts";
-import {callAI, extractTextContent, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
+import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
 dotenv.config({path: path.join(__dirname, "../.env")});
@@ -930,7 +931,7 @@ async function bootApp(): Promise<void> {
 
     registerAnalyzeScreenCallback(async (base64: string, prompt: string) => {
         const provider = currentSettings.aiProvider;
-        const key = getProviderKey(provider);
+        const key = getProviderKey(provider, currentSettings);
         const imgUrl = `data:image/png;base64,${base64}`;
 
         // ── Deneme modu (proxy) — kendi Groq key'i yoksa senin proxy'inden ──
@@ -1025,7 +1026,7 @@ async function bootApp(): Promise<void> {
         }
 
         // ── Groq (fallback + groq seçiliyken) ──
-        const groqKey = getProviderKey("groq") || process.env.GROQ_API_KEY || "";
+        const groqKey = getProviderKey("groq", currentSettings) || process.env.GROQ_API_KEY || "";
         const visionGroq = new Groq({apiKey: groqKey});
         const resp = await visionGroq.chat.completions.create({
             model: "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -1182,7 +1183,7 @@ async function bootApp(): Promise<void> {
 
     // Canlı model listesi — provider'ın resmi endpoint'inden (uydurma ID sorununu çözer).
     ipcMain.handle("models-list", async (_e, {provider, key}: {provider: string; key?: string}) => {
-        const useKey = (key ?? "").trim() || getProviderKey(provider);
+        const useKey = (key ?? "").trim() || getProviderKey(provider, currentSettings);
         return fetchModels(provider, useKey, currentSettings.ollamaUrl);
     });
 
