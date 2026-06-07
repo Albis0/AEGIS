@@ -6,9 +6,9 @@
   "scripts": {
     "dev:vite": "vite --host 127.0.0.1",
     "dev:electron": "tsc -p tsconfig.electron.json && node launch-electron.js",
-    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"npm:dev:vite\" \"wait-on tcp:127.0.0.1:5173 && npm run dev:electron\"",
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"bun run dev:vite\" \"wait-on tcp:127.0.0.1:5173 && bun run dev:electron\"",
     "build": "vite build && tsc -p tsconfig.electron.json",
-    "electron:build": "npm run build && electron-builder",
+    "electron:build": "bun run build && electron-builder",
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "vitest bench"

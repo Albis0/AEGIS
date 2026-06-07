@@ -30,8 +30,8 @@ import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {generateTts} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
-// .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
-try { require("dotenv").config({path: require("path").join(__dirname, "../.env")}); } catch { /* production'da dotenv yok */ }
+// .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
+try { require("dotenv").config({path: path.join(__dirname, "../.env")}); } catch { /* production build */ }
 
 // config.json varsa env'yi override et
 const savedConfig = loadConfig();
