@@ -3,7 +3,6 @@ import * as zlib from "zlib";
 import * as path from "path";
 import * as os from "os";
 import {exec} from "child_process";
-import * as dotenv from "dotenv";
 // @ts-ignore
 import Groq from "groq-sdk";
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
@@ -32,7 +31,7 @@ import {generateTts} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
 // .env (dev ortamı) — varsa yükle, production'da config.json kullanılır
-dotenv.config({path: path.join(__dirname, "../.env")});
+try { require("dotenv").config({path: require("path").join(__dirname, "../.env")}); } catch { /* production'da dotenv yok */ }
 
 // config.json varsa env'yi override et
 const savedConfig = loadConfig();
