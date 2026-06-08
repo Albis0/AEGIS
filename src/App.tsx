@@ -90,6 +90,31 @@ export default function App() {
     const reqIdRef = useRef<string | null>(null);
     const feedRef = useRef<HTMLDivElement>(null);
 
+    // Sentence-level streaming TTS state
+    const sentBufRef = useRef("");            // partial sentence accumulator
+    const ttsQueueRef = useRef<string[]>([]); // sentences waiting to be spoken
+    const ttsPlayingRef = useRef(false);      // true while a sentence is being TTS'd
+    const ttsOnAllEndRef = useRef<(() => void) | null>(null); // called when queue fully drains
+    const SENT_END = /(?<=[.!?])\s+|(?<=\n)\s*\n/;
+
+    const drainTtsQueue = useCallback(() => {
+        if (ttsPlayingRef.current) return;
+        if (modeRef.current === "off") { ttsQueueRef.current = []; return; }
+        if (ttsQueueRef.current.length === 0) {
+            const onEnd = ttsOnAllEndRef.current;
+            ttsOnAllEndRef.current = null;
+            onEnd?.();
+            return;
+        }
+        const sentence = ttsQueueRef.current.shift()!;
+        ttsPlayingRef.current = true;
+        setState("speaking");
+        speakRef.current(sentence, () => {
+            ttsPlayingRef.current = false;
+            drainTtsQueue();
+        });
+    }, []);
+
     // Terminal tarzı input geçmişi — ArrowUp/Down ile gezme
     const inputHistoryRef = useRef<string[]>([]);
     const inputHistoryIdxRef = useRef(-1);
@@ -152,6 +177,10 @@ export default function App() {
         reqIdRef.current = reqId;
         activeIdRef.current = aId;
         accRef.current = "";
+        sentBufRef.current = "";
+        ttsQueueRef.current = [];
+        ttsPlayingRef.current = false;
+        ttsOnAllEndRef.current = null;
         historyRef.current = [...historyRef.current, {role: "user", content: text.trim()}];
         setFeed((prev) => [...prev, {id: uid(), kind: "user", text: text.trim()}, {id: aId, kind: "assistant", text: "", tools: []}]);
         setStreaming(true);
@@ -167,6 +196,10 @@ export default function App() {
         reqIdRef.current = reqId;
         activeIdRef.current = aId;
         accRef.current = "";
+        sentBufRef.current = "";
+        ttsQueueRef.current = [];
+        ttsPlayingRef.current = false;
+        ttsOnAllEndRef.current = null;
         const parts: MsgPart[] = [];
         for (const att of atts) {
             if (att.mime.startsWith("image/")) {
@@ -262,9 +295,24 @@ export default function App() {
             window.jarvis.on("chat-delta", ({reqId, text}: any) => {
                 if (reqId !== reqIdRef.current) return;
                 accRef.current += text;
-                setState((s) => (s === "error" ? s : "speaking"));
+                setState((s) => (s === "error" ? s : "thinking"));
                 const aId = activeIdRef.current;
                 setFeed((prev) => prev.map((it) => (it.id === aId && it.kind === "assistant" ? {...it, text: accRef.current} : it)));
+
+                // Sentence-level TTS: buffer tokens and queue complete sentences immediately
+                if (modeRef.current !== "off") {
+                    sentBufRef.current += text;
+                    let match: RegExpExecArray | null;
+                    while ((match = SENT_END.exec(sentBufRef.current)) !== null) {
+                        const sentence = sentBufRef.current.slice(0, match.index + 1).trim();
+                        sentBufRef.current = sentBufRef.current.slice(match.index + match[0].length);
+                        if (sentence) {
+                            ttsQueueRef.current.push(sentence);
+                            drainTtsQueue();
+                        }
+                        SENT_END.lastIndex = 0;
+                    }
+                }
             }),
 
             window.jarvis.on("tool-event", ({reqId, phase, name, result}: any) => {
@@ -319,10 +367,20 @@ export default function App() {
                     if (s === "error") { setTimeout(() => setState("idle"), 2500); return s; }
                     return "idle";
                 });
-                if (responseText && modeRef.current !== "off") {
-                    stopSpeakingRef.current();
-                    setState("speaking");
-                    speakRef.current(responseText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+
+                if (modeRef.current !== "off") {
+                    // Flush remaining partial sentence (e.g. reply ending without punctuation)
+                    const tail = sentBufRef.current.trim();
+                    sentBufRef.current = "";
+                    if (tail) ttsQueueRef.current.push(tail);
+
+                    // Fallback: nothing was queued (very short reply with no sentence boundary)
+                    if (ttsQueueRef.current.length === 0 && !ttsPlayingRef.current && responseText) {
+                        ttsQueueRef.current.push(responseText);
+                    }
+
+                    ttsOnAllEndRef.current = () => setState(modeRef.current !== "off" ? "listening" : "idle");
+                    drainTtsQueue();
                 } else {
                     setTimeout(() => inputRef.current?.focus(), 50);
                 }

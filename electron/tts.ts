@@ -9,6 +9,25 @@ export interface TtsOptions {
     elevenlabsKey: string;
 }
 
+function compressSilence(pcm: Float32Array, sampleRate = 24000, maxSilenceMs = 500): Float32Array {
+    const maxSamp = (maxSilenceMs * sampleRate) / 1000;
+    const frameLen = 240;
+    const out: number[] = [];
+    let silentAcc = 0;
+    for (let i = 0; i < pcm.length; i += frameLen) {
+        const chunk = pcm.slice(i, i + frameLen);
+        const rms = Math.sqrt(chunk.reduce((s, v) => s + v * v, 0) / chunk.length);
+        if (rms < 0.003) {
+            silentAcc += chunk.length;
+            if (silentAcc <= maxSamp) out.push(...chunk);
+        } else {
+            silentAcc = 0;
+            out.push(...chunk);
+        }
+    }
+    return new Float32Array(out);
+}
+
 function float32ToWav(pcm: Float32Array, sampleRate: number): Buffer {
     const numChannels = 1;
     const bitsPerSample = 16;
@@ -56,7 +75,7 @@ export async function generateTts(text: string, opts: TtsOptions): Promise<Buffe
         const tts = await getKokoro();
         const audio = await tts.generate(text, {voice: opts.voice});
         const pcm: Float32Array = audio.data ?? audio;
-        return float32ToWav(pcm, 24000);
+        return float32ToWav(compressSilence(pcm), 24000);
     }
 
     if (opts.provider === "elevenlabs" && opts.elevenlabsKey) {

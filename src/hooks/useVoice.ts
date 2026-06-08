@@ -6,7 +6,8 @@ const WAKE_RE = /\baegis[',!?.]*\b/i;
 const SILENCE_MS = 1400; // ms of silence after speech ends → send
 const MIN_RECORD_MS = 800; // ignore clips shorter than this (Whisper needs real audio)
 const NOISE_ADAPT_RATE = 0.015; // how fast baseline noise adapts (slower = more stable)
-const SPEECH_RATIO = 5.0; // speech = rms > baseline * this ratio (higher = less false triggers)
+const SPEECH_START_RATIO = 5.0; // speech starts when rms > baseline * this
+const SPEECH_END_RATIO   = 2.5; // speech ends when rms < baseline * this (hysteresis prevents mid-sentence cuts)
 
 export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript: (text: string) => void; isBusyRef: React.MutableRefObject<boolean>; ttsRate?: number}) {
     const [mode, setModeState] = useState<VoiceMode>("off");
@@ -151,6 +152,8 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
         let adaptPause = 0; // frames to skip baseline adaptation after recording stops
         let logThrottle = 0;
 
+        let inSpeech = false;
+
         const tick = () => {
             if (!isActiveRef.current) return;
             vadRafRef.current = requestAnimationFrame(tick);
@@ -162,8 +165,14 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
                 sum += v * v;
             }
             const rms = Math.sqrt(sum / buf.length);
-            const threshold = noiseBaseline * SPEECH_RATIO;
-            const hasSpeech = rms > threshold;
+
+            // Hysteresis: start threshold is 2× end threshold — prevents mid-sentence cuts on quiet syllables
+            if (!inSpeech) {
+                if (rms > noiseBaseline * SPEECH_START_RATIO) inSpeech = true;
+            } else {
+                if (rms < noiseBaseline * SPEECH_END_RATIO) inSpeech = false;
+            }
+            const hasSpeech = inSpeech;
 
             // Adapt baseline only during silence, with a cooldown after recording stops
             if (isRecordingRef.current) {
@@ -176,7 +185,7 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
             }
 
             if (++logThrottle % 90 === 0) {
-                console.log(`[VAD] RMS:${rms.toFixed(1)} base:${noiseBaseline.toFixed(1)} thr:${threshold.toFixed(1)}${hasSpeech ? " ← KONUŞMA" : ""}`);
+                console.log(`[VAD] RMS:${rms.toFixed(1)} base:${noiseBaseline.toFixed(1)} start:${(noiseBaseline * SPEECH_START_RATIO).toFixed(1)} end:${(noiseBaseline * SPEECH_END_RATIO).toFixed(1)}${hasSpeech ? " ← KONUŞMA" : ""}`);
             }
 
             if (hasSpeech) {
