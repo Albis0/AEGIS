@@ -99,7 +99,6 @@ export default function App() {
 
     const drainTtsQueue = useCallback(() => {
         if (ttsPlayingRef.current) return;
-        if (modeRef.current === "off") { ttsQueueRef.current = []; return; }
         if (ttsQueueRef.current.length === 0) {
             const onEnd = ttsOnAllEndRef.current;
             ttsOnAllEndRef.current = null;
@@ -300,18 +299,16 @@ export default function App() {
                 setFeed((prev) => prev.map((it) => (it.id === aId && it.kind === "assistant" ? {...it, text: accRef.current} : it)));
 
                 // Sentence-level TTS: buffer tokens and queue complete sentences immediately
-                if (modeRef.current !== "off") {
-                    sentBufRef.current += text;
-                    let match: RegExpExecArray | null;
-                    while ((match = SENT_END.exec(sentBufRef.current)) !== null) {
-                        const sentence = sentBufRef.current.slice(0, match.index + 1).trim();
-                        sentBufRef.current = sentBufRef.current.slice(match.index + match[0].length);
-                        if (sentence) {
-                            ttsQueueRef.current.push(sentence);
-                            drainTtsQueue();
-                        }
-                        SENT_END.lastIndex = 0;
+                sentBufRef.current += text;
+                let match: RegExpExecArray | null;
+                while ((match = SENT_END.exec(sentBufRef.current)) !== null) {
+                    const sentence = sentBufRef.current.slice(0, match.index + 1).trim();
+                    sentBufRef.current = sentBufRef.current.slice(match.index + match[0].length);
+                    if (sentence) {
+                        ttsQueueRef.current.push(sentence);
+                        drainTtsQueue();
                     }
+                    SENT_END.lastIndex = 0;
                 }
             }),
 
@@ -368,22 +365,21 @@ export default function App() {
                     return "idle";
                 });
 
-                if (modeRef.current !== "off") {
-                    // Flush remaining partial sentence (e.g. reply ending without punctuation)
-                    const tail = sentBufRef.current.trim();
-                    sentBufRef.current = "";
-                    if (tail) ttsQueueRef.current.push(tail);
+                // Flush remaining partial sentence (e.g. reply ending without punctuation)
+                const tail = sentBufRef.current.trim();
+                sentBufRef.current = "";
+                if (tail) ttsQueueRef.current.push(tail);
 
-                    // Fallback: nothing was queued (very short reply with no sentence boundary)
-                    if (ttsQueueRef.current.length === 0 && !ttsPlayingRef.current && responseText) {
-                        ttsQueueRef.current.push(responseText);
-                    }
-
-                    ttsOnAllEndRef.current = () => setState(modeRef.current !== "off" ? "listening" : "idle");
-                    drainTtsQueue();
-                } else {
-                    setTimeout(() => inputRef.current?.focus(), 50);
+                // Fallback: nothing was queued (very short reply with no sentence boundary)
+                if (ttsQueueRef.current.length === 0 && !ttsPlayingRef.current && responseText) {
+                    ttsQueueRef.current.push(responseText);
                 }
+
+                ttsOnAllEndRef.current = () => {
+                    setState(modeRef.current !== "off" ? "listening" : "idle");
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                };
+                drainTtsQueue();
             }),
         ];
         return () => offs.forEach((off) => off());
