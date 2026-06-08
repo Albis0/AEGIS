@@ -17,6 +17,15 @@ const EDGE_VOICES = [
     {id: "es-ES-AlvaroNeural", label: "Alvaro", meta: "ES · Erkek"},
 ];
 
+const KOKORO_VOICES = [
+    {id: "af_bella",   label: "Bella",   meta: "EN · Kadın"},
+    {id: "af_sarah",   label: "Sarah",   meta: "EN · Kadın"},
+    {id: "am_adam",    label: "Adam",    meta: "EN · Erkek"},
+    {id: "am_michael", label: "Michael", meta: "EN · Erkek"},
+    {id: "bf_emma",    label: "Emma",    meta: "EN-GB · Kadın"},
+    {id: "bm_george",  label: "George",  meta: "EN-GB · Erkek"},
+];
+
 const EL_VOICES = [
     {id: "el:cgSgspJ2msm6clMCkdW9", label: "Jessica",   meta: "EN · Kadın · varsayılan"},
     {id: "el:9BWtsMINqrJLrRacOk9x", label: "Aria",      meta: "EN · Kadın · doğal"},
@@ -50,7 +59,9 @@ interface Props {
 
 export default function VoiceTab({settings, config, accent, ac, onApply, onApplyConfig, s}: Props) {
     const [testing, setTesting] = useState(false);
-    const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES : EDGE_VOICES;
+    const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES
+                 : settings.ttsProvider === "kokoro"     ? KOKORO_VOICES
+                 : EDGE_VOICES;
 
     async function testVoice() {
         if (testing) return;
@@ -97,17 +108,20 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
             {/* TTS engine */}
             <div>
                 <SectionLabel label={s.voEngine} accent={accent} />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     {[
                         {id: "edge",       icon: "◎", label: "Edge TTS",   sub: s.voEdgeSub},
                         {id: "elevenlabs", icon: "♬", label: "ElevenLabs", sub: s.voElSub},
+                        {id: "kokoro",     icon: "◈", label: "Kokoro",     sub: s.voKokoroSub},
                     ].map((p) => {
                         const active = settings.ttsProvider === p.id;
                         return (
                             <RadioCard key={p.id} active={active} accent={accent}
                                 onClick={() => {
-                                    const dv = p.id === "elevenlabs" ? "el:cgSgspJ2msm6clMCkdW9" : "tr-TR-EmelNeural";
-                                    onApply({ttsProvider: p.id as "edge" | "elevenlabs", ttsVoice: dv});
+                                    const dv = p.id === "elevenlabs" ? "el:cgSgspJ2msm6clMCkdW9"
+                                             : p.id === "kokoro"     ? "af_bella"
+                                             : "tr-TR-EmelNeural";
+                                    onApply({ttsProvider: p.id as "edge" | "elevenlabs" | "kokoro", ttsVoice: dv});
                                 }}
                                 className="flex flex-col gap-0.5 px-4 py-3.5">
                                 <span className="text-2xl leading-none" style={{color: active ? ac : `rgba(${accent},0.3)`}}>{p.icon}</span>
@@ -173,7 +187,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         ? <><span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{background: ac}} />{s.voTestPlaying}</>
                         : <>▶ MERHABA, BEN AEGIS</>}
                 </button>
-                <Hint accent={accent}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : "Edge TTS"}{s.voTestHint}</Hint>
+                <Hint accent={accent}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : settings.ttsProvider === "kokoro" ? "Kokoro" : "Edge TTS"}{s.voTestHint}</Hint>
             </div>
         </div>
     );

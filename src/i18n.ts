@@ -16,13 +16,13 @@ export interface LangStrings {
 
 export const UI: Record<Lang, LangStrings> = {
     tr: {
-        processing: "JARVIS işliyor…", listening: "Dinliyorum, efendim…", waitingVoice: "Sesli komut bekleniyor…", idle: "Komutunuzu verin, efendim…",
+        processing: "AEGIS işliyor…", listening: "Dinliyorum, efendim…", waitingVoice: "Sesli komut bekleniyor…", idle: "Komutunuzu verin, efendim…",
         locale: "tr-TR",
         send: "GÖNDER", stop: "DURDUR", closeBtn: "KAPAT", attachFile: "Dosya ekle",
         tipHistory: "Konuşma geçmişi", tipSettings: "Ayarlar", tipMinimize: "Küçült", tipFullscreen: "Tam ekran (F11)", tipClose: "Kapat",
         conversation: "KONUŞMA",
         stLive: "CANLI", stProc: "İŞLENİYOR", stResp: "YANIT VERİYOR", stListen: "DİNLİYOR", stErr: "HATA", stReady: "HAZIR",
-        empty1: "SYS: JARVIS çevrimiçi.", empty2: "SYS: Sistemler nominal.", empty3: "SYS: Emrinizi bekliyorum, efendim…", emptyDash: "Sistem hazır. Komut bekleniyor…",
+        empty1: "SYS: AEGIS çevrimiçi.", empty2: "SYS: Sistemler nominal.", empty3: "SYS: Emrinizi bekliyorum, efendim…", emptyDash: "Sistem hazır. Komut bekleniyor…",
         secSystem: "SİSTEM DURUMU", secWeather: "HAVA DURUMU", wx: "HAVA", feelsLike: "hissedilen", humidity: "nem", wConnecting: "bağlanılamadı", wLoading: "yükleniyor…",
         ramUsed: "KULLANILAN", ramFree: "BOŞ", ramTotal: "TOPLAM",
         errLabel: "HATA", vRun: "KOMUT YÜRÜTÜLÜYOR", vRead: "DOSYA OKUNUYOR", vWrite: "DOSYA YAZILIYOR", vList: "DİZİN TARANIYOR", vSearch: "AĞ TARANIYOR",
@@ -35,7 +35,7 @@ export const UI: Record<Lang, LangStrings> = {
         tipHistory: "Chat history", tipSettings: "Settings", tipMinimize: "Minimize", tipFullscreen: "Fullscreen (F11)", tipClose: "Close",
         conversation: "CONVERSATION",
         stLive: "LIVE", stProc: "PROCESSING", stResp: "RESPONDING", stListen: "LISTENING", stErr: "ERROR", stReady: "READY",
-        empty1: "SYS: JARVIS online.", empty2: "SYS: Systems nominal.", empty3: "SYS: Awaiting your command, sir…", emptyDash: "System ready. Awaiting command…",
+        empty1: "SYS: AEGIS online.", empty2: "SYS: Systems nominal.", empty3: "SYS: Awaiting your command, sir…", emptyDash: "System ready. Awaiting command…",
         secSystem: "SYSTEM STATUS", secWeather: "WEATHER", wx: "WX", feelsLike: "feels like", humidity: "humidity", wConnecting: "can't connect", wLoading: "loading…",
         ramUsed: "USED", ramFree: "FREE", ramTotal: "TOTAL",
         errLabel: "ERROR", vRun: "RUNNING COMMAND", vRead: "READING FILE", vWrite: "WRITING FILE", vList: "LISTING DIR", vSearch: "SEARCHING WEB",
@@ -48,7 +48,7 @@ export const UI: Record<Lang, LangStrings> = {
         tipHistory: "Verlauf", tipSettings: "Einstellungen", tipMinimize: "Minimieren", tipFullscreen: "Vollbild (F11)", tipClose: "Schließen",
         conversation: "GESPRÄCH",
         stLive: "LIVE", stProc: "VERARBEITUNG", stResp: "ANTWORTET", stListen: "HÖRT ZU", stErr: "FEHLER", stReady: "BEREIT",
-        empty1: "SYS: JARVIS online.", empty2: "SYS: Systeme nominal.", empty3: "SYS: Erwarte Ihren Befehl, Sir…", emptyDash: "System bereit. Warte auf Befehl…",
+        empty1: "SYS: AEGIS online.", empty2: "SYS: Systeme nominal.", empty3: "SYS: Erwarte Ihren Befehl, Sir…", emptyDash: "System bereit. Warte auf Befehl…",
         secSystem: "SYSTEMSTATUS", secWeather: "WETTER", wx: "WTR", feelsLike: "gefühlt", humidity: "Feuchte", wConnecting: "keine Verbindung", wLoading: "lädt…",
         ramUsed: "BELEGT", ramFree: "FREI", ramTotal: "GESAMT",
         errLabel: "FEHLER", vRun: "BEFEHL LÄUFT", vRead: "DATEI LESEN", vWrite: "DATEI SCHREIBEN", vList: "VERZEICHNIS", vSearch: "WEB-SUCHE",
@@ -61,7 +61,7 @@ export const UI: Record<Lang, LangStrings> = {
         tipHistory: "Historique", tipSettings: "Paramètres", tipMinimize: "Réduire", tipFullscreen: "Plein écran (F11)", tipClose: "Fermer",
         conversation: "CONVERSATION",
         stLive: "EN DIRECT", stProc: "TRAITEMENT", stResp: "RÉPONSE", stListen: "À L'ÉCOUTE", stErr: "ERREUR", stReady: "PRÊT",
-        empty1: "SYS: JARVIS en ligne.", empty2: "SYS: Systèmes nominaux.", empty3: "SYS: En attente de votre commande, Monsieur…", emptyDash: "Système prêt. En attente…",
+        empty1: "SYS: AEGIS en ligne.", empty2: "SYS: Systèmes nominaux.", empty3: "SYS: En attente de votre commande, Monsieur…", emptyDash: "Système prêt. En attente…",
         secSystem: "ÉTAT SYSTÈME", secWeather: "MÉTÉO", wx: "MÉTÉO", feelsLike: "ressenti", humidity: "humidité", wConnecting: "connexion impossible", wLoading: "chargement…",
         ramUsed: "UTILISÉ", ramFree: "LIBRE", ramTotal: "TOTAL",
         errLabel: "ERREUR", vRun: "EXÉCUTION", vRead: "LECTURE FICHIER", vWrite: "ÉCRITURE FICHIER", vList: "LISTE DOSSIER", vSearch: "RECHERCHE WEB",
@@ -74,7 +74,7 @@ export const UI: Record<Lang, LangStrings> = {
         tipHistory: "Historial", tipSettings: "Ajustes", tipMinimize: "Minimizar", tipFullscreen: "Pantalla completa (F11)", tipClose: "Cerrar",
         conversation: "CONVERSACIÓN",
         stLive: "EN VIVO", stProc: "PROCESANDO", stResp: "RESPONDIENDO", stListen: "ESCUCHANDO", stErr: "ERROR", stReady: "LISTO",
-        empty1: "SYS: JARVIS en línea.", empty2: "SYS: Sistemas nominales.", empty3: "SYS: Esperando su orden, señor…", emptyDash: "Sistema listo. Esperando comando…",
+        empty1: "SYS: AEGIS en línea.", empty2: "SYS: Sistemas nominales.", empty3: "SYS: Esperando su orden, señor…", emptyDash: "Sistema listo. Esperando comando…",
         secSystem: "ESTADO SISTEMA", secWeather: "CLIMA", wx: "CLIMA", feelsLike: "sensación", humidity: "humedad", wConnecting: "sin conexión", wLoading: "cargando…",
         ramUsed: "USADO", ramFree: "LIBRE", ramTotal: "TOTAL",
         errLabel: "ERROR", vRun: "EJECUTANDO", vRead: "LEYENDO ARCHIVO", vWrite: "ESCRIBIENDO ARCHIVO", vList: "LISTANDO DIR", vSearch: "BUSCANDO WEB",
@@ -420,7 +420,7 @@ export interface SettingsStrings {
     mdSysHint: string; mdCaps: string;
     // VoiceTab
     voLang: string; voLangHint: string; voEngine: string;
-    voEdgeSub: string; voElSub: string; voElKey: string;
+    voEdgeSub: string; voElSub: string; voKokoroSub: string; voElKey: string;
     voVoice: string; voSpeed: string; voTest: string; voTestPlaying: string; voTestHint: string;
     // AppearanceTab
     apSkin: string; apDensity: string; apNormal: string; apCompact: string;
@@ -472,7 +472,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETRELER", mdTemp: "Sıcaklık", mdMaxTokens: "Maks çıktı", mdSysPrompt: "SİSTEM PROMPTU",
         mdSysHint: "Boş bırakırsan AEGIS varsayılan karakterini kullanır.", mdCaps: "BU MODEL NE YAPABİLİR",
         voLang: "DİL / LANGUAGE", voLangHint: "Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir.",
-        voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · offline · hızlı", voElSub: "Gerçekçi · API key gerekli",
+        voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · offline · hızlı", voElSub: "Gerçekçi · API key gerekli", voKokoroSub: "Yerel · Çevrimdışı · Ücretsiz",
         voElKey: "ELEVENLABS API KEY", voVoice: "SES", voSpeed: "KONUŞMA HIZI",
         voTest: "SES TESTİ", voTestPlaying: "ÇALINIYOR…", voTestHint: " motoru kullanılır.",
         apSkin: "GÖRÜNÜM", apDensity: "YOĞUNLUK", apNormal: "Normal", apCompact: "Kompakt",
@@ -516,7 +516,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETERS", mdTemp: "Temperature", mdMaxTokens: "Max output", mdSysPrompt: "SYSTEM PROMPT",
         mdSysHint: "Leave empty to use AEGIS default persona.", mdCaps: "MODEL CAPABILITIES",
         voLang: "LANGUAGE", voLangHint: "Changing language updates system prompt, Whisper and TTS voice automatically.",
-        voEngine: "TTS ENGINE", voEdgeSub: "Free · offline · fast", voElSub: "Realistic · API key required",
+        voEngine: "TTS ENGINE", voEdgeSub: "Free · offline · fast", voElSub: "Realistic · API key required", voKokoroSub: "Local · Offline · Free",
         voElKey: "ELEVENLABS API KEY", voVoice: "VOICE", voSpeed: "SPEECH RATE",
         voTest: "VOICE TEST", voTestPlaying: "PLAYING…", voTestHint: " engine is used.",
         apSkin: "APPEARANCE", apDensity: "DENSITY", apNormal: "Normal", apCompact: "Compact",
@@ -560,7 +560,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETER", mdTemp: "Temperatur", mdMaxTokens: "Max. Ausgabe", mdSysPrompt: "SYSTEMPROMPT",
         mdSysHint: "Leer lassen, um AEGIS-Standardpersona zu verwenden.", mdCaps: "MODELL-FÄHIGKEITEN",
         voLang: "SPRACHE", voLangHint: "Beim Sprachwechsel werden Systemprompt, Whisper und TTS-Stimme automatisch aktualisiert.",
-        voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · offline · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich",
+        voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · offline · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich", voKokoroSub: "Lokal · Offline · Kostenlos",
         voElKey: "ELEVENLABS-API-SCHLÜSSEL", voVoice: "STIMME", voSpeed: "SPRECHGESCHWINDIGKEIT",
         voTest: "STIMMTEST", voTestPlaying: "WIRD ABGESPIELT…", voTestHint: " Engine wird verwendet.",
         apSkin: "AUSSEHEN", apDensity: "DICHTE", apNormal: "Normal", apCompact: "Kompakt",
@@ -604,7 +604,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMÈTRES", mdTemp: "Température", mdMaxTokens: "Sortie max", mdSysPrompt: "PROMPT SYSTÈME",
         mdSysHint: "Laisser vide pour utiliser le persona par défaut d'AEGIS.", mdCaps: "CAPACITÉS DU MODÈLE",
         voLang: "LANGUE", voLangHint: "Le changement de langue met à jour automatiquement le prompt système, Whisper et la voix TTS.",
-        voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · hors ligne · rapide", voElSub: "Réaliste · clé API requise",
+        voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · hors ligne · rapide", voElSub: "Réaliste · clé API requise", voKokoroSub: "Local · Hors ligne · Gratuit",
         voElKey: "CLÉ API ELEVENLABS", voVoice: "VOIX", voSpeed: "VITESSE D'ÉLOCUTION",
         voTest: "TEST VOCAL", voTestPlaying: "LECTURE…", voTestHint: " moteur utilisé.",
         apSkin: "APPARENCE", apDensity: "DENSITÉ", apNormal: "Normal", apCompact: "Compact",
@@ -648,7 +648,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARÁMETROS", mdTemp: "Temperatura", mdMaxTokens: "Salida máx", mdSysPrompt: "PROMPT DEL SISTEMA",
         mdSysHint: "Dejar vacío para usar la persona predeterminada de AEGIS.", mdCaps: "CAPACIDADES DEL MODELO",
         voLang: "IDIOMA", voLangHint: "Al cambiar el idioma se actualizan automáticamente el prompt del sistema, Whisper y la voz TTS.",
-        voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · sin conexión · rápido", voElSub: "Realista · requiere clave API",
+        voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · sin conexión · rápido", voElSub: "Realista · requiere clave API", voKokoroSub: "Local · Sin conexión · Gratis",
         voElKey: "CLAVE API ELEVENLABS", voVoice: "VOZ", voSpeed: "VELOCIDAD DE HABLA",
         voTest: "PRUEBA DE VOZ", voTestPlaying: "REPRODUCIENDO…", voTestHint: " motor en uso.",
         apSkin: "APARIENCIA", apDensity: "DENSIDAD", apNormal: "Normal", apCompact: "Compacto",

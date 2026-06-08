@@ -91,7 +91,7 @@ export interface AppSettings {
     ttsVoice: string;
     ttsRate: number;
     accentColor: string;
-    ttsProvider: "edge" | "elevenlabs";
+    ttsProvider: "edge" | "elevenlabs" | "kokoro";
     aiMode: "trial" | "own";
     aiProvider: AiProvider;
     aiApiKey: string;
