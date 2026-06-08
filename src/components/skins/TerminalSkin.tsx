@@ -71,7 +71,7 @@ export default function TerminalSkin({
                             <div className="flex gap-2">
                                 <span className="shrink-0" style={{color: "rgb(var(--status-ok))"}}>aegis@os</span>
                                 <span className="opacity-40">:~$</span>
-                                <span style={{color: "rgb(var(--hud-soft))"}}>jarvis "{item.text}"</span>
+                                <span style={{color: "rgb(var(--hud-soft))"}}>aegis "{item.text}"</span>
                             </div>
                         </div>
                     ) : (

@@ -2,7 +2,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 
 export type VoiceMode = "off" | "always-on" | "wake-word";
 
-const WAKE_RE = /\bjarvis[',!?.]*\b/i;
+const WAKE_RE = /\baegis[',!?.]*\b/i;
 const SILENCE_MS = 1400; // ms of silence after speech ends → send
 const MIN_RECORD_MS = 800; // ignore clips shorter than this (Whisper needs real audio)
 const NOISE_ADAPT_RATE = 0.015; // how fast baseline noise adapts (slower = more stable)
@@ -47,7 +47,7 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
             // wake-word mode
             if (!activatedRef.current) {
                 if (WAKE_RE.test(lower)) {
-                    const after = text.replace(/^.*\bjarvis[',!?.]*\s*/i, "").trim();
+                    const after = text.replace(/^.*\baegis[',!?.]*\s*/i, "").trim();
                     if (after && !isBusyRef.current) {
                         onTranscript(after);
                     } else if (!after) {

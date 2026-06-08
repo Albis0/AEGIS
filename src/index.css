@@ -278,6 +278,21 @@ input::placeholder {
     will-change: stroke-dashoffset;
 }
 
+.rx-spin-1,
+.rx-spin-2,
+.rx-spin-3,
+.rx-spin-fast,
+.rx-hex-slow,
+.rx-hex-mid,
+.rx-hex-fast,
+.rx-vortex-a,
+.rx-vortex-b,
+.rx-vortex-c,
+.rx-sonar {
+    transform-box: view-box;
+    transform-origin: 100px 100px;
+}
+
 .rx-spin-1 {
     animation: spin-cw calc(20s / var(--rx-speed, 1)) linear infinite;
     will-change: transform;

@@ -30,7 +30,7 @@ export default function VoiceModeToggle({mode, listening, activated, onToggle, t
                     boxShadow: isActive ? "0 0 6px rgb(var(--hud))" : "none",
                 }}
             />
-            <span className="text-[11px] tracking-[0.2em]">{mode === "wake-word" && activated ? '"JARVIS"' : LABEL[mode]}</span>
+            <span className="text-[11px] tracking-[0.2em]">{mode === "wake-word" && activated ? '"AEGIS"' : LABEL[mode]}</span>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{opacity: isActive ? 0.9 : 0.4}}>
                 <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
             </svg>

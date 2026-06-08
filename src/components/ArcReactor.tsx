@@ -73,10 +73,10 @@ function RingsReactor({state}: {state: CoreState; capturing?: boolean}) {
             </g>
 
             {/* Ring 1 — 4 bracket arcs, counter-rotate */}
-            <g className="rx-spin-2" style={{transformOrigin: "100px 100px"}} filter="url(#glow-rings)">
+            <g className="rx-spin-2" filter="url(#glow-rings)">
                 {[0, 90, 180, 270].map((a) => (
                     <path key={a}
-                        d="M 100 18 A 82 82 0 0 1 158 50"
+                        d="M 100 18 A 82 82 0 0 1 171 59"
                         stroke={c(0.65)} strokeWidth="1.8" strokeLinecap="round"
                         transform={`rotate(${a} 100 100)`} />
                 ))}

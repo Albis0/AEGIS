@@ -33,8 +33,8 @@ export interface SkinProps {
     onSettingsOpen: () => void;
     onHistoryOpen?: () => void;
     onNavigateHistory?: (dir: "up" | "down") => void;
-    feedRef: React.RefObject<HTMLDivElement>;
-    inputRef?: React.RefObject<HTMLInputElement>;
+    feedRef: React.RefObject<HTMLDivElement | null>;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
     layout: "normal" | "compact";
     telemetryWidgets?: TelemetryWidget[];
     t: LangStrings;
@@ -65,7 +65,7 @@ export default function HologramSkin({
                 <div className="flex items-center gap-2.5">
                     <span className="w-1.5 h-1.5 rounded-full glow-text flick" style={{background: "rgb(var(--hud))", boxShadow: "0 0 8px rgb(var(--hud))"}} />
                     <span className="text-[11px] tracking-[0.45em] glow-text" style={{fontFamily: "Orbitron, sans-serif"}}>
-                        J.A.R.V.I.S.
+                        A.E.G.I.S.
                     </span>
                 </div>
                 <div className="no-drag flex gap-1">
