@@ -11,7 +11,7 @@
 | Kategori | Neler yapabilir |
 |---|---|
 | **Sohbet** | Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama |
-| **Ses** | Mikrofon → Whisper transkripsiyon, TTS (Edge / ElevenLabs), wake-word |
+| **Ses** | Mikrofon → Whisper transkripsiyon, TTS (Edge / ElevenLabs / Kokoro offline), wake-word, VAD hysteresis |
 | **Sistem** | PowerShell, ses/parlaklık, pencere yönetimi, process, disk temizliği |
 | **Spotify** | Çal/duraklat/atla/ses/ara/playlist — Spotify Web API entegrasyonu |
 | **Steam** | Oyun başlat, kütüphane listesi, Steam aç/kapat |
@@ -31,7 +31,7 @@
 
 - **Windows 10/11**
 - **Node.js 18+** — [nodejs.org](https://nodejs.org)
-- **npm 9+** (Node ile gelir)
+- **Bun** — [bun.sh](https://bun.sh)
 
 ---
 
@@ -42,7 +42,7 @@
 ```bash
 git clone https://github.com/Albis0/AEGIS.git
 cd AEGIS
-npm install
+bun install
 ```
 
 ### 2. Groq API anahtarı al (ücretsiz, zorunlu)
@@ -54,7 +54,7 @@ npm install
 ### 3. Uygulamayı başlat
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 İlk açılışta onboarding ekranı çıkar. Groq anahtarını buradan girebilirsin.
@@ -64,7 +64,7 @@ npm run dev
 | Servis | Neden | Nereden |
 |---|---|---|
 | Supabase | Bulut sync, oturum kaydı | supabase.com |
-| ElevenLabs | Gerçekçi TTS sesi | elevenlabs.io |
+| ElevenLabs | Gerçekçi TTS sesi (opsiyonel, Kokoro ücretsiz alternatif) | elevenlabs.io |
 | Tavily / Serper | Web araması | tavily.com / serper.dev |
 | OpenAI / Anthropic / Gemini | Alternatif AI provider | provider siteleri |
 
@@ -94,7 +94,7 @@ AEGIS, Spotify Web API kullanır (Premium gerektirir):
 | `F11` | Tam ekran |
 | ⚙ (başlık çubuğu) | Ayarlar paneli |
 
-**Wake-word:** "Jarvis, hava nasıl?" ya da sadece "Jarvis" deyip bekle.
+**Wake-word:** "Aegis, hava nasıl?" ya da sadece "Aegis" deyip bekle.
 
 **Dosya/görüntü ekleme:** `⊕` butonuyla veya `Ctrl+V` ile yapıştır (`Win+Shift+S` sonrası).
 
@@ -103,7 +103,7 @@ AEGIS, Spotify Web API kullanır (Premium gerektirir):
 ## Derleme (Release)
 
 ```bash
-npm run electron:build
+bun run electron:build
 ```
 
 `dist/` altında `.exe` installer + portable üretir.
@@ -125,11 +125,13 @@ supabase/          # Edge Function + schema
 
 ## Teknolojiler
 
-- **Electron 31** + **React 18** + **TypeScript** + **Vite** + **Tailwind CSS**
+- **Electron 31** + **React 19** + **TypeScript** + **Vite** + **Tailwind CSS**
 - **Groq SDK** (streaming, tool calling)
 - **Supabase** (auth, DB, Edge Functions)
 - **electron-updater** (otomatik güncelleme)
 - **msedge-tts** (ücretsiz Edge TTS)
+- **kokoro-js** (offline TTS, API key gereksiz)
+- **Sentence-level streaming TTS** (LLM stream ederken paralel seslendirme)
 
 ---
 
