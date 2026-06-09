@@ -63,7 +63,7 @@ async function getKokoro(): Promise<any> {
         // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node
         const {KokoroTTS} = require("kokoro-js");
         _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-            dtype: "q4",
+            dtype: "q8",
             device: "cpu",
         });
     }

@@ -357,10 +357,11 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
                 const audioCtx = new AudioContext();
                 ttsAudioCtxRef.current = audioCtx;
 
-                // result.buffer is a plain object from IPC, rebuild as Uint8Array
+                // result.buffer is a plain object from IPC, rebuild as ArrayBuffer
                 const raw = result.buffer as unknown as {data: number[]};
                 const bytes = raw.data ? new Uint8Array(raw.data) : new Uint8Array(result.buffer as unknown as ArrayBuffer);
-                const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+                const arrayBuf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+                const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
 
                 const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;

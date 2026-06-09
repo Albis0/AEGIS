@@ -72,7 +72,8 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
             const ctx = new AudioContext();
             const raw = res.buffer as unknown as {data?: number[]};
             const bytes = raw.data ? new Uint8Array(raw.data) : new Uint8Array(res.buffer as unknown as ArrayBuffer);
-            const decoded = await ctx.decodeAudioData(bytes.buffer);
+            const arrayBuf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+            const decoded = await ctx.decodeAudioData(arrayBuf);
             const src = ctx.createBufferSource();
             src.buffer = decoded;
             src.connect(ctx.destination);
