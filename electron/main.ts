@@ -27,7 +27,7 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
-import {generateTts} from "./tts";
+import {generateTts, warmupKokoro} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -1270,6 +1270,7 @@ async function bootApp(): Promise<void> {
     setApiServerWindow(mainWindow);
     startTelemetry();
     createTray();
+    if (currentSettings.ttsProvider === "kokoro") warmupKokoro(currentSettings.ttsVoice);
     app.setLoginItemSettings({openAtLogin: currentSettings.autoLaunch});
 
     if (shouldShowMorningSummary()) {

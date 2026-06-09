@@ -58,6 +58,16 @@ function float32ToWav(pcm: Float32Array, sampleRate: number): Buffer {
 }
 
 let _kokoro: any = null;
+let _kokoroWarmupDone = false;
+
+export function warmupKokoro(voice: string): void {
+    if (_kokoroWarmupDone) return;
+    _kokoroWarmupDone = true;
+    getKokoro()
+        .then((tts: any) => tts.generate(".", {voice: voice || "af_heart"}))
+        .catch(() => {});
+}
+
 async function getKokoro(): Promise<any> {
     if (!_kokoro) {
         // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node

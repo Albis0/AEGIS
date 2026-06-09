@@ -97,6 +97,7 @@ export default function App() {
     const ttsOnAllEndRef = useRef<(() => void) | null>(null); // called when queue fully drains
     const SENT_END = /(?<=[.!?])\s+|(?<=\n)\s*\n/;
 
+
     const drainTtsQueue = useCallback(() => {
         if (ttsPlayingRef.current) return;
         if (ttsQueueRef.current.length === 0) {
@@ -171,6 +172,7 @@ export default function App() {
 
     const sendText = useCallback((text: string) => {
         if (!text.trim() || isBusyRef.current) return;
+        stopSpeakingRef.current();
         const reqId = uid();
         const aId = uid();
         reqIdRef.current = reqId;
@@ -190,6 +192,7 @@ export default function App() {
     const sendWithAttachments = useCallback((text: string, atts: Attachment[]) => {
         if (!text.trim() && atts.length === 0) return;
         if (isBusyRef.current) return;
+        stopSpeakingRef.current();
         const reqId = uid();
         const aId = uid();
         reqIdRef.current = reqId;
