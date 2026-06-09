@@ -2,6 +2,7 @@ node_modules
 dist
 dist-electron
 .claude
+reference/
 
 # Environment — never commit secrets
 .env
@@ -56,3 +57,4 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+reference

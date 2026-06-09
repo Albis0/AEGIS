@@ -15,7 +15,7 @@ export interface AppSettings {
     ttsVoice: string;
     ttsRate: number;
     accentColor: string;
-    ttsProvider: "edge" | "elevenlabs";
+    ttsProvider: "edge" | "elevenlabs" | "kokoro";
     // Faz 30 — dağıtım modu:
     //   "trial" = deneme; chat senin proxy'inden (rate limited). Kullanıcı kendi
     //             Groq key'ini girerse proxy bypass edilir, direkt Groq'a gider.

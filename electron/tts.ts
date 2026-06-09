@@ -63,7 +63,7 @@ async function getKokoro(): Promise<any> {
         // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node
         const {KokoroTTS} = require("kokoro-js");
         _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-            dtype: "q8",
+            dtype: "q4",
             device: "cpu",
         });
     }
@@ -74,8 +74,9 @@ export async function generateTts(text: string, opts: TtsOptions): Promise<Buffe
     if (opts.provider === "kokoro") {
         const tts = await getKokoro();
         const audio = await tts.generate(text, {voice: opts.voice});
-        const pcm: Float32Array = audio.data ?? audio;
-        return float32ToWav(compressSilence(pcm), 24000);
+        const pcm: Float32Array = audio.audio ?? audio.data ?? audio;
+        const sr: number = audio.sampling_rate ?? 24000;
+        return float32ToWav(compressSilence(pcm, sr), sr);
     }
 
     if (opts.provider === "elevenlabs" && opts.elevenlabsKey) {
