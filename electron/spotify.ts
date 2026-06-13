@@ -583,44 +583,65 @@ export async function spotifyRemoveSavedAlbum(id: string): Promise<string> {
 
 // ── Artists ───────────────────────────────────────────────────────────────────
 
-export async function spotifyGetArtist(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+const SPOTIFY_ID_RE = /^[A-Za-z0-9]{22}$/;
+
+async function resolveArtistId(nameOrId: string): Promise<{id: string; resolvedName?: string} | {error: string}> {
+    if (SPOTIFY_ID_RE.test(nameOrId.trim())) return {id: nameOrId.trim()};
+    const r = await api("GET", `/search?q=${encodeURIComponent(nameOrId)}&type=artist&limit=5`);
+    if (!r.ok) return {error: spotifyErr(r.status, r.data)};
+    const items = (r.data as {artists: {items: {id: string; name: string}[]}}).artists?.items ?? [];
+    if (items.length === 0) return {error: `"${nameOrId}" adında sanatçı bulunamadı.`};
+    return {id: items[0].id, resolvedName: items[0].name};
+}
+
+export async function spotifyGetArtist(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("GET", `/artists/${encodeURIComponent(id)}`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("GET", `/artists/${resolved.id}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; genres: string[]; followers: {total: number}; popularity: number};
         return `${d.name} | Takipçi: ${d.followers.total.toLocaleString("tr")} | Popülerlik: ${d.popularity}/100 | Türler: ${d.genres.slice(0,4).join(", ") || "—"}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
-export async function spotifyGetArtistTopTracks(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+export async function spotifyGetArtistTopTracks(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("GET", `/artists/${encodeURIComponent(id)}/top-tracks`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("GET", `/artists/${resolved.id}/top-tracks`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {name: string; popularity: number; uri: string; album: {name: string}}[]}).tracks ?? [];
-        return tracks.slice(0,10).map((t, i) =>
+        const header = resolved.resolvedName ? `${resolved.resolvedName} — Top Şarkılar:\n` : "";
+        return header + (tracks.slice(0,10).map((t, i) =>
             `${i+1}. ${t.name} (${t.album.name}) — popülerlik: ${t.popularity} — ${t.uri}`
-        ).join("\n") || "Şarkı bulunamadı.";
+        ).join("\n") || "Şarkı bulunamadı.");
     } catch (e) { return spotifyConnErr(e); }
 }
 
-export async function spotifyGetArtistAlbums(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+export async function spotifyGetArtistAlbums(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("GET", `/artists/${encodeURIComponent(id)}/albums?limit=20&include_groups=album,single`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("GET", `/artists/${resolved.id}/albums?limit=20&include_groups=album,single`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string; release_date: string; total_tracks: number; album_type: string}[]}).items ?? [];
-        return items.map((a, i) =>
+        const header = resolved.resolvedName ? `${resolved.resolvedName} — Albümler:\n` : "";
+        return header + (items.map((a, i) =>
             `${i+1}. ${a.name} (${a.album_type}, ${a.release_date.slice(0,4)}, ${a.total_tracks} şarkı) — ${a.id}`
-        ).join("\n") || "Albüm bulunamadı.";
+        ).join("\n") || "Albüm bulunamadı.");
     } catch (e) { return spotifyConnErr(e); }
 }
 
-export async function spotifyGetRelatedArtists(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+export async function spotifyGetRelatedArtists(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("GET", `/artists/${encodeURIComponent(id)}/related-artists`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("GET", `/artists/${resolved.id}/related-artists`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const artists = (r.data as {artists: {id: string; name: string; popularity: number; genres: string[]}[]}).artists ?? [];
         return artists.slice(0,10).map((a, i) =>
@@ -831,21 +852,25 @@ export async function spotifyGetTopItems(type: "artists" | "tracks", timeRange: 
 
 // ── Follow ────────────────────────────────────────────────────────────────────
 
-export async function spotifyFollowArtist(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+export async function spotifyFollowArtist(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("PUT", `/me/following?type=artist&ids=${encodeURIComponent(id)}`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("PUT", `/me/following?type=artist&ids=${resolved.id}`);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return "Sanatçı takip edildi.";
+        return `${resolved.resolvedName ?? nameOrId} takip edildi.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
-export async function spotifyUnfollowArtist(id: string): Promise<string> {
-    if (!id) return "HATA: Sanatçı ID gerekli.";
+export async function spotifyUnfollowArtist(nameOrId: string): Promise<string> {
+    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
     try {
-        const r = await api("DELETE", `/me/following?type=artist&ids=${encodeURIComponent(id)}`);
+        const resolved = await resolveArtistId(nameOrId);
+        if ("error" in resolved) return resolved.error;
+        const r = await api("DELETE", `/me/following?type=artist&ids=${resolved.id}`);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return "Sanatçı takipten çıkarıldı.";
+        return `${resolved.resolvedName ?? nameOrId} takipten çıkarıldı.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
