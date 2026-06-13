@@ -1239,6 +1239,17 @@ async function bootApp(): Promise<void> {
         }
     });
 
+    ipcMain.handle("kokoro-uninstall", async () => {
+        const fs = await import("fs");
+        const dirs = [
+            path.join(app.getAppPath(), "node_modules", "kokoro-js"),
+            path.join(os.homedir(), ".cache", "huggingface", "hub", "models--onnx-community--Kokoro-82M-v1.0-ONNX"),
+        ];
+        for (const d of dirs) {
+            try { if (fs.existsSync(d)) fs.rmSync(d, {recursive: true, force: true}); } catch { /* ignore */ }
+        }
+    });
+
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());
     ipcMain.handle("usage-get", () => getUsage());

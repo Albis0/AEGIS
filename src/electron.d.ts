@@ -158,6 +158,7 @@ declare global {
             tts: (text: string) => Promise<{buffer?: Buffer; error?: string}>;
             ttsKokoroInstalled: () => Promise<boolean>;
             kokoroInstall: () => Promise<void>;
+            kokoroUninstall: () => Promise<void>;
             settingsGet: () => Promise<AppSettings>;
             settingsSet: (patch: Partial<AppSettings>) => Promise<AppSettings>;
             configGet: () => Promise<AegisConfig>;

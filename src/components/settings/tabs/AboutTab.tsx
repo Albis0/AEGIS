@@ -15,17 +15,35 @@ function formatSpeed(bps: number) {
     return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
 }
 
+// Module-level: tab unmount olsa bile güncelleme durumu korunur
+type UpdateStatus = "idle" | "checking" | "uptodate" | "available" | "downloading" | "ready" | "error";
+type UpdateProgress = {percent: number; transferred: number; total: number; bytesPerSecond: number};
+let _gStatus: UpdateStatus = "idle";
+let _gLatest: string | null = null;
+let _gProgress: UpdateProgress | null = null;
+let _gError = "";
+let _gListening = false;
+
+function ensureGlobalListeners() {
+    if (_gListening) return;
+    _gListening = true;
+    window.jarvis.on("update-progress", (p: UpdateProgress) => { _gStatus = "downloading"; _gProgress = p; });
+    window.jarvis.on("update-downloaded",               ()              => { _gStatus = "ready"; _gProgress = null; });
+    window.jarvis.on("update-available",  (info: {version: string})    => { _gStatus = "available"; _gLatest = info.version; });
+}
+
 export default function AboutTab({accent: a, ac}: Props) {
     const [version, setVersion] = useState<string>("…");
-    const [status, setStatus] = useState<"idle" | "checking" | "uptodate" | "available" | "downloading" | "ready" | "error">("idle");
-    const [latestVersion, setLatestVersion] = useState<string | null>(null);
-    const [errorMsg, setErrorMsg] = useState("");
-    const [progress, setProgress] = useState<{percent: number; transferred: number; total: number; bytesPerSecond: number} | null>(null);
+    const [status, setStatus] = useState<UpdateStatus>(_gStatus);
+    const [latestVersion, setLatestVersion] = useState<string | null>(_gLatest);
+    const [errorMsg, setErrorMsg] = useState(_gError);
+    const [progress, setProgress] = useState<UpdateProgress | null>(_gProgress);
 
     useEffect(() => {
         window.jarvis.getAppVersion().then(setVersion).catch(() => setVersion("?"));
+        ensureGlobalListeners();
 
-        const offProgress = window.jarvis.on("update-progress", (p) => {
+        const offProgress = window.jarvis.on("update-progress", (p: UpdateProgress) => {
             setProgress(p);
             setStatus("downloading");
         });
@@ -33,7 +51,7 @@ export default function AboutTab({accent: a, ac}: Props) {
             setStatus("ready");
             setProgress(null);
         });
-        const offAvail = window.jarvis.on("update-available", (info) => {
+        const offAvail = window.jarvis.on("update-available", (info: {version: string}) => {
             setLatestVersion(info.version);
             setStatus("available");
         });

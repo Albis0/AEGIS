@@ -64,9 +64,21 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
     const [testing, setTesting] = useState(false);
     const [kokoroInstalled, setKokoroInstalled] = useState<boolean | null>(null);
     const [kokoroProg, setKokoroProg] = useState<KokoroProgress>({phase: "idle", percent: 0, label: ""});
+    const [kokoroRemoving, setKokoroRemoving] = useState(false);
     const unsubRef = useRef<(() => void) | null>(null);
 
     useEffect(() => { window.jarvis.ttsKokoroInstalled().then(setKokoroInstalled).catch(() => setKokoroInstalled(false)); }, []);
+
+    async function removeKokoro() {
+        if (kokoroRemoving) return;
+        setKokoroRemoving(true);
+        try {
+            await window.jarvis.kokoroUninstall();
+            setKokoroInstalled(false);
+            setKokoroProg({phase: "idle", percent: 0, label: ""});
+        } catch {}
+        finally { setKokoroRemoving(false); }
+    }
 
     function startKokoroInstall() {
         if (kokoroProg.phase !== "idle" && kokoroProg.phase !== "error") return;
@@ -168,6 +180,32 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                     })}
                 </div>
             </div>
+
+            {/* Kokoro kurulu — bilgi + sil */}
+            {settings.ttsProvider === "kokoro" && kokoroInstalled === true && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+                    style={{borderColor: `rgba(${accent},0.2)`, background: `rgba(${accent},0.04)`}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                        strokeLinecap="round" strokeLinejoin="round" style={{color: ac, flexShrink: 0}}>
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span className="flex-1 text-[11px]" style={{color: `rgba(${accent},0.7)`}}>Kokoro kurulu — model dosyaları önbellekte.</span>
+                    <button
+                        onClick={removeKokoro}
+                        disabled={kokoroRemoving}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] tracking-[0.12em] transition hover:brightness-125 disabled:opacity-40 shrink-0"
+                        style={{color: "rgba(239,68,68,0.85)", borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)"}}>
+                        {kokoroRemoving ? "SİLİNİYOR…" : (
+                            <>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                                </svg>
+                                SİL
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
 
             {/* Kokoro kurulu değil — indirme paneli */}
             {settings.ttsProvider === "kokoro" && kokoroInstalled === false && (
