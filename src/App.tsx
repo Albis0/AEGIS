@@ -416,6 +416,13 @@ export default function App() {
 
     const handleHistoryOpen = useCallback(() => setHistoryOpen(true), []);
 
+    const handleNewChat = useCallback(() => {
+        window.jarvis.newChat().catch(() => {});
+        historyRef.current = [];
+        setFeed([]);
+        setHistoryOpen(false);
+    }, []);
+
     const handleLoadSession = useCallback((messages: {role: string; content: string}[]) => {
         historyRef.current = messages as LLMMsg[];
         const newFeed: FeedItem[] = messages.map((m) => {
@@ -481,6 +488,7 @@ export default function App() {
                 open={historyOpen}
                 onClose={() => setHistoryOpen(false)}
                 onLoadSession={handleLoadSession}
+                onNewChat={handleNewChat}
                 lang={lang}
             />
             <CommandPalette

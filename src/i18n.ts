@@ -87,30 +87,30 @@ export interface ExtraStrings {
     palSearch: string; palNotFound: string; palInstant: string; palEdit: string;
     palNav: string; palSelect: string; palClose: string; palHint: string;
     histTitle: string; histLoading: string; histEmpty: string; histNoSummary: string;
-    histContinue: string; histExport: string; histYou: string; histAegis: string;
+    histContinue: string; histExport: string; histYou: string; histAegis: string; histNewChat: string;
 }
 
 export const EXTRA: Record<Lang, ExtraStrings> = {
     tr: {palSearch: "Komut ara…", palNotFound: "komut bulunamadı", palInstant: "ANLIK", palEdit: "DÜZENLE",
         palNav: "↑↓ gezin", palSelect: "↵ seç", palClose: "ESC kapat", palHint: "Ctrl+Space açar",
         histTitle: "GEÇMİŞ OTURUMLAR", histLoading: "yükleniyor…", histEmpty: "kayıtlı oturum yok", histNoSummary: "özet yok",
-        histContinue: "DEVAM ET", histExport: "DIŞA AKTAR", histYou: "SİZ", histAegis: "AEGIS"},
+        histContinue: "DEVAM ET", histExport: "DIŞA AKTAR", histYou: "SİZ", histAegis: "AEGIS", histNewChat: "YENİ SOHBET"},
     en: {palSearch: "Search command…", palNotFound: "no command found", palInstant: "INSTANT", palEdit: "EDIT",
         palNav: "↑↓ navigate", palSelect: "↵ select", palClose: "ESC close", palHint: "Ctrl+Space opens",
         histTitle: "PAST SESSIONS", histLoading: "loading…", histEmpty: "no saved sessions", histNoSummary: "no summary",
-        histContinue: "CONTINUE", histExport: "EXPORT", histYou: "YOU", histAegis: "AEGIS"},
+        histContinue: "CONTINUE", histExport: "EXPORT", histYou: "YOU", histAegis: "AEGIS", histNewChat: "NEW CHAT"},
     de: {palSearch: "Befehl suchen…", palNotFound: "kein Befehl gefunden", palInstant: "SOFORT", palEdit: "BEARBEITEN",
         palNav: "↑↓ navigieren", palSelect: "↵ wählen", palClose: "ESC schließen", palHint: "Ctrl+Space öffnet",
         histTitle: "FRÜHERE SITZUNGEN", histLoading: "lädt…", histEmpty: "keine Sitzungen", histNoSummary: "keine Zusammenfassung",
-        histContinue: "FORTSETZEN", histExport: "EXPORTIEREN", histYou: "SIE", histAegis: "AEGIS"},
+        histContinue: "FORTSETZEN", histExport: "EXPORTIEREN", histYou: "SIE", histAegis: "AEGIS", histNewChat: "NEUER CHAT"},
     fr: {palSearch: "Rechercher…", palNotFound: "aucune commande", palInstant: "INSTANT", palEdit: "MODIFIER",
         palNav: "↑↓ naviguer", palSelect: "↵ sélect.", palClose: "ESC fermer", palHint: "Ctrl+Space ouvre",
         histTitle: "SESSIONS PASSÉES", histLoading: "chargement…", histEmpty: "aucune session", histNoSummary: "pas de résumé",
-        histContinue: "CONTINUER", histExport: "EXPORTER", histYou: "VOUS", histAegis: "AEGIS"},
+        histContinue: "CONTINUER", histExport: "EXPORTER", histYou: "VOUS", histAegis: "AEGIS", histNewChat: "NOUVEAU CHAT"},
     es: {palSearch: "Buscar comando…", palNotFound: "sin comandos", palInstant: "AL INSTANTE", palEdit: "EDITAR",
         palNav: "↑↓ navegar", palSelect: "↵ elegir", palClose: "ESC cerrar", palHint: "Ctrl+Space abre",
         histTitle: "SESIONES ANTERIORES", histLoading: "cargando…", histEmpty: "sin sesiones", histNoSummary: "sin resumen",
-        histContinue: "CONTINUAR", histExport: "EXPORTAR", histYou: "USTED", histAegis: "AEGIS"},
+        histContinue: "CONTINUAR", histExport: "EXPORTAR", histYou: "USTED", histAegis: "AEGIS", histNewChat: "NUEVO CHAT"},
 };
 
 export interface PaletteCommand {id: string; label: string; description: string; text: string; direct: boolean;}

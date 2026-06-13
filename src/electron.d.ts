@@ -177,6 +177,7 @@ declare global {
             screenshot: () => Promise<void>;
             sessionsList: () => Promise<{id: string; summary: string | null; ended_at: string | null; created_at: string}[]>;
             sessionMessages: (sessionId: string) => Promise<{role: string; content: string; tool_name: string | null; created_at: string}[]>;
+            newChat: () => Promise<void>;
             minimize: () => void;
             maximize: () => void;
             fullscreen: () => void;

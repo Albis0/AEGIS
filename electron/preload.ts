@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("jarvis", {
 
     sessionsList: () => ipcRenderer.invoke("sessions-list"),
     sessionMessages: (sessionId: string) => ipcRenderer.invoke("session-messages", {sessionId}),
+    newChat: () => ipcRenderer.invoke("new-chat"),
 
     minimize: () => ipcRenderer.send("win-minimize"),
     maximize: () => ipcRenderer.send("win-maximize"),

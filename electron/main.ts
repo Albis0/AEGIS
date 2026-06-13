@@ -1220,6 +1220,11 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("session-messages", async (_e, {sessionId}: {sessionId: string}) =>
         getSessionMessages(sessionId).catch(() => []),
     );
+    ipcMain.handle("new-chat", async () => {
+        await summarizeAndSave().catch(() => {});
+        sessionHistory = [];
+        await startSession().catch(() => {});
+    });
 
     ipcMain.on("win-minimize", () => mainWindow?.minimize());
     ipcMain.on("win-close", () => {

@@ -19,10 +19,11 @@ interface Props {
     open: boolean;
     onClose: () => void;
     onLoadSession: (messages: {role: string; content: string}[]) => void;
+    onNewChat: () => void;
     lang: Lang;
 }
 
-export default function ChatHistorySidebar({open, onClose, onLoadSession, lang}: Props) {
+export default function ChatHistorySidebar({open, onClose, onLoadSession, onNewChat, lang}: Props) {
     const tr = EXTRA[lang];
     const locale = UI[lang].locale;
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -92,7 +93,18 @@ export default function ChatHistorySidebar({open, onClose, onLoadSession, lang}:
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{borderColor: "rgba(var(--hud),0.2)"}}>
                     <span className="text-[10px] tracking-[0.3em] glow-text" style={{color: "rgb(var(--hud))"}}>{tr.histTitle}</span>
-                    <button onClick={onClose} className="w-7 h-7 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>✕</button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={onNewChat}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-[9px] tracking-[0.2em] font-medium transition hover:brightness-125"
+                            style={{color: "rgb(var(--hud))", borderColor: "rgba(var(--hud),0.35)", background: "rgba(var(--hud),0.08)"}}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            {tr.histNewChat}
+                        </button>
+                        <button onClick={onClose} className="w-7 h-7 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>✕</button>
+                    </div>
                 </div>
 
                 {/* Session list */}
