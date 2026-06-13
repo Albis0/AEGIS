@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     // Transcribe audio buffer via Groq Whisper; returns { text: string } or { error: string }
     transcribe: (audioBuffer: ArrayBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
     tts: (text: string) => ipcRenderer.invoke("tts", text),
+    ttsKokoroInstalled: (): Promise<boolean> => ipcRenderer.invoke("tts-kokoro-installed"),
 
     settingsGet: () => ipcRenderer.invoke("settings-get"),
     settingsSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("settings-set", patch),

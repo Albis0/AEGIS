@@ -68,10 +68,20 @@ export function warmupKokoro(voice: string): void {
         .catch(() => {});
 }
 
+export function isKokoroInstalled(): boolean {
+    try { require.resolve("kokoro-js"); return true; } catch { return false; }
+}
+
 async function getKokoro(): Promise<any> {
     if (!_kokoro) {
-        // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node
-        const {KokoroTTS} = require("kokoro-js");
+        let KokoroTTS: any;
+        try {
+            // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node
+            ({KokoroTTS} = require("kokoro-js"));
+        } catch {
+            // kokoro-js opsiyonel bağımlılık — kurulu değilse kullanıcı yüklemeli
+            throw new Error("KOKORO_NOT_INSTALLED");
+        }
         _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
             dtype: "q8",
             device: "cpu",

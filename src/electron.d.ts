@@ -156,6 +156,7 @@ declare global {
             weather: () => Promise<Weather>;
             transcribe: (audioBuffer: ArrayBuffer) => Promise<{text?: string; error?: string}>;
             tts: (text: string) => Promise<{buffer?: Buffer; error?: string}>;
+            ttsKokoroInstalled: () => Promise<boolean>;
             settingsGet: () => Promise<AppSettings>;
             settingsSet: (patch: Partial<AppSettings>) => Promise<AppSettings>;
             configGet: () => Promise<AegisConfig>;

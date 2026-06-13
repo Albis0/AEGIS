@@ -27,7 +27,7 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
-import {generateTts, warmupKokoro} from "./tts";
+import {generateTts, warmupKokoro, isKokoroInstalled} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -1175,6 +1175,8 @@ async function bootApp(): Promise<void> {
             return {error: (e as Error).message ?? String(e)};
         }
     });
+
+    ipcMain.handle("tts-kokoro-installed", () => isKokoroInstalled());
 
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());

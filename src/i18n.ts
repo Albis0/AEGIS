@@ -420,7 +420,7 @@ export interface SettingsStrings {
     mdSysHint: string; mdCaps: string;
     // VoiceTab
     voLang: string; voLangHint: string; voEngine: string;
-    voEdgeSub: string; voElSub: string; voKokoroSub: string; voElKey: string;
+    voEdgeSub: string; voElSub: string; voKokoroSub: string; voKokoroMissing: string; voElKey: string;
     voVoice: string; voSpeed: string; voTest: string; voTestPlaying: string; voTestHint: string;
     // AppearanceTab
     apSkin: string; apDensity: string; apNormal: string; apCompact: string;
@@ -472,7 +472,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETRELER", mdTemp: "Sıcaklık", mdMaxTokens: "Maks çıktı", mdSysPrompt: "SİSTEM PROMPTU",
         mdSysHint: "Boş bırakırsan AEGIS varsayılan karakterini kullanır.", mdCaps: "BU MODEL NE YAPABİLİR",
         voLang: "DİL / LANGUAGE", voLangHint: "Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir.",
-        voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · online · hızlı", voElSub: "Gerçekçi · API key gerekli", voKokoroSub: "Yerel · Çevrimdışı · Ücretsiz",
+        voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · online · hızlı", voElSub: "Gerçekçi · API key gerekli", voKokoroSub: "Yerel · Çevrimdışı · Ücretsiz", voKokoroMissing: "Kokoro yüklü değil. Yerel sesi kullanmak için terminalde çalıştır:",
         voElKey: "ELEVENLABS API KEY", voVoice: "SES", voSpeed: "KONUŞMA HIZI",
         voTest: "SES TESTİ", voTestPlaying: "ÇALINIYOR…", voTestHint: " motoru kullanılır.",
         apSkin: "GÖRÜNÜM", apDensity: "YOĞUNLUK", apNormal: "Normal", apCompact: "Kompakt",
@@ -516,7 +516,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETERS", mdTemp: "Temperature", mdMaxTokens: "Max output", mdSysPrompt: "SYSTEM PROMPT",
         mdSysHint: "Leave empty to use AEGIS default persona.", mdCaps: "MODEL CAPABILITIES",
         voLang: "LANGUAGE", voLangHint: "Changing language updates system prompt, Whisper and TTS voice automatically.",
-        voEngine: "TTS ENGINE", voEdgeSub: "Free · online · fast", voElSub: "Realistic · API key required", voKokoroSub: "Local · Offline · Free",
+        voEngine: "TTS ENGINE", voEdgeSub: "Free · online · fast", voElSub: "Realistic · API key required", voKokoroSub: "Local · Offline · Free", voKokoroMissing: "Kokoro is not installed. To use the local voice, run in a terminal:",
         voElKey: "ELEVENLABS API KEY", voVoice: "VOICE", voSpeed: "SPEECH RATE",
         voTest: "VOICE TEST", voTestPlaying: "PLAYING…", voTestHint: " engine is used.",
         apSkin: "APPEARANCE", apDensity: "DENSITY", apNormal: "Normal", apCompact: "Compact",
@@ -560,7 +560,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMETER", mdTemp: "Temperatur", mdMaxTokens: "Max. Ausgabe", mdSysPrompt: "SYSTEMPROMPT",
         mdSysHint: "Leer lassen, um AEGIS-Standardpersona zu verwenden.", mdCaps: "MODELL-FÄHIGKEITEN",
         voLang: "SPRACHE", voLangHint: "Beim Sprachwechsel werden Systemprompt, Whisper und TTS-Stimme automatisch aktualisiert.",
-        voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · online · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich", voKokoroSub: "Lokal · Offline · Kostenlos",
+        voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · online · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich", voKokoroSub: "Lokal · Offline · Kostenlos", voKokoroMissing: "Kokoro ist nicht installiert. Für die lokale Stimme im Terminal ausführen:",
         voElKey: "ELEVENLABS-API-SCHLÜSSEL", voVoice: "STIMME", voSpeed: "SPRECHGESCHWINDIGKEIT",
         voTest: "STIMMTEST", voTestPlaying: "WIRD ABGESPIELT…", voTestHint: " Engine wird verwendet.",
         apSkin: "AUSSEHEN", apDensity: "DICHTE", apNormal: "Normal", apCompact: "Kompakt",
@@ -604,7 +604,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARAMÈTRES", mdTemp: "Température", mdMaxTokens: "Sortie max", mdSysPrompt: "PROMPT SYSTÈME",
         mdSysHint: "Laisser vide pour utiliser le persona par défaut d'AEGIS.", mdCaps: "CAPACITÉS DU MODÈLE",
         voLang: "LANGUE", voLangHint: "Le changement de langue met à jour automatiquement le prompt système, Whisper et la voix TTS.",
-        voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · en ligne · rapide", voElSub: "Réaliste · clé API requise", voKokoroSub: "Local · Hors ligne · Gratuit",
+        voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · en ligne · rapide", voElSub: "Réaliste · clé API requise", voKokoroSub: "Local · Hors ligne · Gratuit", voKokoroMissing: "Kokoro n'est pas installé. Pour utiliser la voix locale, exécutez dans un terminal :",
         voElKey: "CLÉ API ELEVENLABS", voVoice: "VOIX", voSpeed: "VITESSE D'ÉLOCUTION",
         voTest: "TEST VOCAL", voTestPlaying: "LECTURE…", voTestHint: " moteur utilisé.",
         apSkin: "APPARENCE", apDensity: "DENSITÉ", apNormal: "Normal", apCompact: "Compact",
@@ -648,7 +648,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdParams: "PARÁMETROS", mdTemp: "Temperatura", mdMaxTokens: "Salida máx", mdSysPrompt: "PROMPT DEL SISTEMA",
         mdSysHint: "Dejar vacío para usar la persona predeterminada de AEGIS.", mdCaps: "CAPACIDADES DEL MODELO",
         voLang: "IDIOMA", voLangHint: "Al cambiar el idioma se actualizan automáticamente el prompt del sistema, Whisper y la voz TTS.",
-        voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · en línea · rápido", voElSub: "Realista · requiere clave API", voKokoroSub: "Local · Sin conexión · Gratis",
+        voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · en línea · rápido", voElSub: "Realista · requiere clave API", voKokoroSub: "Local · Sin conexión · Gratis", voKokoroMissing: "Kokoro no está instalado. Para usar la voz local, ejecuta en una terminal:",
         voElKey: "CLAVE API ELEVENLABS", voVoice: "VOZ", voSpeed: "VELOCIDAD DE HABLA",
         voTest: "PRUEBA DE VOZ", voTestPlaying: "REPRODUCIENDO…", voTestHint: " motor en uso.",
         apSkin: "APARIENCIA", apDensity: "DENSIDAD", apNormal: "Normal", apCompact: "Compacto",

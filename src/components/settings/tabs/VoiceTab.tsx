@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import type {AppSettings, AegisConfig} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, KeyField} from "../shared";
 import type {SettingsStrings} from "../../../i18n";
@@ -59,6 +59,10 @@ interface Props {
 
 export default function VoiceTab({settings, config, accent, ac, onApply, onApplyConfig, s}: Props) {
     const [testing, setTesting] = useState(false);
+    // Kokoro opsiyonel bağımlılık — kurulu mu? (null: henüz bilinmiyor)
+    const [kokoroInstalled, setKokoroInstalled] = useState<boolean | null>(null);
+    useEffect(() => { window.jarvis.ttsKokoroInstalled().then(setKokoroInstalled).catch(() => setKokoroInstalled(false)); }, []);
+
     const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES
                  : settings.ttsProvider === "kokoro"     ? KOKORO_VOICES
                  : EDGE_VOICES;
@@ -134,6 +138,24 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                     })}
                 </div>
             </div>
+
+            {/* Kokoro kurulu değil uyarısı */}
+            {settings.ttsProvider === "kokoro" && kokoroInstalled === false && (
+                <div className="flex items-start gap-3 px-4 py-3 rounded-xl border"
+                    style={{borderColor: `rgba(${accent},0.3)`, background: `rgba(${accent},0.06)`}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={ac} strokeWidth="2"
+                        strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <div className="text-[12px] leading-relaxed" style={{color: `rgba(${accent},0.75)`}}>
+                        {s.voKokoroMissing}
+                        <code className="px-1.5 py-0.5 mx-1 rounded text-[11px]"
+                            style={{background: `rgba(${accent},0.12)`, color: ac}}>bun add kokoro-js</code>
+                    </div>
+                </div>
+            )}
 
             {/* ElevenLabs key */}
             {settings.ttsProvider === "elevenlabs" && (
