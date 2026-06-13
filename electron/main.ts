@@ -27,7 +27,7 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
-import {generateTts, warmupKokoro, isKokoroInstalled} from "./tts";
+import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -1177,6 +1177,44 @@ async function bootApp(): Promise<void> {
     });
 
     ipcMain.handle("tts-kokoro-installed", () => isKokoroInstalled());
+
+    let _kokoroInstalling = false;
+    ipcMain.handle("kokoro-install", async () => {
+        if (_kokoroInstalling) return;
+        _kokoroInstalling = true;
+        sendToRenderer("kokoro-install-progress", {phase: "pkg", percent: 0, label: "bun add kokoro-js…"});
+        try {
+            // Phase 1: install npm package
+            await new Promise<void>((resolve, reject) => {
+                const bunPath = process.platform === "win32" ? "bun.exe" : "bun";
+                exec(`${bunPath} add kokoro-js`, {windowsHide: true, cwd: app.getAppPath()}, (err) => {
+                    if (err) reject(err); else resolve();
+                });
+            });
+            sendToRenderer("kokoro-install-progress", {phase: "pkg", percent: 100, label: "Paket yüklendi"});
+
+            // Phase 2: download ONNX model weights via from_pretrained
+            await loadKokoro((info) => {
+                if (info.status === "progress") {
+                    sendToRenderer("kokoro-install-progress", {
+                        phase: "model",
+                        file: info.file ?? "",
+                        percent: Math.round(info.progress ?? 0),
+                        loaded: info.loaded ?? 0,
+                        total: info.total ?? 0,
+                        label: info.file ?? "",
+                    });
+                } else if (info.status === "done") {
+                    sendToRenderer("kokoro-install-progress", {phase: "model", file: info.file ?? "", percent: 100, label: info.file ?? ""});
+                }
+            });
+            sendToRenderer("kokoro-install-progress", {phase: "ready"});
+        } catch (e) {
+            sendToRenderer("kokoro-install-progress", {phase: "error", label: String(e)});
+        } finally {
+            _kokoroInstalling = false;
+        }
+    });
 
     ipcMain.handle("auth-sign-out", () => signOut());
     ipcMain.handle("auth-current-user", () => getCurrentUser());

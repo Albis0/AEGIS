@@ -72,21 +72,26 @@ export function isKokoroInstalled(): boolean {
     try { require.resolve("kokoro-js"); return true; } catch { return false; }
 }
 
-async function getKokoro(): Promise<any> {
-    if (!_kokoro) {
-        let KokoroTTS: any;
-        try {
-            // @ts-ignore — kokoro-js uses package exports not supported by moduleResolution:node
-            ({KokoroTTS} = require("kokoro-js"));
-        } catch {
-            // kokoro-js opsiyonel bağımlılık — kurulu değilse kullanıcı yüklemeli
-            throw new Error("KOKORO_NOT_INSTALLED");
-        }
-        _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-            dtype: "q8",
-            device: "cpu",
-        });
+export type KokoroProgressCb = (info: {status: string; file?: string; progress?: number; loaded?: number; total?: number}) => void;
+
+export async function loadKokoro(onProgress?: KokoroProgressCb): Promise<void> {
+    if (_kokoro) return;
+    let KokoroTTS: any;
+    try {
+        // @ts-ignore
+        ({KokoroTTS} = require("kokoro-js"));
+    } catch {
+        throw new Error("KOKORO_NOT_INSTALLED");
     }
+    _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+        dtype: "q8",
+        device: "cpu",
+        progress_callback: onProgress,
+    });
+}
+
+async function getKokoro(): Promise<any> {
+    if (!_kokoro) await loadKokoro();
     return _kokoro;
 }
 

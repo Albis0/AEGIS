@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("jarvis", {
     transcribe: (audioBuffer: ArrayBuffer) => ipcRenderer.invoke("transcribe", audioBuffer),
     tts: (text: string) => ipcRenderer.invoke("tts", text),
     ttsKokoroInstalled: (): Promise<boolean> => ipcRenderer.invoke("tts-kokoro-installed"),
+    kokoroInstall: () => ipcRenderer.invoke("kokoro-install"),
 
     settingsGet: () => ipcRenderer.invoke("settings-get"),
     settingsSet: (patch: Record<string, unknown>) => ipcRenderer.invoke("settings-set", patch),
