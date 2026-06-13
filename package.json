@@ -14,16 +14,12 @@
     "bench": "vitest bench"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
-    "@react-three/postprocessing": "^3.0.4",
     "@supabase/supabase-js": "^2.106.2",
     "electron-updater": "^6.8.3",
     "groq-sdk": "^1.2.1",
     "msedge-tts": "^2.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "three": "^0.184.0",
     "ws": "^8.21.0"
   },
   "optionalDependencies": {
@@ -33,7 +29,6 @@
     "@types/node": "^20.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@types/three": "^0.184.1",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",

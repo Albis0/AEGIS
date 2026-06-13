@@ -1,10 +1,7 @@
-import {lazy, Suspense} from "react";
 import ParticleGlobe from "./ParticleGlobe";
 
 export type CoreState = "idle" | "listening" | "thinking" | "speaking" | "error";
-export type ReactorStyle = "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
-
-const ArcReactor3D = lazy(() => import("./ArcReactor3D"));
+export type ReactorStyle = "rings" | "hexcore" | "pulsar" | "vortex";
 
 const LABEL: Record<CoreState, string> = {
     idle: "STANDBY",
@@ -12,11 +9,6 @@ const LABEL: Record<CoreState, string> = {
     thinking: "PROCESSING",
     speaking: "RESPONDING",
     error: "ERROR",
-};
-
-const IS_3D: Record<ReactorStyle, boolean> = {
-    rings: false, hexcore: false, pulsar: false, vortex: false,
-    orb: true, plasma: true, helix: true, quantum: true,
 };
 
 // ── Speed multiplier per state ────────────────────────────────────────────────
@@ -341,37 +333,23 @@ export default function ArcReactor({
 }) {
     const active = state !== "idle";
     const speed = rxSpeed(state);
-    const is3D = IS_3D[reactorStyle];
 
     return (
         <div className="relative grid place-items-center w-full h-full hud"
             style={{"--rx-speed": speed, color: "rgb(var(--hud))"} as React.CSSProperties}>
 
-            {/* Lite SVG reactors */}
-            {!is3D && (
-                <div className="absolute inset-0 grid place-items-center">
-                    {reactorStyle === "rings"   && <RingsReactor   state={state} capturing={capturing} />}
-                    {reactorStyle === "hexcore" && <HexCoreReactor state={state} />}
-                    {reactorStyle === "pulsar"  && <PulsarReactor  state={state} />}
-                    {reactorStyle === "vortex"  && <VortexReactor  state={state} />}
-                </div>
-            )}
+            {/* SVG reactors */}
+            <div className="absolute inset-0 grid place-items-center">
+                {reactorStyle === "rings"   && <RingsReactor   state={state} capturing={capturing} />}
+                {reactorStyle === "hexcore" && <HexCoreReactor state={state} />}
+                {reactorStyle === "pulsar"  && <PulsarReactor  state={state} />}
+                {reactorStyle === "vortex"  && <VortexReactor  state={state} />}
+            </div>
 
-            {/* 3D reactors */}
-            {is3D && (
-                <div className="absolute inset-0">
-                    <Suspense fallback={null}>
-                        <ArcReactor3D state={state} capturing={capturing} reactorStyle={reactorStyle} />
-                    </Suspense>
-                </div>
-            )}
-
-            {/* Particle globe — Lite modda 3D reaktörlerin üzerinde değil */}
-            {!is3D && (
-                <div className="absolute w-[70%] h-[70%]">
-                    <ParticleGlobe state={state} capturing={capturing} />
-                </div>
-            )}
+            {/* Particle globe */}
+            <div className="absolute w-[70%] h-[70%]">
+                <ParticleGlobe state={state} capturing={capturing} />
+            </div>
 
             {/* State label */}
             <div className="absolute bottom-[2%] text-[10px] tracking-[0.5em] glow-text flex items-center gap-2"

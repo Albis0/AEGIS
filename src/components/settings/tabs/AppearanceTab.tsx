@@ -139,42 +139,12 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
             {settings.skin === "hologram" && (
                 <div>
                     <SectionLabel label="Reaktör Tipi" accent={accent} />
-
-                    {/* LITE grup */}
-                    <div className="mb-1.5">
-                        <span className="text-[9px] tracking-[0.35em] font-semibold px-1"
-                            style={{color: `rgba(${accent},0.35)`}}>LITE — SVG</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="grid grid-cols-2 gap-2">
                         {([
                             {id: "rings",   label: "Rings",    sub: "Chronos — halka sistemi"},
                             {id: "hexcore", label: "Hex Core", sub: "Tesseract — altıgen çekirdek"},
                             {id: "pulsar",  label: "Pulsar",   sub: "Sonar — yayılan dalgalar"},
                             {id: "vortex",  label: "Vortex",   sub: "Singularity — sarmal akış"},
-                        ] as const).map((r) => {
-                            const isActive = (settings.reactorStyle ?? "rings") === r.id;
-                            return (
-                                <RadioCard key={r.id} active={isActive} accent={accent}
-                                    onClick={() => applyWithSideEffect({reactorStyle: r.id})}
-                                    className="flex flex-col gap-0.5 px-4 py-3">
-                                    <span className="text-[13px] font-semibold" style={{color: isActive ? ac : `rgba(${accent},0.6)`}}>{r.label}</span>
-                                    <span className="text-[10px]" style={{color: `rgba(${accent},0.35)`}}>{r.sub}</span>
-                                </RadioCard>
-                            );
-                        })}
-                    </div>
-
-                    {/* 3D grup */}
-                    <div className="mb-1.5">
-                        <span className="text-[9px] tracking-[0.35em] font-semibold px-1"
-                            style={{color: `rgba(${accent},0.35)`}}>3D — WebGL + Bloom</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        {([
-                            {id: "orb",     label: "Orb",     sub: "Arc Core — küre + halkalar"},
-                            {id: "plasma",  label: "Plasma",   sub: "Fusion — icosahedron + torus"},
-                            {id: "helix",   label: "Helix",    sub: "DNA — çift sarmal"},
-                            {id: "quantum", label: "Quantum",  sub: "Entanglement — torus knot"},
                         ] as const).map((r) => {
                             const isActive = (settings.reactorStyle ?? "rings") === r.id;
                             return (
