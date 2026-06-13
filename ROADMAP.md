@@ -1060,6 +1060,43 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 
 ---
 
+## Faz 50 — AI Çekirdeği Yeniden Yazımı: Hafıza + Deterministik Yönlendirme 🧠⚡
+*GPT analizi (2026-06-13): AEGIS şu an her mesajda sıfırdan başlıyor, tool sonuçlarını unutuyor, yönlendirme tutarsız, ve "bunu aç / onu kapat / tekrar yap" gibi referans komutları anlamıyor. Bunlar AEGIS'in "Jarvis hissi" vermesini engelleyen 4 temel sorun.*
+
+### 50.1 Short-Term Konuşma Hafızası (RAM) ⬜
+*Şu an: userMessage → LLM → tool seç → çalıştır → cevap (her seferinde bağlamsız)*
+*Olması gereken: conversationMemory → userMessage → intent → tool → tool result → memory update → response*
+- [ ] Son 20-50 işlemi RAM'de `shortTermMemory[]` olarak tut
+- [ ] Her tool çağrısı `{intent, tool, args, result, timestamp}` şeklinde kayıt
+- [ ] LLM'e gönderilen system prompt'a son N işlem özeti inject edilir
+- [ ] Örnek: `{intent:"spotify_volume", args:{volume:50}, result:"success", timestamp:1749840000}`
+
+### 50.2 Tool Sonucu Hafızaya Yazılıyor ⬜
+*Şu an: `spotify_open` çalıştı → sistem unutuyor → "onu kapat" deyince ne olduğunu bilmiyor*
+- [ ] Her tool çalışınca `memory.push({tool, args, success, ts})` — son 20 işlem
+- [ ] `lastTool`, `lastTarget`, `lastSpotifyTrack`, `lastIntent` context değişkenleri güncellenir
+- [ ] "tekrar yap" / "onu kapat" / "geri al" gibi referans komutları bu context'ten çözülür
+- [ ] Örnek context: `{lastIntent:"spotify_volume", lastArgs:{volume:50}, lastTool:"spotify_volume", lastTrack:"spotify:track:xxxx"}`
+
+### 50.3 Deterministik Tool Router ⬜
+*Şu an: LLM bazen tool çağırıyor, bazen "spotify_volume 50" gibi metin yazıyor — tutarsız*
+*Olması gereken: LLM → JSON intent üret → VALIDATE → TOOL EXECUTE → LLM sadece sonucu insan diline çevirsin*
+- [ ] LLM her yanıtta sadece JSON intent üretir: `{tool: "spotify_volume", args: {volume: 50}}`
+- [ ] Router JSON'ı parse eder, schema'ya göre validate eder, tool'u çalıştırır
+- [ ] LLM ikinci tur: tool sonucunu insan diline çevir (Türkçe/seçili dil)
+- [ ] Tool adı geçersizse "anlamadım, şunu mu dedin: X?" ile clarification ister
+- [ ] Belirsiz input → tool çağırmaz, önce sorar
+
+### 50.4 Referans Çözümleme (Asıl Jarvis Hissi) ⬜
+*"bunu aç" / "onu kapat" / "tekrar yap" / "bir öncekini geri al" / "az önceki şarkıyı aç" / "sesi biraz artır" / "aynısını yap" — bunlar çalışmalı*
+- [ ] `lastTool` / `lastSpotifyTrack` / `lastTarget` / `lastIntent` saklanmalı
+- [ ] "bunu" → lastTarget, "onu" → lastTarget, "tekrar" → lastTool + lastArgs
+- [ ] "biraz artır/azalt" → mevcut değeri al, delta uygula (örn: volume 50 → 60)
+- [ ] "bir öncekini" → shortTermMemory[-2]'den resolve
+- [ ] "aynısını yap" → lastTool + lastArgs ile replay
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -1116,4 +1153,5 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ✅  Faz 47   Computer Use (mouse/kb AI)   ← TAMAMLANDI
 ✅  Faz 48   Sağlamlık v2 & Hata Mesajları ← TAMAMLANDI
 ✅  Faz 49   Onboarding fix & Bun geçişi  ← TAMAMLANDI
+⬜  Faz 50   AI çekirdeği: hafıza + deterministik router  ← PLANLI
 ```
