@@ -29,6 +29,7 @@ import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
+import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
 try { require("dotenv").config({path: path.join(__dirname, "../.env")}); } catch { /* production build */ }
@@ -68,6 +69,16 @@ ARAÇ KURALLARI (KESİNLİKLE UYULMALI):
 - Genel uygulama açmak için run_command ile Start-Process kullan (Steam ve Spotify hariç).
 - Araç çağırırken yanıta kod bloğu veya komut metni YAZMA, sadece aracı çağır.
 
+REFERANS ÇÖZÜMLEME (Jarvis hissi — KESİNLİKLE UY):
+Kullanıcı belirsiz referans kullandığında "SON İŞLEMLER" bölümündeki bağlamı kullan:
+- "bunu aç / bunu kapat / bunu çal" → lastTarget veya son aracın hedefini kullan
+- "onu kapat / onu durdur" → son çalıştırılan araca ait hedefi kullan
+- "tekrar yap / bir daha yap / aynısını yap" → lastTool + lastArgs ile aynı aracı tekrar çağır
+- "bir öncekini / öncekini" → recentTools listesinde bir önceki işlemi kullan
+- "sesi biraz artır / biraz azalt" → set_volume veya spotify_volume için mevcut değere +10 / -10 uygula; kesin değer bilmiyorsan önce sor
+- "az önceki şarkıyı çal / onu tekrar çal" → lastSpotifyTrack URI'sını spotify_play'e ver
+- Belirsizlik varsa ve bağlamdan çözemiyorsan kısa sorular sor, uzun açıklama yazma.
+
 FORMAT KURALLARI:
 - Düz metin yaz. Markdown kullanma: **, *, #, backtick, --- gibi sembolleri kullanma.
 - Emoji kullanma.
@@ -89,6 +100,16 @@ TOOL RULES (STRICTLY ENFORCED):
 - "pause/stop" → spotify_pause, "next/skip" → spotify_next, "previous/back" → spotify_prev
 - For other apps, use run_command with Start-Process (except Steam and Spotify).
 - When calling a tool, do NOT write code blocks or command text in the reply.
+
+REFERENCE RESOLUTION (Jarvis feel — STRICTLY ENFORCE):
+When the user uses vague references, use the "SON İŞLEMLER" context block:
+- "open this / close this / play this" → use lastTarget or the last tool's target
+- "close it / stop it" → use the target from the most recently executed tool
+- "do it again / same again / repeat" → re-call lastTool with lastArgs
+- "the previous one" → use the entry before the last in recentTools
+- "turn it up a bit / turn it down a bit" → apply +10 / -10 to current volume; if unknown, ask first
+- "play that song again / play the last track" → pass lastSpotifyTrack URI to spotify_play
+- If context is ambiguous and you cannot resolve it, ask a short clarifying question.
 
 FORMAT RULES:
 - Write plain text. No markdown: no **, *, #, backticks, or ---.
@@ -748,7 +769,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext();
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock();
     // Geçmiş kırpma artık callAI içinde MODELE GÖRE (bağlam penceresi token bütçesi +
     // boundary düzeltme) yapılıyor. Burada yalnız belleğin sınırsız büyümesini önlemek
     // için kaba bir üst sınır koyuyoruz; gerçek kırpmayı model yeteneği belirler.
@@ -793,6 +814,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
+                stmRecord(name, argsJson, String(result), true);
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
@@ -802,11 +824,12 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 return {id: call.id, content: clipped};
             })
         );
-        const toolResults = settled.map((r, i) =>
-            r.status === "fulfilled"
-                ? r.value
-                : {id: toolCalls[i].id, content: `Araç hatası: ${(r.reason as Error).message ?? String(r.reason)}`}
-        );
+        const toolResults = settled.map((r, i) => {
+            if (r.status === "fulfilled") return r.value;
+            const errMsg = `Araç hatası: ${(r.reason as Error).message ?? String(r.reason)}`;
+            stmRecord(toolCalls[i].function.name, toolCalls[i].function.arguments || "{}", errMsg, false);
+            return {id: toolCalls[i].id, content: errMsg};
+        });
         for (const r of toolResults) {
             messages.push({role: "tool", tool_call_id: r.id, content: r.content});
         }
@@ -1261,6 +1284,7 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("new-chat", async () => {
         await summarizeAndSave().catch(() => {});
         sessionHistory = [];
+        stmClear();
         await startSession().catch(() => {});
     });
 
