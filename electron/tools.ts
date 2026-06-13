@@ -27,7 +27,7 @@ import {fileSearch, contentSearch, appSearch} from "./search-plus";
 import {killHeavyProcesses, suspendProcess, resumeProcess, clearTemp, flushDns, startupManager, perfModeStart, perfModeStop} from "./sys-optimizer";
 import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, workspaceExport, workspaceImport} from "./workspace";
 import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
-import {spotifyAuthorizeCmd, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay, spotifyListPlaylists, spotifyPlayPlaylist, spotifyLikeTrack, spotifyAddToQueue, spotifyListDevices, spotifyTransferDevice, spotifySetShuffle, spotifySetRepeat} from "./spotify";
+import {spotifyAuthorizeCmd, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay, spotifyListPlaylists, spotifyPlayPlaylist, spotifyLikeTrack, spotifyAddToQueue, spotifyListDevices, spotifyTransferDevice, spotifySetShuffle, spotifySetRepeat, spotifySeek, spotifyGetRecentlyPlayed, spotifyGetQueue, spotifyGetAlbum, spotifyGetAlbumTracks, spotifyGetSavedAlbums, spotifySaveAlbum, spotifyRemoveSavedAlbum, spotifyGetArtist, spotifyGetArtistTopTracks, spotifyGetArtistAlbums, spotifyGetRelatedArtists, spotifyGetTrack, spotifyGetAudioFeatures, spotifyGetRecommendations, spotifyGetPlaylist, spotifyGetPlaylistItems, spotifyCreatePlaylist, spotifyPlaylistAdd, spotifyPlaylistRemove, spotifyGetFeaturedPlaylists, spotifyGetSavedTracks, spotifyCheckSavedTracks, spotifyGetSavedShows, spotifyGetSavedEpisodes, spotifyGetSavedAudiobooks, spotifyGetCurrentUser, spotifyGetTopItems, spotifyFollowArtist, spotifyUnfollowArtist, spotifyGetFollowedArtists, spotifyGetNewReleases, spotifyGetCategories, spotifyGetShow, spotifyGetShowEpisodes, spotifyGetEpisode, spotifyGetAudiobook} from "./spotify";
 import {steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning} from "./steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 
@@ -1153,6 +1153,63 @@ const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_transfer",description:"Müziği başka bir cihaza aktar (telefon, TV, bilgisayar).",parameters:{type:"object",properties:{device:{type:"string",description:"Cihaz adı veya ID"}},required:["device"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_shuffle",description:"Karıştır modunu aç/kapat.",parameters:{type:"object",properties:{enabled:{type:"boolean",description:"true = aç, false = kapat"}},required:["enabled"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_repeat",description:"Tekrar modunu ayarla.",parameters:{type:"object",properties:{mode:{type:"string",enum:["off","track","context"],description:"off=kapalı, track=şarkı tekrar, context=liste tekrar"}},required:["mode"],additionalProperties:false}}},
+
+    // Player extras
+    {type:"function",function:{name:"spotify_seek",description:"Çalan şarkıda belirli bir konuma git (milisaniye cinsinden).",parameters:{type:"object",properties:{position_ms:{type:"number",description:"Gidilecek konum (ms). Örnek: 60000 = 1. dakika"}},required:["position_ms"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recently_played",description:"Son dinlenen şarkıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_queue",description:"Spotify çalma kuyruğunu göster — şu an çalan + sıradaki şarkılar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+
+    // Albums
+    {type:"function",function:{name:"spotify_get_album",description:"Albüm detaylarını getir (ad, sanatçı, çıkış tarihi, şarkı sayısı).",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_album_tracks",description:"Albümdeki tüm şarkıları listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_albums",description:"Kütüphanedeki kayıtlı albümleri listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç albüm (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_save_album",description:"Albümü kütüphaneye kaydet.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_remove_album",description:"Albümü kütüphaneden kaldır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si"}},required:["id"],additionalProperties:false}}},
+
+    // Artists
+    {type:"function",function:{name:"spotify_get_artist",description:"Sanatçı bilgilerini getir (takipçi, popülerlik, türler).",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_artist_top_tracks",description:"Sanatçının en popüler şarkılarını listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_artist_albums",description:"Sanatçının albümlerini ve single'larını listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_related_artists",description:"Bir sanatçıya benzer sanatçıları bul.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+
+    // Tracks
+    {type:"function",function:{name:"spotify_get_track",description:"Şarkı detaylarını getir (albüm, süre, popülerlik, URI).",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_audio_features",description:"Şarkının müzikal özelliklerini getir: tempo (BPM), enerji, neşe (valence), dans edilebilirlik, akustiklik, ton.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recommendations",description:"Şarkı/sanatçı/tür tohumlarına göre öneriler üret.",parameters:{type:"object",properties:{seed_artists:{type:"string",description:"Virgülle ayrılmış sanatçı ID'leri (max 5 toplam)"},seed_tracks:{type:"string",description:"Virgülle ayrılmış şarkı ID'leri (max 5 toplam)"},seed_genres:{type:"string",description:"Virgülle ayrılmış tür adları (ör: pop,rock)"},limit:{type:"number",description:"Öneri sayısı (max 20, varsayılan 10)"}},additionalProperties:false}}},
+
+    // Playlists extended
+    {type:"function",function:{name:"spotify_get_playlist",description:"Playlist detaylarını getir (sahibi, şarkı sayısı, URI).",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_tracks",description:"Playlist içindeki şarkıları listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si"},limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_create_playlist",description:"Yeni Spotify playlist oluştur.",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist adı"},public:{type:"boolean",description:"Herkese açık mı? (varsayılan false)"},description:{type:"string",description:"Playlist açıklaması"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_add",description:"Playlist'e şarkı ekle (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Eklenecek spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_remove",description:"Playlist'ten şarkı kaldır (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Kaldırılacak spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_featured_playlists",description:"Spotify'ın öne çıkardığı/önerdiği playlistleri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+
+    // Library
+    {type:"function",function:{name:"spotify_saved_tracks",description:"Beğenilen (Liked Songs) şarkıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_check_saved_tracks",description:"Belirtilen şarkıların beğenilmiş olup olmadığını kontrol et.",parameters:{type:"object",properties:{ids:{type:"array",items:{type:"string"},description:"Şarkı ID listesi"}},required:["ids"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_shows",description:"Kütüphanedeki kayıtlı podcastleri listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç podcast (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_episodes",description:"Kütüphanedeki kayıtlı podcast bölümlerini listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç bölüm (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_audiobooks",description:"Kütüphanedeki kayıtlı sesli kitapları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sesli kitap (varsayılan 20)"}},additionalProperties:false}}},
+
+    // User
+    {type:"function",function:{name:"spotify_me",description:"Bağlı Spotify hesabının profil bilgilerini getir (ad, e-posta, ülke, plan, takipçi).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_top_items",description:"En çok dinlenen sanatçıları veya şarkıları getir.",parameters:{type:"object",properties:{type:{type:"string",enum:["artists","tracks"],description:"artists = sanatçılar, tracks = şarkılar"},time_range:{type:"string",enum:["short_term","medium_term","long_term"],description:"short_term=son 4 hafta, medium_term=son 6 ay, long_term=tüm zamanlar"},limit:{type:"number",description:"Kaç sonuç (max 50, varsayılan 10)"}},required:["type"],additionalProperties:false}}},
+
+    // Follow
+    {type:"function",function:{name:"spotify_follow_artist",description:"Bir sanatçıyı takip et.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_unfollow_artist",description:"Bir sanatçıyı takipten çıkar.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify sanatçı ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_followed_artists",description:"Takip edilen sanatçıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sanatçı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+
+    // Browse
+    {type:"function",function:{name:"spotify_new_releases",description:"Spotify'daki yeni çıkan albüm ve single'ları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sonuç (max 50, varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_categories",description:"Spotify müzik kategorilerini (türlerini) listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç kategori (max 50, varsayılan 20)"}},additionalProperties:false}}},
+
+    // Shows / Episodes / Audiobooks
+    {type:"function",function:{name:"spotify_get_show",description:"Podcast detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_show_episodes",description:"Bir podcast'in bölümlerini listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"},limit:{type:"number",description:"Kaç bölüm (max 50, varsayılan 10)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_episode",description:"Podcast bölümü detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify episode ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_audiobook",description:"Sesli kitap detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify audiobook ID'si"}},required:["id"],additionalProperties:false}}},
 ];
 
 // ── Faz 46: Steam ────────────────────────────────────────────────────────────
@@ -1254,7 +1311,7 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
     {schemas: () => multiModelSchemas,  roots: ["pipeline", "karsilastir", "compare"]},
-    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "bagla", "yetki"]},
+    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "profil", "ozellik", "feature", "ilgili", "related"]},
     {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite"]},
     {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use"]},
 ];
@@ -2767,6 +2824,82 @@ else{
     async spotify_transfer({device}: {device?: unknown}) { return spotifyTransferDevice(String(device ?? "")); },
     async spotify_shuffle({enabled}: {enabled?: unknown}) { return spotifySetShuffle(String(enabled) === "true"); },
     async spotify_repeat({mode}: {mode?: unknown}) { return spotifySetRepeat((mode as "off" | "track" | "context") ?? "off"); },
+
+    // Player extras
+    async spotify_seek({position_ms}: {position_ms?: unknown}) { return spotifySeek(Number(position_ms ?? 0)); },
+    async spotify_recently_played({limit}: {limit?: unknown}) { return spotifyGetRecentlyPlayed(Number(limit ?? 20)); },
+    async spotify_get_queue() { return spotifyGetQueue(); },
+
+    // Albums
+    async spotify_get_album({id}: {id?: unknown}) { return spotifyGetAlbum(String(id ?? "")); },
+    async spotify_album_tracks({id}: {id?: unknown}) { return spotifyGetAlbumTracks(String(id ?? "")); },
+    async spotify_saved_albums({limit}: {limit?: unknown}) { return spotifyGetSavedAlbums(Number(limit ?? 20)); },
+    async spotify_save_album({id}: {id?: unknown}) { return spotifySaveAlbum(String(id ?? "")); },
+    async spotify_remove_album({id}: {id?: unknown}) { return spotifyRemoveSavedAlbum(String(id ?? "")); },
+
+    // Artists
+    async spotify_get_artist({id}: {id?: unknown}) { return spotifyGetArtist(String(id ?? "")); },
+    async spotify_artist_top_tracks({id}: {id?: unknown}) { return spotifyGetArtistTopTracks(String(id ?? "")); },
+    async spotify_artist_albums({id}: {id?: unknown}) { return spotifyGetArtistAlbums(String(id ?? "")); },
+    async spotify_related_artists({id}: {id?: unknown}) { return spotifyGetRelatedArtists(String(id ?? "")); },
+
+    // Tracks
+    async spotify_get_track({id}: {id?: unknown}) { return spotifyGetTrack(String(id ?? "")); },
+    async spotify_audio_features({id}: {id?: unknown}) { return spotifyGetAudioFeatures(String(id ?? "")); },
+    async spotify_recommendations({seed_artists, seed_tracks, seed_genres, limit}: {seed_artists?: unknown; seed_tracks?: unknown; seed_genres?: unknown; limit?: unknown}) {
+        return spotifyGetRecommendations({
+            seed_artists: seed_artists ? String(seed_artists) : undefined,
+            seed_tracks:  seed_tracks  ? String(seed_tracks)  : undefined,
+            seed_genres:  seed_genres  ? String(seed_genres)  : undefined,
+            limit: limit ? Number(limit) : undefined,
+        });
+    },
+
+    // Playlists extended
+    async spotify_get_playlist({id}: {id?: unknown}) { return spotifyGetPlaylist(String(id ?? "")); },
+    async spotify_playlist_tracks({id, limit}: {id?: unknown; limit?: unknown}) { return spotifyGetPlaylistItems(String(id ?? ""), Number(limit ?? 20)); },
+    async spotify_create_playlist({name, public: pub, description}: {name?: unknown; public?: unknown; description?: unknown}) {
+        return spotifyCreatePlaylist(String(name ?? ""), Boolean(pub), String(description ?? ""));
+    },
+    async spotify_playlist_add({playlist_id, uris}: {playlist_id?: unknown; uris?: unknown}) {
+        return spotifyPlaylistAdd(String(playlist_id ?? ""), Array.isArray(uris) ? uris.map(String) : []);
+    },
+    async spotify_playlist_remove({playlist_id, uris}: {playlist_id?: unknown; uris?: unknown}) {
+        return spotifyPlaylistRemove(String(playlist_id ?? ""), Array.isArray(uris) ? uris.map(String) : []);
+    },
+    async spotify_featured_playlists() { return spotifyGetFeaturedPlaylists(); },
+
+    // Library
+    async spotify_saved_tracks({limit}: {limit?: unknown}) { return spotifyGetSavedTracks(Number(limit ?? 20)); },
+    async spotify_check_saved_tracks({ids}: {ids?: unknown}) { return spotifyCheckSavedTracks(Array.isArray(ids) ? ids.map(String) : []); },
+    async spotify_saved_shows({limit}: {limit?: unknown}) { return spotifyGetSavedShows(Number(limit ?? 20)); },
+    async spotify_saved_episodes({limit}: {limit?: unknown}) { return spotifyGetSavedEpisodes(Number(limit ?? 20)); },
+    async spotify_saved_audiobooks({limit}: {limit?: unknown}) { return spotifyGetSavedAudiobooks(Number(limit ?? 20)); },
+
+    // User
+    async spotify_me() { return spotifyGetCurrentUser(); },
+    async spotify_top_items({type, time_range, limit}: {type?: unknown; time_range?: unknown; limit?: unknown}) {
+        return spotifyGetTopItems(
+            (type as "artists" | "tracks") ?? "tracks",
+            (time_range as "short_term" | "medium_term" | "long_term") ?? "medium_term",
+            Number(limit ?? 10),
+        );
+    },
+
+    // Follow
+    async spotify_follow_artist({id}: {id?: unknown}) { return spotifyFollowArtist(String(id ?? "")); },
+    async spotify_unfollow_artist({id}: {id?: unknown}) { return spotifyUnfollowArtist(String(id ?? "")); },
+    async spotify_followed_artists({limit}: {limit?: unknown}) { return spotifyGetFollowedArtists(Number(limit ?? 20)); },
+
+    // Browse
+    async spotify_new_releases({limit}: {limit?: unknown}) { return spotifyGetNewReleases(Number(limit ?? 10)); },
+    async spotify_categories({limit}: {limit?: unknown}) { return spotifyGetCategories(Number(limit ?? 20)); },
+
+    // Shows / Episodes / Audiobooks
+    async spotify_get_show({id}: {id?: unknown}) { return spotifyGetShow(String(id ?? "")); },
+    async spotify_show_episodes({id, limit}: {id?: unknown; limit?: unknown}) { return spotifyGetShowEpisodes(String(id ?? ""), Number(limit ?? 10)); },
+    async spotify_get_episode({id}: {id?: unknown}) { return spotifyGetEpisode(String(id ?? "")); },
+    async spotify_get_audiobook({id}: {id?: unknown}) { return spotifyGetAudiobook(String(id ?? "")); },
 
     // ── Faz 46: Steam ────────────────────────────────────────────────────────
     async steam_launch({game}: {game?: unknown}) { return steamLaunchGame(String(game ?? "")); },
