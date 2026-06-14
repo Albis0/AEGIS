@@ -12,6 +12,32 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.4.4",
+        date: "2026-06-14",
+        notes: {
+            tr: [
+                "Güncelleme artık otomatik inmiyor — sadece 'yeni sürüm var' bildirimi geliyor; indirmeyi sen başlatıyorsun.",
+                "Bu ekran: Hakkında sekmesine çok dilli yama notları eklendi (uygulamanın 5 dilinde).",
+            ],
+            en: [
+                "Updates no longer download automatically — you only get a 'new version available' notice and start the download yourself.",
+                "This screen: multilingual patch notes added to the About tab (in all 5 app languages).",
+            ],
+            de: [
+                "Updates werden nicht mehr automatisch geladen — du erhältst nur einen Hinweis 'neue Version verfügbar' und startest den Download selbst.",
+                "Dieser Bildschirm: mehrsprachige Änderungshinweise im Über-Tab (in allen 5 App-Sprachen).",
+            ],
+            fr: [
+                "Les mises à jour ne se téléchargent plus automatiquement — vous recevez seulement un avis « nouvelle version disponible » et lancez le téléchargement vous-même.",
+                "Cet écran : notes de version multilingues ajoutées à l'onglet À propos (dans les 5 langues de l'app).",
+            ],
+            es: [
+                "Las actualizaciones ya no se descargan automáticamente: solo recibes un aviso de 'nueva versión disponible' e inicias la descarga tú mismo.",
+                "Esta pantalla: notas de versión multilingües añadidas a la pestaña Acerca de (en los 5 idiomas de la app).",
+            ],
+        },
+    },
+    {
         version: "1.4.3",
         date: "2026-06-14",
         notes: {
