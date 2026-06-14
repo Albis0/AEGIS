@@ -401,29 +401,69 @@ export async function spotifyListPlaylists(): Promise<string> {
     } catch (e) { return `Hata: ${(e as Error).message}`; }
 }
 
+// "Beğenilen Şarkılar" / "Liked Songs" SPOTIFY'DA NORMAL PLAYLIST DEĞİL — /me/playlists'te
+// görünmez ve context_uri ile çalınamaz. Bu yüzden ayrı ele alınır (saved-tracks → uris).
+const LIKED_ALIASES = ["begenilen", "liked", "liked songs", "favori", "favoriler", "begendiklerim", "kaydedilen", "saved"];
+function isLikedSongs(name: string): boolean {
+    const n = name.toLowerCase()
+        .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
+        .replace(/sarki(lar)?|songs?/g, "").trim();
+    if (n.length < 3) return false; // boş/çok kısa "şarkılar" sonrası false-positive olmasın
+    return LIKED_ALIASES.some((a) => a.includes(n) || n.includes(a.split(" ")[0]));
+}
+
+async function playLikedSongs(): Promise<string> {
+    // Beğenilen şarkıları çek (max 50) ve uris ile çal — context_uri yok.
+    const r = await api("GET", "/me/tracks?limit=50");
+    if (!r.ok) return spotifyErr(r.status, r.data);
+    const items = (r.data as {items: {track: {uri: string}}[]}).items ?? [];
+    const uris = items.map((it) => it.track?.uri).filter(Boolean);
+    if (uris.length === 0) return "Beğenilen şarkın yok.";
+    const deviceId = await ensureDevice();
+    if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+    const pr = await api("PUT", "/me/player/play", {uris, device_id: deviceId});
+    if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
+    return `Beğenilen Şarkılar çalınıyor (${uris.length} şarkı).`;
+}
+
 export async function spotifyPlayPlaylist(nameOrId: string): Promise<string> {
     if (!nameOrId) return "HATA: Playlist adı veya ID gerekli.";
     try {
-        // ID mi isim mi?
-        let playlistUri = "";
+        // ID verildiyse doğrudan çal.
         if (/^[A-Za-z0-9]{22}$/.test(nameOrId.trim())) {
-            playlistUri = `spotify:playlist:${nameOrId.trim()}`;
-        } else {
-            // İsimle ara
-            const r = await api("GET", "/me/playlists?limit=50");
-            const items = (r.data as {items: {id: string; name: string}[]}).items ?? [];
-            const match = items.find((p) => p.name.toLowerCase().includes(nameOrId.toLowerCase()));
-            if (!match) return `"${nameOrId}" adında playlist bulunamadı. "playlist listele" ile kontrol et.`;
-            playlistUri = `spotify:playlist:${match.id}`;
+            const deviceId = await ensureDevice();
+            if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+            const pr = await api("PUT", "/me/player/play", {context_uri: `spotify:playlist:${nameOrId.trim()}`, device_id: deviceId});
+            if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
+            return `Playlist başlatıldı.`;
         }
-        const deviceId = await ensureDevice();
-        const pr2 = await api("PUT", "/me/player/play", {
-            context_uri: playlistUri,
-            ...(deviceId ? {device_id: deviceId} : {}),
-        });
-        if (!pr2.ok && pr2.status !== 204) return spotifyErr(pr2.status, pr2.data);
-        return `Playlist baslatildi: ${nameOrId}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+
+        // İsimle ÖNCE gerçek playlist'lerde ara (kullanıcının "Beğenilen Şarkılar" adında
+        // GERÇEK bir playlist'i olabilir — onu tercih et).
+        const r = await api("GET", "/me/playlists?limit=50");
+        if (!r.ok) return spotifyErr(r.status, r.data);
+        const items = (r.data as {items: {id: string; name: string}[]}).items ?? [];
+        const q = nameOrId.toLowerCase();
+        const match = items.find((p) => p.name.toLowerCase() === q)
+            ?? items.find((p) => p.name.toLowerCase().includes(q));
+
+        if (match) {
+            const deviceId = await ensureDevice();
+            if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+            const pr2 = await api("PUT", "/me/player/play", {context_uri: `spotify:playlist:${match.id}`, device_id: deviceId});
+            if (!pr2.ok && pr2.status !== 204) return spotifyErr(pr2.status, pr2.data);
+            return `Playlist başlatıldı: ${match.name}`;
+        }
+
+        // Gerçek playlist bulunamadı — "Beğenilen Şarkılar"/Liked Songs ise özel koleksiyonu çal.
+        if (isLikedSongs(nameOrId)) return await playLikedSongs();
+
+        // Hiçbir şey eşleşmedi — kullanıcının seçebilmesi için mevcutları listele.
+        const names = items.slice(0, 8).map((p) => `• ${p.name}`).join("\n");
+        return `"${nameOrId}" adında playlist bulunamadı.` +
+            (names ? `\n\nMevcut playlist'lerin:\n${names}` : " Hiç playlist'in yok gibi görünüyor.") +
+            `\n\nNot: Spotify "Beğenilen Şarkılar"ı çalmak için "beğenilenleri çal" diyebilirsin.`;
+    } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyLikeTrack(): Promise<string> {
