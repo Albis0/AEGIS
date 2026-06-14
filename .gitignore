@@ -58,3 +58,5 @@ $RECYCLE.BIN/
 *.sln
 *.sw?
 reference
+example.claude
+scripts/*-report.json

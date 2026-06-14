@@ -35,6 +35,8 @@ type ToolResult = string;
 
 function resolvePath(p: string): string {
     if (!p) return os.homedir();
+    // Model bazen şema "string" demesine rağmen sayı/obje gönderebilir — stringe zorla.
+    if (typeof p !== "string") p = String(p);
     if (p === "~" || p.startsWith("~/") || p.startsWith("~\\")) {
         return path.join(os.homedir(), p.slice(1));
     }
@@ -102,6 +104,38 @@ export const toolSchemas: ChatCompletionTool[] = [
                     content: {type: "string", description: "Dosyaya yazılacak içerik"},
                 },
                 required: ["path", "content"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "delete_file",
+            description: "Bir dosyayı veya klasörü sil. Yalnızca Tam PC Erişimi açıkken çalışır. ~ ev dizinini temsil eder.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: {type: "string", description: "Silinecek dosya/klasör yolu"},
+                    recursive: {type: "string", description: "Klasör için içeriğiyle birlikte sil: 'true' (varsayılan) veya 'false'"},
+                },
+                required: ["path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "move_file",
+            description: "Bir dosyayı veya klasörü taşı/yeniden adlandır. Yalnızca Tam PC Erişimi açıkken çalışır. ~ ev dizinini temsil eder.",
+            parameters: {
+                type: "object",
+                properties: {
+                    source: {type: "string", description: "Kaynak dosya/klasör yolu"},
+                    destination: {type: "string", description: "Hedef yol"},
+                },
+                required: ["source", "destination"],
                 additionalProperties: false,
             },
         },

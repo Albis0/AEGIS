@@ -601,8 +601,15 @@ export async function spotifyGetArtist(nameOrId: string): Promise<string> {
         if ("error" in resolved) return resolved.error;
         const r = await api("GET", `/artists/${resolved.id}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
-        const d = r.data as {name: string; genres: string[]; followers: {total: number}; popularity: number};
-        return `${d.name} | Takipçi: ${d.followers.total.toLocaleString("tr")} | Popülerlik: ${d.popularity}/100 | Türler: ${d.genres.slice(0,4).join(", ") || "—"}`;
+        const d = (r.data ?? {}) as {name?: string; genres?: string[]; followers?: {total?: number}; popularity?: number};
+        if (!d.name) return spotifyErr(r.status, r.data);
+        // Spotify bazı token/uygulama tiplerinde followers/genres/popularity döndürmüyor —
+        // yalnızca gerçekten gelen alanları göster, yoksa uydurma 0 yazma.
+        const parts = [d.name];
+        if (d.followers?.total != null) parts.push(`Takipçi: ${d.followers.total.toLocaleString("tr")}`);
+        if (d.popularity != null) parts.push(`Popülerlik: ${d.popularity}/100`);
+        if (d.genres?.length) parts.push(`Türler: ${d.genres.slice(0, 4).join(", ")}`);
+        return parts.join(" | ");
     } catch (e) { return spotifyConnErr(e); }
 }
 
