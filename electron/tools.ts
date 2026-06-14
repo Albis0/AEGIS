@@ -30,6 +30,7 @@ import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
 import {spotifyAuthorizeCmd, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay, spotifyListPlaylists, spotifyPlayPlaylist, spotifyLikeTrack, spotifyAddToQueue, spotifyListDevices, spotifyTransferDevice, spotifySetShuffle, spotifySetRepeat, spotifySeek, spotifyGetRecentlyPlayed, spotifyGetQueue, spotifyGetAlbum, spotifyGetAlbumTracks, spotifyGetSavedAlbums, spotifySaveAlbum, spotifyRemoveSavedAlbum, spotifyGetArtist, spotifyGetArtistTopTracks, spotifyGetArtistAlbums, spotifyGetRelatedArtists, spotifyGetTrack, spotifyGetAudioFeatures, spotifyGetRecommendations, spotifyGetPlaylist, spotifyGetPlaylistItems, spotifyCreatePlaylist, spotifyPlaylistAdd, spotifyPlaylistRemove, spotifyGetFeaturedPlaylists, spotifyGetSavedTracks, spotifyCheckSavedTracks, spotifyGetSavedShows, spotifyGetSavedEpisodes, spotifyGetSavedAudiobooks, spotifyGetCurrentUser, spotifyGetTopItems, spotifyFollowArtist, spotifyUnfollowArtist, spotifyGetFollowedArtists, spotifyGetNewReleases, spotifyGetCategories, spotifyGetShow, spotifyGetShowEpisodes, spotifyGetEpisode, spotifyGetAudiobook} from "./spotify";
 import {steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning} from "./steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
+import {stmGet} from "./short-term-memory";
 
 type ToolResult = string;
 
@@ -275,7 +276,7 @@ export const toolSchemas: ChatCompletionTool[] = [
             description: "Sistem ses seviyesini ayarla (0-100). 'Sesi %50 yap', 'Sesi aç/kapat' gibi.",
             parameters: {
                 type: "object",
-                properties: {level: {type: "number", description: "Ses seviyesi 0-100"}},
+                properties: {level: {type: "string", description: "Ses seviyesi 0-100"}},
                 required: ["level"],
                 additionalProperties: false,
             },
@@ -288,7 +289,7 @@ export const toolSchemas: ChatCompletionTool[] = [
             description: "Ekran parlaklığını ayarla (0-100). Dahili ekranlarda çalışır.",
             parameters: {
                 type: "object",
-                properties: {level: {type: "number", description: "Parlaklık 0-100"}},
+                properties: {level: {type: "string", description: "Parlaklık 0-100"}},
                 required: ["level"],
                 additionalProperties: false,
             },
@@ -303,7 +304,7 @@ export const toolSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {
                     message: {type: "string", description: "Hatırlatıcı mesajı"},
-                    minutes: {type: "number", description: "Kaç dakika sonra (ondalık da olabilir, örn: 0.5 = 30 saniye)"},
+                    minutes: {type: "string", description: "Kaç dakika sonra (ondalık da olabilir, örn: 0.5 = 30 saniye)"},
                 },
                 required: ["message", "minutes"],
                 additionalProperties: false,
@@ -637,7 +638,7 @@ const securitySchemas: ChatCompletionTool[] = [
             parameters: {
                 type: "object",
                 properties: {
-                    days: {type: "number", description: "Kaç günden eski veri silinsin (varsayılan 30)"},
+                    days: {type: "string", description: "Kaç günden eski veri silinsin (varsayılan 30)"},
                 },
                 additionalProperties: false,
             },
@@ -742,7 +743,7 @@ const knowledgeSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {
                     query: {type: "string", description: "Arama sorgusu"},
-                    top_k: {type: "number", description: "Döndürülecek sonuç sayısı (varsayılan 5)"},
+                    top_k: {type: "string", description: "Döndürülecek sonuç sayısı (varsayılan 5)"},
                 },
                 required: ["query"],
                 additionalProperties: false,
@@ -920,7 +921,7 @@ const agentSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {
                     goal:      {type: "string", description: "Tamamlanacak hedef (açık ve net olsun)"},
-                    max_steps: {type: "number", description: "Maksimum adım sayısı (varsayılan 10, max 20)"},
+                    max_steps: {type: "string", description: "Maksimum adım sayısı (varsayılan 10, max 20)"},
                 },
                 required: ["goal"],
                 additionalProperties: false,
@@ -939,7 +940,7 @@ const watchSchemas: ChatCompletionTool[] = [
                 type: "object",
                 properties: {
                     metric:    {type: "string", description: "İzlenecek metrik: cpu, ram, gpu, disk"},
-                    threshold: {type: "number", description: "Eşik değeri (yüzde, 1-100)"},
+                    threshold: {type: "string", description: "Eşik değeri (yüzde, 1-100)"},
                     direction: {type: "string", description: "'above' (üstüne çıkarsa) veya 'below' (altına düşerse)"},
                 },
                 required: ["metric", "threshold"],
@@ -974,8 +975,8 @@ const watchSchemas: ChatCompletionTool[] = [
 
 // ───────────────────────────────────────────────────────────── Faz 19 Schemas
 const soundSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"play_sound",description:"Bir ses dosyasını çal (.mp3/.wav). ~/.aegis/sounds/ klasöründeki dosyalar veya tam yol.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Ses dosyasının yolu (örn: notification.wav, ~/sounds/ding.mp3)"},volume:{type:"number",description:"Ses seviyesi 0-100 (varsayılan 50)"}},required:["file_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"ambient_start",description:"Arka plan ambient sesi başlat. Odaklanma, dinlenme veya çalışma müziği için.",parameters:{type:"object",properties:{category:{type:"string",description:"Ambient kategorisi: rain, forest, cafe, white, space, lofi"},volume:{type:"number",description:"Ses seviyesi 0-100 (varsayılan 30)"}},required:["category"],additionalProperties:false}}},
+    {type:"function",function:{name:"play_sound",description:"Bir ses dosyasını çal (.mp3/.wav). ~/.aegis/sounds/ klasöründeki dosyalar veya tam yol.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Ses dosyasının yolu (örn: notification.wav, ~/sounds/ding.mp3)"},volume:{type: "string",description:"Ses seviyesi 0-100 (varsayılan 50)"}},required:["file_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"ambient_start",description:"Arka plan ambient sesi başlat. Odaklanma, dinlenme veya çalışma müziği için.",parameters:{type:"object",properties:{category:{type:"string",description:"Ambient kategorisi: rain, forest, cafe, white, space, lofi"},volume:{type: "string",description:"Ses seviyesi 0-100 (varsayılan 30)"}},required:["category"],additionalProperties:false}}},
     {type:"function",function:{name:"ambient_stop",description:"Çalan ambient sesi durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"list_sounds",description:"Mevcut ses dosyalarını ve ambient kategorilerini listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
@@ -983,16 +984,16 @@ const soundSchemas: ChatCompletionTool[] = [
 // ───────────────────────────────────────────────────────────── Faz 20 Schemas
 const codeToolSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"git_status",description:"Git repo durumunu göster: staged, unstaged, untracked dosyalar.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu (varsayılan: mevcut dizin)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_log",description:"Son commit'leri listele. Graph/tree görünümü destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},count:{type:"number",description:"Gösterilecek commit sayısı (varsayılan 10)"},graph:{type:"boolean",description:"true = ASCII branch grafiği göster"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_log",description:"Son commit'leri listele. Graph/tree görünümü destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},count:{type: "string",description:"Gösterilecek commit sayısı (varsayılan 10)"},graph:{type:"boolean",description:"true = ASCII branch grafiği göster"}},additionalProperties:false}}},
     {type:"function",function:{name:"git_diff",description:"Staged veya unstaged değişiklikleri göster. Belirli dosya verilebilir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},staged:{type:"boolean",description:"true = staged değişiklikler, false = unstaged (varsayılan false)"},file:{type:"string",description:"Sadece bu dosyanın diff'ini göster (opsiyonel)"}},additionalProperties:false}}},
     {type:"function",function:{name:"git_add",description:"Dosyaları stage'e ekle (git add). '.' = tüm değişiklikler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},files:{type:"string",description:"Stage'e eklenecek dosya/desen. '.' = hepsi, veya spesifik dosya/klasör adı"}},required:["files"],additionalProperties:false}}},
     {type:"function",function:{name:"git_commit",description:"Staged değişiklikleri commit et. add_all=true ile önce tüm değişiklikleri stage'e alır.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},message:{type:"string",description:"Commit mesajı"},add_all:{type:"boolean",description:"true = önce git add . çalıştır, sonra commit et"}},required:["message"],additionalProperties:false}}},
     {type:"function",function:{name:"git_push",description:"Değişiklikleri remote'a gönder (git push).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},branch:{type:"string",description:"Branch adı (varsayılan: aktif branch)"},force:{type:"boolean",description:"true = --force-with-lease ile zorla it"}},additionalProperties:false}}},
     {type:"function",function:{name:"git_pull",description:"Remote'dan değişiklikleri çek (git pull).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},rebase:{type:"boolean",description:"true = --rebase ile çek"}},additionalProperties:false}}},
     {type:"function",function:{name:"git_branch",description:"Branch oluştur, değiştir, sil veya listele. Görsel branch haritası için action=graph.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, create, switch, delete, graph (görsel ağaç)"},branch_name:{type:"string",description:"Branch adı (create/switch/delete için)"}},required:["action"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_stash",description:"Değişiklikleri geçici olarak sakla veya geri yükle.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"save, pop, list, drop, apply"},message:{type:"string",description:"Stash mesajı (save için opsiyonel)"},index:{type:"number",description:"Stash indeksi (drop/apply için, varsayılan 0)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_stash",description:"Değişiklikleri geçici olarak sakla veya geri yükle.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"save, pop, list, drop, apply"},message:{type:"string",description:"Stash mesajı (save için opsiyonel)"},index:{type: "string",description:"Stash indeksi (drop/apply için, varsayılan 0)"}},required:["action"],additionalProperties:false}}},
     {type:"function",function:{name:"git_merge",description:"Branch merge et. fast-forward veya no-ff destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},branch:{type:"string",description:"Merge edilecek branch"},no_ff:{type:"boolean",description:"true = --no-ff (merge commit oluştur)"}},required:["branch"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_reset",description:"Staged dosyaları unstage et veya son commit'i geri al.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},mode:{type:"string",description:"soft (commit geri al, dosyalar staged kalır), mixed (varsayılan, staged temizle), hard (dikkat! tüm değişiklikleri sil)"},commits:{type:"number",description:"Kaç commit geri git (varsayılan 1)"},file:{type:"string",description:"Belirli dosyayı unstage et (mode yerine kullanılır)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_reset",description:"Staged dosyaları unstage et veya son commit'i geri al.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},mode:{type:"string",description:"soft (commit geri al, dosyalar staged kalır), mixed (varsayılan, staged temizle), hard (dikkat! tüm değişiklikleri sil)"},commits:{type: "string",description:"Kaç commit geri git (varsayılan 1)"},file:{type:"string",description:"Belirli dosyayı unstage et (mode yerine kullanılır)"}},additionalProperties:false}}},
     {type:"function",function:{name:"git_remote",description:"Remote URL'leri listele veya ekle/değiştir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, add, set-url"},name:{type:"string",description:"Remote adı"},url:{type:"string",description:"Remote URL"}},required:["action"],additionalProperties:false}}},
     {type:"function",function:{name:"run_and_analyze",description:"Bir komutu çalıştır ve çıktısını analiz et. Hata mesajlarını açıkla, çözüm öner.",parameters:{type:"object",properties:{command:{type:"string",description:"Çalıştırılacak komut"},context:{type:"string",description:"Ek bağlam (örn: bu bir Node.js projesi)"}},required:["command"],additionalProperties:false}}},
     {type:"function",function:{name:"scaffold_project",description:"Hazır şablondan yeni proje oluştur. Örnek: 'Python FastAPI', 'React Tailwind', 'Node Express'.",parameters:{type:"object",properties:{template:{type:"string",description:"Şablon adı: python-fastapi, react-tailwind, node-express, electron-app, next-ts"},target_path:{type:"string",description:"Projenin oluşturulacağı dizin (varsayılan: Desktop)"}},required:["template"],additionalProperties:false}}},
@@ -1001,13 +1002,13 @@ const codeToolSchemas: ChatCompletionTool[] = [
 
 // ───────────────────────────────────────────────────────────── Faz 21 Schemas
 const timeSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"pomodoro_start",description:"Pomodoro zamanlayıcısını başlat. 25 dakika çalışma / 5 dakika mola döngüsü.",parameters:{type:"object",properties:{work_minutes:{type:"number",description:"Çalışma süresi dakika (varsayılan 25)"},break_minutes:{type:"number",description:"Mola süresi dakika (varsayılan 5)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"pomodoro_start",description:"Pomodoro zamanlayıcısını başlat. 25 dakika çalışma / 5 dakika mola döngüsü.",parameters:{type:"object",properties:{work_minutes:{type: "string",description:"Çalışma süresi dakika (varsayılan 25)"},break_minutes:{type: "string",description:"Mola süresi dakika (varsayılan 5)"}},additionalProperties:false}}},
     {type:"function",function:{name:"pomodoro_stop",description:"Çalışan pomodoro zamanlayıcısını durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"time_track_start",description:"Görev bazlı zaman takibini başlat.",parameters:{type:"object",properties:{task_name:{type:"string",description:"Takip edilecek görev adı"}},required:["task_name"],additionalProperties:false}}},
     {type:"function",function:{name:"time_track_stop",description:"Zaman takibini durdur ve süreyi kaydet.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"time_track_report",description:"Günlük/haftalık zaman harcama raporunu göster.",parameters:{type:"object",properties:{period:{type:"string",description:"Dönem: today, week, month (varsayılan: today)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"calendar_get_events",description:"Windows Takvim'den etkinlikleri çek. Bugünkü veya belirtilen tarihteki etkinlikler.",parameters:{type:"object",properties:{date:{type:"string",description:"Tarih YYYY-MM-DD formatında (varsayılan: bugün)"},days_ahead:{type:"number",description:"Kaç gün ileri bak (varsayılan 1)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"calendar_add_event",description:"Windows Takvim'e etkinlik ekle.",parameters:{type:"object",properties:{title:{type:"string",description:"Etkinlik başlığı"},start_time:{type:"string",description:"Başlangıç zamanı (örn: 2024-01-15 14:00)"},duration_minutes:{type:"number",description:"Süre dakika (varsayılan 60)"},notes:{type:"string",description:"Notlar (opsiyonel)"}},required:["title","start_time"],additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_get_events",description:"Windows Takvim'den etkinlikleri çek. Bugünkü veya belirtilen tarihteki etkinlikler.",parameters:{type:"object",properties:{date:{type:"string",description:"Tarih YYYY-MM-DD formatında (varsayılan: bugün)"},days_ahead:{type: "string",description:"Kaç gün ileri bak (varsayılan 1)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_add_event",description:"Windows Takvim'e etkinlik ekle.",parameters:{type:"object",properties:{title:{type:"string",description:"Etkinlik başlığı"},start_time:{type:"string",description:"Başlangıç zamanı (örn: 2024-01-15 14:00)"},duration_minutes:{type: "string",description:"Süre dakika (varsayılan 60)"},notes:{type:"string",description:"Notlar (opsiyonel)"}},required:["title","start_time"],additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 22 Schemas
@@ -1016,9 +1017,9 @@ const mediaSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"find_duplicates",description:"Bir klasördeki yinelenen dosyaları hash karşılaştırmasıyla bul.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Taranacak klasör"},recursive:{type:"boolean",description:"Alt klasörleri de tara (varsayılan true)"}},required:["folder_path"],additionalProperties:false}}},
     {type:"function",function:{name:"bulk_rename",description:"Bir klasördeki dosyaları toplu yeniden adlandır.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Klasör yolu"},pattern:{type:"string",description:"Mevcut kalıp (regex veya sabit metin)"},replacement:{type:"string",description:"Yeni ad kalıbı ($1 = yakalama grubu, {n} = sıra numarası)"},extension:{type:"string",description:"Sadece bu uzantıya uygula (opsiyonel, örn: .jpg)"}},required:["folder_path","pattern","replacement"],additionalProperties:false}}},
     {type:"function",function:{name:"analyze_image",description:"Yerel bir görüntü dosyasını vision modelle analiz et.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Görüntü dosyasının yolu"},question:{type:"string",description:"Görüntü hakkında soru (opsiyonel)"}},required:["image_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"resize_image",description:"Bir görüntüyü yeniden boyutlandır.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Görüntü yolu"},width:{type:"number",description:"Hedef genişlik (piksel)"},height:{type:"number",description:"Hedef yükseklik (piksel, opsiyonel — orantılı)"},output_path:{type:"string",description:"Çıktı yolu (opsiyonel, varsayılan: kaynak_resized.ext)"}},required:["image_path","width"],additionalProperties:false}}},
+    {type:"function",function:{name:"resize_image",description:"Bir görüntüyü yeniden boyutlandır.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Görüntü yolu"},width:{type: "string",description:"Hedef genişlik (piksel)"},height:{type: "string",description:"Hedef yükseklik (piksel, opsiyonel — orantılı)"},output_path:{type:"string",description:"Çıktı yolu (opsiyonel, varsayılan: kaynak_resized.ext)"}},required:["image_path","width"],additionalProperties:false}}},
     {type:"function",function:{name:"convert_image",description:"Bir görüntü dosyasını farklı formata çevir (PNG/JPEG/BMP/GIF).",parameters:{type:"object",properties:{image_path:{type:"string",description:"Kaynak görüntü yolu"},output_format:{type:"string",description:"Hedef format: png, jpg, bmp, gif"},output_path:{type:"string",description:"Çıktı yolu (opsiyonel)"}},required:["image_path","output_format"],additionalProperties:false}}},
-    {type:"function",function:{name:"pdf_to_text",description:"PDF dosyasından metin çıkar.",parameters:{type:"object",properties:{pdf_path:{type:"string",description:"PDF dosyasının yolu"},max_chars:{type:"number",description:"Maksimum karakter sayısı (varsayılan 10000)"}},required:["pdf_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"pdf_to_text",description:"PDF dosyasından metin çıkar.",parameters:{type:"object",properties:{pdf_path:{type:"string",description:"PDF dosyasının yolu"},max_chars:{type: "string",description:"Maksimum karakter sayısı (varsayılan 10000)"}},required:["pdf_path"],additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 23 Schemas
@@ -1033,16 +1034,16 @@ const personaSchemas: ChatCompletionTool[] = [
 
 // ───────────────────────────────────────────────────────────── Faz 24 Schemas
 const networkSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"ping_host",description:"Bir host'a ping at, gecikme ve paket kaybını ölç.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host (IP veya domain)"},count:{type:"number",description:"Ping sayısı (varsayılan 4)"}},required:["host"],additionalProperties:false}}},
-    {type:"function",function:{name:"trace_route",description:"Bir host'a giden ağ yolunu izle.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host"},max_hops:{type:"number",description:"Maksimum hop sayısı (varsayılan 30)"}},required:["host"],additionalProperties:false}}},
+    {type:"function",function:{name:"ping_host",description:"Bir host'a ping at, gecikme ve paket kaybını ölç.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host (IP veya domain)"},count:{type: "string",description:"Ping sayısı (varsayılan 4)"}},required:["host"],additionalProperties:false}}},
+    {type:"function",function:{name:"trace_route",description:"Bir host'a giden ağ yolunu izle.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host"},max_hops:{type: "string",description:"Maksimum hop sayısı (varsayılan 30)"}},required:["host"],additionalProperties:false}}},
     {type:"function",function:{name:"port_scan",description:"Bir host'un açık portlarını tara (yerel ağ, eğitim amaçlı).",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host (IP)"},ports:{type:"string",description:"Port aralığı (örn: 80,443,8080 veya 1-1024, varsayılan: 21,22,25,80,443,3306,8080)"}},required:["host"],additionalProperties:false}}},
     {type:"function",function:{name:"dns_lookup",description:"Bir domain için DNS kayıtlarını sorgula (A, MX, TXT).",parameters:{type:"object",properties:{domain:{type:"string",description:"Sorgulancak domain"},type:{type:"string",description:"Kayıt tipi: A, MX, TXT, NS, CNAME (varsayılan A)"}},required:["domain"],additionalProperties:false}}},
     {type:"function",function:{name:"ssh_run",description:"SSH ile uzak sunucuda komut çalıştır (önceden kaydedilmiş host).",parameters:{type:"object",properties:{host_alias:{type:"string",description:"~/.aegis/ssh-hosts.json'daki host takma adı"},command:{type:"string",description:"Çalıştırılacak komut"}},required:["host_alias","command"],additionalProperties:false}}},
-    {type:"function",function:{name:"ssh_add_host",description:"SSH host profili kaydet.",parameters:{type:"object",properties:{alias:{type:"string",description:"Takma ad"},hostname:{type:"string",description:"IP veya hostname"},username:{type:"string",description:"Kullanıcı adı"},port:{type:"number",description:"SSH portu (varsayılan 22)"},key_path:{type:"string",description:"Private key yolu (opsiyonel)"}},required:["alias","hostname","username"],additionalProperties:false}}},
+    {type:"function",function:{name:"ssh_add_host",description:"SSH host profili kaydet.",parameters:{type:"object",properties:{alias:{type:"string",description:"Takma ad"},hostname:{type:"string",description:"IP veya hostname"},username:{type:"string",description:"Kullanıcı adı"},port:{type: "string",description:"SSH portu (varsayılan 22)"},key_path:{type:"string",description:"Private key yolu (opsiyonel)"}},required:["alias","hostname","username"],additionalProperties:false}}},
     {type:"function",function:{name:"docker_ps",description:"Çalışan Docker container'larını listele.",parameters:{type:"object",properties:{all:{type:"boolean",description:"Durdurulmuş container'ları da göster (varsayılan false)"}},additionalProperties:false}}},
     {type:"function",function:{name:"docker_start",description:"Bir Docker container'ını başlat.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"}},required:["container"],additionalProperties:false}}},
     {type:"function",function:{name:"docker_stop",description:"Bir Docker container'ını durdur.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"}},required:["container"],additionalProperties:false}}},
-    {type:"function",function:{name:"docker_logs",description:"Docker container loglarını al.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"},lines:{type:"number",description:"Son kaç satır (varsayılan 50)"}},required:["container"],additionalProperties:false}}},
+    {type:"function",function:{name:"docker_logs",description:"Docker container loglarını al.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"},lines:{type: "string",description:"Son kaç satır (varsayılan 50)"}},required:["container"],additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 25 Schemas
@@ -1054,20 +1055,20 @@ const vizSchemas: ChatCompletionTool[] = [
 // ───────────────────────────────────────────────────────────── Faz 26 Schemas
 const emailSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"email_send",description:"SMTP ile e-posta gönder. Kimlik bilgileri vault'ta saklanmalı.",parameters:{type:"object",properties:{to:{type:"string",description:"Alıcı e-posta adresi"},subject:{type:"string",description:"Konu"},body:{type:"string",description:"E-posta gövdesi"},from_alias:{type:"string",description:"Vault'taki SMTP profili takma adı (varsayılan: default)"}},required:["to","subject","body"],additionalProperties:false}}},
-    {type:"function",function:{name:"email_fetch",description:"IMAP ile gelen kutusunu oku.",parameters:{type:"object",properties:{count:{type:"number",description:"Son kaç e-posta (varsayılan 10)"},folder:{type:"string",description:"Klasör adı (varsayılan: INBOX)"},from_alias:{type:"string",description:"Vault'taki IMAP profili takma adı"}},additionalProperties:false}}},
+    {type:"function",function:{name:"email_fetch",description:"IMAP ile gelen kutusunu oku.",parameters:{type:"object",properties:{count:{type: "string",description:"Son kaç e-posta (varsayılan 10)"},folder:{type:"string",description:"Klasör adı (varsayılan: INBOX)"},from_alias:{type:"string",description:"Vault'taki IMAP profili takma adı"}},additionalProperties:false}}},
     {type:"function",function:{name:"email_draft",description:"Doğal dil açıklamasından profesyonel e-posta taslağı oluştur.",parameters:{type:"object",properties:{intent:{type:"string",description:"E-postanın amacı (örn: toplantı teklifi, şikayet, teşekkür)"},recipient:{type:"string",description:"Alıcının rolü/adı"},tone:{type:"string",description:"Ton: formal, friendly, assertive (varsayılan: formal)"},language:{type:"string",description:"Dil: tr, en (varsayılan: tr)"}},required:["intent"],additionalProperties:false}}},
-    {type:"function",function:{name:"email_setup_smtp",description:"SMTP/IMAP e-posta profili kaydet (şifreli vault'a).",parameters:{type:"object",properties:{alias:{type:"string",description:"Profil takma adı"},smtp_host:{type:"string",description:"SMTP sunucu"},smtp_port:{type:"number",description:"SMTP portu"},imap_host:{type:"string",description:"IMAP sunucu"},imap_port:{type:"number",description:"IMAP portu"},username:{type:"string",description:"Kullanıcı adı (e-posta)"},password:{type:"string",description:"Şifre (vault'a şifreli kaydedilir)"}},required:["alias","smtp_host","username","password"],additionalProperties:false}}},
+    {type:"function",function:{name:"email_setup_smtp",description:"SMTP/IMAP e-posta profili kaydet (şifreli vault'a).",parameters:{type:"object",properties:{alias:{type:"string",description:"Profil takma adı"},smtp_host:{type:"string",description:"SMTP sunucu"},smtp_port:{type: "string",description:"SMTP portu"},imap_host:{type:"string",description:"IMAP sunucu"},imap_port:{type: "string",description:"IMAP portu"},username:{type:"string",description:"Kullanıcı adı (e-posta)"},password:{type:"string",description:"Şifre (vault'a şifreli kaydedilir)"}},required:["alias","smtp_host","username","password"],additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 27 Schemas
 const learningSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"card_add",description:"Yeni flashcard ekle. Konu + cevap çifti.",parameters:{type:"object",properties:{front:{type:"string",description:"Soru veya konu"},back:{type:"string",description:"Cevap veya açıklama"},tags:{type:"string",description:"Etiketler virgülle ayrılmış (örn: python,programlama)"}},required:["front","back"],additionalProperties:false}}},
-    {type:"function",function:{name:"card_review",description:"Spaced repetition ile flashcard çalış. Bugünkü tekrar gereken kartları göster.",parameters:{type:"object",properties:{tag:{type:"string",description:"Belirli etikete göre filtrele (opsiyonel)"},count:{type:"number",description:"Kaç kart çalışılacak (varsayılan 5)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"reading_add",description:"Okuma listesine URL veya kitap ekle.",parameters:{type:"object",properties:{url_or_title:{type:"string",description:"Makale URL'i veya kitap adı"},notes:{type:"string",description:"Notlar (opsiyonel)"},priority:{type:"number",description:"Öncelik 1-5 (varsayılan 3)"}},required:["url_or_title"],additionalProperties:false}}},
+    {type:"function",function:{name:"card_review",description:"Spaced repetition ile flashcard çalış. Bugünkü tekrar gereken kartları göster.",parameters:{type:"object",properties:{tag:{type:"string",description:"Belirli etikete göre filtrele (opsiyonel)"},count:{type: "string",description:"Kaç kart çalışılacak (varsayılan 5)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"reading_add",description:"Okuma listesine URL veya kitap ekle.",parameters:{type:"object",properties:{url_or_title:{type:"string",description:"Makale URL'i veya kitap adı"},notes:{type:"string",description:"Notlar (opsiyonel)"},priority:{type: "string",description:"Öncelik 1-5 (varsayılan 3)"}},required:["url_or_title"],additionalProperties:false}}},
     {type:"function",function:{name:"reading_list",description:"Okuma listesini göster.",parameters:{type:"object",properties:{status:{type:"string",description:"Filtre: all, pending, done (varsayılan: pending)"}},additionalProperties:false}}},
     {type:"function",function:{name:"reading_summarize",description:"Bir URL'deki makaleyi çekip LLM ile özetle.",parameters:{type:"object",properties:{url:{type:"string",description:"Özetlenecek makale URL'i"},add_to_list:{type:"boolean",description:"Okuma listesine de ekle (varsayılan true)"}},required:["url"],additionalProperties:false}}},
     {type:"function",function:{name:"goal_set",description:"Yeni hedef tanımla.",parameters:{type:"object",properties:{title:{type:"string",description:"Hedef başlığı"},deadline:{type:"string",description:"Son tarih YYYY-MM-DD (opsiyonel)"},steps:{type:"string",description:"Alt adımlar virgülle ayrılmış (opsiyonel)"}},required:["title"],additionalProperties:false}}},
-    {type:"function",function:{name:"goal_check_in",description:"Bir hedefin ilerlemesini güncelle.",parameters:{type:"object",properties:{goal_id_or_title:{type:"string",description:"Hedef ID veya başlığı"},progress:{type:"number",description:"Tamamlanma yüzdesi 0-100"},note:{type:"string",description:"İlerleme notu (opsiyonel)"}},required:["goal_id_or_title","progress"],additionalProperties:false}}},
+    {type:"function",function:{name:"goal_check_in",description:"Bir hedefin ilerlemesini güncelle.",parameters:{type:"object",properties:{goal_id_or_title:{type:"string",description:"Hedef ID veya başlığı"},progress:{type: "string",description:"Tamamlanma yüzdesi 0-100"},note:{type:"string",description:"İlerleme notu (opsiyonel)"}},required:["goal_id_or_title","progress"],additionalProperties:false}}},
     {type:"function",function:{name:"goal_list",description:"Aktif hedefleri ve tamamlanma yüzdelerini göster.",parameters:{type:"object",properties:{status:{type:"string",description:"Filtre: all, active, done (varsayılan: active)"}},additionalProperties:false}}},
 ];
 
@@ -1100,11 +1101,11 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"subtitle_toggle",description:"Ekran üstü altyazı overlay'ini aç veya kapat.",parameters:{type:"object",properties:{enable:{type:"boolean",description:"true=aç, false=kapat"}},required:["enable"],additionalProperties:false}}},
 
     // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
-    {type:"function",function:{name:"notification_recent",description:"Son N Windows bildirimini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç bildirim (varsayılan 20, max 100)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"notification_history",description:"AEGIS'in kaydettiği bildirim geçmişini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç bildirim gösterilsin"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_recent",description:"Son N Windows bildirimini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç bildirim (varsayılan 20, max 100)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_history",description:"AEGIS'in kaydettiği bildirim geçmişini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç bildirim gösterilsin"}},additionalProperties:false}}},
     {type:"function",function:{name:"notification_filter_set",description:"Belirli bir uygulamanın bildirimlerini göster veya gizle.",parameters:{type:"object",properties:{app:{type:"string",description:"Uygulama adı (örn: Spotify, WhatsApp, Teams)"},action:{type:"string",enum:["show","hide"],description:"show=göster, hide=gizle"}},required:["app","action"],additionalProperties:false}}},
     {type:"function",function:{name:"notification_filter_list",description:"Kayıtlı bildirim filtre kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"do_not_disturb",description:"Rahatsız etme modunu belirtilen dakika boyunca etkinleştir.",parameters:{type:"object",properties:{minutes:{type:"number",description:"DND süresi (dakika)"},off:{type:"boolean",description:"true ise DND'yi kapat"}},additionalProperties:false}}},
+    {type:"function",function:{name:"do_not_disturb",description:"Rahatsız etme modunu belirtilen dakika boyunca etkinleştir.",parameters:{type:"object",properties:{minutes:{type: "string",description:"DND süresi (dakika)"},off:{type:"boolean",description:"true ise DND'yi kapat"}},additionalProperties:false}}},
 
     // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
     {type:"function",function:{name:"project_detect",description:"Klasördeki proje tipini tespit et (Node.js, Rust, Python, Go, Java vb.)",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
@@ -1117,11 +1118,11 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"rss_add",description:"RSS/Atom feed ekle.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL"},label:{type:"string",description:"Feed etiketi"}},required:["url"],additionalProperties:false}}},
     {type:"function",function:{name:"rss_remove",description:"Feed kaldır.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL veya etiketi"}},required:["url"],additionalProperties:false}}},
     {type:"function",function:{name:"rss_list",description:"Kayıtlı feed'leri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"rss_fetch",description:"Kayıtlı feed'lerden son haberleri çek ve özetle.",parameters:{type:"object",properties:{count:{type:"number",description:"Toplam haber sayısı (varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"rss_fetch",description:"Kayıtlı feed'lerden son haberleri çek ve özetle.",parameters:{type:"object",properties:{count:{type: "string",description:"Toplam haber sayısı (varsayılan 10)"}},additionalProperties:false}}},
     {type:"function",function:{name:"price_get",description:"Hisse senedi veya döviz fiyatı al (Yahoo Finance). Örn: AAPL, GOOG, BIST:THYAO",parameters:{type:"object",properties:{symbols:{type:"string",description:"Virgülle ayrılmış semboller (örn: AAPL,TSLA)"}},required:["symbols"],additionalProperties:false}}},
     {type:"function",function:{name:"crypto_price",description:"Kripto para fiyatı al (CoinGecko). USD ve TRY cinsinden.",parameters:{type:"object",properties:{coins:{type:"string",description:"Virgülle ayrılmış coin adları (örn: bitcoin,ethereum,solana)"}},required:["coins"],additionalProperties:false}}},
     {type:"function",function:{name:"fx_rate",description:"Döviz kuru al (exchangerate-api). Örn: USD/TRY, EUR/USD",parameters:{type:"object",properties:{pairs:{type:"string",description:"Virgülle ayrılmış döviz çiftleri (örn: USD/TRY,EUR/TRY)"}},required:["pairs"],additionalProperties:false}}},
-    {type:"function",function:{name:"price_alert_set",description:"Fiyat aleti kur. Belirtilen fiyata ulaşınca bildirim gelir.",parameters:{type:"object",properties:{symbol:{type:"string",description:"Sembol (örn: bitcoin, AAPL, USD/TRY)"},type:{type:"string",enum:["crypto","stock","fx"]},above:{type:"number",description:"Bu fiyatın üstüne çıkarsa uyar"},below:{type:"number",description:"Bu fiyatın altına düşerse uyar"}},required:["symbol","type"],additionalProperties:false}}},
+    {type:"function",function:{name:"price_alert_set",description:"Fiyat aleti kur. Belirtilen fiyata ulaşınca bildirim gelir.",parameters:{type:"object",properties:{symbol:{type:"string",description:"Sembol (örn: bitcoin, AAPL, USD/TRY)"},type:{type:"string",enum:["crypto","stock","fx"]},above:{type: "string",description:"Bu fiyatın üstüne çıkarsa uyar"},below:{type: "string",description:"Bu fiyatın altına düşerse uyar"}},required:["symbol","type"],additionalProperties:false}}},
 
     // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
     {type:"function",function:{name:"meeting_start",description:"Toplantı kaydını başlat. Konuşmalar transkript edilir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1136,7 +1137,7 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"context_rule_set",description:"Belirli bir uygulama açıkken özel öneri veya otomatik eylem tanımla.",parameters:{type:"object",properties:{app_pattern:{type:"string",description:"Uygulama adı veya pencere başlığında aranacak desen"},suggestion:{type:"string",description:"Öneri metni"},auto_action:{type:"string",description:"Otomatik çalıştırılacak araç (opsiyonel)"}},required:["app_pattern","suggestion"],additionalProperties:false}}},
     {type:"function",function:{name:"context_rule_list",description:"Bağlam kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"clipboard_watch",description:"Panodaki içeriği analiz et ve öneriler sun.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"clipboard_history",description:"Pano geçmişini göster.",parameters:{type:"object",properties:{count:{type:"number",description:"Kaç giriş gösterilsin (varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_history",description:"Pano geçmişini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç giriş gösterilsin (varsayılan 10)"}},additionalProperties:false}}},
     {type:"function",function:{name:"clipboard_search",description:"Pano geçmişinde arama yap.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak metin"}},required:["query"],additionalProperties:false}}},
 
     // ── Faz 41: Güçlü Yerel Arama ──────────────────────────────────────────
@@ -1145,7 +1146,7 @@ const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"app_search",description:"Uygulama ara ve gerekirse başlat. Fuzzy arama destekler.",parameters:{type:"object",properties:{query:{type:"string",description:"Uygulama adı (kısmi yazılabilir, örn: 'chr' için Chrome)"},launch:{type:"boolean",description:"true ise en iyi eşleşmeyi başlat"}},required:["query"],additionalProperties:false}}},
 
     // ── Faz 42: Sistem Optimizasyonu ─────────────────────────────────────────
-    {type:"function",function:{name:"kill_heavy_process",description:"En fazla CPU/RAM tüketen prosesleri listele ve isteğe bağlı kapat.",parameters:{type:"object",properties:{top_n:{type:"number",description:"Kaç proses listele (varsayılan 3)"},confirm:{type:"boolean",description:"true ise prosesleri gerçekten kapat"}},additionalProperties:false}}},
+    {type:"function",function:{name:"kill_heavy_process",description:"En fazla CPU/RAM tüketen prosesleri listele ve isteğe bağlı kapat.",parameters:{type:"object",properties:{top_n:{type: "string",description:"Kaç proses listele (varsayılan 3)"},confirm:{type:"boolean",description:"true ise prosesleri gerçekten kapat"}},additionalProperties:false}}},
     {type:"function",function:{name:"suspend_process",description:"Prosesin önceliğini Idle'a düşür (duraklatmaya benzer, RAM'den atmaz).",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
     {type:"function",function:{name:"resume_process",description:"Prosesin önceliğini Normal'e döndür.",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
     {type:"function",function:{name:"clear_temp",description:"Windows temp klasörlerini temizle ve boşaltılan alanı raporla.",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1175,7 +1176,7 @@ const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100). level sayı olmalı, örnek: 20",parameters:{type:"object",properties:{level:{type:"number",description:"Ses seviyesi 0-100"}},required:["level"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100). Örnek: 20",parameters:{type:"object",properties:{level:{type: "string",description:"Ses seviyesi 0-100 (rakam, örn: 50)"}},required:["level"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster (şarkı, sanatçı, albüm, süre).",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
@@ -1189,14 +1190,14 @@ const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_repeat",description:"Tekrar modunu ayarla.",parameters:{type:"object",properties:{mode:{type:"string",enum:["off","track","context"],description:"off=kapalı, track=şarkı tekrar, context=liste tekrar"}},required:["mode"],additionalProperties:false}}},
 
     // Player extras
-    {type:"function",function:{name:"spotify_seek",description:"Çalan şarkıda belirli bir konuma git (milisaniye cinsinden).",parameters:{type:"object",properties:{position_ms:{type:"number",description:"Gidilecek konum (ms). Örnek: 60000 = 1. dakika"}},required:["position_ms"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_recently_played",description:"Son dinlenen şarkıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_seek",description:"Çalan şarkıda belirli bir konuma git (milisaniye cinsinden).",parameters:{type:"object",properties:{position_ms:{type: "string",description:"Gidilecek konum (ms). Örnek: 60000 = 1. dakika"}},required:["position_ms"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recently_played",description:"Son dinlenen şarkıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_get_queue",description:"Spotify çalma kuyruğunu göster — şu an çalan + sıradaki şarkılar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
     // Albums
     {type:"function",function:{name:"spotify_get_album",description:"Albüm detaylarını getir (ad, sanatçı, çıkış tarihi, şarkı sayısı). ID gerekir — isim verildiyse önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_album_tracks",description:"Albümdeki tüm şarkıları listele. ID gerekir — isim verildiyse önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_albums",description:"Kütüphanedeki kayıtlı albümleri listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç albüm (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_albums",description:"Kütüphanedeki kayıtlı albümleri listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç albüm (max 50, varsayılan 20)"}},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_save_album",description:"Albümü kütüphaneye kaydet. ID gerekir — isim varsa önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_remove_album",description:"Albümü kütüphaneden kaldır. ID gerekir — isim varsa önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
 
@@ -1209,39 +1210,39 @@ const spotifySchemas: ChatCompletionTool[] = [
     // Tracks
     {type:"function",function:{name:"spotify_get_track",description:"Şarkı detaylarını getir (albüm, süre, popülerlik, URI). Şarkı ID'si gerekir — isim verildiyse önce spotify_search ile ara ve track_id al.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si. İsim verildiyse önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_audio_features",description:"Şarkının müzikal özelliklerini getir: tempo (BPM), enerji, neşe (valence), dans edilebilirlik, akustiklik, ton. Çalan şarkı için önce spotify_now_playing ile track_id al; belirli şarkı için önce spotify_search çağır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si. Çalan şarkıysa önce spotify_now_playing, belirli şarkıysa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_recommendations",description:"Şarkı/sanatçı/tür tohumlarına göre öneriler üret. EN İYİ AKIŞ: önce spotify_recently_played veya spotify_now_playing ile track ID'leri al, seed_tracks'e virgülle ekle. Tür bazlı öneri için seed_genres kullan (ID gerektirmez). seed_artists+seed_tracks+seed_genres toplamı max 5 olmalı.",parameters:{type:"object",properties:{seed_artists:{type:"string",description:"Virgülle ayrılmış sanatçı ID'leri. ID yoksa spotify_search ile al."},seed_tracks:{type:"string",description:"Virgülle ayrılmış şarkı ID'leri. Son dinlenenler için önce spotify_recently_played çağır."},seed_genres:{type:"string",description:"Virgülle ayrılmış Spotify tür adları (ör: pop,rock,jazz,indie). ID gerektirmez, doğrudan kullan."},limit:{type:"number",description:"Öneri sayısı (max 20, varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recommendations",description:"Şarkı/sanatçı/tür tohumlarına göre öneriler üret. EN İYİ AKIŞ: önce spotify_recently_played veya spotify_now_playing ile track ID'leri al, seed_tracks'e virgülle ekle. Tür bazlı öneri için seed_genres kullan (ID gerektirmez). seed_artists+seed_tracks+seed_genres toplamı max 5 olmalı.",parameters:{type:"object",properties:{seed_artists:{type:"string",description:"Virgülle ayrılmış sanatçı ID'leri. ID yoksa spotify_search ile al."},seed_tracks:{type:"string",description:"Virgülle ayrılmış şarkı ID'leri. Son dinlenenler için önce spotify_recently_played çağır."},seed_genres:{type:"string",description:"Virgülle ayrılmış Spotify tür adları (ör: pop,rock,jazz,indie). ID gerektirmez, doğrudan kullan."},limit:{type: "string",description:"Öneri sayısı (max 20, varsayılan 10)"}},additionalProperties:false}}},
 
     // Playlists extended
     {type:"function",function:{name:"spotify_get_playlist",description:"Playlist detaylarını getir (sahibi, şarkı sayısı, URI). ID gerekir — kendi playlist'lerin için önce spotify_playlists çağır, yabancı playlist için önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si. Kendi playlist'lerin için önce spotify_playlists çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_playlist_tracks",description:"Playlist içindeki şarkıları listele. ID gerekir — kendi playlist'lerin için önce spotify_playlists çağır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si. Kendi playlist'lerin için önce spotify_playlists çağır."},limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_tracks",description:"Playlist içindeki şarkıları listele. ID gerekir — kendi playlist'lerin için önce spotify_playlists çağır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si. Kendi playlist'lerin için önce spotify_playlists çağır."},limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_create_playlist",description:"Yeni Spotify playlist oluştur.",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist adı"},public:{type:"boolean",description:"Herkese açık mı? (varsayılan false)"},description:{type:"string",description:"Playlist açıklaması"}},required:["name"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_playlist_add",description:"Playlist'e şarkı ekle (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Eklenecek spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_playlist_remove",description:"Playlist'ten şarkı kaldır (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Kaldırılacak spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_featured_playlists",description:"Spotify'ın öne çıkardığı/önerdiği playlistleri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
     // Library
-    {type:"function",function:{name:"spotify_saved_tracks",description:"Beğenilen (Liked Songs) şarkıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_tracks",description:"Beğenilen (Liked Songs) şarkıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_check_saved_tracks",description:"Belirtilen şarkıların beğenilmiş olup olmadığını kontrol et.",parameters:{type:"object",properties:{ids:{type:"array",items:{type:"string"},description:"Şarkı ID listesi"}},required:["ids"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_shows",description:"Kütüphanedeki kayıtlı podcastleri listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç podcast (varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_episodes",description:"Kütüphanedeki kayıtlı podcast bölümlerini listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç bölüm (varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_audiobooks",description:"Kütüphanedeki kayıtlı sesli kitapları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sesli kitap (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_shows",description:"Kütüphanedeki kayıtlı podcastleri listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç podcast (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_episodes",description:"Kütüphanedeki kayıtlı podcast bölümlerini listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç bölüm (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_audiobooks",description:"Kütüphanedeki kayıtlı sesli kitapları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sesli kitap (varsayılan 20)"}},additionalProperties:false}}},
 
     // User
     {type:"function",function:{name:"spotify_me",description:"Bağlı Spotify hesabının profil bilgilerini getir (ad, e-posta, ülke, plan, takipçi).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_top_items",description:"En çok dinlenen sanatçıları veya şarkıları getir.",parameters:{type:"object",properties:{type:{type:"string",enum:["artists","tracks"],description:"artists = sanatçılar, tracks = şarkılar"},time_range:{type:"string",enum:["short_term","medium_term","long_term"],description:"short_term=son 4 hafta, medium_term=son 6 ay, long_term=tüm zamanlar"},limit:{type:"number",description:"Kaç sonuç (max 50, varsayılan 10)"}},required:["type"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_top_items",description:"En çok dinlenen sanatçıları veya şarkıları getir.",parameters:{type:"object",properties:{type:{type:"string",enum:["artists","tracks"],description:"artists = sanatçılar, tracks = şarkılar"},time_range:{type:"string",enum:["short_term","medium_term","long_term"],description:"short_term=son 4 hafta, medium_term=son 6 ay, long_term=tüm zamanlar"},limit:{type: "string",description:"Kaç sonuç (max 50, varsayılan 10)"}},required:["type"],additionalProperties:false}}},
 
     // Follow
     {type:"function",function:{name:"spotify_follow_artist",description:"Bir sanatçıyı takip et. Sanatçı adı veya Spotify ID'si ile çalışır — isim verince otomatik arar.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı (ör: 'Portishead') veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_unfollow_artist",description:"Bir sanatçıyı takipten çıkar. Sanatçı adı veya Spotify ID'si kabul eder.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_followed_artists",description:"Takip edilen sanatçıları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sanatçı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_followed_artists",description:"Takip edilen sanatçıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sanatçı (max 50, varsayılan 20)"}},additionalProperties:false}}},
 
     // Browse
-    {type:"function",function:{name:"spotify_new_releases",description:"Spotify'daki yeni çıkan albüm ve single'ları listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç sonuç (max 50, varsayılan 10)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_categories",description:"Spotify müzik kategorilerini (türlerini) listele.",parameters:{type:"object",properties:{limit:{type:"number",description:"Kaç kategori (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_new_releases",description:"Spotify'daki yeni çıkan albüm ve single'ları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sonuç (max 50, varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_categories",description:"Spotify müzik kategorilerini (türlerini) listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç kategori (max 50, varsayılan 20)"}},additionalProperties:false}}},
 
     // Shows / Episodes / Audiobooks
     {type:"function",function:{name:"spotify_get_show",description:"Podcast detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_show_episodes",description:"Bir podcast'in bölümlerini listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"},limit:{type:"number",description:"Kaç bölüm (max 50, varsayılan 10)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_show_episodes",description:"Bir podcast'in bölümlerini listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"},limit:{type: "string",description:"Kaç bölüm (max 50, varsayılan 10)"}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_get_episode",description:"Podcast bölümü detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify episode ID'si"}},required:["id"],additionalProperties:false}}},
     {type:"function",function:{name:"spotify_get_audiobook",description:"Sesli kitap detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify audiobook ID'si"}},required:["id"],additionalProperties:false}}},
 ];
@@ -1257,13 +1258,13 @@ const steamSchemas: ChatCompletionTool[] = [
 
 // ── Faz 47: Computer Use ─────────────────────────────────────────────────
 const computerUseSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"mouse_move",description:"Fare imlecini ekranda (x,y) koordinatına taşı.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_click",description:"Fare tıklaması yap. Tıklamadan önce otomatik o konuma gider. button: left/right/middle. double: çift tıklama.",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_scroll",description:"Fare tekerleği ile kaydır. direction: up/down. amount: kaç adım (varsayılan 3).",parameters:{type:"object",properties:{x:{type:"number"},y:{type:"number"},direction:{type:"string",enum:["up","down"]},amount:{type:"number"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_drag",description:"Bir noktadan diğerine sürükle bırak.",parameters:{type:"object",properties:{x1:{type:"number"},y1:{type:"number"},x2:{type:"number"},y2:{type:"number"}},required:["x1","y1","x2","y2"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_move",description:"Fare imlecini ekranda (x,y) koordinatına taşı.",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_click",description:"Fare tıklaması yap. Tıklamadan önce otomatik o konuma gider. button: left/right/middle. double: çift tıklama.",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_scroll",description:"Fare tekerleği ile kaydır. direction: up/down. amount: kaç adım (varsayılan 3).",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},direction:{type:"string",enum:["up","down"]},amount:{type: "string"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_drag",description:"Bir noktadan diğerine sürükle bırak.",parameters:{type:"object",properties:{x1:{type: "string"},y1:{type: "string"},x2:{type: "string"},y2:{type: "string"}},required:["x1","y1","x2","y2"],additionalProperties:false}}},
     {type:"function",function:{name:"key_press",description:"Klavye tuşuna veya kısayoluna bas. Örnekler: 'ctrl+c', 'alt+tab', 'win+d', 'enter', 'esc', 'f5'.",parameters:{type:"object",properties:{keys:{type:"string",description:"Tuş kombinasyonu, '+' ile ayır (ör: 'ctrl+shift+t')"}},required:["keys"],additionalProperties:false}}},
     {type:"function",function:{name:"type_text",description:"Aktif alana metin yaz (klavyeden yazılıyormuş gibi).",parameters:{type:"object",properties:{text:{type:"string",description:"Yazılacak metin"}},required:["text"],additionalProperties:false}}},
-    {type:"function",function:{name:"computer_use",description:"Ekran görüntüsü alıp AI ile analiz ederek hedefi gerçekleştir. Mouse+klavye ile bilgisayarı kullanır. 'Spotify'da şu şarkıyı çal', 'Chrome'da şu siteyi aç', 'Şu dosyayı bul ve sil' gibi serbest komutlar.",parameters:{type:"object",properties:{goal:{type:"string",description:"Ne yapmak istediğin (serbest dil, ör: 'Chrome aç ve youtube.com git')"},max_steps:{type:"number",description:"Maksimum adım sayısı (varsayılan 10)"}},required:["goal"],additionalProperties:false}}},
+    {type:"function",function:{name:"computer_use",description:"Ekran görüntüsü alıp AI ile analiz ederek hedefi gerçekleştir. Mouse+klavye ile bilgisayarı kullanır. 'Spotify'da şu şarkıyı çal', 'Chrome'da şu siteyi aç', 'Şu dosyayı bul ve sil' gibi serbest komutlar.",parameters:{type:"object",properties:{goal:{type:"string",description:"Ne yapmak istediğin (serbest dil, ör: 'Chrome aç ve youtube.com git')"},max_steps:{type: "string",description:"Maksimum adım sayısı (varsayılan 10)"}},required:["goal"],additionalProperties:false}}},
     {type:"function",function:{name:"screen_size",description:"Ekran çözünürlüğünü öğren (mouse_click koordinatları için gerekebilir).",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
@@ -1295,6 +1296,10 @@ const ACTION_ROOTS = [
     "open", "close", "start", "stop", "write", "read", "delete", "move", "copy", "download",
     "install", "search", "find", "create", "send", "remind", "schedule", "update", "check",
     "scan", "connect", "play", "print", "launch", "run", "file", "folder", "screen",
+    // Referans/devam & eksik aksiyon kökleri (harness ile bulundu):
+    "azalt", "artir", "art", "kis", "yuksel", "dusur", "arttir", "yarila", "biraz",
+    "parlak", "brightness", "tekrar", "yine", "aktar", "transfer", "temizle", "optimize",
+    "bas", "tikla", "biliyor", "hakk", "tani", "bil", "pomodoro", "indeks", "rapor", "report",
 ];
 
 // Türkçe karakterleri ASCII'ye indir — kullanıcı "dönüştür" veya "donustur"
@@ -1325,18 +1330,18 @@ function hasActionSignal(words: string[]): boolean {
 // Yanlış tarafa düşmektense (false-negative = tool gelmez, AI yapamaz) FAZLA tool
 // göndermek (false-positive = sadece token) tercih edilir.
 const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
-    {schemas: () => memoryPlusSchemas,  roots: ["hatirla", "hafiza", "profil", "not", "tani", "tercih", "memory", "remember"]},
+    {schemas: () => memoryPlusSchemas,  roots: ["hatirla", "hafiza", "profil", "not", "tani", "tercih", "memory", "remember", "hakk", "biliyor", "bil", "alis", "habit", "fact"]},
     {schemas: () => schedulerSchemas,   roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm"]},
     {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace"]},
     {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
-    {schemas: () => knowledgeSchemas,   roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index"]},
+    {schemas: () => knowledgeSchemas,   roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index", "indeks"]},
     {schemas: () => automationSchemas,  roots: ["otomasyon", "automation", "tetikle", "trigger", "workflow"]},
     {schemas: () => macroSchemas,       roots: ["makro", "macro", "record"]},
     {schemas: () => agentSchemas,       roots: ["ajan", "agent", "otonom"]},
     {schemas: () => watchSchemas,       roots: ["izle", "watch", "uyar", "alert", "esik", "threshold", "takip"]},
     {schemas: () => soundSchemas,       roots: ["bip", "beep", "calar"]},
     {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon", "push", "pull", "branch", "merge", "stash", "diff", "staged", "unstaged", "remote", "checkout"]},
-    {schemas: () => timeSchemas,        roots: ["saat", "tarih", "zaman", "time", "takvim", "calendar", "timezone", "hafta"]},
+    {schemas: () => timeSchemas,        roots: ["saat", "tarih", "zaman", "time", "takvim", "calendar", "timezone", "hafta", "pomodoro", "mola"]},
     {schemas: () => mediaSchemas,       roots: ["resim", "resm", "gorsel", "image", "video", "medya", "media", "foto", "donustur", "convert", "kirp"]},
     {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
     {schemas: () => networkSchemas,     roots: ["ping", "ssh", "docker", "sunucu", "server", "network", "port"]},
@@ -1344,11 +1349,50 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox"]},
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
-    {schemas: () => multiModelSchemas,  roots: ["pipeline", "karsilastir", "compare"]},
-    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "profil", "ozellik", "feature", "ilgili", "related"]},
+    // NOT: multiModelSchemas Faz 32-44'ü kapsayan büyük bir dizi — multi-model,
+    // çeviri, dosya/içerik/uygulama arama, sistem optimizasyonu, workspace ve
+    // raporlar hep burada. Kökler bu içeriğin TAMAMINI yakalamalı (harness'la bulundu).
+    {schemas: () => multiModelSchemas,  roots: [
+        "pipeline", "karsilastir", "compare", "model",
+        "cevir", "translate", "ceviri", "altyazi", "subtitle",
+        "uygulama", "app", "icerik", "content", "dosyaara",
+        "optimize", "temizle", "dns", "gecici", "process", "proses", "baslangic", "startup", "performans",
+        "workspace", "calismaalani", "alan",
+        "rapor", "report", "verimlilik", "productivity", "analiz", "ozet",
+    ]},
+    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "aktar", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "dinle", "dinledik", "profil", "ozellik", "feature", "ilgili", "related", "tempo", "enerji", "bpm", "valence", "akustik"]},
     {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite"]},
-    {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use"]},
+    {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use", "bas", "ctrl", "alt", "enter", "kisayol"]},
 ];
+
+// Bir tool adının hangi TOOL_GROUP'a ait olduğunu bul (sticky context için).
+// İlk çağrıda hesaplanır, sonra cache'lenir.
+let _toolGroupIndex: Map<string, typeof TOOL_GROUPS[number]> | null = null;
+function groupForTool(toolName: string): typeof TOOL_GROUPS[number] | null {
+    if (!_toolGroupIndex) {
+        _toolGroupIndex = new Map();
+        for (const group of TOOL_GROUPS) {
+            for (const t of group.schemas()) {
+                const n = t.function?.name;
+                if (n && !_toolGroupIndex.has(n)) _toolGroupIndex.set(n, group);
+            }
+        }
+    }
+    return _toolGroupIndex.get(toolName) ?? null;
+}
+
+// İsme göre tekille (aynı tool birden fazla gruptan gelebilir).
+function dedupeByName(tools: ChatCompletionTool[]): ChatCompletionTool[] {
+    const seen = new Set<string>();
+    const out: ChatCompletionTool[] = [];
+    for (const t of tools) {
+        const n = t.function?.name ?? "";
+        if (seen.has(n)) continue;
+        seen.add(n);
+        out.push(t);
+    }
+    return out;
+}
 
 // context = son kullanıcı mesajı (düz metin). Verilirse bağlama göre tool seçilir.
 export function getAllToolSchemas(provider?: string, context?: string): ChatCompletionTool[] {
@@ -1358,12 +1402,27 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
     if (context !== undefined) {
         const words = tokenize(context);
         const matchedGroups = TOOL_GROUPS.filter((g) => matchesRoots(words, g.roots));
+        const actionSignal = hasActionSignal(words);
+
         // Sohbet/selam/saçma metin (aksiyon sinyali yok, grup eşleşmesi yok) → HİÇ tool yok.
-        if (!hasActionSignal(words) && matchedGroups.length === 0) {
+        // Bu kontrol MESAJIN KENDİSİNE bakar; sticky context'ten ÖNCE çalışır ki bir
+        // önceki spotify aksiyonundan sonra "teşekkürler" demek tool getirmesin.
+        if (!actionSignal && matchedGroups.length === 0) {
             selected = [];
         } else {
-            selected = [...CORE_SCHEMAS()];
-            for (const group of matchedGroups) selected.push(...group.schemas());
+            // STICKY CONTEXT: aksiyon var ama domain kelimesi yoksa ("biraz azalt",
+            // "telefona aktar", "tekrar yap") bir önceki tool'un grubunu da dahil et —
+            // referans çözümleme tool'u kaybolmasın. Yalnızca komut turnlerinde uygulanır.
+            const lastTool = stmGet().lastTool;
+            if (lastTool) {
+                const stickyGroup = groupForTool(lastTool);
+                if (stickyGroup && !matchedGroups.includes(stickyGroup)) matchedGroups.push(stickyGroup);
+            }
+            // Eşleşen grup tool'larını ÖNE al; limit (Groq=64) çekirdek tool'lar
+            // yüzünden kullanıcının asıl istediği domain tool'larını KIRPMASIN.
+            const groupTools: ChatCompletionTool[] = [];
+            for (const group of matchedGroups) groupTools.push(...group.schemas());
+            selected = dedupeByName([...groupTools, ...CORE_SCHEMAS()]);
         }
     } else {
         // Bağlam yok (ör. ajan modu) → eski davranış: hepsi.

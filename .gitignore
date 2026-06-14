@@ -60,3 +60,5 @@ $RECYCLE.BIN/
 reference
 example.claude
 scripts/*-report.json
+tests/harness/*-report.json
+tests/harness/live-output.txt
