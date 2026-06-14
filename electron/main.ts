@@ -27,7 +27,7 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
-import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro} from "./tts";
+import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
 
@@ -1199,24 +1199,20 @@ async function bootApp(): Promise<void> {
         }
     });
 
+    // Kokoro model ağırlıkları YAZILABILIR userData klasörüne iner (asar/node_modules
+    // salt-okunur). kokoro-js kütüphanesi build'e bundle edilir; runtime'da SADECE
+    // ~900MB ONNX ağırlıkları indirilir. cmd.exe/bun spawn YOK.
+    setKokoroModelDir(path.join(app.getPath("userData"), "kokoro-models"));
+
     ipcMain.handle("tts-kokoro-installed", () => isKokoroInstalled());
 
     let _kokoroInstalling = false;
     ipcMain.handle("kokoro-install", async () => {
         if (_kokoroInstalling) return;
         _kokoroInstalling = true;
-        sendToRenderer("kokoro-install-progress", {phase: "pkg", percent: 0, label: "bun add kokoro-js…"});
+        sendToRenderer("kokoro-install-progress", {phase: "model", percent: 0, label: "Model indiriliyor…"});
         try {
-            // Phase 1: install npm package
-            await new Promise<void>((resolve, reject) => {
-                const bunPath = process.platform === "win32" ? "bun.exe" : "bun";
-                exec(`${bunPath} add kokoro-js`, {windowsHide: true, cwd: app.getAppPath()}, (err) => {
-                    if (err) reject(err); else resolve();
-                });
-            });
-            sendToRenderer("kokoro-install-progress", {phase: "pkg", percent: 100, label: "Paket yüklendi"});
-
-            // Phase 2: download ONNX model weights via from_pretrained
+            // Tek aşama: ONNX model ağırlıklarını from_pretrained ile indir (yazılabilir cacheDir'e).
             await loadKokoro((info) => {
                 if (info.status === "progress") {
                     sendToRenderer("kokoro-install-progress", {
@@ -1231,23 +1227,24 @@ async function bootApp(): Promise<void> {
                     sendToRenderer("kokoro-install-progress", {phase: "model", file: info.file ?? "", percent: 100, label: info.file ?? ""});
                 }
             });
+            // Gerçekten indi mi? Diskten doğrula — sahte "ready" gönderme.
+            if (!isKokoroInstalled()) throw new Error("Model dosyaları indirilemedi (disk doğrulaması başarısız).");
             sendToRenderer("kokoro-install-progress", {phase: "ready"});
         } catch (e) {
-            sendToRenderer("kokoro-install-progress", {phase: "error", label: String(e)});
+            const msg = (e as Error)?.message === "KOKORO_NOT_INSTALLED"
+                ? "kokoro-js kütüphanesi bu sürüme dahil edilmemiş. Lütfen uygulamayı güncelleyin."
+                : String((e as Error)?.message ?? e);
+            sendToRenderer("kokoro-install-progress", {phase: "error", label: msg});
         } finally {
             _kokoroInstalling = false;
         }
     });
 
+    // Modeli sil — gerçek silme + diskten doğrulama; sahte UI değişimi YOK.
     ipcMain.handle("kokoro-uninstall", async () => {
-        const fs = await import("fs");
-        const dirs = [
-            path.join(app.getAppPath(), "node_modules", "kokoro-js"),
-            path.join(os.homedir(), ".cache", "huggingface", "hub", "models--onnx-community--Kokoro-82M-v1.0-ONNX"),
-        ];
-        for (const d of dirs) {
-            try { if (fs.existsSync(d)) fs.rmSync(d, {recursive: true, force: true}); } catch { /* ignore */ }
-        }
+        const {deleted, freedBytes} = deleteKokoroModel();
+        const stillInstalled = isKokoroInstalled();
+        return {deleted, freedMB: Math.round(freedBytes / 1048576), installed: stillInstalled};
     });
 
     ipcMain.handle("auth-sign-out", () => signOut());

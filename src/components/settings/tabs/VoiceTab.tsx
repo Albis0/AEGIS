@@ -73,10 +73,20 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
         if (kokoroRemoving) return;
         setKokoroRemoving(true);
         try {
-            await window.jarvis.kokoroUninstall();
-            setKokoroInstalled(false);
-            setKokoroProg({phase: "idle", percent: 0, label: ""});
-        } catch {}
+            const res = await window.jarvis.kokoroUninstall();
+            // Sahte değişiklik yapma — main process'in DİSKTEN doğruladığı gerçek durumu yansıt.
+            const stillInstalled = res?.installed === true;
+            setKokoroInstalled(stillInstalled);
+            if (stillInstalled) {
+                setKokoroProg({phase: "error", percent: 0, label: "Silme başarısız — model dosyaları hâlâ diskte."});
+            } else {
+                setKokoroProg({phase: "idle", percent: 0, label: ""});
+            }
+        } catch (e) {
+            setKokoroProg({phase: "error", percent: 0, label: "Silme hatası: " + String(e)});
+            // gerçek durumu yeniden sorgula
+            window.jarvis.ttsKokoroInstalled().then(setKokoroInstalled).catch(() => {});
+        }
         finally { setKokoroRemoving(false); }
     }
 

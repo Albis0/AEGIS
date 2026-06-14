@@ -1,6 +1,8 @@
 // @ts-ignore
 import {MsEdgeTTS, OUTPUT_FORMAT} from "msedge-tts";
 import {fetchWithTimeout} from "./fetch-utils";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface TtsOptions {
     provider: "edge" | "elevenlabs" | "kokoro";
@@ -60,22 +62,95 @@ function float32ToWav(pcm: Float32Array, sampleRate: number): Buffer {
 let _kokoro: any = null;
 let _kokoroWarmupDone = false;
 
+// ── Kokoro model dosyaları YAZILABILIR bir klasöre indirilir (paketlenmiş app'te
+// node_modules/asar salt-okunur). main process kurulumda buraya userData yolunu verir.
+const KOKORO_REPO = "onnx-community/Kokoro-82M-v1.0-ONNX";
+let _kokoroModelDir: string | null = null;
+
+/** main.ts başlangıçta çağırır: model ağırlıklarının indirileceği yazılabilir klasör. */
+export function setKokoroModelDir(dir: string): void {
+    _kokoroModelDir = dir;
+}
+
+/** transformers'ın cache klasörünü yazılabilir dizine yönlendir (require'dan ÖNCE değil, from_pretrained'den önce yeter). */
+function configureTransformersCache(): void {
+    if (!_kokoroModelDir) return;
+    try {
+        // @ts-ignore
+        const {env} = require("@huggingface/transformers");
+        env.cacheDir = _kokoroModelDir;
+        env.allowLocalModels = true;
+    } catch { /* transformers henüz yoksa sorun değil; from_pretrained zaten hata verir */ }
+}
+
+/** İndirilen model dosyalarının bulunacağı tam klasör (HF cache yapısı: models--owner--repo). */
+function kokoroSnapshotDir(): string | null {
+    if (!_kokoroModelDir) return null;
+    const safe = "models--" + KOKORO_REPO.replace(/\//g, "--");
+    return path.join(_kokoroModelDir, safe);
+}
+
+/** Model dosyaları DİSKTE var mı? require.resolve cache'ine güvenmez. */
+export function isKokoroInstalled(): boolean {
+    const snap = kokoroSnapshotDir();
+    if (!snap) return false;
+    try {
+        if (!fs.existsSync(snap)) return false;
+        // snapshots/<hash>/onnx/*.onnx — en az bir .onnx ağırlık dosyası olmalı.
+        return hasOnnxWeight(snap);
+    } catch { return false; }
+}
+
+function hasOnnxWeight(dir: string): boolean {
+    let found = false;
+    const walk = (d: string, depth: number) => {
+        if (found || depth > 5) return;
+        for (const e of fs.readdirSync(d, {withFileTypes: true})) {
+            const full = path.join(d, e.name);
+            if (e.isDirectory()) walk(full, depth + 1);
+            else if (e.name.endsWith(".onnx") && fs.statSync(full).size > 1_000_000) { found = true; return; }
+        }
+    };
+    try { walk(dir, 0); } catch { /* ignore */ }
+    return found;
+}
+
+/** Model klasörünü tamamen sil. Gerçekten silinip silinmediğini döndürür. */
+export function deleteKokoroModel(): {deleted: boolean; freedBytes: number} {
+    const snap = kokoroSnapshotDir();
+    if (!snap || !fs.existsSync(snap)) return {deleted: false, freedBytes: 0};
+    let freed = 0;
+    try { freed = dirSize(snap); } catch { /* ignore */ }
+    fs.rmSync(snap, {recursive: true, force: true});
+    _kokoro = null;            // bellekteki örneği bırak
+    _kokoroWarmupDone = false;
+    return {deleted: !fs.existsSync(snap), freedBytes: freed};
+}
+
+function dirSize(dir: string): number {
+    let total = 0;
+    for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) total += dirSize(full);
+        else { try { total += fs.statSync(full).size; } catch { /* ignore */ } }
+    }
+    return total;
+}
+
 export function warmupKokoro(voice: string): void {
     if (_kokoroWarmupDone) return;
+    if (!isKokoroInstalled()) return; // model yoksa indirme tetikleme — sadece warmup
     _kokoroWarmupDone = true;
     getKokoro()
         .then((tts: any) => tts.generate(".", {voice: voice || "af_heart"}))
         .catch(() => {});
 }
 
-export function isKokoroInstalled(): boolean {
-    try { require.resolve("kokoro-js"); return true; } catch { return false; }
-}
-
 export type KokoroProgressCb = (info: {status: string; file?: string; progress?: number; loaded?: number; total?: number}) => void;
 
 export async function loadKokoro(onProgress?: KokoroProgressCb): Promise<void> {
     if (_kokoro) return;
+    configureTransformersCache();
     let KokoroTTS: any;
     try {
         // @ts-ignore
@@ -83,7 +158,7 @@ export async function loadKokoro(onProgress?: KokoroProgressCb): Promise<void> {
     } catch {
         throw new Error("KOKORO_NOT_INSTALLED");
     }
-    _kokoro = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+    _kokoro = await KokoroTTS.from_pretrained(KOKORO_REPO, {
         dtype: "q8",
         device: "cpu",
         progress_callback: onProgress,
