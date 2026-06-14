@@ -1377,10 +1377,13 @@ async function bootApp(): Promise<void> {
             private: true,
             token: AEGIS_GITHUB_TOKEN,
         });
-        autoUpdater.autoDownload = false;
-        autoUpdater.autoInstallOnAppQuit = true;
+        // İNDİRME TAMAMEN MANUEL. Otomatik kontrol SADECE "yeni sürüm var" bildirimi verir;
+        // indirme YALNIZCA kullanıcı İNDİR'e basınca (update-download IPC) başlar.
+        autoUpdater.autoDownload = false;          // checkForUpdates indirmeyi tetiklemesin
+        autoUpdater.autoInstallOnAppQuit = false;  // çıkışta sessizce kurma — kullanıcı karar versin
 
         autoUpdater.on("update-available", (info) => {
+            // Sadece bildirim. Burada downloadUpdate() ÇAĞIRMA.
             sendToRenderer("update-available", {version: info.version});
         });
 
@@ -1397,11 +1400,13 @@ async function bootApp(): Promise<void> {
             sendToRenderer("update-downloaded", {});
         });
 
+        // Bildirim amaçlı kontrol — autoDownload=false olduğu için indirme yapmaz.
         autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message));
         setInterval(() => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message)), 4 * 60 * 60 * 1000);
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
+    // SADECE buradan indirme başlar — kullanıcı İNDİR'e bastığında.
     ipcMain.handle("update-download", () => autoUpdater.downloadUpdate());
     ipcMain.handle("check-for-updates", async () => {
         if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};

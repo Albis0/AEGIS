@@ -60,7 +60,7 @@ export default function App() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
-    const [updateInfo, setUpdateInfo] = useState<{version?: string; ready: boolean} | null>(null);
+    const [updateInfo, setUpdateInfo] = useState<{version?: string; ready: boolean; downloading?: boolean} | null>(null);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [reactorStyle, setReactorStyle] = useState<AppSettings["reactorStyle"]>("rings");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
@@ -262,12 +262,17 @@ export default function App() {
 
     useEffect(() => {
         const unsubAvail = window.jarvis.on("update-available", (info: {version: string}) => {
-            setUpdateInfo({version: info.version, ready: false});
+            // Sadece bildirim — indirme MANUEL (toast'taki "indir" ya da Hakkında > İNDİR).
+            setUpdateInfo({version: info.version, ready: false, downloading: false});
+        });
+        const unsubProg = window.jarvis.on("update-progress", () => {
+            // İndirme başladıysa (About tab ya da toast'tan) toast'ı senkronla.
+            setUpdateInfo((prev) => prev && !prev.ready ? {...prev, downloading: true} : prev);
         });
         const unsubDone = window.jarvis.on("update-downloaded", () => {
-            setUpdateInfo((prev) => ({...prev, ready: true}));
+            setUpdateInfo((prev) => prev ? {...prev, ready: true, downloading: false} : prev);
         });
-        return () => { unsubAvail(); unsubDone(); };
+        return () => { unsubAvail(); unsubProg(); unsubDone(); };
     }, []);
 
     useEffect(() => {
@@ -513,8 +518,15 @@ export default function App() {
                                 onClick={() => window.jarvis.updateInstall()}
                             >yeniden başlat</button>
                         </span>
-                    ) : (
+                    ) : updateInfo.downloading ? (
                         <span>v{updateInfo.version} indiriliyor…</span>
+                    ) : (
+                        <span>Yeni sürüm var: v{updateInfo.version} —{" "}
+                            <button
+                                className="underline hover:brightness-125"
+                                onClick={() => { window.jarvis.updateDownload(); setUpdateInfo((prev) => prev && {...prev, downloading: true}); }}
+                            >indir</button>
+                        </span>
                     )}
                     <button className="opacity-40 hover:opacity-100 ml-1" onClick={() => setUpdateInfo(null)}>✕</button>
                 </div>
