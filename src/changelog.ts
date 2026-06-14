@@ -1,0 +1,76 @@
+import type {Lang} from "./i18n";
+
+// ── Yama notları / Patch notes ────────────────────────────────────────────────
+// Tek kaynak: her sürüm + 5 dilde madde listesi. Yeni sürümde en üste ekle.
+// date: YYYY-MM-DD (gösterimde kullanıcının locale'ine göre biçimlenir).
+
+export interface ChangelogEntry {
+    version: string;
+    date: string;
+    notes: Record<Lang, string[]>;
+}
+
+export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.4.3",
+        date: "2026-06-14",
+        notes: {
+            tr: [
+                "Kokoro TTS paketlenmiş uygulamada gerçekten çalışıyor: kütüphane dahili, ~900MB model yazılabilir klasöre iniyor (eski 'cmd.exe ENOENT' hatası giderildi).",
+                "Kokoro 'sil' artık model dosyalarını gerçekten siliyor; durum diskten doğrulanıyor.",
+                "Spotify 'Beğenilen Şarkılar' çalma ve ~1 dk takılma düzeltildi (Liked Songs özel olarak çalınıyor).",
+            ],
+            en: [
+                "Kokoro TTS now actually works in the packaged app: library bundled, ~900MB model downloads to a writable folder (old 'cmd.exe ENOENT' error fixed).",
+                "Kokoro 'delete' now truly removes the model files; state verified from disk.",
+                "Fixed Spotify 'Liked Songs' playback and the ~1 min hang (Liked Songs played specially).",
+            ],
+            de: [
+                "Kokoro TTS funktioniert jetzt in der gepackten App: Bibliothek enthalten, ~900 MB Modell wird in einen beschreibbaren Ordner geladen ('cmd.exe ENOENT'-Fehler behoben).",
+                "Kokoro 'Löschen' entfernt die Modelldateien nun wirklich; Status wird von der Festplatte geprüft.",
+                "Spotify-Wiedergabe der 'Lieblingssongs' und ~1-min-Hänger behoben.",
+            ],
+            fr: [
+                "Kokoro TTS fonctionne enfin dans l'app packagée : bibliothèque incluse, modèle ~900 Mo téléchargé dans un dossier inscriptible (erreur 'cmd.exe ENOENT' corrigée).",
+                "« Supprimer » Kokoro retire réellement les fichiers du modèle ; état vérifié sur le disque.",
+                "Correction de la lecture des « Titres likés » Spotify et du blocage d'~1 min.",
+            ],
+            es: [
+                "Kokoro TTS ya funciona en la app empaquetada: librería incluida, el modelo de ~900 MB se descarga en una carpeta escribible (corregido el error 'cmd.exe ENOENT').",
+                "'Eliminar' Kokoro borra de verdad los archivos del modelo; estado verificado desde el disco.",
+                "Corregida la reproducción de 'Tus me gusta' de Spotify y el bloqueo de ~1 min.",
+            ],
+        },
+    },
+    {
+        version: "1.4.0",
+        date: "2026-06-14",
+        notes: {
+            tr: [
+                "Spotify Web API tam entegrasyonu (96 uç nokta): sanatçı, albüm, şarkı, çalma listesi, öneri, takip ve daha fazlası. Sanatçı araçları artık isim de kabul ediyor.",
+                "Araç güvenilirliği: 263 aracın tamamı statik ve çalışma-zamanı doğrulamasından geçti; tool seçim açıkları ('bazen çalışıyor bazen çalışmıyor') kapatıldı.",
+                "Kısa süreli bellek + referans çözümleme ('biraz azalt', 'tekrar yap').",
+            ],
+            en: [
+                "Full Spotify Web API integration (96 endpoints): artists, albums, tracks, playlists, recommendations, follow and more. Artist tools now accept names too.",
+                "Tool reliability: all 263 tools passed static and runtime validation; tool-selection gaps ('sometimes works, sometimes not') closed.",
+                "Short-term memory + reference resolution ('turn it down a bit', 'do that again').",
+            ],
+            de: [
+                "Vollständige Spotify-Web-API-Integration (96 Endpunkte): Künstler, Alben, Titel, Playlists, Empfehlungen, Folgen u. v. m. Künstler-Tools akzeptieren jetzt auch Namen.",
+                "Tool-Zuverlässigkeit: alle 263 Tools statisch und zur Laufzeit geprüft; Auswahllücken behoben.",
+                "Kurzzeitgedächtnis + Referenzauflösung ('etwas leiser', 'mach das nochmal').",
+            ],
+            fr: [
+                "Intégration complète de l'API Web Spotify (96 points de terminaison) : artistes, albums, titres, playlists, recommandations, suivi, etc. Les outils artiste acceptent désormais les noms.",
+                "Fiabilité des outils : les 263 outils ont passé la validation statique et à l'exécution ; failles de sélection corrigées.",
+                "Mémoire court terme + résolution de références (« baisse un peu », « refais ça »).",
+            ],
+            es: [
+                "Integración completa de la API Web de Spotify (96 endpoints): artistas, álbumes, canciones, listas, recomendaciones, seguir y más. Las herramientas de artista ahora aceptan nombres.",
+                "Fiabilidad de herramientas: las 263 herramientas pasaron la validación estática y en tiempo de ejecución; cerradas las brechas de selección.",
+                "Memoria a corto plazo + resolución de referencias ('bájalo un poco', 'hazlo otra vez').",
+            ],
+        },
+    },
+];

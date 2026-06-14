@@ -1,8 +1,12 @@
 import {useEffect, useState} from "react";
+import type {Lang, SettingsStrings} from "../../../i18n";
+import {CHANGELOG} from "../../../changelog";
 
 interface Props {
     accent: string;
     ac: string;
+    lang: Lang;
+    s: SettingsStrings;
 }
 
 function formatBytes(b: number) {
@@ -32,7 +36,7 @@ function ensureGlobalListeners() {
     window.jarvis.on("update-available",  (info: {version: string})    => { _gStatus = "available"; _gLatest = info.version; });
 }
 
-export default function AboutTab({accent: a, ac}: Props) {
+export default function AboutTab({accent: a, ac, lang, s}: Props) {
     const [version, setVersion] = useState<string>("…");
     const [status, setStatus] = useState<UpdateStatus>(_gStatus);
     const [latestVersion, setLatestVersion] = useState<string | null>(_gLatest);
@@ -187,6 +191,51 @@ export default function AboutTab({accent: a, ac}: Props) {
                         Hata: {errorMsg}
                     </div>
                 )}
+            </div>
+
+            {/* Yama notları / Patch notes — aktif dile göre */}
+            <div className="space-y-3">
+                <div className="text-[11px] tracking-widest uppercase" style={{color: `rgba(${a},0.45)`}}>
+                    {s.aboutChangelog}
+                </div>
+                <div className="space-y-3">
+                    {CHANGELOG.map((entry) => {
+                        const isCurrent = entry.version === version;
+                        const notes = entry.notes[lang] ?? entry.notes.en;
+                        const dateStr = (() => {
+                            try { return new Date(entry.date).toLocaleDateString(lang, {year: "numeric", month: "short", day: "numeric"}); }
+                            catch { return entry.date; }
+                        })();
+                        return (
+                            <div key={entry.version} className="rounded-xl p-4"
+                                style={{background: `rgba(${a},0.04)`, border: `1px solid rgba(${a},${isCurrent ? 0.25 : 0.1})`}}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12px] font-mono" style={{color: ac}}>v{entry.version}</span>
+                                        {isCurrent && (
+                                            <span className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded"
+                                                style={{background: `rgba(${a},0.15)`, color: ac}}>
+                                                {s.aboutCurrent}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] font-mono" style={{color: `rgba(${a},0.4)`}}>{dateStr}</span>
+                                </div>
+                                <ul className="space-y-1.5">
+                                    {notes.map((n, i) => (
+                                        <li key={i} className="flex gap-2 text-[11px] leading-relaxed" style={{color: `rgba(${a},0.7)`}}>
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={ac} strokeWidth="2.5"
+                                                className="mt-0.5 shrink-0" style={{opacity: 0.6}}>
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                            <span>{n}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

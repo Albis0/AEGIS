@@ -406,6 +406,9 @@ export interface SettingsStrings {
     navTelemetry: string; navTelemetrySub: string;
     navShortcuts: string; navShortcutsSub: string;
     navTools: string; navToolsSub: string;
+    navAbout: string; navAboutSub: string;
+    // AboutTab — patch notes
+    aboutChangelog: string; aboutCurrent: string;
     // AccountTab
     accSection: string; accMode: string; accEmail: string;
     accTrial: string; accAdvanced: string;
@@ -457,6 +460,8 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTelemetry: "Telemetri", navTelemetrySub: "Widget & uyarılar",
         navShortcuts: "Kısayollar", navShortcutsSub: "Klavye kısayolları",
         navTools: "Araçlar", navToolsSub: "Mevcut tool listesi",
+        navAbout: "Hakkında", navAboutSub: "Sürüm & güncelleme",
+        aboutChangelog: "Yama Notları", aboutCurrent: "yüklü",
         accSection: "HESAP & MOD", accMode: "Mod", accEmail: "Hesap",
         accTrial: "Hızlı Başlangıç (Deneme)", accAdvanced: "Gelişmiş (Kendi Anahtarın)",
         accQuota: "GÜNLÜK KOTA", accRequests: "İstek", accTokens: "Token",
@@ -501,6 +506,8 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTelemetry: "Telemetry", navTelemetrySub: "Widgets & alerts",
         navShortcuts: "Shortcuts", navShortcutsSub: "Keyboard shortcuts",
         navTools: "Tools", navToolsSub: "Available tool list",
+        navAbout: "About", navAboutSub: "Version & updates",
+        aboutChangelog: "Patch Notes", aboutCurrent: "installed",
         accSection: "ACCOUNT & MODE", accMode: "Mode", accEmail: "Account",
         accTrial: "Quick Start (Trial)", accAdvanced: "Advanced (Own Key)",
         accQuota: "DAILY QUOTA", accRequests: "Requests", accTokens: "Tokens",
@@ -545,6 +552,8 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTelemetry: "Telemetrie", navTelemetrySub: "Widgets & Warnungen",
         navShortcuts: "Tastenkürzel", navShortcutsSub: "Tastaturkürzel",
         navTools: "Werkzeuge", navToolsSub: "Verfügbare Tool-Liste",
+        navAbout: "Über", navAboutSub: "Version & Updates",
+        aboutChangelog: "Änderungen", aboutCurrent: "installiert",
         accSection: "KONTO & MODUS", accMode: "Modus", accEmail: "Konto",
         accTrial: "Schnellstart (Testversion)", accAdvanced: "Erweitert (Eigener Schlüssel)",
         accQuota: "TAGESKONTINGENT", accRequests: "Anfragen", accTokens: "Token",
@@ -589,6 +598,8 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTelemetry: "Télémétrie", navTelemetrySub: "Widgets & alertes",
         navShortcuts: "Raccourcis", navShortcutsSub: "Raccourcis clavier",
         navTools: "Outils", navToolsSub: "Liste des outils disponibles",
+        navAbout: "À propos", navAboutSub: "Version & mises à jour",
+        aboutChangelog: "Notes de version", aboutCurrent: "installée",
         accSection: "COMPTE & MODE", accMode: "Mode", accEmail: "Compte",
         accTrial: "Démarrage rapide (Essai)", accAdvanced: "Avancé (Clé personnelle)",
         accQuota: "QUOTA QUOTIDIEN", accRequests: "Requêtes", accTokens: "Tokens",
@@ -633,6 +644,8 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTelemetry: "Telemetría", navTelemetrySub: "Widgets y alertas",
         navShortcuts: "Atajos", navShortcutsSub: "Atajos de teclado",
         navTools: "Herramientas", navToolsSub: "Lista de herramientas disponibles",
+        navAbout: "Acerca de", navAboutSub: "Versión y actualizaciones",
+        aboutChangelog: "Notas de versión", aboutCurrent: "instalada",
         accSection: "CUENTA Y MODO", accMode: "Modo", accEmail: "Cuenta",
         accTrial: "Inicio rápido (Prueba)", accAdvanced: "Avanzado (Clave propia)",
         accQuota: "CUOTA DIARIA", accRequests: "Solicitudes", accTokens: "Tokens",

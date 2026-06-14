@@ -81,7 +81,7 @@ export default function SettingsPanel({
         {id: "telemetry"  as Tab, icon: "▣", label: s.navTelemetry,  sub: s.navTelemetrySub},
         {id: "shortcuts"  as Tab, icon: "⌨", label: s.navShortcuts,  sub: s.navShortcutsSub},
         {id: "tools"      as Tab, icon: "✦", label: s.navTools,      sub: s.navToolsSub},
-        {id: "about"      as Tab, icon: "◎", label: "Hakkında",       sub: "Sürüm & güncelleme"},
+        {id: "about"      as Tab, icon: "◎", label: s.navAbout,       sub: s.navAboutSub},
     ];
 
     return (
@@ -227,7 +227,7 @@ export default function SettingsPanel({
                             <ToolsTab settings={settings} accent={a} ac={ac} onApply={applySettings} s={s} />
                         )}
                         {tab === "about" && (
-                            <AboutTab accent={a} ac={ac} />
+                            <AboutTab accent={a} ac={ac} lang={lang} s={s} />
                         )}
                     </div>
                 </main>
