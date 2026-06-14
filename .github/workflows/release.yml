@@ -16,15 +16,19 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-
+      # NOT: node_modules cache'lenmiyor. Kokoro (kokoro-js + onnxruntime-node ~200MB
+      # native binary) optionalDependency olduğu için stale cache bunları atlıyordu ve
+      # paketlenmiş app'te Kokoro kütüphanesi eksik kalıyordu. Release build'i temiz kurulum yapar.
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Verify Kokoro deps bundled
+        shell: bash
+        run: |
+          for m in kokoro-js @huggingface/transformers onnxruntime-node; do
+            if [ ! -d "node_modules/$m" ]; then echo "HATA: node_modules/$m yok — Kokoro paketlenemez"; exit 1; fi
+          done
+          echo "Kokoro deps present: kokoro-js, transformers, onnxruntime-node"
 
       - name: Build
         env:
