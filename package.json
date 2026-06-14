@@ -16,6 +16,11 @@
     "test:convo": "tsc -p tsconfig.electron.json && node tests/harness/conversation-harness.mjs",
     "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs"
   },
+  "trustedDependencies": [
+    "onnxruntime-node",
+    "sharp",
+    "@img/sharp-win32-x64"
+  ],
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "electron-updater": "^6.8.3",
