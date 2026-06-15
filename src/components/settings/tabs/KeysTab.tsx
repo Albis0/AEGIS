@@ -57,6 +57,18 @@ export default function KeysTab({config, accent, ac, onApplyConfig, s}: Props) {
             value: config.elevenlabsApiKey ?? "",
             onSave: (v) => onApplyConfig({elevenlabsApiKey: v || undefined}),
         },
+        {
+            label: "STEAM API KEY",
+            hint: "opsiyonel · oyun/arkadaş/başarım (steamcommunity.com/dev/apikey)",
+            value: config.steamApiKey ?? "",
+            onSave: (v) => onApplyConfig({steamApiKey: v || undefined}),
+        },
+        {
+            label: "STEAMID64",
+            hint: "opsiyonel · 17 haneli ID (steamid.io)",
+            value: config.steamId64 ?? "",
+            onSave: (v) => onApplyConfig({steamId64: v || undefined}),
+        },
     ];
 
     return (

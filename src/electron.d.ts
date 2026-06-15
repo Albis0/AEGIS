@@ -136,6 +136,8 @@ export interface AegisConfig {
     tavilyApiKey?: string;
     serperApiKey?: string;
     elevenlabsApiKey?: string;
+    steamApiKey?: string;
+    steamId64?: string;
 }
 
 export interface Weather {

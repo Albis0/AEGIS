@@ -9,6 +9,8 @@ export interface AegisConfig {
     tavilyApiKey?: string;
     serperApiKey?: string;
     elevenlabsApiKey?: string;
+    steamApiKey?: string;
+    steamId64?: string;
 }
 
 const CONFIG_PATH = path.join(os.homedir(), ".aegis", "config.json");
@@ -44,4 +46,6 @@ export function applyConfig(config: AegisConfig): void {
     if (config.tavilyApiKey) process.env.TAVILY_API_KEY = config.tavilyApiKey;
     if (config.serperApiKey) process.env.SERPER_API_KEY = config.serperApiKey;
     if (config.elevenlabsApiKey) process.env.ELEVENLABS_API_KEY = config.elevenlabsApiKey;
+    if (config.steamApiKey) process.env.STEAM_API_KEY = config.steamApiKey;
+    if (config.steamId64) process.env.STEAM_ID64 = config.steamId64;
 }

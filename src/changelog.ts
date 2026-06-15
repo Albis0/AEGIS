@@ -12,6 +12,37 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.5.0",
+        date: "2026-06-15",
+        notes: {
+            tr: [
+                "Steam entegrasyonu büyük ölçüde genişledi: oyun başlat/kapat/yeniden başlat, yüklü oyunlar, mağaza arama, fiyat, indirimler ve haberler.",
+                "Steam API key + SteamID girince: kütüphane, oynama süreleri, başarımlar, profil, seviye ve arkadaş listesi de kullanılabilir (Ayarlar > API Keys).",
+                "İstek listesi, indirme yönetimi, Workshop ve yedekleme gibi gelişmiş Steam işlemleri deneysel olarak eklendi.",
+            ],
+            en: [
+                "Steam integration greatly expanded: launch/close/restart games, installed games, store search, price, discounts and news.",
+                "With a Steam API key + SteamID: library, playtimes, achievements, profile, level and friend list become available too (Settings > API Keys).",
+                "Advanced Steam actions (wishlist, download management, Workshop, backups) added as experimental.",
+            ],
+            de: [
+                "Steam-Integration stark erweitert: Spiele starten/schließen/neu starten, installierte Spiele, Store-Suche, Preis, Angebote und News.",
+                "Mit Steam-API-Key + SteamID: auch Bibliothek, Spielzeiten, Erfolge, Profil, Level und Freundesliste (Einstellungen > API Keys).",
+                "Erweiterte Steam-Aktionen (Wunschliste, Download-Verwaltung, Workshop, Backups) als experimentell hinzugefügt.",
+            ],
+            fr: [
+                "Intégration Steam largement étendue : lancer/fermer/relancer des jeux, jeux installés, recherche boutique, prix, promotions et actualités.",
+                "Avec une clé API Steam + SteamID : bibliothèque, temps de jeu, succès, profil, niveau et liste d'amis aussi (Paramètres > API Keys).",
+                "Actions Steam avancées (liste de souhaits, gestion des téléchargements, Workshop, sauvegardes) ajoutées en expérimental.",
+            ],
+            es: [
+                "Integración con Steam ampliada: abrir/cerrar/reiniciar juegos, juegos instalados, búsqueda en la tienda, precio, ofertas y noticias.",
+                "Con una API key de Steam + SteamID: también biblioteca, tiempos de juego, logros, perfil, nivel y lista de amigos (Ajustes > API Keys).",
+                "Acciones avanzadas de Steam (lista de deseos, gestión de descargas, Workshop, copias) añadidas como experimentales.",
+            ],
+        },
+    },
+    {
         version: "1.4.5",
         date: "2026-06-15",
         notes: {
