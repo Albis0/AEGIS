@@ -1396,18 +1396,40 @@ async function bootApp(): Promise<void> {
             });
         });
 
-        autoUpdater.on("update-downloaded", () => {
-            sendToRenderer("update-downloaded", {});
+        autoUpdater.on("update-downloaded", (info) => {
+            console.log("[updater] update-downloaded", info?.version);
+            sendToRenderer("update-downloaded", {version: info?.version});
         });
 
+        // KRİTİK: hata event'i olmadan indirme sessizce takılıp "indiriliyor…" sonsuza
+        // kadar kalıyordu. Artık her hata renderer'a iletilir + log'lanır.
+        autoUpdater.on("error", (err) => {
+            const msg = (err as Error)?.message ?? String(err);
+            console.error("[updater] error:", msg);
+            sendToRenderer("update-error", {message: msg});
+        });
+        autoUpdater.on("checking-for-update", () => console.log("[updater] checking…"));
+        autoUpdater.on("update-not-available", () => console.log("[updater] up to date"));
+
         // Bildirim amaçlı kontrol — autoDownload=false olduğu için indirme yapmaz.
-        autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message));
+        autoUpdater.checkForUpdates().catch((e) => { console.error("[updater] check:", e.message); sendToRenderer("update-error", {message: e.message}); });
         setInterval(() => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message)), 4 * 60 * 60 * 1000);
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
-    // SADECE buradan indirme başlar — kullanıcı İNDİR'e bastığında.
-    ipcMain.handle("update-download", () => autoUpdater.downloadUpdate());
+    // SADECE buradan indirme başlar — kullanıcı İNDİR'e bastığında. Hata olursa
+    // renderer'a iletilir ki "indiriliyor…" sonsuza kalmasın.
+    ipcMain.handle("update-download", async () => {
+        try {
+            await autoUpdater.downloadUpdate();
+            return {ok: true};
+        } catch (e) {
+            const msg = (e as Error)?.message ?? String(e);
+            console.error("[updater] download failed:", msg);
+            sendToRenderer("update-error", {message: msg});
+            return {ok: false, error: msg};
+        }
+    });
     ipcMain.handle("check-for-updates", async () => {
         if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};
         try {

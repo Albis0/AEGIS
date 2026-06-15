@@ -10,6 +10,7 @@ import {UI, type Lang} from "./i18n";
 import {getFamily} from "./themes";
 import {applyAccent} from "./utils/color";
 import type {FeedItem, Attachment} from "./types/feed";
+import {updateReducer, type UpdateState, type UpdateEvent} from "./update-state";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -60,7 +61,7 @@ export default function App() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
-    const [updateInfo, setUpdateInfo] = useState<{version?: string; ready: boolean; downloading?: boolean} | null>(null);
+    const [updateInfo, setUpdateInfo] = useState<UpdateState | null>(null);
     const [skin, setSkin] = useState<AppSettings["skin"]>("hologram");
     const [reactorStyle, setReactorStyle] = useState<AppSettings["reactorStyle"]>("rings");
     const [layout, setLayout] = useState<AppSettings["layout"]>("normal");
@@ -261,18 +262,14 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        const unsubAvail = window.jarvis.on("update-available", (info: {version: string}) => {
-            // Sadece bildirim — indirme MANUEL (toast'taki "indir" ya da Hakkında > İNDİR).
-            setUpdateInfo({version: info.version, ready: false, downloading: false});
-        });
-        const unsubProg = window.jarvis.on("update-progress", () => {
-            // İndirme başladıysa (About tab ya da toast'tan) toast'ı senkronla.
-            setUpdateInfo((prev) => prev && !prev.ready ? {...prev, downloading: true} : prev);
-        });
-        const unsubDone = window.jarvis.on("update-downloaded", () => {
-            setUpdateInfo((prev) => prev ? {...prev, ready: true, downloading: false} : prev);
-        });
-        return () => { unsubAvail(); unsubProg(); unsubDone(); };
+        // Tek durum makinesi (update-state.ts) — toast App-seviyesinde, tab/ayar
+        // değişiminde unmount olmaz; bu yüzden indirme durumu KORUNUR.
+        const dispatch = (ev: UpdateEvent) => setUpdateInfo((prev) => updateReducer(prev, ev));
+        const unsubAvail = window.jarvis.on("update-available", (info: {version: string}) => dispatch({type: "available", version: info.version}));
+        const unsubProg  = window.jarvis.on("update-progress", (p: {percent: number}) => dispatch({type: "progress", percent: p?.percent ?? 0}));
+        const unsubDone  = window.jarvis.on("update-downloaded", (info: {version?: string}) => dispatch({type: "downloaded", version: info?.version}));
+        const unsubErr   = window.jarvis.on("update-error", (e: {message: string}) => dispatch({type: "error", message: e?.message ?? "Güncelleme hatası"}));
+        return () => { unsubAvail(); unsubProg(); unsubDone(); unsubErr(); };
     }, []);
 
     useEffect(() => {
@@ -505,30 +502,48 @@ export default function App() {
             {(() => { const SkinComp = getSkinComp(skin); return <SkinComp {...skinProps} />; })()}
             {updateInfo && (
                 <div
-                    className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 flex items-center gap-3 text-[11px] tracking-wide shadow-lg"
-                    style={{background: "rgba(4,7,13,0.97)", border: "1px solid rgba(var(--hud),0.4)", color: "rgb(var(--hud))"}}
+                    className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 flex flex-col gap-2 text-[11px] tracking-wide shadow-lg min-w-[260px] max-w-[340px]"
+                    style={{
+                        background: "rgba(4,7,13,0.97)",
+                        border: `1px solid ${updateInfo.error ? "rgba(239,68,68,0.5)" : "rgba(var(--hud),0.4)"}`,
+                        color: updateInfo.error ? "rgb(239,120,120)" : "rgb(var(--hud))",
+                    }}
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
-                    </svg>
-                    {updateInfo.ready ? (
-                        <span>v{updateInfo.version} indirildi —{" "}
-                            <button
-                                className="underline hover:brightness-125"
-                                onClick={() => window.jarvis.updateInstall()}
-                            >yeniden başlat</button>
-                        </span>
-                    ) : updateInfo.downloading ? (
-                        <span>v{updateInfo.version} indiriliyor…</span>
-                    ) : (
-                        <span>Yeni sürüm var: v{updateInfo.version} —{" "}
-                            <button
-                                className="underline hover:brightness-125"
-                                onClick={() => { window.jarvis.updateDownload(); setUpdateInfo((prev) => prev && {...prev, downloading: true}); }}
-                            >indir</button>
-                        </span>
+                    <div className="flex items-center gap-3">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                            {updateInfo.error
+                                ? <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+                                : <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>}
+                        </svg>
+                        <div className="flex-1">
+                            {updateInfo.error ? (
+                                <span>İndirme başarısız: {updateInfo.error.slice(0, 80)} —{" "}
+                                    <button className="underline hover:brightness-125"
+                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "retry"})); window.jarvis.updateDownload(); }}
+                                    >tekrar dene</button>
+                                </span>
+                            ) : updateInfo.ready ? (
+                                <span>v{updateInfo.version} indirildi —{" "}
+                                    <button className="underline hover:brightness-125" onClick={() => window.jarvis.updateInstall()}>yeniden başlat</button>
+                                </span>
+                            ) : updateInfo.downloading ? (
+                                <span>v{updateInfo.version} indiriliyor… {updateInfo.percent != null ? `%${updateInfo.percent}` : ""}</span>
+                            ) : (
+                                <span>Yeni sürüm var: v{updateInfo.version} —{" "}
+                                    <button className="underline hover:brightness-125"
+                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "start-download"})); window.jarvis.updateDownload(); }}
+                                    >indir</button>
+                                </span>
+                            )}
+                        </div>
+                        <button className="opacity-40 hover:opacity-100" onClick={() => setUpdateInfo(null)}>✕</button>
+                    </div>
+                    {updateInfo.downloading && !updateInfo.error && (
+                        <div className="w-full h-1 rounded-full overflow-hidden" style={{background: "rgba(var(--hud),0.15)"}}>
+                            <div className="h-full rounded-full transition-all duration-300"
+                                style={{width: `${updateInfo.percent ?? 0}%`, background: "rgb(var(--hud))"}} />
+                        </div>
                     )}
-                    <button className="opacity-40 hover:opacity-100 ml-1" onClick={() => setUpdateInfo(null)}>✕</button>
                 </div>
             )}
         </>

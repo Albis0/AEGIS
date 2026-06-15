@@ -34,6 +34,7 @@ function ensureGlobalListeners() {
     window.jarvis.on("update-progress", (p: UpdateProgress) => { _gStatus = "downloading"; _gProgress = p; });
     window.jarvis.on("update-downloaded",               ()              => { _gStatus = "ready"; _gProgress = null; });
     window.jarvis.on("update-available",  (info: {version: string})    => { _gStatus = "available"; _gLatest = info.version; });
+    window.jarvis.on("update-error",      (e: {message: string})       => { _gStatus = "error"; _gError = e?.message ?? "Güncelleme hatası"; _gProgress = null; });
 }
 
 export default function AboutTab({accent: a, ac, lang, s}: Props) {
@@ -59,8 +60,13 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
             setLatestVersion(info.version);
             setStatus("available");
         });
+        const offErr = window.jarvis.on("update-error", (e: {message: string}) => {
+            setErrorMsg(e?.message ?? "Güncelleme hatası");
+            setStatus("error");
+            setProgress(null);
+        });
 
-        return () => { offProgress(); offDone(); offAvail(); };
+        return () => { offProgress(); offDone(); offAvail(); offErr(); };
     }, []);
 
     async function checkUpdates() {

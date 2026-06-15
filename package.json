@@ -1,6 +1,6 @@
 {
   "name": "real-jarvis",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Windows için kişisel AI asistanı — konuşma tanıma, 150+ araç, çoklu LLM desteği",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "bench": "vitest bench",
     "test:trio": "node scripts/validate-tools.mjs",
     "test:convo": "tsc -p tsconfig.electron.json && node tests/harness/conversation-harness.mjs",
-    "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs"
+    "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs",
+    "test:gui": "node scripts/gui-test-update.mjs"
   },
   "trustedDependencies": [
     "onnxruntime-node",
@@ -45,6 +46,7 @@
     "dotenv": "^16.4.5",
     "electron": "31.7.7",
     "electron-builder": "^24.9.1",
+    "playwright": "^1.60.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.0",

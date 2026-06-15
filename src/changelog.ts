@@ -12,6 +12,32 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.4.5",
+        date: "2026-06-15",
+        notes: {
+            tr: [
+                "Güncelleme indirme düzeltildi: artık takılıp 'indiriliyor…' diye sonsuza kalmıyor; hata olursa görünür mesaj + 'tekrar dene' çıkıyor.",
+                "İndirme bildirimi (toast) ilerleme çubuğu ve yüzde gösteriyor; sekme değiştirince / ayarları kapatınca kaybolmuyor.",
+            ],
+            en: [
+                "Update download fixed: no more endless 'downloading…' hang; on failure you get a visible error + 'retry'.",
+                "Download toast shows a progress bar and percentage; it no longer disappears when switching tabs or closing settings.",
+            ],
+            de: [
+                "Update-Download behoben: kein endloses 'wird geladen…' mehr; bei Fehler erscheint eine sichtbare Meldung + 'erneut versuchen'.",
+                "Download-Hinweis zeigt Fortschrittsbalken und Prozent; verschwindet nicht mehr beim Tab-Wechsel oder Schließen der Einstellungen.",
+            ],
+            fr: [
+                "Téléchargement des mises à jour corrigé : plus de blocage « téléchargement… » sans fin ; en cas d'échec, message visible + « réessayer ».",
+                "La notification affiche une barre de progression et le pourcentage ; elle ne disparaît plus en changeant d'onglet ou en fermant les paramètres.",
+            ],
+            es: [
+                "Descarga de actualizaciones corregida: ya no se queda atascada en 'descargando…'; si falla, muestra un error visible + 'reintentar'.",
+                "El aviso muestra una barra de progreso y el porcentaje; ya no desaparece al cambiar de pestaña o cerrar ajustes.",
+            ],
+        },
+    },
+    {
         version: "1.4.4",
         date: "2026-06-14",
         notes: {
