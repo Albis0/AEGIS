@@ -12,6 +12,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.5.1",
+        date: "2026-06-15",
+        notes: {
+            tr: [
+                "Güncelleme indirme hatası giderildi: 'Güncellemeleri Denetle' sonrası 'İndir'e basınca çıkan 'Please check update first' hatası düzeltildi. Artık denetleme ve indirme aynı güncelleme motorunu kullanıyor.",
+            ],
+            en: [
+                "Fixed update download error: the 'Please check update first' error after pressing 'Download' (following 'Check for updates') is resolved. Check and download now use the same update engine.",
+            ],
+            de: [
+                "Update-Download-Fehler behoben: Der Fehler 'Please check update first' nach 'Herunterladen' (nach 'Nach Updates suchen') ist behoben. Prüfung und Download nutzen jetzt dieselbe Update-Engine.",
+            ],
+            fr: [
+                "Erreur de téléchargement corrigée : l'erreur « Please check update first » après « Télécharger » (suite à « Rechercher des mises à jour ») est résolue. La vérification et le téléchargement utilisent désormais le même moteur.",
+            ],
+            es: [
+                "Corregido el error de descarga: el error 'Please check update first' al pulsar 'Descargar' (tras 'Buscar actualizaciones') está resuelto. La comprobación y la descarga ahora usan el mismo motor.",
+            ],
+        },
+    },
+    {
         version: "1.5.0",
         date: "2026-06-15",
         notes: {

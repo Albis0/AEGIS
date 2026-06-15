@@ -27,6 +27,7 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
+import {performCheck, performDownload} from "./updater-logic";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
@@ -1419,33 +1420,14 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
     // SADECE buradan indirme başlar — kullanıcı İNDİR'e bastığında. Hata olursa
     // renderer'a iletilir ki "indiriliyor…" sonsuza kalmasın.
-    ipcMain.handle("update-download", async () => {
-        try {
-            await autoUpdater.downloadUpdate();
-            return {ok: true};
-        } catch (e) {
-            const msg = (e as Error)?.message ?? String(e);
-            console.error("[updater] download failed:", msg);
-            sendToRenderer("update-error", {message: msg});
-            return {ok: false, error: msg};
-        }
-    });
+    // SADECE buradan indirme başlar. İndirmeden ÖNCE updater'ın kendi check'i çalışır —
+    // yoksa downloadUpdate() "Please check update first" atıyordu (manuel buton ham GitHub
+    // fetch yapıp updater state'ini beslemediği için). Mantık: electron/updater-logic.ts.
+    ipcMain.handle("update-download", () =>
+        performDownload(autoUpdater, app.getVersion(), (msg) => sendToRenderer("update-error", {message: msg})));
     ipcMain.handle("check-for-updates", async () => {
         if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};
-        try {
-            const resp = await fetchWithTimeout(
-                "https://api.github.com/repos/Albis0/AEGIS/releases/latest",
-                {headers: {"User-Agent": "AEGIS-updater", "Accept": "application/vnd.github+json", "Authorization": `Bearer ${AEGIS_GITHUB_TOKEN}`}},
-                8000,
-            );
-            if (!resp.ok) throw new Error(`GitHub ${resp.status}`);
-            const data = await resp.json() as {tag_name: string};
-            const latest = data.tag_name.replace(/^v/, "");
-            const current = app.getVersion();
-            return {current, latest, hasUpdate: latest !== current};
-        } catch (e) {
-            return {current: app.getVersion(), error: (e as Error).message};
-        }
+        return performCheck(autoUpdater, app.getVersion());
     });
 }
 
