@@ -1,165 +1,165 @@
 {
-  "name": "real-jarvis",
-  "version": "1.5.1",
-  "description": "Windows için kişisel AI asistanı — konuşma tanıma, 150+ araç, çoklu LLM desteği",
-  "main": "dist-electron/main.js",
-  "scripts": {
-    "dev:vite": "vite --host 127.0.0.1",
-    "dev:electron": "tsc -p tsconfig.electron.json && cross-env ELECTRON_RUN_AS_NODE= node launch-electron.js",
-    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"bun run dev:vite\" \"wait-on tcp:127.0.0.1:5173 && bun run dev:electron\"",
-    "build": "vite build && tsc -p tsconfig.electron.json",
-    "electron:build": "bun run build && electron-builder",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "bench": "vitest bench",
-    "test:trio": "node scripts/validate-tools.mjs",
-    "test:steam": "vitest run tests/steam.test.ts",
-    "test:steam:live": "tsc -p tsconfig.electron.json && node tests/steam-live-smoke.cjs",
-    "test:convo": "tsc -p tsconfig.electron.json && node tests/harness/conversation-harness.mjs",
-    "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs",
-    "test:gui": "node scripts/gui-test-update.mjs"
-  },
-  "trustedDependencies": [
-    "onnxruntime-node",
-    "sharp",
-    "@img/sharp-win32-x64"
-  ],
-  "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
-    "electron-updater": "^6.8.3",
-    "groq-sdk": "^1.2.1",
-    "msedge-tts": "^2.0.5",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "ws": "^8.21.0"
-  },
-  "optionalDependencies": {
-    "kokoro-js": "^1.2.1"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.19",
-    "concurrently": "^8.2.2",
-    "cross-env": "^10.1.0",
-    "dotenv": "^16.4.5",
-    "electron": "31.7.7",
-    "electron-builder": "^24.9.1",
-    "playwright": "^1.60.0",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.0",
-    "vite": "^5.3.1",
-    "vite-plugin-electron": "^0.28.4",
-    "vite-plugin-electron-renderer": "^0.14.5",
-    "vitest": "^2.1.9",
-    "wait-on": "^7.2.0"
-  },
-  "build": {
-    "appId": "com.aegis",
-    "productName": "AEGIS",
-    "files": [
-      "dist/**/*",
-      "!dist/**/*.map",
-      "dist-electron/**/*",
-      "!dist-electron/**/*.map",
-      "node_modules/@huggingface/jinja/**/*",
-      "node_modules/@huggingface/transformers/**/*",
-      "node_modules/@img/colour/**/*",
-      "node_modules/@protobufjs/aspromise/**/*",
-      "node_modules/@protobufjs/base64/**/*",
-      "node_modules/@protobufjs/codegen/**/*",
-      "node_modules/@protobufjs/eventemitter/**/*",
-      "node_modules/@protobufjs/fetch/**/*",
-      "node_modules/@protobufjs/float/**/*",
-      "node_modules/@protobufjs/inquire/**/*",
-      "node_modules/@protobufjs/path/**/*",
-      "node_modules/@protobufjs/pool/**/*",
-      "node_modules/@protobufjs/utf8/**/*",
-      "node_modules/boolean/**/*",
-      "node_modules/chownr/**/*",
-      "node_modules/define-data-property/**/*",
-      "node_modules/define-properties/**/*",
-      "node_modules/detect-libc/**/*",
-      "node_modules/detect-node/**/*",
-      "node_modules/es-define-property/**/*",
-      "node_modules/es-errors/**/*",
-      "node_modules/es6-error/**/*",
-      "node_modules/escape-string-regexp/**/*",
-      "node_modules/flatbuffers/**/*",
-      "node_modules/fs-minipass/**/*",
-      "node_modules/global-agent/**/*",
-      "node_modules/globalthis/**/*",
-      "node_modules/gopd/**/*",
-      "node_modules/guid-typescript/**/*",
-      "node_modules/has-property-descriptors/**/*",
-      "node_modules/json-stringify-safe/**/*",
-      "node_modules/kokoro-js/**/*",
-      "node_modules/long/**/*",
-      "node_modules/matcher/**/*",
-      "node_modules/minipass/**/*",
-      "node_modules/minizlib/**/*",
-      "node_modules/mkdirp/**/*",
-      "node_modules/object-keys/**/*",
-      "node_modules/onnxruntime-common/**/*",
-      "node_modules/onnxruntime-node/**/*",
-      "node_modules/onnxruntime-web/**/*",
-      "node_modules/phonemizer/**/*",
-      "node_modules/platform/**/*",
-      "node_modules/protobufjs/**/*",
-      "node_modules/roarr/**/*",
-      "node_modules/semver/**/*",
-      "node_modules/semver-compare/**/*",
-      "node_modules/serialize-error/**/*",
-      "node_modules/sharp/**/*",
-      "node_modules/sprintf-js/**/*",
-      "node_modules/tar/**/*",
-      "node_modules/type-fest/**/*",
-      "node_modules/yallist/**/*"
-    ],
-    "asarUnpack": [
-      "node_modules/onnxruntime-node/**/*",
-      "node_modules/sharp/**/*",
-      "node_modules/@img/**/*"
-    ],
-    "directories": {
-      "buildResources": "build"
+    "name": "real-jarvis",
+    "version": "1.6.0",
+    "description": "Windows için kişisel AI asistanı — konuşma tanıma, 150+ araç, çoklu LLM desteği",
+    "main": "dist-electron/main.js",
+    "scripts": {
+        "dev:vite": "vite --host 127.0.0.1",
+        "dev:electron": "tsc -p tsconfig.electron.json && cross-env ELECTRON_RUN_AS_NODE= node launch-electron.js",
+        "dev": "concurrently -k -n vite,electron -c cyan,magenta \"bun run dev:vite\" \"wait-on tcp:127.0.0.1:5173 && bun run dev:electron\"",
+        "build": "vite build && tsc -p tsconfig.electron.json",
+        "electron:build": "bun run build && electron-builder",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "bench": "vitest bench",
+        "test:trio": "node scripts/validate-tools.mjs",
+        "test:steam": "vitest run tests/steam.test.ts",
+        "test:steam:live": "tsc -p tsconfig.electron.json && node tests/steam-live-smoke.cjs",
+        "test:convo": "tsc -p tsconfig.electron.json && node tests/harness/conversation-harness.mjs",
+        "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs",
+        "test:gui": "node scripts/gui-test-update.mjs"
     },
-    "win": {
-      "icon": "build/icon.ico",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+    "trustedDependencies": [
+        "onnxruntime-node",
+        "sharp",
+        "@img/sharp-win32-x64"
+    ],
+    "dependencies": {
+        "@supabase/supabase-js": "^2.106.2",
+        "electron-updater": "^6.8.3",
+        "groq-sdk": "^1.2.1",
+        "msedge-tts": "^2.0.5",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "ws": "^8.21.0"
+    },
+    "optionalDependencies": {
+        "kokoro-js": "^1.2.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/react": "^19.1.0",
+        "@types/react-dom": "^19.1.0",
+        "@types/ws": "^8.18.1",
+        "@vitejs/plugin-react": "^4.3.1",
+        "autoprefixer": "^10.4.19",
+        "concurrently": "^8.2.2",
+        "cross-env": "^10.1.0",
+        "dotenv": "^16.4.5",
+        "electron": "31.7.7",
+        "electron-builder": "^24.9.1",
+        "playwright": "^1.60.0",
+        "postcss": "^8.4.38",
+        "tailwindcss": "^3.4.4",
+        "typescript": "^5.5.0",
+        "vite": "^5.3.1",
+        "vite-plugin-electron": "^0.28.4",
+        "vite-plugin-electron-renderer": "^0.14.5",
+        "vitest": "^2.1.9",
+        "wait-on": "^7.2.0"
+    },
+    "build": {
+        "appId": "com.aegis",
+        "productName": "AEGIS",
+        "files": [
+            "dist/**/*",
+            "!dist/**/*.map",
+            "dist-electron/**/*",
+            "!dist-electron/**/*.map",
+            "node_modules/@huggingface/jinja/**/*",
+            "node_modules/@huggingface/transformers/**/*",
+            "node_modules/@img/colour/**/*",
+            "node_modules/@protobufjs/aspromise/**/*",
+            "node_modules/@protobufjs/base64/**/*",
+            "node_modules/@protobufjs/codegen/**/*",
+            "node_modules/@protobufjs/eventemitter/**/*",
+            "node_modules/@protobufjs/fetch/**/*",
+            "node_modules/@protobufjs/float/**/*",
+            "node_modules/@protobufjs/inquire/**/*",
+            "node_modules/@protobufjs/path/**/*",
+            "node_modules/@protobufjs/pool/**/*",
+            "node_modules/@protobufjs/utf8/**/*",
+            "node_modules/boolean/**/*",
+            "node_modules/chownr/**/*",
+            "node_modules/define-data-property/**/*",
+            "node_modules/define-properties/**/*",
+            "node_modules/detect-libc/**/*",
+            "node_modules/detect-node/**/*",
+            "node_modules/es-define-property/**/*",
+            "node_modules/es-errors/**/*",
+            "node_modules/es6-error/**/*",
+            "node_modules/escape-string-regexp/**/*",
+            "node_modules/flatbuffers/**/*",
+            "node_modules/fs-minipass/**/*",
+            "node_modules/global-agent/**/*",
+            "node_modules/globalthis/**/*",
+            "node_modules/gopd/**/*",
+            "node_modules/guid-typescript/**/*",
+            "node_modules/has-property-descriptors/**/*",
+            "node_modules/json-stringify-safe/**/*",
+            "node_modules/kokoro-js/**/*",
+            "node_modules/long/**/*",
+            "node_modules/matcher/**/*",
+            "node_modules/minipass/**/*",
+            "node_modules/minizlib/**/*",
+            "node_modules/mkdirp/**/*",
+            "node_modules/object-keys/**/*",
+            "node_modules/onnxruntime-common/**/*",
+            "node_modules/onnxruntime-node/**/*",
+            "node_modules/onnxruntime-web/**/*",
+            "node_modules/phonemizer/**/*",
+            "node_modules/platform/**/*",
+            "node_modules/protobufjs/**/*",
+            "node_modules/roarr/**/*",
+            "node_modules/semver/**/*",
+            "node_modules/semver-compare/**/*",
+            "node_modules/serialize-error/**/*",
+            "node_modules/sharp/**/*",
+            "node_modules/sprintf-js/**/*",
+            "node_modules/tar/**/*",
+            "node_modules/type-fest/**/*",
+            "node_modules/yallist/**/*"
+        ],
+        "asarUnpack": [
+            "node_modules/onnxruntime-node/**/*",
+            "node_modules/sharp/**/*",
+            "node_modules/@img/**/*"
+        ],
+        "directories": {
+            "buildResources": "build"
         },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
+        "win": {
+            "icon": "build/icon.ico",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "signAndEditExecutable": false
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "installerIcon": "build/icon.ico",
+            "uninstallerIcon": "build/icon.ico",
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "AEGIS"
+        },
+        "publish": {
+            "provider": "github",
+            "owner": "Albis0",
+            "repo": "AEGIS",
+            "releaseType": "release"
         }
-      ],
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "AEGIS"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "Albis0",
-      "repo": "AEGIS",
-      "releaseType": "release"
     }
-  }
 }

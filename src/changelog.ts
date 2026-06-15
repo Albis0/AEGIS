@@ -12,6 +12,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.6.0",
+        date: "2026-06-15",
+        notes: {
+            tr: [
+                "Jarvis Güvenilirlik Güncellemesi: 'tekrar yap', 'onu kapat', 'biraz azalt', 'son oynadığım oyunu aç' gibi referans komutları artık kural tabanlı ve tutarlı çözülüyor — modele bırakılmıyor.",
+                "Kısa süreli hafıza güçlendirildi: her işlem hangi nesne üzerinde (oyun, dosya, şarkı, uygulama) ve hangi kaynakla (model mi refleks mi) yapıldığını hatırlıyor.",
+                "Emin olunmadığında rastgele işlem yapmak yerine netleştirme soruluyor.",
+                "Geliştirici için 'Açıklama Modu': açıkken niyet, güven skoru ve referans çözümleme adımları gösterilir.",
+            ],
+            en: [
+                "Jarvis Reliability Upgrade: reference commands like 'do it again', 'close it', 'turn it down a bit', 'open the last game I played' are now resolved by deterministic rules — no longer left to the model.",
+                "Short-term memory hardened: each action remembers what it acted on (game, file, track, app) and its source (model vs. reflex).",
+                "When unsure, AEGIS asks for clarification instead of firing a random action.",
+                "Developer 'Explain Mode': when on, shows intent, confidence score and reference-resolution steps.",
+            ],
+            de: [
+                "Jarvis-Zuverlässigkeits-Update: Referenzbefehle wie 'mach das nochmal', 'schließ es', 'etwas leiser', 'öffne das zuletzt gespielte Spiel' werden jetzt regelbasiert und konsistent aufgelöst — nicht mehr dem Modell überlassen.",
+                "Kurzzeitgedächtnis gestärkt: Jede Aktion merkt sich, worauf sie wirkte (Spiel, Datei, Titel, App) und ihre Quelle (Modell vs. Reflex).",
+                "Bei Unsicherheit fragt AEGIS nach, statt eine zufällige Aktion auszulösen.",
+                "Entwickler-'Erklärmodus': zeigt Absicht, Konfidenzwert und Schritte der Referenzauflösung.",
+            ],
+            fr: [
+                "Mise à jour Fiabilité Jarvis : les commandes de référence comme « refais-le », « ferme-le », « baisse un peu », « ouvre le dernier jeu joué » sont désormais résolues par des règles déterministes — plus laissées au modèle.",
+                "Mémoire à court terme renforcée : chaque action retient sur quoi elle a agi (jeu, fichier, titre, appli) et sa source (modèle ou réflexe).",
+                "En cas de doute, AEGIS demande des précisions au lieu de lancer une action au hasard.",
+                "« Mode Explication » développeur : affiche l'intention, le score de confiance et les étapes de résolution des références.",
+            ],
+            es: [
+                "Actualización de Fiabilidad Jarvis: comandos de referencia como 'hazlo otra vez', 'ciérralo', 'baja un poco', 'abre el último juego que jugué' ahora se resuelven con reglas deterministas, sin dejarlo al modelo.",
+                "Memoria a corto plazo reforzada: cada acción recuerda sobre qué actuó (juego, archivo, canción, app) y su origen (modelo o reflejo).",
+                "Ante la duda, AEGIS pide aclaración en lugar de ejecutar una acción al azar.",
+                "'Modo Explicación' para desarrolladores: muestra intención, puntuación de confianza y pasos de resolución de referencias.",
+            ],
+        },
+    },
+    {
         version: "1.5.1",
         date: "2026-06-15",
         notes: {

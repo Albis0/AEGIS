@@ -110,6 +110,61 @@ export const SCENARIOS = [
   },
 ];
 
+// ── Jarvis Reliability Upgrade — deterministic reference-resolver scenarios ──
+// Steps marked `resolver: true` MUST be resolved by reference-resolver.ts WITHOUT
+// the LLM. The harness asserts the resolver produces the expected tool + args +
+// source:"resolver", then verifies STM state. Non-resolver steps are normal LLM
+// turns (asserted offered + recorded with source "llm" implicitly).
+const REFERENCE_SCENARIOS = [
+  {
+    name: "REF: Spotify aç → sesi 50 → biraz azalt → tekrar yap",
+    steps: [
+      {user: "Spotify aç", intent: "Spotify aç", tool: "spotify_open", args: {}, mockResult: "Açıldı", expectSTM: {lastTool: "spotify_open"}},
+      {user: "sesini 50 yap", intent: "ses ayarla", tool: "spotify_volume", args: {level: "50"}, mockResult: "Ses %50", expectSTM: {lastTool: "spotify_volume"}},
+      // "biraz azalt" → resolver: 50 - 5 = 45 (biraz = ±5)
+      {user: "biraz azalt", intent: "biraz azalt", tool: "spotify_volume", args: {level: "45"}, resolver: true, mockResult: "Ses %45", expectSTM: {lastTool: "spotify_volume"}},
+      // "tekrar yap" → resolver: replay last (spotify_volume level=45)
+      {user: "az önce yaptığını tekrar yap", intent: "son işlemi tekrarla", tool: "spotify_volume", args: {level: "45"}, resolver: true, mockResult: "Ses %45"},
+    ],
+  },
+  {
+    name: "REF: DBD aç → onu kapat",
+    steps: [
+      {user: "Dead by Daylight oyununu aç", intent: "oyun başlat", tool: "steam_launch", args: {game: "Dead by Daylight"}, mockResult: "Başlatıldı: Dead by Daylight", expectSTM: {lastEntity: "Dead by Daylight"}},
+      // "onu kapat" → resolver: steam_* → steam_close
+      {user: "onu kapat", intent: "onu kapat", tool: "steam_close", args: {}, resolver: true, mockResult: "Steam kapatıldı"},
+    ],
+  },
+  {
+    name: "REF: CS2 aç → son açtığımı tekrar aç",
+    steps: [
+      {user: "CS2 oyununu aç", intent: "oyun başlat", tool: "steam_launch", args: {game: "CS2"}, mockResult: "Başlatıldı: CS2", expectSTM: {lastEntity: "CS2"}},
+      // "son açtığımı tekrar aç" → resolver: re-launch via same tool/args
+      {user: "son açtığımı tekrar aç", intent: "son açtığımı aç", tool: "steam_launch", args: {game: "CS2"}, resolver: true, mockResult: "Başlatıldı: CS2"},
+    ],
+  },
+  {
+    name: "REF: Discord aç → aynısını yap",
+    steps: [
+      // Discord'un özel tool'u yok → uygulama başlatma run_command ile (normal LLM turn).
+      {user: "Discord'u aç", intent: "uygulama aç", tool: "run_command", args: {command: 'Start-Process "Discord"'}, mockResult: "Başlatıldı", expectSTM: {lastEntity: "Discord"}},
+      // "aynısını yap" → resolver: replay last (run_command)
+      {user: "aynısını yap", intent: "aynısını yap", tool: "run_command", args: {command: 'Start-Process "Discord"'}, resolver: true, mockResult: "Başlatıldı"},
+    ],
+  },
+  {
+    name: "REF: oyun aç → başka iş → son oynadığım oyunu aç",
+    steps: [
+      {user: "Cyberpunk oyununu başlat", intent: "oyun başlat", tool: "steam_launch", args: {game: "Cyberpunk 2077"}, mockResult: "Başlatıldı"},
+      {user: "şu an ne çalıyor", intent: "now playing", tool: "spotify_now_playing", args: {}},
+      // araya başka iş girdi; "son oynadığım oyunu aç" yine doğru oyunu bulmalı
+      {user: "son oynadığım oyunu aç", intent: "son oynadığım oyunu aç", tool: "steam_launch", args: {game: "Cyberpunk 2077"}, resolver: true, mockResult: "Başlatıldı"},
+    ],
+  },
+];
+
+for (const s of REFERENCE_SCENARIOS) SCENARIOS.push(s);
+
 // ── Bulk-generated single/double-step scenarios to reach 50+ ───────────────
 // Each is a realistic standalone or short chain; keeps coverage broad.
 const MORE = [

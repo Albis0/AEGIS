@@ -2,28 +2,28 @@
 
 > Windows için kişisel AI asistanı. Dinler, düşünür, yapar.
 
-**AEGIS**, konuşma tanıma, LLM zekası ve 150+ araçla donatılmış, Windows masaüstüne entegre bir yapay zeka asistanıdır. Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral ve Ollama'yı destekler. Sesle veya yazıyla komut verebilir, sistem kontrolü, Spotify, Steam, web araması, dosya yönetimi ve çok daha fazlasını yapabilirsiniz.
+**AEGIS**, konuşma tanıma, LLM zekası ve 300+ araçla donatılmış, Windows masaüstüne entegre bir yapay zeka asistanıdır. Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral ve Ollama'yı destekler. Sesle veya yazıyla komut verebilir, sistem kontrolü, Spotify, Steam, web araması, dosya yönetimi ve çok daha fazlasını yapabilirsiniz.
 
 ---
 
 ## Özellikler
 
-| Kategori | Neler yapabilir |
-|---|---|
-| **Sohbet** | Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama |
-| **Ses** | Mikrofon → Whisper transkripsiyon, TTS (Edge / ElevenLabs / Kokoro offline), wake-word, VAD |
-| **Sistem** | PowerShell, ses/parlaklık, pencere yönetimi, process, disk temizliği |
-| **Spotify** | Çal/duraklat/atla/ses/ara/playlist — Spotify Web API entegrasyonu |
-| **Steam** | Oyun başlat, kütüphane listesi, Steam aç/kapat |
-| **Web** | Tavily/Serper/DuckDuckGo arama, URL içerik okuma |
-| **Dosya** | Oku/yaz/listele/organize/yinelenen bul/toplu yeniden adlandır |
-| **Vision** | Ekran görüntüsü al + AI analiz, görsel soru-cevap |
-| **Computer Use** | AI fareyi ve klavyeyi kontrol eder, serbest dil hedefleri |
-| **Hafıza** | Kullanıcı profili, notlar, gerçekler, session özeti, bulut sync |
-| **Otomasyon** | Zamanlanmış görevler, koşullu otomasyon, makrolar, ajans modu |
-| **Telemetri** | CPU/RAM/GPU/Disk/Batarya/Ağ anlık izleme + uyarılar |
-| **Güvenlik** | API key vault (OS DPAPI), gizlilik denetimi |
-| **UI** | 4 skin ailesi × 4 ferdi (16 skin), 5 dil, özel aksanlar |
+| Kategori         | Neler yapabilir                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| **Sohbet**       | Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama                             |
+| **Ses**          | Mikrofon → Whisper transkripsiyon, TTS (Edge / ElevenLabs / Kokoro offline), wake-word, VAD |
+| **Sistem**       | PowerShell, ses/parlaklık, pencere yönetimi, process, disk temizliği                        |
+| **Spotify**      | Çal/duraklat/atla/ses/ara/playlist — Spotify Web API entegrasyonu                           |
+| **Steam**        | Oyun başlat, kütüphane listesi, Steam aç/kapat                                              |
+| **Web**          | Tavily/Serper/DuckDuckGo arama, URL içerik okuma                                            |
+| **Dosya**        | Oku/yaz/listele/organize/yinelenen bul/toplu yeniden adlandır                               |
+| **Vision**       | Ekran görüntüsü al + AI analiz, görsel soru-cevap                                           |
+| **Computer Use** | AI fareyi ve klavyeyi kontrol eder, serbest dil hedefleri                                   |
+| **Hafıza**       | Kullanıcı profili, notlar, gerçekler, session özeti, bulut sync                             |
+| **Otomasyon**    | Zamanlanmış görevler, koşullu otomasyon, makrolar, ajans modu                               |
+| **Telemetri**    | CPU/RAM/GPU/Disk/Batarya/Ağ anlık izleme + uyarılar                                         |
+| **Güvenlik**     | API key vault (OS DPAPI), gizlilik denetimi                                                 |
+| **UI**           | 4 skin ailesi × 4 ferdi (16 skin), 5 dil, özel aksanlar                                     |
 
 ---
 
@@ -61,13 +61,13 @@ bun run dev
 
 ### 4. Opsiyonel bağımlılıklar ve API anahtarları
 
-| Servis | Ne işe yarar | Nereden |
-|---|---|---|
-| Supabase | Bulut sync, oturum kaydı | supabase.com |
-| ElevenLabs | Gerçekçi TTS sesi | elevenlabs.io |
-| Tavily / Serper | Gelişmiş web araması | tavily.com / serper.dev |
-| OpenAI / Anthropic / Gemini / xAI / Mistral | Alternatif AI provider | provider siteleri |
-| Ollama | Yerel model çalıştırma | ollama.com |
+| Servis                                      | Ne işe yarar             | Nereden                 |
+| ------------------------------------------- | ------------------------ | ----------------------- |
+| Supabase                                    | Bulut sync, oturum kaydı | supabase.com            |
+| ElevenLabs                                  | Gerçekçi TTS sesi        | elevenlabs.io           |
+| Tavily / Serper                             | Gelişmiş web araması     | tavily.com / serper.dev |
+| OpenAI / Anthropic / Gemini / xAI / Mistral | Alternatif AI provider   | provider siteleri       |
+| Ollama                                      | Yerel model çalıştırma   | ollama.com              |
 
 Anahtarlar **Ayarlar → API Anahtarları** sekmesinden girilir.
 
@@ -96,14 +96,14 @@ AEGIS, Spotify Web API kullanır (Premium gerektirir):
 
 ## Kullanım
 
-| Kısayol | Eylem |
-|---|---|
-| `M` | Mikrofon: Kapalı → Sürekli → Wake-word → Kapalı |
-| `Ctrl+L` | Mesaj kutusuna odaklan |
-| `Ctrl+Space` | Komut paleti |
-| `ESC` | Konuşmayı durdur |
-| `F11` | Tam ekran |
-| ⚙ (başlık çubuğu) | Ayarlar paneli |
+| Kısayol           | Eylem                                           |
+| ----------------- | ----------------------------------------------- |
+| `M`               | Mikrofon: Kapalı → Sürekli → Wake-word → Kapalı |
+| `Ctrl+L`          | Mesaj kutusuna odaklan                          |
+| `Ctrl+Space`      | Komut paleti                                    |
+| `ESC`             | Konuşmayı durdur                                |
+| `F11`             | Tam ekran                                       |
+| ⚙ (başlık çubuğu) | Ayarlar paneli                                  |
 
 **Wake-word:** "Aegis, hava nasıl?" ya da sadece "Aegis" deyip bekle.
 
@@ -129,7 +129,7 @@ src/               # Renderer (React UI)
   components/
     skins/         # 4 aile × 4 ferdi = 16 skin
     settings/      # Ayarlar sekmesi bileşenleri
-tests/             # Vitest testleri (36 test)
+tests/             # Vitest testleri (82 test) + konuşma harness (60 senaryo)
 supabase/          # Edge Function + schema
 ```
 
@@ -142,7 +142,7 @@ supabase/          # Edge Function + schema
 - **Supabase** (auth, DB, Edge Functions)
 - **electron-updater** (otomatik güncelleme)
 - **msedge-tts** (ücretsiz Edge TTS)
-- **kokoro-js** *(opsiyonel)* — offline yerel TTS, API key gereksiz
+- **kokoro-js** _(opsiyonel)_ — offline yerel TTS, API key gereksiz
 - **Sentence-level streaming TTS** (LLM stream ederken paralel seslendirme)
 
 ---

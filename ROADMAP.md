@@ -6,35 +6,39 @@
 
 ## Mevcut Durum ✓
 
-| Özellik | Durum |
-|---|---|
-| Groq LLM (qwen3-32b) + tool calling | ✅ |
-| PowerShell komut çalıştırma | ✅ |
-| Dosya okuma / yazma / listeleme | ✅ |
-| Web arama (Tavily) | ✅ |
-| Ses tanıma — Whisper, Türkçe | ✅ |
-| TTS — Edge EmelNeural | ✅ |
-| Wake-word / always-on mod | ✅ |
-| Sistem telemetri (CPU/RAM/disk/batarya/ağ) | ✅ |
-| Hava durumu | ✅ |
-| Supabase entegrasyonu (session + mesaj kaydı) | ✅ |
+| Özellik                                       | Durum |
+| --------------------------------------------- | ----- |
+| Groq LLM (qwen3-32b) + tool calling           | ✅    |
+| PowerShell komut çalıştırma                   | ✅    |
+| Dosya okuma / yazma / listeleme               | ✅    |
+| Web arama (Tavily)                            | ✅    |
+| Ses tanıma — Whisper, Türkçe                  | ✅    |
+| TTS — Edge EmelNeural                         | ✅    |
+| Wake-word / always-on mod                     | ✅    |
+| Sistem telemetri (CPU/RAM/disk/batarya/ağ)    | ✅    |
+| Hava durumu                                   | ✅    |
+| Supabase entegrasyonu (session + mesaj kaydı) | ✅    |
 
 ---
 
 ## Faz 1 — Hafıza & Bağlam 🧠
-*Temel. Bunlar olmadan AEGIS her gün sıfırdan başlıyor.*
+
+_Temel. Bunlar olmadan AEGIS her gün sıfırdan başlıyor._
 
 ### 1.1 Konuşma Hafızası ✅
+
 - ✅ Geçmiş session'lardan özet çıkar, yeni konuşmaya bağlam olarak ekle
 - ✅ "Dün ne konuştuk?" sorusu çalışsın
 - ✅ Session'lar arası bağlam köprüsü
 
 ### 1.2 Kullanıcı Profili ✅
+
 - ✅ "Benim adım X", "Python kullanıyorum" gibi bilgileri öğrenip kaydet
 - ✅ Profil bilgilerini her konuşmada system prompt'a ekle
 - ✅ `set_profile` / `get_profile` tool'ları
 
 ### 1.3 Notlar & Hatırlatıcılar ✅
+
 - ✅ "Bunu not et" → Supabase `notes` tablosuna yaz
 - ✅ "Notlarımı göster" → listele
 - ✅ Zamanlı hatırlatıcı — app açılınca süresi dolmuş notları bildirir
@@ -42,21 +46,25 @@
 ---
 
 ## Faz 2 — Ayarlar & Model Seçimi ✅ ⚙️
-*Kullanıcının AEGIS'i kendine göre ayarlayabilmesi.*
+
+_Kullanıcının AEGIS'i kendine göre ayarlayabilmesi._
 
 ### 2.1 Ayarlar Paneli ✅
+
 - ✅ ⚙ butonu — title bar'da, slide-in modal panel
 - ✅ Ayarlar `~/.aegis/settings.json` dosyasında saklanır
 - ✅ API key yönetimi — "API KEYS" tab'ından göster/değiştir/kaydet
 - ✅ Tema rengi — 6 renk seçeneği (Cyan, Purple, Green, Orange, Red, Yellow), anında aktif
 
 ### 2.2 AI Model Seçimi ✅
+
 - ✅ **Groq modelleri** — qwen3-32b, llama-3.3-70b, mixtral vb. ayarlar panelinden seç
 - ✅ Seçilen model anında aktif olur, yeniden başlatma gerekmez
 - ✅ **Kendi API key'i** — OpenAI, Anthropic, Mistral API key girip o modeli kullan
 - ✅ **Local model** — Ollama entegrasyonu, internet olmadan çalışsın
 
 ### 2.3 Ses Kişiselleştirme ✅
+
 - ✅ Hazır sesler: **EmelNeural (TR)**, **AhmetNeural (TR)**, **AriaNeural (EN)**, **GuyNeural (EN)**, **SoniaNeural (EN-GB)**
 - ✅ Konuşma hızı (0.5x – 2.0x) slider
 - ✅ Ses testi butonu — "Merhaba, ben AEGIS" ile dene
@@ -65,15 +73,18 @@
 ---
 
 ## Faz 3 — UI Temaları & Skinler 🖥️
-*Görsel kimlik. Herkes farklı bir AEGIS ister.*
+
+_Görsel kimlik. Herkes farklı bir AEGIS ister._
 
 ### 3.1 UI Tipi Değiştirme ✅
+
 - ✅ Birden fazla hazır skin: **Hologram** (şu anki), **Minimal**, **Terminal**, **Dashboard**
 - ✅ Ayarlar'dan tek tıkla geçiş, canlı önizleme
 - ✅ Her skin kendi renk paleti, layout ve animasyonuyla gelir
 - ✅ Skin sistemi component bazlı — yeni skin eklemek mevcut kodu bozmaz
 
 ### 3.2 Görsel Özelleştirme ✅
+
 - ✅ Accent rengi — 6 renk, ayarlar panelinden seçilir
 - ✅ Font seçimi (JetBrains Mono, Orbitron, Rajdhani, Inter)
 - ✅ Kompakt / geniş layout modu
@@ -82,15 +93,18 @@
 ---
 
 ## Faz 4 — Dil Desteği 🌍 ✅
-*AEGIS dil bilmez, kullanıcı dil seçer.*
+
+_AEGIS dil bilmez, kullanıcı dil seçer._
 
 ### 4.1 Tam Çok Dil ✅
+
 - ✅ Arayüz dili: TR / EN / DE / FR / ES dropdown'dan seç
 - ✅ Konuşma dili: Whisper seçilen dili kullanır, TTS aynı dilde yanıt verir
 - ✅ Yazışma dili: LLM system prompt seçilen dile göre dinamik güncellenir
 - ✅ LLM system prompt seçilen dile göre dinamik güncellenir
 
 ### 4.2 Dil Başına Yapılandırma ✅
+
 - ✅ Her dil için varsayılan TTS sesi (TR → EmelNeural, EN → AriaNeural, DE → KatjaNeural...)
 - ✅ Dil değişince Whisper ve TTS senkron değişir
 - ✅ "Switch to English / Türkçeye geç" sesli komutla da çalışır (`set_language` tool)
@@ -98,36 +112,44 @@
 ---
 
 ## Faz 5 — Görme & Ekran 👁️ ✅
-*AEGIS ekranı okuyunca çok daha güçlü hale gelir.*
+
+_AEGIS ekranı okuyunca çok daha güçlü hale gelir._
 
 ### 5.1 Screenshot + Vision ✅
+
 - ✅ `screenshot` tool: tam ekran yakalar, AEGIS penceresi gizlenir
 - ✅ Vision modeli ile analiz et (Llama-4-Scout-17b)
 - ✅ "Ekranımda ne var?", "Bu hata ne?" soruları çalışır
 
 ### 5.2 Clipboard ✅
+
 - ✅ `read_clipboard` / `write_clipboard` tool
 - ✅ "Panoya kopyala", "Panodan oku" komutları
 
 ### 5.3 Pencere Yönetimi ✅
+
 - ✅ `list_windows`: açık pencereleri listele
 - ✅ `focus_window`: pencereyi öne getir / odakla
 
 ---
 
 ## Faz 6 — Sistem Kontrolü 🖱️ ✅
-*Günlük kullanımda en çok işe yarayan şeyler.*
+
+_Günlük kullanımda en çok işe yarayan şeyler._
 
 ### 6.1 Ses & Ekran ✅
+
 - ✅ `set_volume`: sistem ses seviyesi ayarla (0-100)
 - ✅ `set_brightness`: ekran parlaklığı kontrolü (dahili ekranlar)
 - ✅ "Sesi %50 yap", "Ekranı karat"
 
 ### 6.2 Zamanlanmış Görevler ✅
+
 - ✅ `remind_in`: X dakika sonra sesli/yazılı hatırlatıcı
 - ✅ Hatırlatıcı gelince feed'e eklenir + TTS ile seslendirilir
 
 ### 6.3 Uygulama Profilleri ✅
+
 - ✅ `save_app_profile`: profil oluştur (komut listesi, ~/.aegis/app-profiles.json)
 - ✅ `run_app_profile`: profili çalıştır
 - ✅ `list_app_profiles`: kayıtlı profilleri listele
@@ -137,16 +159,19 @@
 ## Faz 7 — Web & İletişim 🌐 ✅
 
 ### 7.1 Web İçerik Okuma ✅
+
 - ✅ `fetch_url` tool: URL ver → sayfa HTML'ini çek, düz metne dönüştür, özetle
 - ✅ "Bu haberi özetle", "Şu sayfada ne yazıyor?" soruları çalışır
 - ✅ 12sn timeout, redirect takibi, HTML tag sıyırma
 
 ### 7.2 Bildirim Sistemi ✅
+
 - ✅ `show_notification`: Electron Notification API ile Windows toast bildirimi
 - ✅ "Bildirim gönder başlık: X mesaj: Y" komutu çalışır
 - [ ] AEGIS kapalıyken bildirim (background service) — Faz 10 kapsamı
 
-### 7.3 Email & Takvim *(opsiyonel)*
+### 7.3 Email & Takvim _(opsiyonel)_
+
 - [ ] Gmail / Outlook entegrasyonu — OAuth gerektiriyor, ileride
 
 ---
@@ -154,15 +179,18 @@
 ## Faz 8 — Gelişmiş Ses 🎙️
 
 ### 8.1 Sözünü Kesme ✅
+
 - ✅ ESC tuşu veya ⏹ DURDUR butonu ile TTS kesilir
 - ✅ Kesince mic otomatik açılır, dinlemeye geçer
 
 ### 8.2 Chat Geçmişi UI ✅
+
 - ✅ Session bazlı konuşma listesi (◷ butonu → slide-in sidebar)
 - ✅ Geçmiş konuşmayı aç, "DEVAM ET" ile historyRef'e yükle
 - ✅ "DIŞA AKTAR" ile .md dosyası olarak indir
 
 ### 8.3 Command Palette ✅
+
 - ✅ `Ctrl+Space` ile hızlı komut paleti (HologramSkin'de)
 - ✅ 19 built-in komut, arama/filtreleme, ↑↓ klavye navigasyonu
 - ✅ ANLIK (direkt gönder) / DÜZENLE (input'a yaz) modları
@@ -170,9 +198,11 @@
 ---
 
 ## Faz 9 — Plugin Sistemi 🔌 ✅
-*Uzun vadeli genişleme katmanı.*
+
+_Uzun vadeli genişleme katmanı._
 
 ### 9.1 Dinamik Tool Yükleme ✅
+
 - ✅ `~/.aegis/plugins/<name>/` klasöründen otomatik yükle
 - ✅ Her plugin: `manifest.json` (şema) + `index.js` (executor)
 - ✅ Yeniden derleme gerektirmez — runtime `require()` ile yüklenir
@@ -180,6 +210,7 @@
 - ✅ `require.cache` temizlenerek hot-reload desteklenir
 
 ### 9.2 Hazır Plugin'ler ✅
+
 - ✅ **Spotify** — çal/duraklat, atla, önceki, ne çalıyor, ses, arama+çal (6 tool)
 - ✅ **VS Code** — dosya/klasör aç, terminal komutu, yeni dosya, son projeler, uzantı kur (6 tool)
 - ✅ **Steam** — oyun başlat (ad veya App ID), kütüphane listesi, Steam aç, oyun kapat (4 tool)
@@ -190,21 +221,25 @@
 ---
 
 ## Faz 10 — Arka Plan Servisi & Bildirimler 🔔
-*AEGIS kapalıyken bile çalışsın.*
+
+_AEGIS kapalıyken bile çalışsın._
 
 ### 10.1 Background Service ✅
+
 - ✅ Windows'ta sistem tepsisinde (system tray) küçük ikon — AEGIS kapatılınca tamamen kapanmaz
 - ✅ Tray menüsü: "Göster", "Mikrofon Aç", "Çıkış"
 - ✅ Pencere kapatılınca gizle (`minimizeToTray` ayarı açıkken)
 - ✅ Başlangıçta otomatik başlat seçeneği (`app.setLoginItemSettings` ile Windows registry)
 
 ### 10.2 Zamanlanmış Görevler & Cron ✅
+
 - ✅ `schedule_task` tool: "every 30 minutes", "daily at 09:00" gibi ifadelerle tekrarlayan görev
 - ✅ `list_scheduled_tasks` / `cancel_scheduled_task` / `toggle_scheduled_task` tool'ları
 - ✅ Görevler `~/.aegis/scheduled-tasks.json`'da saklanır, uygulama açılışında yüklenir
 - ✅ Görev tetiklenince `chat-stream-inject` ile AEGIS'e komut gönderilir + Windows bildirimi
 
 ### 10.3 Anlık Bildirim Tetikleyiciler ✅
+
 - ✅ `watch_condition` tool: "GPU %90 geçerse uyar", "RAM %80 üstüne çıkarsa bildir" gibi
 - ✅ `list_watch_conditions` / `remove_watch_condition` tool'ları
 - ✅ CPU/RAM/GPU/Disk eşiği ayarlar panelinden (Telemetri sekmesi) de ayarlanabilir
@@ -213,23 +248,28 @@
 ---
 
 ## Faz 11 — Performans & Streaming ⚡
-*Her token hissedilsin, her re-render önlensin.*
+
+_Her token hissedilsin, her re-render önlensin._
 
 ### 11.1 Gerçek LLM Streaming
+
 - [ ] Groq: `stream: true` — her token gelince `chat-delta` IPC'ye gönder
 - [ ] Kullanıcı ilk kelimeyi ~200ms'de görsün, tüm yanıt bir anda değil
 - [ ] Diğer provider'lar (OpenAI, Anthropic, Gemini) için de streaming aktif
 
 ### 11.2 Paralel Tool Execution
+
 - [ ] Birden fazla tool çağrısı `Promise.all()` ile eş zamanlı çalışsın
 - [ ] `web_search` + `get_weather` gibi bağımsız araçlar aynı anda dönsün
 
 ### 11.3 React Render Optimizasyonu
+
 - [ ] `FeedItem` bileşeni `React.memo` ile ayrılsın — önceki balonlar re-render etmesin
 - [ ] `skinProps` `useMemo` ile sarılsın — her render'da yeni nesne oluşturulmasın
 - [ ] `CpuRow` / `GpuRow` / `TelRow` helper'ları `React.memo` ile izole
 
 ### 11.4 Diğer Optimizasyonlar
+
 - [ ] `getUserProfile()` modül seviyesinde 60sn cache — her mesajda DB round-trip olmasın
 - [ ] Telemetri interval'ları `before-quit`'te temizlensin — process artakalamasın
 - [ ] Web search `AbortController` + 8sn timeout — Tavily donunca 30sn beklemesin
@@ -238,21 +278,25 @@
 ---
 
 ## Faz 12 — Ajans Modu & Otomasyon 🤖
-*AEGIS sadece yanıtlamakla kalmaz, görevleri başından sonuna tamamlar.*
+
+_AEGIS sadece yanıtlamakla kalmaz, görevleri başından sonuna tamamlar._
 
 ### 12.1 Multi-Step Ajan ✅
+
 - ✅ `agent_run` tool: hedef ver, AEGIS araçları zincirleme kullanarak tamamlar
 - ✅ Sistem prompt'a ajan modu direktifi + maks adım limiti inject edilir
 - ✅ Mevcut `runAgent` döngüsü (maks 8 adım) ajan modunu da karşılar
 - ✅ `agent_run` → `registerAgentCallback` → `runAgent` zinciri
 
 ### 12.2 Makro Kayıt & Tekrar ✅
+
 - ✅ `start_macro` / `stop_macro`: kullanıcı komutlarını `macros.json`'a kaydet
 - ✅ `run_macro`: kaydedilmiş diziyi `chat-stream-inject` ile adım adım tekrarla
 - ✅ `list_macros` / `delete_macro` tool'ları
 - ✅ Makrolar `~/.aegis/macros.json`'da saklanır
 
 ### 12.3 Koşullu Otomasyon ✅
+
 - ✅ `if_then` tool: `"cpu > 80"`, `"hour == 23"`, `"ram >= 75"` gibi koşullar tanımla
 - ✅ `list_automations` / `remove_automation` / `toggle_automation` tool'ları
 - ✅ Kurallar `~/.aegis/automations.json`'da saklanır
@@ -261,29 +305,35 @@
 ---
 
 ## Faz 13 — Bilgi Tabanı & RAG 📚
-*AEGIS kendi belgelerin üzerinde akıl yürütebilsin.*
+
+_AEGIS kendi belgelerin üzerinde akıl yürütebilsin._
 
 ### 13.1 Yerel Belge İndeksleme ✅
+
 - ✅ `index_file` / `index_folder` tool: dosyaları 800-char chunk'lara böl, `~/.aegis/index/`'e kaydet
 - ✅ `.txt`, `.md`, `.ts`, `.js`, `.py`, `.json`, `.csv` desteği
 - ✅ SHA-256 hash ile değişen dosyalar incremental olarak güncellenir
 - ✅ `list_indexed_files` / `remove_from_index` tool'ları
 
 ### 13.2 Semantik Arama ✅
+
 - ✅ `search_knowledge` tool: BM25-lite kelime eşleşmesi ile en alakalı chunk'ları bul
 - ✅ "Proje notlarımda X hakkında ne var?" sorusu çalışır
 - ✅ Kaynak dosya adı + skor yanıtta gösterilir
 
 ### 13.3 Belge Sohbeti ✅
+
 - ✅ `chat_with_file` tool: dosya içeriğini LLM bağlamına yükle (maks 12K karakter)
 - ✅ "Bu dosyayı özetle", "Şu dosyada ne yazıyor?" soruları çalışır
 
 ---
 
 ## Faz 14 — Telefon & Mobil Köprüsü 📱
-*AEGIS masaüstü ile telefonun arasındaki köprü olsun.*
+
+_AEGIS masaüstü ile telefonun arasındaki köprü olsun._
 
 ### 14.1 Yerel Ağ API ✅
+
 - ✅ `electron/api-server.ts`: Node.js yerleşik `http` modülü ile sunucu (port 7331, harici bağımlılık yok)
 - ✅ `GET /api/status` — sağlık kontrolü (auth gerekmez)
 - ✅ `POST /api/ask` — `{text}` → AEGIS tek-turlu cevap
@@ -294,41 +344,50 @@
 - ✅ Ayarlar paneli toggle'ı (Görünüm → Uygulama)
 
 ### 14.2 Mobil Kısayollar ✅
+
 - ✅ `curl -H "Authorization: Bearer <token>" -d '{"text":"soru"}' http://<ip>:7331/api/ask` ile iOS/Android Tasker entegrasyonu
 
 ### 14.3 QR Bağlantı ✅
+
 - ✅ `GET /api/qr` endpoint'i IP + port + token döndürür; QR oluşturmak için herhangi bir QR aracına yapıştırılabilir
 
 ---
 
 ## Faz 15 — Web Arayüzü 🌐
-*AEGIS'e başka cihazdan tarayıcıdan da erişilebilsin.*
+
+_AEGIS'e başka cihazdan tarayıcıdan da erişilebilsin._
 
 ### 15.1 Tarayıcı Tabanlı UI ✅
+
 - ✅ `GET /` → minimal AEGIS web arayüzü (saf HTML/CSS/JS, React gerekmez)
 - ✅ Kullanıcı mesaj gönderebilir, yanıtları görebilir
 - ✅ `GET /events?token=…` — SSE (Server-Sent Events) ile gerçek zamanlı delta/tool/done akışı
 - ✅ Token localStorage'da saklanır
 
 ### 15.2 Çok Cihaz Senkronizasyonu ✅
+
 - ✅ `runAgent` → `send()` → SSE broadcast: masaüstü + tarayıcı eş zamanlı güncellenir
 - ✅ `delta`, `done`, `tool` event tipleri her bağlı client'a iletilir
 
 ---
 
 ## Faz 16 — Gelişmiş Hafıza & Kişiselleştirme 🧠+
-*Faz 1'in üzerine derin öğrenme katmanı.*
+
+_Faz 1'in üzerine derin öğrenme katmanı._
 
 ### 16.1 Kalıcı Gerçekler ✅
+
 - ✅ `remember_fact` tool: "Bunu bil: …" ile manuel gerçek kaydet (`~/.aegis/facts.json`)
 - ✅ `list_facts` / `forget_fact` tool'ları
 - ✅ Gerçekler her konuşmada system prompt'a otomatik inject edilir
 
 ### 16.2 Alışkanlık Takibi ✅
+
 - ✅ Her tool çağrısı `habits.json`'a kaydedilir (araç adı + kullanım sayısı)
 - ✅ `list_habits` tool: "en sık hangi araçları kullanıyorum?" sorusunu yanıtlar
 
 ### 16.3 Sabah Özeti ✅
+
 - ✅ İlk günlük açılışta otomatik sabah özeti: hava + notlar + görevler
 - ✅ `morning-check.json` ile günde bir kez tetiklenir, tekrar etmez
 - ✅ 4sn gecikmeyle pencere yüklendikten sonra başlar
@@ -336,37 +395,45 @@
 ---
 
 ## Faz 17 — Güvenlik & Gizlilik 🔒
-*AEGIS'in verilerini güvende tut.*
+
+_AEGIS'in verilerini güvende tut._
 
 ### 17.1 API Key Vault ✅
+
 - ✅ `vault_store` / `vault_list` / `vault_delete` tool'ları
 - ✅ Electron `safeStorage` (OS DPAPI/Keychain) ile AES-256 şifreli depo
 - ✅ Şifreli değerler `~/.aegis/vault.enc.json`'da hex olarak saklanır
 
 ### 17.2 Veri Denetimi ✅
+
 - ✅ `privacy_audit` tool: tüm AEGIS veri konumlarını listele (mevcut/değil işaretli)
 - ✅ `clear_old_data` tool: X günden eski bilgi tabanı + devre dışı görevleri temizle
 
 ### 17.3 Güvenli Başlatma ✅
+
 - ✅ `initVault(safeStorage)` ile boot'ta şifreleme motoru başlatılır
 - ✅ `safeStorage.isEncryptionAvailable()` kontrolü; desteklenmiyorsa hata verir
 
 ---
 
 ## Faz 18 — Gelişmiş Plugin Ekosistemi 🔌+
-*Faz 9'un üzerine marketplace katmanı.*
+
+_Faz 9'un üzerine marketplace katmanı._
 
 ### 18.1 Plugin Marketplace ✅
+
 - ✅ `plugin_search` tool: GitHub Search API ile aegis-plugin araması
 - ✅ `plugin_install` tool: repo zip indir → manifest doğrula → güvenlik taraması → kur
 - ✅ `plugin_remove` tool: plugin klasörünü kaldır
 
 ### 18.2 Plugin Güvenlik Taraması ✅
+
 - ✅ `manifest.json` şema doğrulaması (name, tools, tool.name kontrolleri)
 - ✅ `index.js` statik kod taraması — şüpheli pattern'lar reddedilir
 - ✅ Kurulum öncesi güvenlik başarısız olursa işlem iptal edilir
 
 ### 18.3 Yeni Hazır Plugin'ler ✅
+
 - ✅ **Discord** (3 tool): webhook mesaj, durum ayarla, rich presence
 - ✅ **Notion** (3 tool): sayfa oluştur, arama, blok ekle (Notion API v1)
 - ✅ **Home Assistant** (3 tool): cihaz durumu, servis çağrısı, entity listesi (yerel HTTP API)
@@ -375,14 +442,17 @@
 ---
 
 ## Faz 19 — Ses & Müzik Üretimi 🎵 ✅
-*AEGIS sadece dinlemez, üretir de.*
+
+_AEGIS sadece dinlemez, üretir de._
 
 ### 19.1 Ses Efektleri ✅
+
 - ✅ `play_sound` tool: özel `.wav`/`.mp3` çal; `~/.aegis/sounds/` klasöründen veya tam yol
 - ✅ `list_sounds` tool: mevcut ses dosyalarını listele
 - ✅ Ses dosyaları `~/.aegis/sounds/`'tan yüklenir
 
 ### 19.2 Ambient Ses Modu ✅
+
 - ✅ `ambient_start` / `ambient_stop`: arka planda odaklanma müziği / beyaz gürültü
 - ✅ Hazır kategoriler: rain, forest, cafe, white, space, lofi
 - ✅ Yerel `.mp3` dosya desteği; `~/.aegis/sounds/` klasörüne dosya koyunca aktif olur
@@ -390,18 +460,22 @@
 ---
 
 ## Faz 20 — Kod Asistanı & Geliştirici Araçları 👨‍💻 ✅
-*AEGIS bir programcının en iyi yardımcısı olsun.*
+
+_AEGIS bir programcının en iyi yardımcısı olsun._
 
 ### 20.1 Git Entegrasyonu ✅
+
 - ✅ `git_status` / `git_log` / `git_diff` tool'ları: repo durumunu sorgula
 - ✅ `git_commit` tool: staged değişiklikleri commit et
 - ✅ `git_branch` tool: branch oluştur (create), değiştir (switch), listele (list)
 
 ### 20.2 Terminal Çıktısı Analizi ✅
+
 - ✅ `run_and_analyze` tool: komut çalıştır + çıktıyı LLM ile yorumla
 - ✅ "Bu hata ne anlama geliyor?" soruları için stack trace analizi
 
 ### 20.3 Proje Şablonları ✅
+
 - ✅ `scaffold_project` tool: 5 hazır şablon — python-fastapi, react-tailwind, node-express, electron-app, next-ts
 - ✅ `list_templates` tool: mevcut şablonları listele
 - ✅ Şablon dosyaları doğrudan hedef dizinde oluşturulur
@@ -409,18 +483,22 @@
 ---
 
 ## Faz 21 — Takvim & Zaman Yönetimi 📅 ✅
-*AEGIS zamanı planlar, seni hatırlatır.*
+
+_AEGIS zamanı planlar, seni hatırlatır._
 
 ### 21.1 Yerel Takvim Entegrasyonu ✅
+
 - ✅ `calendar_get_events` tool: Windows Takvim / UWP API ile etkinlik sorgulama
 - ✅ `calendar_add_event` tool: Outlook COM ile etkinlik ekle (başlık, saat, süre, notlar)
 
 ### 21.2 Pomodoro & Odaklanma Modu ✅
+
 - ✅ `pomodoro_start` / `pomodoro_stop`: özelleştirilebilir çalışma/mola döngüsü (varsayılan 25/5 dk)
 - ✅ Her pomodoro bitiminde Windows bildirim (`~/.aegis/pomodoro-state.json`)
 - ✅ Oturum sayacı ve faz takibi (work / break)
 
 ### 21.3 Zaman Takibi ✅
+
 - ✅ `time_track_start` / `time_track_stop`: görev bazlı zaman kayıt
 - ✅ `time_track_report`: today / week / month raporu (`~/.aegis/time-log.json`)
 - ✅ Aynı anda birden fazla aktif görev önlenir; önceki otomatik durdurulur
@@ -428,59 +506,71 @@
 ---
 
 ## Faz 22 — Dosya & Medya Yönetimi 🗂️ ✅
-*AEGIS dosyaları anlar, düzenler, dönüştürür.*
+
+_AEGIS dosyaları anlar, düzenler, dönüştürür._
 
 ### 22.1 Akıllı Dosya Organizasyonu ✅
+
 - ✅ `organize_folder` tool: uzantı veya tarih bazlı alt klasörlere taşı
 - ✅ `find_duplicates` tool: MD5 hash ile yinelenen dosyaları bul (recursive desteği)
 - ✅ `bulk_rename` tool: regex + `{n}` sıra numarası ile toplu yeniden adlandır
 
 ### 22.2 Görüntü Analizi & İşleme ✅
+
 - ✅ `analyze_image` tool: base64 kodlama + vision model hazırlığı (OpenAI API key ile aktif)
 - ✅ `resize_image` tool: .NET System.Drawing ile yüksek kaliteli yeniden boyutlandırma
 - ✅ `convert_image` tool: PNG/JPEG/BMP/GIF format dönüşümü
 
 ### 22.3 PDF & Belge İşleme ✅
+
 - ✅ `pdf_to_text` tool: Word COM nesnesi ile PDF'ten metin çıkarma (Outlook kuruluysa)
 - ✅ Alternatif: `index_file` ile PDF bilgi tabanına indekslenebilir
 
 ---
 
 ## Faz 23 — Yapay Zeka Kişiliği & Rol Sistemi 🎭 ✅
-*AEGIS farklı modlarda çalışsın — asistan, koç, arkadaş.*
+
+_AEGIS farklı modlarda çalışsın — asistan, koç, arkadaş._
 
 ### 23.1 Kişilik Profilleri ✅
+
 - ✅ `set_persona` tool: default, formal, friendly, coach, teacher + özel persona
 - ✅ `get_persona` / `list_personas` tool'ları
 - ✅ `add_persona` tool: özel kişilik ekle (`~/.aegis/personas.json`)
 - ✅ Her persona kendi system prompt direktifleriyle gelir
 
 ### 23.2 Rol Yapma & Simülasyon ✅
+
 - ✅ `roleplay_start` tool: karakter + senaryo ver, AEGIS o karakterde konuşur
 - ✅ `roleplay_stop` ile normal moda dön
 - ✅ Rol durumu `~/.aegis/roleplay-state.json`'da kalıcı olarak saklanır
 
 ### 23.3 Kişilik Sistem Promptu ✅
+
 - ✅ `getPersonaSystemPrompt()` fonksiyonu main.ts system prompt'una inject edilebilir
 - ✅ Rol yapma aktifken karakter direktifi otomatik eklenir
 
 ---
 
 ## Faz 24 — Ağ & Sunucu Yönetimi 🌐 ✅
-*AEGIS ağı izler ve sunucu işlerini halleder.*
+
+_AEGIS ağı izler ve sunucu işlerini halleder._
 
 ### 24.1 Ağ Tanılama ✅
+
 - ✅ `ping_host` tool: Test-Connection ile gecikme ölçümü
 - ✅ `trace_route` tool: tracert ile ağ yolunu izle
 - ✅ `port_scan` tool: TCP bağlantı testi ile açık portları listele
 - ✅ `dns_lookup` tool: Resolve-DnsName ile A/MX/TXT/CNAME kayıt sorgusu
 
 ### 24.2 SSH & Uzak Sunucu ✅
+
 - ✅ `ssh_run` tool: kaydedilmiş profile ile SSH komut çalıştır
 - ✅ `ssh_add_host` tool: SSH profili kaydet (`~/.aegis/ssh-hosts.json`)
 - ✅ Private key desteği, özelleştirilebilir port
 
 ### 24.3 Docker Yönetimi ✅
+
 - ✅ `docker_ps` / `docker_start` / `docker_stop` tool'ları
 - ✅ `docker_logs` tool: container son N satır log
 - ✅ Docker kurulu değilse anlamlı hata mesajı döner
@@ -488,14 +578,17 @@
 ---
 
 ## Faz 25 — Gelişmiş Görselleştirme & Dashboard 📊 ✅
-*AEGIS verileri görsel olarak sunsun.*
+
+_AEGIS verileri görsel olarak sunsun._
 
 ### 25.1 Grafik Oluşturma ✅
+
 - ✅ `create_chart` tool: ASCII tabanlı bar, line, pie grafik oluştur
 - ✅ Veri formatları: `{labels:[...], values:[...]}` veya `[[label,val],...]`
 - ✅ Feed'de anında gösterilir, başlık desteği
 
 ### 25.2 Sistem Sağlık Raporu ✅
+
 - ✅ `system_report` tool: CPU model/çekirdek, RAM, disk, uptime, OS versiyonu
 - ✅ Disk bilgisi PowerShell Get-PSDrive ile tüm sürücüleri kapsar
 - ✅ Zamanlanmış görev ile haftalık otomatik rapor kurulabilir
@@ -503,38 +596,46 @@
 ---
 
 ## Faz 26 — E-posta & İletişim 📧 ✅
-*AEGIS mesajları okur, yazar ve düzenler.*
+
+_AEGIS mesajları okur, yazar ve düzenler._
 
 ### 26.1 SMTP / IMAP E-posta ✅
+
 - ✅ `email_send` tool: PowerShell Send-MailMessage ile SMTP e-posta gönder
 - ✅ `email_fetch` tool: IMAP / Outlook COM ile gelen kutusu oku
 - ✅ `email_setup_smtp` tool: SMTP/IMAP profili kaydet (`~/.aegis/email-profiles.json`)
 - ✅ Şifreler vault ile güvenli saklanır
 
 ### 26.2 E-posta Özetleme & Taslak ✅
+
 - ✅ `email_draft` tool: niyet + alıcı + ton ile profesyonel e-posta taslağı oluştur
 - ✅ Dil (TR/EN) ve ton (formal/friendly/assertive) desteği
 
-### 26.3 Slack & Teams *(mevcut Discord plugin)*
+### 26.3 Slack & Teams _(mevcut Discord plugin)_
+
 - ✅ Discord webhook ile kanal mesajı gönderme (Faz 18 eklendi)
 - Slack/Teams: webhook URL ile `run_command` üzerinden SendGrid/curl ile gönderilebilir
 
 ---
 
 ## Faz 27 — Öğrenme & Kişisel Gelişim 📚 ✅
-*AEGIS öğrenmeyi takip eder ve destekler.*
+
+_AEGIS öğrenmeyi takip eder ve destekler._
 
 ### 27.1 Flashcard Sistemi ✅
+
 - ✅ `card_add` tool: ön yüz + arka yüz + etiket ile kart ekle (`~/.aegis/flashcards.json`)
 - ✅ `card_review` tool: SM-2 lite spaced repetition algoritması; otomatik interval güncelleme
 - ✅ Etiket bazlı filtreleme, sonraki tekrar zamanı gösterimi
 
 ### 27.2 Okuma Listesi & Özet ✅
+
 - ✅ `reading_add` tool: URL veya kitap adı ekle, öncelik 1-5
 - ✅ `reading_summarize` tool: URL fetch → HTML → metin çıkarma → LLM özetleme
 - ✅ `reading_list` tool: öncelik sıralı liste, durum filtreleme (pending/done/all)
 
 ### 27.3 Hedef Takibi ✅
+
 - ✅ `goal_set` tool: başlık, son tarih, alt adımlar ile hedef oluştur (`~/.aegis/goals.json`)
 - ✅ `goal_check_in` tool: ilerleme yüzdesi + not ekle; %100'de otomatik tamamlandı
 - ✅ `goal_list` tool: ASCII progress bar ile hedef görünümü, durum filtreleme
@@ -542,19 +643,23 @@
 ---
 
 ## Faz 28 — Fiziksel Dünya & IoT Entegrasyonu 🏠 ✅
-*AEGIS fiziksel dünyaya uzanır.*
+
+_AEGIS fiziksel dünyaya uzanır._
 
 ### 28.1 Hava İstasyonu Verileri ✅
+
 - ✅ `weather_station` tool: OpenWeatherMap API ile sıcaklık, nem, basınç, rüzgar
 - ✅ OPENWEATHER_API_KEY ayarlardan girilince aktif olur
 - ✅ Konum belirtilmezse settings'teki şehir kullanılır
 
 ### 28.2 Bluetooth & USB Cihaz Yönetimi ✅
+
 - ✅ `list_bluetooth` tool: Get-PnpDevice -Class Bluetooth ile cihaz listesi
 - ✅ `connect_bluetooth` / `disconnect_bluetooth` tool'ları (Enable/Disable-PnpDevice)
 - ✅ `list_usb` tool: USB instanceId ile takılı cihazları listele
 
 ### 28.3 Baskı ✅
+
 - ✅ `list_printers` tool: Get-Printer ile yazıcı listesi
 - ✅ `print_file` tool: Start-Process -Verb Print ile yazdır
 - ✅ `printer_status` tool: yazıcı durumu (WorkOffline, PrinterStatus)
@@ -562,19 +667,23 @@
 ---
 
 ## Faz 29 — Yapay Zeka Zinciri & Çoklu Model 🤖 ✅
-*AEGIS tek model değil, model orkestrasyonu olsun.*
+
+_AEGIS tek model değil, model orkestrasyonu olsun._
 
 ### 29.1 Çoklu Model Yönlendirme ✅
+
 - ✅ `model_route_set` tool: görev türüne model eşle (`~/.aegis/model-routing.json`)
 - ✅ `model_route_list` tool: mevcut yönlendirme kurallarını listele
 - ✅ task_type bazlı özelleştirilebilir kural tablosu
 
 ### 29.2 Zincirleme Prompt (Pipeline) ✅
+
 - ✅ `pipeline_save` tool: adım adım prompt zinciri tanımla (`~/.aegis/pipelines.json`)
 - ✅ `pipeline_run` tool: pipeline çalıştır, `{{input}}` placeholder ile adımlar arası veri aktarımı
 - ✅ `pipeline_list` tool: mevcut pipeline'ları listele
 
 ### 29.3 Model Karşılaştırma ✅
+
 - ✅ `model_compare` tool: aynı prompt'u birden fazla modele gönder, yanıtları karşılaştır
 - ✅ Provider:model formatı (örn: groq:qwen3-32b, groq:llama-3.3-70b)
 - ✅ Gerçek API çağrısı için tüm provider key'leri ayarlanmalı
@@ -582,11 +691,13 @@
 ---
 
 ## Faz 30 — Dağıtım: Deneme Modu + Kimlik + Proxy 🚀
-*AEGIS son kullanıcıya dağıtılabilir olsun. İki giriş: "Hızlı Başlangıç" (deneme, senin sunucun, rate limited) ve "Gelişmiş Kurulum" (kullanıcının kendi anahtarları). Tüm kimlik doğrulama senin Supabase'ine bağlanır.*
 
-*Sırlar (Groq + Supabase service_role) yalnızca Edge Function secret'ında durur. Client'ta yalnızca public-safe anon key + RLS bulunur — repo public olsa bile sızıntı olmaz.*
+_AEGIS son kullanıcıya dağıtılabilir olsun. İki giriş: "Hızlı Başlangıç" (deneme, senin sunucun, rate limited) ve "Gelişmiş Kurulum" (kullanıcının kendi anahtarları). Tüm kimlik doğrulama senin Supabase'ine bağlanır._
+
+_Sırlar (Groq + Supabase service_role) yalnızca Edge Function secret'ında durur. Client'ta yalnızca public-safe anon key + RLS bulunur — repo public olsa bile sızıntı olmaz._
 
 ### 30.1 Supabase backend temeli ✅
+
 - ✅ Supabase Auth aç — email/şifre (confirm-email kapalı)
 - ✅ `usage` tablosu: günlük istek + token sayacı (`user_id, day, request_count, token_count`)
 - ✅ `user_configs` tablosu: cloud sync için `settings jsonb` + `encrypted_keys`
@@ -594,18 +705,21 @@
 - ✅ `supabase/schema.sql` güncellendi + `increment_usage` atomik RPC (security definer)
 
 ### 30.2 Edge Function `chat-proxy` (deneme beyni) ✅
+
 - ✅ JWT doğrula → `usage`'dan limit kontrol → aşımda `429`
 - ✅ Limit OK → Edge secret'taki Groq key ile Groq'a streaming, yanıtı client'a aktar
 - ✅ Yanıt sonunda `usage` satırını arttır (istek + token) — `increment_usage` ile
 - ✅ Dashboard'dan deploy; `GROQ_API_KEY` Edge secret. Uçtan uca test: stream cevap + sayaç arttı + RLS yazma engeli doğrulandı
 
 ### 30.3 Electron — gömülü public config + sır temizliği ✅
+
 - ✅ Gömülü sabitler `electron/aegis-config.ts`: `AEGIS_SUPABASE_URL`, `AEGIS_SUPABASE_ANON_KEY`, `AEGIS_PROXY_URL` (env override destekli)
 - ✅ `electron/auth.ts` — anon key ile Supabase Auth (login/signup/logout, dosya tabanlı oturum, sessiz yenileme)
 - ✅ `callProxy` — deneme modunda chat senin proxy'inden (stream + tool-call). Kendi Groq key'i varsa bypass
 - ✅ Uçtan uca test: login → getAccessToken → proxy 200 "PROXY_OK"
 
 ### 30.4 Mod seçim + kimlik ekranları ✅
+
 - ✅ `ModeSelectScreen` — "Hızlı Başlangıç (Deneme)" vs "Gelişmiş Kurulum"
 - ✅ `AuthScreen` — email/şifre kayıt + giriş; deneme→zorunlu, gelişmiş→opsiyonel + "Atla"
 - ✅ `Onboarding` state machine; `main.ts` ilk açılış mantığı (ownReady/trialReady → onboarding)
@@ -613,6 +727,7 @@
 - ✅ Temiz makinede test: onboarding açıldı, mod seçim → auth geçişi çalıştı
 
 ### 30.5 Chat akışını moda göre yönlendir ✅
+
 - ✅ Deneme modu: `callProxy` ile proxy fetch + JWT (stream + tool-call korunur)
 - ✅ Deneme + kullanıcının kendi Groq key'i → proxy bypass, direkt Groq
 - ✅ Gelişmiş mod → mevcut direkt-provider akışı (değişiklik yok)
@@ -620,18 +735,21 @@
 - ✅ 429 limit yanıtı UI'da "sistem hatası" damgası olmadan, doğrudan mesaj olarak gösterilir
 
 ### 30.6 Rate limit cilası & kötüye kullanım koruması ✅
+
 - ✅ Edge Function limitleri sabit (50 istek/gün, 100k token/gün, 8192 token/istek)
 - ✅ Kalan kota Ayarlar → Hesap sekmesinde gösterilir (`usage-get` IPC + RLS okuma)
 - ✅ İstek başına token tavanı Edge'de zorlanıyor; 429 limit testi doğrulandı
 - ✅ Hesap sekmesi: mod, e-posta, kota çubukları, çıkış; UTC sıfırlama notu
 
 ### 30.7 Cloud sync (Gelişmiş mod, opsiyonel auth) ✅
+
 - ✅ Ayarlar + şifreli API key'leri `user_configs`'e yaz (`cloud-sync.ts`, debounce'lu otomatik push)
 - ✅ İstemci tarafı şifreleme — AES-256-GCM (user.id'den türetilen anahtar); sunucuda key düz metin DEĞİL (test edildi)
 - ✅ Açılışta `pullFromCloud` ile çek, yerel `~/.aegis` ile birleştir; uçtan uca roundtrip test edildi
 - ✅ "Bu cihazı senkronla" toggle'ı (Ayarlar → Hesap)
 
 ### 30.8 Dağıtım sertleştirme & yayın 🔶
+
 - ✅ Repo sır taraması — service_role / Groq key sızıntısı yok (anon key güvenli); pre-commit hook (`scripts/check-secrets.sh`) gerçek sırrı engelliyor (test edildi)
 - ⬜ `electron-builder` imzalı build; `AEGIS_*` env'leri CI secret'tan enjekte (release ertelendi — daha çok fix var)
 - ✅ Onboarding çok dilli (5 dil) + en başta dil seçim ekranı
@@ -640,11 +758,13 @@
 ---
 
 ## Faz 31 — Model-Özel Revizyon & Sıfır-Hata AI Katmanı 🎯 ✅
-*Projenin ana amacı: her model yalnızca DESTEKLEDİĞİ kadarını yapsın, desteklemediği
+
+_Projenin ana amacı: her model yalnızca DESTEKLEDİĞİ kadarını yapsın, desteklemediği
 parametre hiç gönderilmesin → 400/422 "unsupported parameter / max_tokens too large /
-no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek tek okundu.*
+no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek tek okundu._
 
 ### 31.1 Model yetenek kayıt defteri ✅
+
 - ✅ `electron/model-capabilities.ts` — `getModelCapabilities(provider, model)` tek doğruluk kaynağı
 - ✅ Her model için: tool / temperature / system / vision / streaming / reasoning desteği + `maxOutputTokens` + `contextWindow` + `usesMaxCompletionTokens`
 - ✅ Veriler resmi dokümanlardan derlendi (Groq, OpenAI, Anthropic, Gemini, Mistral, DeepSeek, xAI — Haziran 2026)
@@ -652,6 +772,7 @@ no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek
 - ✅ 16 temsili modelde doğrulandı (smoke test)
 
 ### 31.2 callAI modele göre parametre kırpma ✅
+
 - ✅ `max_tokens` modelin çıktı tavanına clamp'lenir (kritik: claude-3-opus/haiku 8192→**4096**, yoksa 400)
 - ✅ OpenAI o-serisi/gpt-5 → `max_tokens` yerine **`max_completion_tokens`**; temperature atılır
 - ✅ Reasoning modelleri (deepseek-reasoner, o1-mini…) → tool + temperature gönderilmez (deepseek-reasoner tool desteklemiyor)
@@ -661,20 +782,24 @@ no tool support" hataları kökten bitsin. Her provider'ın resmi dokümanı tek
 - ✅ Tüm provider dalları (groq/anthropic/gemini/ollama/xai/deepseek/openai/mistral) tek tek elden geçti
 
 ### 31.3 Bağlam penceresine göre geçmiş yönetimi ✅
+
 - ✅ Sabit "son 20 mesaj" yerine MODELE GÖRE token bütçesi (`trimToBudget`): küçük-ctx modelde daha az, geniş-ctx modelde dolu kullanım
 - ✅ Pencere boundary düzeltme korunur (tool/araç-çağrılı assistant ile başlamaz → 400 yok)
 - ✅ Deneme modunda yetenekler efektif olarak Groq'a göre hesaplanır (proxy Groq'a gider)
 - ✅ `summarizeAndSave` yerel Groq anahtarı yoksa sessizce atlar (401 spam'i biter)
 
 ### 31.4 UI — model yetenek görünürlüğü ✅
+
 - ✅ `caps-get` IPC + Model sekmesinde "BU MODEL NE YAPABİLİR" rozetleri (Araçlar/Görüntü/Reasoning/Bağlam/Çıktı)
 - ✅ Kullanıcı seçtiği modelin sınırlarını net görür
 
 ---
 
 ## Faz 32 — Renk/Zemin Palet Presetleri 🎨 ✅
-*Hazır palet preset'leri: accent + arka plan + font tek tıkla. (Not: bu "palet"tir;
-gerçek skin "aileleri" Faz 33'te.)*
+
+_Hazır palet preset'leri: accent + arka plan + font tek tıkla. (Not: bu "palet"tir;
+gerçek skin "aileleri" Faz 33'te.)_
+
 - ✅ `src/themes.ts`: `UI_FAMILIES` — cyber/synthwave/matrix/aurora/ember (bg + accent + font preset)
 - ✅ `--bg`/`--bg-deep` CSS değişkenleri; skin arka planları + body + `.backdrop` bunları kullanıyor (sabit `#03060c` kaldırıldı)
 - ✅ `applyFamilyBg` (App): aile → arka plan; aile seçimi accent + font'u da preset'ler (kullanıcı sonra tek tek ezebilir)
@@ -684,9 +809,11 @@ gerçek skin "aileleri" Faz 33'te.)*
 ---
 
 ## Faz 33 — Skin Aileleri 🧩 ✅ (4 aile × 4 skin = 16)
-*Mevcut 4 skin tek bir AİLE altında toplandı; kullanıcının istediği 3 yeni
+
+_Mevcut 4 skin tek bir AİLE altında toplandı; kullanıcının istediği 3 yeni
 bağımsız aile eklendi — her biri gerçek farklı tasarım dili (recolor değil),
-4'er ferdi (skin).*
+4'er ferdi (skin)._
+
 - ✅ Mimari: `src/components/skins/registry.tsx` — skinler ailelere gruplu; `getSkinComp(id)`; App render + Ayarlar seçici buradan; `skin` tipi `string`
 - ✅ Ayarlar → Görünüm: skin seçici "AİLE › FERDİ" gruplu
 - ✅ **Aegis HUD** (neon/keskin/glow): Hologram / Minimal / Terminal / Dashboard
@@ -698,6 +825,7 @@ bağımsız aile eklendi — her biri gerçek farklı tasarım dili (recolor de�
 ---
 
 ## Faz 34 — Benzersiz UI Aileleri + Zengin Ana Ekran 🎨 (planlı · tek tek)
+
 **Problem:** Faz 33 aileleri birbirine benziyor — çünkü (a) hepsi tek seçili
 rengi/zemini kullanıyor (renk = "palet", layout = "aile" diye ayrılmıştı), (b)
 ana ekran sadece telemetri + chat'ten oluştuğu için UI'da işlenecek malzeme az.
@@ -705,11 +833,14 @@ ana ekran sadece telemetri + chat'ten oluştuğu için UI'da işlenecek malzeme 
 tamamen unique olsun; tek tek yapılacak, her aile bitince dur–göster–onay.
 
 ### 34.1 Aile kimlik sistemi (altyapı) ✅
+
 - Her aile kendi hardcoded renk/zemin/font paletini doğrudan TSX sabitleri olarak taşır
 - Nebula/Codex/Retro registry'den çıkarıldı; Skeuomorphism/Neo-brutalism/Claymorphism eklendi
 
 ### 34.2 Ana ekran içerik genişletme (ailelere malzeme) ⬜
+
 Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havuzu:
+
 - Hızlı aksiyon dock'u / uygulama başlatıcı
 - Bugünün ajandası (takvim) + notlar/hatırlatıcılar paneli
 - Medya / now-playing widget
@@ -719,10 +850,11 @@ Telemetri+chat dışında, ailelerin farklı dizebileceği opsiyonel modül havu
 - Saat varyantları (analog, dünya saatleri); aktif otomasyon/izleme, persona göstergesi
 
 ### 34.3 Aileler — 4 akım × 4 ferdi (her biri ayrı tasarım AKIMI) ✅
+
 Her ailede aynı **4 arketip** o akımın diliyle yorumlanır: **İmza** (vitrin),
 **Sohbet** (konuşma öncelikli), **Kompakt** (yoğun/mini), **Pano** (telemetri/widget).
 
-**0. Aegis HUD** ✅ (mevcut, dokunulmaz) — *Cyberpunk / Sci-fi HUD*: koyu, neon-glow, keskin
+**0. Aegis HUD** ✅ (mevcut, dokunulmaz) — _Cyberpunk / Sci-fi HUD_: koyu, neon-glow, keskin
 → Hologram · Minimal · Terminal · Dashboard
 
 **1. Skeuomorphism** ✅ — gerçek nesne & doku (deri/metal/cam/kâğıt, gerçekçi gölge, fiziksel düğme). Sıcak koyu deri zemin, pirinç/amber vurgu, Oxanium/Rajdhani.
@@ -734,12 +866,13 @@ Her ailede aynı **4 arketip** o akımın diliyle yorumlanır: **İmza** (vitrin
 **3. Claymorphism** ✅ — yumuşak puffy 3D (pastel, çok yuvarlak, çift gölge, kabarık). Derin mor zemin, lila/mint/şeftali pastel vurgu, Poppins.
 → **Orb** (İmza) · **Pillow** (Sohbet) · **Pebble** (Kompakt) · **Tiles** (Pano)
 
-*(Faz 33'teki Nebula/Codex/Retro registry'den çıkarıldı; 3 yeni benzersiz aile ile değiştirildi.)*
-*Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
+_(Faz 33'teki Nebula/Codex/Retro registry'den çıkarıldı; 3 yeni benzersiz aile ile değiştirildi.)_
+_Faz değil. Onboarding çok dilli oldu ama uygulamanın geri kalanı hâlâ sabit Türkçe.
 Dil seçiminin etki etmediği yerler — kullanıcı görme sırasına göre öncelikli. Her madde
-i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es).*
+i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/en/de/fr/es)._
 
 **Öncelik 1 — Ana ekran (hep görünür): ✅ BİTTİ**
+
 - ✅ Skinler: input placeholder, durum metinleri (KONUŞMA, CANLI/HAZIR/İŞLENİYOR/DİNLİYOR), boş-feed mesajları, buton etiketleri (GÖNDER/DURDUR/KAPAT), saat locale — Hologram/Minimal/Terminal/Dashboard (Minimal/Terminal bilinçli İngilizce estetik korundu)
 - ✅ FeedItem: "HATA" etiketi, tool fiilleri (KOMUT YÜRÜTÜLÜYOR, DOSYA OKUNUYOR…)
 - ✅ CommandPalette: arama/ipuçları/ANLIK-DÜZENLE + 19 komutun label/açıklama/text'i (5 dil)
@@ -748,12 +881,14 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 - Altyapı: i18n.ts `UI.LangStrings` (~40 anahtar) + `EXTRA` + `PALETTE_COMMANDS`; `t` skinProps'tan, `lang` standalone panellere geçiyor
 
 **Öncelik 2 — Ayarlar paneli (en yoğun, ~200 metin):**
+
 - ⬜ SettingsPanel: NAV_ITEMS (sekme adları + alt başlıklar)
 - ⬜ settings/shared.tsx: ortak primitive metinleri, model tag'leri
 - ⬜ AccountTab, ModelTab, VoiceTab, AppearanceTab, KeysTab, TelemetryTab, ToolsTab, ShortcutsTab — her sekmenin SectionLabel/Hint/FieldLabel'ları
 - ⬜ SetupScreen (Gelişmiş kurulum) — alan etiketleri, ipuçları, hata mesajları
 
 **Öncelik 3 — Backend kullanıcıya dönen metinler:**
+
 - ⬜ main.ts hata/limit mesajları (friendlyHttpError, friendlyGroqError, callProxy) — şu an sabit Türkçe; dile göre çevrilmeli
 - ⬜ tools.ts executor dönüş mesajları (ENGELLENDI, HATA, başarı metinleri) — opsiyonel (AI'a gidiyor, kullanıcı dolaylı görür)
 
@@ -764,173 +899,215 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 35 — Gerçek Zamanlı Sesli Çeviri 🌐🎙️ ✅
-*Konuşurken anlık çeviri — toplantıda, videoda, yabancı içerikte.*
+
+_Konuşurken anlık çeviri — toplantıda, videoda, yabancı içerikte._
 
 ### 35.1 Sürekli Çeviri Modu ✅
+
 - ✅ `translation_start` / `translation_stop` tool: kaynak + hedef dil belirt → çeviri modu
 - ✅ Desteklenen dil çiftleri: Whisper destekli tüm diller
 - ✅ Çeviri motoru: Groq Whisper (transkripsiyon) + LLM translate
 
 ### 35.2 Dosya & Metin Çevirisi ✅
+
 - ✅ `translate_text` tool: metin ver → hedef dile çevir (bağlam korumalı, LLM tabanlı)
 - ✅ `translate_file` tool: .txt / .md dosyasını çevir → `_<lang>.md` olarak kaydet
 - ✅ Ton seçeneği: resmi / gündelik / teknik
 
 ### 35.3 Altyazı Modu ✅
+
 - ✅ `subtitle_toggle` tool: overlay modu aç/kapat
 
 ---
 
 ## Faz 36 — Akıllı Bildirim Filtresi & Özet 🔔 ✅
-*Windows bildirimlerini AEGIS süzer, özetler, önceliklendirir.*
+
+_Windows bildirimlerini AEGIS süzer, özetler, önceliklendirir._
 
 ### 36.1 Windows Bildirim Yakalama ✅
+
 - ✅ `notification_recent` / `notification_history` tool'ları: WinEvent + Application log
 - ✅ Uygulama filtresi: `notification_filter_set` / `notification_filter_list`
 
 ### 36.2 Akıllı Önceliklendirme ✅
+
 - ✅ `notification_filter_set` tool: uygulama bazlı göster/gizle kuralı
 
 ### 36.3 Sessiz Saatler ✅
+
 - ✅ `do_not_disturb` tool: X dakika DND aktif / kapat
 
 ---
 
 ## Faz 37 — Kod Derleyici & Test Koşucusu 👨‍💻⚡ ✅
-*AEGIS projeyi derler, test eder, hataları açıklar — tek komutla.*
+
+_AEGIS projeyi derler, test eder, hataları açıklar — tek komutla._
 
 ### 37.1 Proje Tanıma & Build ✅
+
 - ✅ `project_detect` tool: Node.js/Rust/Python/Go/Java otomatik tanıma
 - ✅ `build_project` tool: proje tipine göre doğru build komutu (npm/cargo/pip/go build…)
 
 ### 37.2 Test Koşucu ✅
+
 - ✅ `run_tests` tool: `npm test`, `pytest`, `cargo test`, `go test` + sonuç özeti
 - ✅ Belirli test dosyası desteği
 
 ### 37.3 Lint & Kod Kalitesi ✅
+
 - ✅ `lint_project` tool: eslint, pylint, cargo clippy, golangci-lint
 - ✅ `format_code` tool: prettier, black, rustfmt, gofmt
 
 ---
 
 ## Faz 38 — Canlı Haber & Fiyat Takibi 📈 ✅
-*AEGIS güncel kalır — haber, döviz, kripto, borsa.*
+
+_AEGIS güncel kalır — haber, döviz, kripto, borsa._
 
 ### 38.1 RSS & Haber Akışı ✅
+
 - ✅ `rss_add` / `rss_remove` / `rss_list` / `rss_fetch` tool'ları (RSS+Atom desteği)
 
 ### 38.2 Döviz & Kripto Fiyatları ✅
+
 - ✅ `fx_rate` tool: exchangerate-api.com ile döviz kuru
 - ✅ `crypto_price` tool: CoinGecko ile kripto (USD+TRY)
 - ✅ `price_alert_set` tool: hedef fiyat aleti
 
 ### 38.3 Borsa Fiyatları ✅
+
 - ✅ `price_get` tool: Yahoo Finance ile hisse senedi (AAPL, TSLA, BIST vb.)
 
 ---
 
 ## Faz 39 — Sesli Toplantı Asistanı 🎙️📝 ✅
-*Toplantıyı dinler, madde madde özetler, eylem maddelerini çıkarır.*
+
+_Toplantıyı dinler, madde madde özetler, eylem maddelerini çıkarır._
 
 ### 39.1 Toplantı Kaydı ✅
+
 - ✅ `meeting_start` / `meeting_stop` tool'ları: transkript `~/.aegis/meetings/` altına kaydedilir
 
 ### 39.2 Akıllı Özet ✅
+
 - ✅ `meeting_summarize` tool: LLM ile kararlar / eylem maddeleri / süre özeti
 - ✅ `meeting_list` / `meeting_export` tool'ları: .md dışa aktar
 
 ### 39.3 Eylem Maddeleri ✅
+
 - ✅ `meeting_action_items` tool: toplantıdan eylem maddelerini çıkar
 
 ---
 
 ## Faz 40 — Bağlam-Duyarlı Otomatik Eylem 🖥️🤖 ✅
-*AEGIS aktif pencereye bakarak ne yapman gerektiğini önerir veya otomatik yapar.*
+
+_AEGIS aktif pencereye bakarak ne yapman gerektiğini önerir veya otomatik yapar._
 
 ### 40.1 Aktif Uygulama Algılama ✅
+
 - ✅ `get_active_context` tool: aktif pencere + bağlam tespiti (kod/tarayıcı/toplantı/oyun) + araç önerileri
 - ✅ `context_rule_set` / `context_rule_list` tool'ları: kural tanımla
 
 ### 40.2 Akıllı Snippet Panosu ✅
+
 - ✅ `clipboard_watch` tool: URL/kod/hata tespiti + akıllı öneriler
 - ✅ `clipboard_history` / `clipboard_search` tool'ları: son 50 giriş geçmişi
 
 ---
 
 ## Faz 41 — Güçlü Yerel Arama 🔍 ✅
-*Dosya sistemi + içerik + uygulama hızlı başlatıcı.*
+
+_Dosya sistemi + içerik + uygulama hızlı başlatıcı._
 
 ### 41.1 Dosya & İçerik Arama ✅
+
 - ✅ `file_search` tool: Everything API (varsa) veya PowerShell recursive fallback
 - ✅ `content_search` tool: klasör içinde tüm dosyalarda metin ara, satır numarasıyla döner, uzantı filtresi
 
 ### 41.2 Uygulama Hızlı Başlatıcı ✅
+
 - ✅ `app_search` tool: Start Menu + PATH taraması, fuzzy matching ("chr" → Chrome)
 - ✅ Son kullanılan uygulamalar önceliklendirilir (`app-launch-history.json`)
 
 ---
 
 ## Faz 42 — Gerçek Zamanlı Sistem Optimizasyonu ⚡🔧 ✅
-*AEGIS yavaşlama olunca müdahale eder, kaynakları yönetir.*
+
+_AEGIS yavaşlama olunca müdahale eder, kaynakları yönetir._
 
 ### 42.1 Akıllı Process Yönetimi ✅
+
 - ✅ `kill_heavy_process` tool: en fazla kaynak tüketen prosesler + onaylı kapatma
 - ✅ `suspend_process` / `resume_process` tool'ları (Idle/Normal öncelik)
 
 ### 42.2 Disk & Bellek Temizliği ✅
+
 - ✅ `clear_temp` tool: %TEMP% temizleme + yer raporu
 - ✅ `flush_dns` tool
 - ✅ `startup_manager` tool: başlangıç uygulamalarını listele / devre dışı bırak
 
 ### 42.3 Performans Modu ✅
+
 - ✅ `perf_mode_start` / `perf_mode_stop`: güç planı Yüksek Performans, arka plan Idle
 
 ---
 
 ## Faz 43 — Çoklu Oturum & Workspace 🗂️ ✅
-*Proje bazlı izole çalışma alanları.*
+
+_Proje bazlı izole çalışma alanları._
 
 ### 43.1 Workspace Sistemi ✅
+
 - ✅ `workspace_create` / `workspace_switch` / `workspace_list` / `workspace_delete`
 - ✅ Her workspace: kendi system prompt, model, çalışma dizini (`~/.aegis/workspaces/<name>/`)
 
 ### 43.2 Export/Import ✅
+
 - ✅ `workspace_export` / `workspace_import` tool'ları: JSON olarak taşı
 
 ---
 
 ## Faz 44 — Yapay Zeka Tabanlı Günlük Rapor & Analitik 📊 ✅
-*AEGIS günü, haftayı anlamlı özetlerle sunar.*
+
+_AEGIS günü, haftayı anlamlı özetlerle sunar._
 
 ### 44.1 Günlük & Haftalık Rapor ✅
+
 - ✅ `daily_report` tool: araç kullanımı + zaman takibi + hedef ilerlemesi → `~/.aegis/reports/` .md olarak
 - ✅ `weekly_report` tool: 7 günlük özet, görev dağılımı, araç istatistiği
 
 ### 44.2 Verimlilik Koçu ✅
+
 - ✅ `productivity_insights` tool: alışkanlık + zaman + hedef verilerini birleştir → LLM kişisel öneriler
 
 ---
 
 ## Faz 45 — Sağlamlık & Test Altyapısı 🧪 ✅
-*"10 saat açık bırakınca çöküyor mu?" sorusunun cevabı burada.*
+
+_"10 saat açık bırakınca çöküyor mu?" sorusunun cevabı burada._
 
 ### 45.1 Bilinen Kırılganlıkların Düzeltilmesi ✅
 
 **Memory Leak — interval/listener birikimi**
+
 - ✅ `electron/main.ts`: `telemetryInterval` → `telIntervals[]` array'inde, `before-quit`'te `telIntervals.forEach(clearInterval)` + `stopScheduler()` — temiz
 - ✅ `src/App.tsx`: tüm `ipcRenderer.on` çağrıları `window.jarvis.on()` wrapper'ı ile yapılıyor, `useEffect` cleanup'ında `off()` çağrısı var
 - ✅ `electron/scheduler.ts`: `startScheduler` → `if (schedulerTimer) return;` koruması ile double-start engelleniyor
 
 **Plugin yükle/sil 100x — dosya handle birikimi**
+
 - ✅ `electron/plugins.ts`: `require.cache` temizleme mevcut, `fs.watch` / `chokidar` kullanılmıyor — handle birikimi riski yok
 
 **500MB bilgi tabanı — RAM kontrolü**
+
 - ✅ `electron/knowledge.ts`: `searchKnowledge` her chunk'ı ayrı `<id>.json` dosyasından okur (chunk-başına lazy load), tüm corpus belleğe alınmıyor
 
 **10 ajan aynı anda — historyRef yarış koşulu**
+
 - ✅ `electron/main.ts`: `runAgent(history, reqId, isSubAgent)` imzasına geçildi — `isSubAgent=true` ile çağrılan ajan callback / morning summary `sessionHistory` global state'ini ezmiyor
 
 **Supabase çökünce — chat de çöküyor**
+
 - ✅ `electron/db.ts`: `startSession`, `saveMessage`, `saveSessionSummary`, `saveNote`, `markNoteDone`, `setUserProfile` → tümü `try/catch` ile sarıldı, exception fırlatmıyor
 - ✅ `electron/cloud-sync.ts`: `pullFromCloud` settings bozulma koruması — cloud veri type-guard ile doğrulanıyor
 - ✅ `electron/auth.ts`: `getAccessToken` → `try/catch`, hata durumunda `null` dönüyor
@@ -953,6 +1130,7 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ### 45.3 CI Pipeline ✅
+
 - ✅ `.github/workflows/test.yml`: her PR + main push'unda `tsc --noEmit` (electron + renderer) + `npm test`
 - ✅ Benchmark sadece `main` push'unda çalışır, sonuçlar artifact olarak upload edilir
 - ✅ Test başarısız → CI job fail → merge engellenir
@@ -960,9 +1138,11 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 46 — Spotify & Steam Built-in Kontrol 🎵🎮 ✅
-*Plugin kurma gerektirmeden, direkt built-in tool olarak Spotify ve Steam kontrolü.*
+
+_Plugin kurma gerektirmeden, direkt built-in tool olarak Spotify ve Steam kontrolü._
 
 ### 46.1 Spotify ✅
+
 - ✅ `spotify_play` — müziği başlat / devam ettir (Spotify kapalıysa açar)
 - ✅ `spotify_pause` — duraklat
 - ✅ `spotify_next` / `spotify_prev` — parça atla / geri dön
@@ -973,8 +1153,9 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 - Yöntem: media key simülasyonu (WinAPI keybd_event) — Spotify Web API key gerekmez
 
 ### 46.2 Steam ✅
+
 - ✅ `steam_launch` — oyun adı veya AppID ile oyun başlat (Steam kapalıysa açar)
-- ✅ `steam_list` — bilgisayarda yüklü Steam oyunlarını listele (appmanifest_*.acf parse)
+- ✅ `steam_list` — bilgisayarda yüklü Steam oyunlarını listele (appmanifest\_\*.acf parse)
 - ✅ `steam_open` — Steam'i aç ve öne getir
 - ✅ `steam_close` — Steam'i kapat
 - ✅ `steam_game_running` — şu an çalışan oyun var mı?
@@ -983,31 +1164,38 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 48 — Sağlamlık v2 & Hata Mesajları 🔧 ✅
-*Her ağda, her PC'de çalışır. Hata olunca kullanıcı ne olduğunu anlar.*
+
+_Her ağda, her PC'de çalışır. Hata olunca kullanıcı ne olduğunu anlar._
 
 ### 48.1 Fetch Timeout (Aşama A) ✅
+
 - ✅ `electron/fetch-utils.ts` — `fetchWithTimeout` + `anySignal` + `isTimeoutError` + `TIMEOUT_MSG`
 - ✅ Spotify (token exchange/refresh/API), weather, proxy, Anthropic, Gemini, Ollama, xAI, DeepSeek, OpenAI-compat, ElevenLabs, vision, model listing — tüm fetch çağrıları 8–90 saniye arasında timeout'a bağlandı
 - ✅ Timeout anında "İstek zaman aşımına uğradı. Ağ bağlantını kontrol et" mesajı
 
 ### 48.2 Tool Hata İzolasyonu (Aşama B) ✅
+
 - ✅ `Promise.all` → `Promise.allSettled` — bir tool patlasa diğerleri çalışmaya devam eder
 - ✅ Başarısız tool "Araç hatası: …" mesajıyla modele bildirilir
 
 ### 48.3 Global Handler + Spotify FS (Aşama C & D) ✅
+
 - ✅ `process.on('unhandledRejection')` + `uncaughtException` — sessiz crash'ler loglanır
 - ✅ `saveToken` EACCES/ENOSPC durumlarında anlamlı hata yazar, crash etmez
 
 ### 48.4 Streaming Finally + Port Bildirimi (Aşama E & F) ✅
+
 - ✅ `chat-stream` handler'ına `finally` eklendi — her koşulda `chat-done` gönderilir
 - ✅ API server port çakışması → UI'da feed uyarısı (`feed-event`)
 
 ### 48.5 Diğer Düzeltmeler (Aşama G, H, I) ✅
+
 - ✅ Windows sürümü `os.release()` ile dinamik (`build ≥ 22000 = Win11`, aksi = Win10)
 - ✅ Min pencere boyutu 800×550 (küçük ekranlarda UI bozulmaz)
 - ✅ Tüm `.catch(() => {})` → `.catch((e) => console.error(…))` — hata loglanır
 
 ### 48.6 Gelişmiş Hata Mesajları ✅
+
 - ✅ `friendlyHttpError` — 400/401/403/404/413/422/429/5xx ayrı ayrı Türkçe, hangi servis hangisini verdi belli
 - ✅ `friendlyGroqError` — timeout, rate limit, model geçersiz, ağ hatası ayrıştırılır
 - ✅ Spotify hata mesajları — 401/403/404/429/5xx + Premium/kayıtlı değil özel mesajları
@@ -1015,6 +1203,7 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 - ✅ Proxy timeout mesajı servis adıyla birlikte gösterilir
 
 ### 48.7 Güvenilirlik İyileştirmeleri ✅
+
 - ✅ Groq 429 → 3s bekle, otomatik 1x retry
 - ✅ Groq model listesi çekilemezse hardcoded fallback (6 bilinen model) gösterilir
 - ✅ Proxy (trial mod) timeout 10s → 90s (SSE stream için yeterli süre)
@@ -1025,9 +1214,11 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖
-*AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder.*
+
+_AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder._
 
 ### 47.1 Temel Input Kontrolü ✅
+
 - ✅ `mouse_move(x, y)` — fare imleci taşı
 - ✅ `mouse_click(x, y, button, double)` — sol/sağ/orta, tek/çift tıklama
 - ✅ `mouse_scroll(x, y, direction, amount)` — kaydır
@@ -1038,6 +1229,7 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 - Yöntem: WinAPI P/Invoke (Add-Type + user32.dll SendInput / SetCursorPos)
 
 ### 47.2 Vision Döngüsü ✅
+
 - ✅ `computer_use(goal, max_steps)` — serbest dil hedefi → screenshot → AI analiz → eylem → tekrar
 - ✅ AI her adımda JSON eylem döndürür: click/double_click/right_click/type/key/scroll/move/done/fail
 - ✅ Maksimum 20 adım limiti; `done`/`fail` ile erken çıkış
@@ -1047,13 +1239,16 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 49 — Onboarding Fix & Bun Geçişi ✅
-*Kurulum ekranı düzeltmesi + paket yöneticisi modernizasyonu.*
+
+_Kurulum ekranı düzeltmesi + paket yöneticisi modernizasyonu._
 
 ### 49.1 Onboarding Dil Seçimi Fix ✅
+
 - ✅ `settings-set` IPC handler'ı `bootApp()` dışına taşındı — onboarding sırasında da erişilebilir
 - ✅ Dil seçim düğmelerine tıklanınca adım ilerliyor, ayar kaydediliyor
 
 ### 49.2 Bun Paket Yöneticisi ✅
+
 - ✅ `npm` → `bun` geçişi: `package-lock.json` → `bun.lock`
 - ✅ CI workflow güncellendi (`oven-sh/setup-bun@v2`, `--frozen-lockfile`)
 - ✅ Kurulum süresi ~45s → ~9s
@@ -1061,45 +1256,57 @@ i18n.ts'e string ekleyip ilgili dosyada `t.` ile değiştirmek demek (5 dil: tr/
 ---
 
 ## Faz 50 — AI Çekirdeği Yeniden Yazımı: Hafıza + Deterministik Yönlendirme 🧠⚡
-*GPT analizi (2026-06-13): AEGIS şu an her mesajda sıfırdan başlıyor, tool sonuçlarını unutuyor, yönlendirme tutarsız, ve "bunu aç / onu kapat / tekrar yap" gibi referans komutları anlamıyor. Bunlar AEGIS'in "Jarvis hissi" vermesini engelleyen 4 temel sorun.*
+
+_GPT analizi (2026-06-13): AEGIS şu an her mesajda sıfırdan başlıyor, tool sonuçlarını unutuyor, yönlendirme tutarsız, ve "bunu aç / onu kapat / tekrar yap" gibi referans komutları anlamıyor. Bunlar AEGIS'in "Jarvis hissi" vermesini engelleyen 4 temel sorun._
 
 ### 50.1 Short-Term Konuşma Hafızası (RAM) ⬜
-*Şu an: userMessage → LLM → tool seç → çalıştır → cevap (her seferinde bağlamsız)*
-*Olması gereken: conversationMemory → userMessage → intent → tool → tool result → memory update → response*
+
+_Şu an: userMessage → LLM → tool seç → çalıştır → cevap (her seferinde bağlamsız)_
+_Olması gereken: conversationMemory → userMessage → intent → tool → tool result → memory update → response_
+
 - [ ] Son 20-50 işlemi RAM'de `shortTermMemory[]` olarak tut
 - [ ] Her tool çağrısı `{intent, tool, args, result, timestamp}` şeklinde kayıt
 - [ ] LLM'e gönderilen system prompt'a son N işlem özeti inject edilir
 - [ ] Örnek: `{intent:"spotify_volume", args:{volume:50}, result:"success", timestamp:1749840000}`
 
 ### 50.2 Tool Sonucu Hafızaya Yazılıyor ⬜
-*Şu an: `spotify_open` çalıştı → sistem unutuyor → "onu kapat" deyince ne olduğunu bilmiyor*
+
+_Şu an: `spotify_open` çalıştı → sistem unutuyor → "onu kapat" deyince ne olduğunu bilmiyor_
+
 - [ ] Her tool çalışınca `memory.push({tool, args, success, ts})` — son 20 işlem
 - [ ] `lastTool`, `lastTarget`, `lastSpotifyTrack`, `lastIntent` context değişkenleri güncellenir
 - [ ] "tekrar yap" / "onu kapat" / "geri al" gibi referans komutları bu context'ten çözülür
 - [ ] Örnek context: `{lastIntent:"spotify_volume", lastArgs:{volume:50}, lastTool:"spotify_volume", lastTrack:"spotify:track:xxxx"}`
 
 ### 50.3 Deterministik Tool Router ⬜
-*Şu an: LLM bazen tool çağırıyor, bazen "spotify_volume 50" gibi metin yazıyor — tutarsız*
-*Olması gereken: LLM → JSON intent üret → VALIDATE → TOOL EXECUTE → LLM sadece sonucu insan diline çevirsin*
+
+_Şu an: LLM bazen tool çağırıyor, bazen "spotify_volume 50" gibi metin yazıyor — tutarsız_
+_Olması gereken: LLM → JSON intent üret → VALIDATE → TOOL EXECUTE → LLM sadece sonucu insan diline çevirsin_
+
 - [ ] LLM her yanıtta sadece JSON intent üretir: `{tool: "spotify_volume", args: {volume: 50}}`
 - [ ] Router JSON'ı parse eder, schema'ya göre validate eder, tool'u çalıştırır
 - [ ] LLM ikinci tur: tool sonucunu insan diline çevir (Türkçe/seçili dil)
 - [ ] Tool adı geçersizse "anlamadım, şunu mu dedin: X?" ile clarification ister
 - [ ] Belirsiz input → tool çağırmaz, önce sorar
 
-### 50.4 Referans Çözümleme (Asıl Jarvis Hissi) ⬜
-*"bunu aç" / "onu kapat" / "tekrar yap" / "bir öncekini geri al" / "az önceki şarkıyı aç" / "sesi biraz artır" / "aynısını yap" — bunlar çalışmalı*
-- [ ] `lastTool` / `lastSpotifyTrack` / `lastTarget` / `lastIntent` saklanmalı
-- [ ] "bunu" → lastTarget, "onu" → lastTarget, "tekrar" → lastTool + lastArgs
-- [ ] "biraz artır/azalt" → mevcut değeri al, delta uygula (örn: volume 50 → 60)
-- [ ] "bir öncekini" → shortTermMemory[-2]'den resolve
-- [ ] "aynısını yap" → lastTool + lastArgs ile replay
+### 50.4 Referans Çözümleme (Asıl Jarvis Hissi) ✅
+
+_"bunu aç" / "onu kapat" / "tekrar yap" / "bir öncekini geri al" / "az önceki şarkıyı aç" / "sesi biraz artır" / "aynısını yap" — bunlar çalışmalı_
+
+- ✅ `lastTool` / `lastSpotifyTrack` / `lastTarget` / `lastEntity` / `lastIntent` saklanır (STM'ye `entity` + `source` eklendi)
+- ✅ `electron/reference-resolver.ts` — kural tabanlı, deterministik refleks (BEYİN değil): yalnız referans ifadelerini çözer, gerisi LLM'e düşer
+- ✅ "onu/bunu kapat" → son tool'un grubuna göre kapatma (steam_close / spotify_pause)
+- ✅ "biraz artır/azalt" → mevcut seviyeyi al, context-aware delta (biraz=±5, biraz daha=±10), 0-100 clamp
+- ✅ "bir öncekini" → shortTermMemory[-2]'den resolve
+- ✅ "aynısını yap" / "tekrar yap" → lastTool + lastArgs ile replay
+- ✅ Confidence katmanı: belirsizse (<0.7) işlem yapmaz, netleştirme sorar
+- ✅ Geliştirici "Açıklama Modu" (`explainMode`) + 16 birim testi + 5 konuşma senaryosu
 
 ---
 
 ## Faz 51 — Spotify Web API Tam Entegrasyon (96 Endpoint) ✅
 
-*Mevcut 17 Spotify aracına ek olarak `example.claude/spotifyWebApi.json`'daki tüm anlamlı endpoint'ler AEGIS'e kazandırıldı. Toplam ~50 Spotify aracı.*
+_Mevcut 17 Spotify aracına ek olarak `example.claude/spotifyWebApi.json`'daki tüm anlamlı endpoint'ler AEGIS'e kazandırıldı. Toplam ~50 Spotify aracı._
 
 ### Eklenen Araçlar
 

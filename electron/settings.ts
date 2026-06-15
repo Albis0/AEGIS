@@ -53,6 +53,9 @@ export interface AppSettings {
     tempUnit: "C" | "F";
     fullPcAccess: boolean;
     disabledTools: string[];
+    // Geliştirici ayarı — açıkken referans çözücünün kararı (intent/confidence/
+    // bellek/tool/args/çözüm) chat akışına [AÇIKLAMA] bloğu olarak eklenir.
+    explainMode: boolean;
     cloudSync: boolean; // "Bu cihazı senkronla" (Faz 30.7) — giriş varsa ayar/key bulut sync
     weatherCity: string; // manuel şehir adı; boşsa IP geolocation fallback
     reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
@@ -98,6 +101,7 @@ const DEFAULTS: AppSettings = {
     tempUnit: "C",
     fullPcAccess: false,
     disabledTools: [],
+    explainMode: false,
     cloudSync: true,
     weatherCity: "",
     reactorStyle: "rings",

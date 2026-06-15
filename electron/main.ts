@@ -31,6 +31,7 @@ import {performCheck, performDownload} from "./updater-logic";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
+import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
 try { require("dotenv").config({path: path.join(__dirname, "../.env")}); } catch { /* production build */ }
@@ -787,6 +788,48 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     // liste gönderilsin. Groq "tool not in request.tools" hatasını bu önler.
     const lastUserForTools = [...messages].reverse().find((m) => m.role === "user");
     const toolContextStr = lastUserForTools ? extractTextContent(lastUserForTools.content) : "";
+
+    // ── Deterministic Reference Resolver ─────────────────────────────────────
+    // SADECE referans ifadeleri ("tekrar yap", "biraz azalt", "onu kapat",
+    // "son oynadığım"…) için devreye girer. Diğer her şeyde null döner ve
+    // mesaj normal LLM akışına dokunulmadan devam eder.
+    if (!isSubAgent) {
+        const resolved = resolveReference(toolContextStr);
+        if (resolved) {
+            if (currentSettings.explainMode) send("chat-delta", {text: explainResolution(resolved) + "\n\n"});
+
+            if (resolved.kind === "clarify" || resolved.confidence < CONFIDENCE_THRESHOLD) {
+                const q = resolved.kind === "clarify" ? resolved.question
+                    : "Tam emin olamadım — ne yapmamı istediğini biraz açar mısın?";
+                send("chat-delta", {text: q});
+                await saveMessage("assistant", q).catch((e) => console.error("[saveMessage]", e.message));
+                send("chat-done", {});
+                return;
+            }
+
+            // confidence ≥ eşik → tool'u deterministik çalıştır, LLM'i atla.
+            const argsJson = JSON.stringify(resolved.args);
+            send("tool-event", {phase: "start", name: resolved.tool, args: argsJson});
+            recordToolUsage(resolved.tool);
+            let result: string;
+            try {
+                result = String(await executeTool(resolved.tool, argsJson));
+            } catch (e) {
+                result = `Araç hatası: ${(e as Error).message ?? String(e)}`;
+            }
+            const ok = !/^HATA|^ENGELLENDI|Bu araç tanımlı/.test(result);
+            stmRecord(resolved.tool, argsJson, result, ok, "resolver");
+            send("tool-event", {phase: "done", name: resolved.tool, result: result.slice(0, 400)});
+            await saveMessage("tool", result.slice(0, 1000), resolved.tool).catch((e) => console.error("[saveMessage]", e.message));
+
+            const reply = `${resolved.intent}: ${result}`.slice(0, 600);
+            send("chat-delta", {text: reply});
+            await saveMessage("assistant", reply).catch((e) => console.error("[saveMessage]", e.message));
+            send("chat-done", {});
+            return;
+        }
+    }
+
     const lockedTools = getAllToolSchemas(currentSettings.aiProvider, toolContextStr);
 
     for (let step = 0; step < 8; step++) {
@@ -815,7 +858,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
-                stmRecord(name, argsJson, String(result), true);
+                stmRecord(name, argsJson, String(result), true, "llm");
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
@@ -828,7 +871,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         const toolResults = settled.map((r, i) => {
             if (r.status === "fulfilled") return r.value;
             const errMsg = `Araç hatası: ${(r.reason as Error).message ?? String(r.reason)}`;
-            stmRecord(toolCalls[i].function.name, toolCalls[i].function.arguments || "{}", errMsg, false);
+            stmRecord(toolCalls[i].function.name, toolCalls[i].function.arguments || "{}", errMsg, false, "llm");
             return {id: toolCalls[i].id, content: errMsg};
         });
         for (const r of toolResults) {

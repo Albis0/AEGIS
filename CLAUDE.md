@@ -3,11 +3,13 @@
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
 ## Mimari
+
 - **electron/** (main process, CJS) — `main.ts` giriş; `tools.ts` (~3000 satır, 263 tool: `toolSchemas`+`executors`+`getAllToolSchemas`); `spotify.ts`, `tts.ts`, `short-term-memory.ts` (referans çözümleme), `aegis-config.ts` (gömülü public token/url).
 - **src/** (renderer, React) — `App.tsx` (üst seviye; update toast burada), `components/settings/tabs/`, `i18n.ts` (5 dil: tr/en/de/fr/es), `changelog.ts` (yama notları), `update-state.ts` (updater toast reducer).
 - IPC: `electron/preload.ts` (`window.jarvis`), tip: `src/electron.d.ts`.
 
 ## Komutlar
+
 - `bun run dev` — vite + electron (geliştirme)
 - `bun run build` — `vite build && tsc -p tsconfig.electron.json`
 - `node node_modules/vitest/vitest.mjs run` — testler (npx tsc/vitest bazen yanlış global'i çeker; `node node_modules/...` kullan)
@@ -15,12 +17,14 @@ Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 - `bun run test:trio` (tool schema↔executor), `test:convo` (konuşma harness), `test:gui` (Playwright updater toast)
 
 ## Release (otomatik)
+
 1. `package.json` version bump + `src/changelog.ts`'e 5 dilli giriş (en üste).
 2. commit → tag `vX.Y.Z` → push tag. GitHub Actions (`.github/workflows/release.yml`, windows) build + publish eder.
 3. Release oluşunca GitHub API ile description PATCH'le (electron-builder boş bırakıyor). Asset: `AEGIS-Setup-X.Y.Z.exe` (önerilen) + `AEGIS-X.Y.Z.exe` (portable).
 4. Token: `.claude` hafızasında (reference-github-token). Repo: Albis0/AEGIS (private).
 
 ## Kritik gotcha'lar (hafızada da var)
+
 - **NSIS installer boyutu yanıltıcı**: ~261MB = LZMA sıkıştırması; "Kokoro yok" demek değil. Doğrulamak için exe'yi 7-Zip ile aç → içteki `app-64.7z` → `onnxruntime.dll` ara.
 - **bun postinstall'ı güvenilmeyen paketlerde atlar** → native binary indirilmez. `package.json > trustedDependencies` (onnxruntime-node, sharp, @img/sharp-win32-x64) şart. electron.exe de aynı sebeple eksik kalabilir → `node node_modules/electron/install.js`.
 - **Bu shell'de `ELECTRON_RUN_AS_NODE=1` baked** → electron.exe GUI yerine Node açar (app undefined). GUI testi için: vite + Playwright ile renderer'ı aç, `window.jarvis`'i `addInitScript` ile stub'la (stub metodları Promise döndürmeli).
@@ -28,4 +32,5 @@ Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 - **Tool seçimi (tools.ts)**: Groq 64-tool limiti var; eşleşen grup tool'ları öne alınır. Şema `number` paramları `string` olmalı (Groq number'a string gelince tool_use_failed). Referans turnleri için STM sticky-context.
 
 ## Detay
+
 Sürüm notları `scripts/release-notes-*.md`. Üretilen rapor/screenshot'lar `.gitignore`'da.

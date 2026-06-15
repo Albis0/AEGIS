@@ -7,12 +7,17 @@
  * Shape kept minimal — only what the LLM needs injected in system prompt.
  */
 
+/** Where a recorded action came from: the LLM tool-loop, or the deterministic reference resolver. */
+export type ActionSource = "llm" | "resolver";
+
 export interface ToolMemoryEntry {
     tool: string;
     args: Record<string, unknown>;
     result: string;
     success: boolean;
     ts: number;
+    entity: string | null;   // the concrete thing acted on (game, file, app, track, host…)
+    source: ActionSource;     // "llm" (model picked it) or "resolver" (deterministic rule)
 }
 
 export interface STMContext {
@@ -23,6 +28,7 @@ export interface STMContext {
     lastSpotifyTrack: string | null;   // spotify:track:xxxx if applicable
     lastSpotifyContext: string | null; // playlist/album URI if applicable
     lastTarget: string | null;         // app name, file path, URL, etc.
+    lastEntity: string | null;         // normalized concrete entity of the last action
     recentTools: ToolMemoryEntry[];    // last MAX_ENTRIES entries
 }
 
@@ -39,19 +45,47 @@ function makeEmpty(): STMContext {
         lastSpotifyTrack: null,
         lastSpotifyContext: null,
         lastTarget: null,
+        lastEntity: null,
         recentTools: [],
     };
 }
 
-/** Call after every tool execution to update the short-term context. */
-export function stmRecord(tool: string, argsJson: string, result: string, success: boolean): void {
+/**
+ * Pull the concrete entity acted on (game name, file path, app, track URI, host…)
+ * so reference resolution can answer "son oynadığım", "onu kapat", "o dosya".
+ */
+function extractEntity(tool: string, args: Record<string, unknown>, result: string): string | null {
+    const s = (k: string): string | null => (typeof args[k] === "string" ? (args[k] as string) : null);
+
+    if (tool.startsWith("steam_")) return s("game") ?? s("name") ?? null;
+    if (tool.startsWith("spotify_")) {
+        return s("uri") ?? s("query") ?? s("id") ?? s("context_uri")
+            ?? (result.match(/spotify:track:[A-Za-z0-9]+/)?.[0] ?? null);
+    }
+    if (tool === "read_file" || tool === "write_file" || tool === "delete_file" || tool === "move_file") return s("path");
+    if (tool === "fetch_url") return s("url");
+    if (tool === "focus_window") return s("title");
+    // run_command: pull the launched app, if any
+    const cmd = s("command");
+    if (cmd) { const m = cmd.match(/Start-Process\s+"?([^"\s]+)"?/i); if (m) return m[1]; }
+    return s("app") ?? s("name") ?? null;
+}
+
+/**
+ * Call after every tool execution to update the short-term context.
+ * `source` records whether the LLM or the deterministic resolver chose this action.
+ */
+export function stmRecord(tool: string, argsJson: string, result: string, success: boolean, source: ActionSource = "llm"): void {
     let args: Record<string, unknown> = {};
     try { args = JSON.parse(argsJson); } catch { /* leave empty */ }
 
-    const entry: ToolMemoryEntry = {tool, args, result: result.slice(0, 300), success, ts: Date.now()};
+    const entity = extractEntity(tool, args, result);
+    const entry: ToolMemoryEntry = {tool, args, result: result.slice(0, 300), success, ts: Date.now(), entity, source};
 
     _ctx.recentTools.push(entry);
     if (_ctx.recentTools.length > MAX_ENTRIES) _ctx.recentTools.shift();
+
+    if (entity) _ctx.lastEntity = entity;
 
     _ctx.lastTool   = tool;
     _ctx.lastArgs   = args;
@@ -110,8 +144,25 @@ export function stmBuildPromptBlock(): string {
     if (_ctx.lastSpotifyTrack)   lines.push(`  lastSpotifyTrack: ${_ctx.lastSpotifyTrack}`);
     if (_ctx.lastSpotifyContext) lines.push(`  lastSpotifyContext: ${_ctx.lastSpotifyContext}`);
     if (_ctx.lastTarget)         lines.push(`  lastTarget: ${_ctx.lastTarget}`);
+    if (_ctx.lastEntity)         lines.push(`  lastEntity: ${_ctx.lastEntity}`);
 
     return "\n\n" + lines.join("\n");
+}
+
+/** Most recent entry whose tool name starts with the given prefix (e.g. "steam_", "spotify_"). */
+export function stmLastByToolPrefix(prefix: string): ToolMemoryEntry | null {
+    for (let i = _ctx.recentTools.length - 1; i >= 0; i--) {
+        if (_ctx.recentTools[i].tool.startsWith(prefix)) return _ctx.recentTools[i];
+    }
+    return null;
+}
+
+/** Most recent entry matching a predicate. */
+export function stmLastWhere(pred: (e: ToolMemoryEntry) => boolean): ToolMemoryEntry | null {
+    for (let i = _ctx.recentTools.length - 1; i >= 0; i--) {
+        if (pred(_ctx.recentTools[i])) return _ctx.recentTools[i];
+    }
+    return null;
 }
 
 // ---- helpers ----

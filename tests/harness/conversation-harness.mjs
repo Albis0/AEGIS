@@ -29,6 +29,7 @@ const ROOT = path.join(__dirname, "..", "..");
 
 const tools = require(path.join(ROOT, "dist-electron", "tools.js"));
 const stm = require(path.join(ROOT, "dist-electron", "short-term-memory.js"));
+const resolver = require(path.join(ROOT, "dist-electron", "reference-resolver.js"));
 import {SCENARIOS} from "./scenarios.mjs";
 
 const PROVIDER = process.env.HARNESS_PROVIDER || "groq";
@@ -62,12 +63,71 @@ function snapshotSTM() {
         lastSpotifyTrack: c.lastSpotifyTrack,
         lastSpotifyContext: c.lastSpotifyContext,
         lastTarget: c.lastTarget,
+        lastEntity: c.lastEntity,
         recentCount: c.recentTools.length,
     };
 }
 
 async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
     const log = {step: stepIdx, user: step.user, intent: step.intent, tool: step.tool, args: step.args};
+
+    // --- ASSERT 0: deterministic reference resolution (resolver steps) ---
+    // These steps MUST be resolved by reference-resolver.ts WITHOUT the LLM.
+    // We assert the resolver returns the expected tool + args, then record it.
+    if (step.resolver) {
+        const r = resolver.resolveReference(step.user);
+        if (!r) {
+            failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                assert: "RESOLVER-NULL",
+                detail: `Resolver "${step.user}" için null döndü → bu bir referans ifadesi olarak tanınmadı (LLM'e düşerdi).`});
+            return {log, ok: false};
+        }
+        if (r.kind !== "action") {
+            failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                assert: "RESOLVER-CLARIFY",
+                detail: `Resolver netleştirme istedi (confidence ${r.confidence}): "${r.question}" — aksiyon bekleniyordu.`});
+            return {log, ok: false};
+        }
+        if (r.tool !== step.tool) {
+            failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                assert: "RESOLVER-TOOL",
+                detail: `Resolver tool "${r.tool}" üretti, beklenen "${step.tool}".`, resolverArgs: r.args});
+            return {log, ok: false};
+        }
+        if (step.args && JSON.stringify(r.args) !== JSON.stringify(step.args)) {
+            failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                assert: "RESOLVER-ARGS",
+                detail: `Resolver args ${JSON.stringify(r.args)} üretti, beklenen ${JSON.stringify(step.args)}.`});
+            return {log, ok: false};
+        }
+        if (r.source !== "resolver") {
+            failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                assert: "RESOLVER-SOURCE", detail: `source="${r.source}", "resolver" bekleniyordu.`});
+            return {log, ok: false};
+        }
+        // record exactly like main.ts does for the resolver path
+        const argsJson = JSON.stringify(r.args);
+        const result = step.mockResult ?? `(resolver: ${r.tool})`;
+        stm.stmRecord(r.tool, argsJson, String(result), true, "resolver");
+        const snap = snapshotSTM();
+        log.result = String(result).slice(0, 120);
+        log.stm = snap;
+        log.resolved = {tool: r.tool, args: r.args, confidence: r.confidence, source: r.source};
+        if (step.expectSTM) {
+            for (const [k, v] of Object.entries(step.expectSTM)) {
+                const actual = snap[k];
+                const match = v instanceof RegExp ? v.test(String(actual)) : actual === v;
+                if (!match) {
+                    failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
+                        assert: "STM-STATE",
+                        detail: `STM.${k} beklenen ${v instanceof RegExp ? v : JSON.stringify(v)}, gerçek ${JSON.stringify(actual)}`,
+                        stm: snap});
+                    return {log, ok: false};
+                }
+            }
+        }
+        return {log, ok: true};
+    }
 
     // --- ASSERT 1: reference availability (for steps that resolve a prior action) ---
     if (step.ref) {
