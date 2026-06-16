@@ -45,4 +45,21 @@ describe("update toast state machine", () => {
         expect(s?.downloading).toBe(false);
         expect(s?.ready).toBe(false);
     });
+
+    it("indirme sürerken gelen available durumu geri çevirmez (performDownload re-check)", () => {
+        let s: UpdateState | null = updateReducer(null, {type: "available", version: "1.7.0"});
+        s = updateReducer(s, {type: "start-download"});
+        s = updateReducer(s, {type: "progress", percent: 5});
+        // performDownload indirmeden önce checkForUpdates yapar → available tekrar gelir
+        s = updateReducer(s, {type: "available", version: "1.7.0"});
+        expect(s).toMatchObject({downloading: true}); // hâlâ indiriyor, "İNDİR" geri gelmez
+        expect(s?.ready).toBe(false);
+    });
+
+    it("ready iken gelen available durumu bozmaz", () => {
+        let s: UpdateState | null = updateReducer(null, {type: "available", version: "1.7.0"});
+        s = updateReducer(s, {type: "downloaded", version: "1.7.0"});
+        s = updateReducer(s, {type: "available", version: "1.7.0"});
+        expect(s).toMatchObject({ready: true, downloading: false});
+    });
 });

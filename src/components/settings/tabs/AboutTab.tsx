@@ -33,7 +33,10 @@ function ensureGlobalListeners() {
     _gListening = true;
     window.jarvis.on("update-progress", (p: UpdateProgress) => { _gStatus = "downloading"; _gProgress = p; });
     window.jarvis.on("update-downloaded",               ()              => { _gStatus = "ready"; _gProgress = null; });
-    window.jarvis.on("update-available",  (info: {version: string})    => { _gStatus = "available"; _gLatest = info.version; });
+    // İndirme sürerken (veya bittikten sonra) gelen "update-available"i yoksay: performDownload
+    // indirmeden önce tekrar checkForUpdates yapıyor, bu da bu event'i yeniden tetikleyip
+    // durumu "downloading"den "available"a geri çeviriyordu (indir butonu geri geliyordu).
+    window.jarvis.on("update-available",  (info: {version: string})    => { _gLatest = info.version; if (_gStatus !== "downloading" && _gStatus !== "ready") _gStatus = "available"; });
     window.jarvis.on("update-error",      (e: {message: string})       => { _gStatus = "error"; _gError = e?.message ?? "Güncelleme hatası"; _gProgress = null; });
 }
 
@@ -58,7 +61,8 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
         });
         const offAvail = window.jarvis.on("update-available", (info: {version: string}) => {
             setLatestVersion(info.version);
-            setStatus("available");
+            // İndirme/kurulum sürerken gelen re-check event'i durumu geri çevirmesin.
+            setStatus((prev) => (prev === "downloading" || prev === "ready" ? prev : "available"));
         });
         const offErr = window.jarvis.on("update-error", (e: {message: string}) => {
             setErrorMsg(e?.message ?? "Güncelleme hatası");

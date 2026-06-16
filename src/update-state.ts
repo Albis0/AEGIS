@@ -21,6 +21,11 @@ export type UpdateEvent =
 export function updateReducer(state: UpdateState | null, ev: UpdateEvent): UpdateState | null {
     switch (ev.type) {
         case "available":
+            // İndirme/kurulum sürerken gelen re-check event'i (performDownload önce tekrar
+            // checkForUpdates yapıyor) durumu "indiriliyor"dan geri çevirmesin.
+            if (state && (state.downloading || state.ready)) {
+                return {...state, version: ev.version};
+            }
             return {version: ev.version, ready: false, downloading: false};
         case "start-download":
             return state ? {...state, downloading: true, percent: 0, error: undefined} : state;
