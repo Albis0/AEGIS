@@ -12,6 +12,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.7.0",
+        date: "2026-06-16",
+        notes: {
+            tr: [
+                "Routines (Rutinler): birden fazla işlemi tek isim altında kaydet. 'Kayıt başlat: Oyun Modu' de, yapmamı istediğin şeyleri komut olarak ver, 'kayıt bitir' de — sonra 'Oyun Modunu aç' deyince hepsi sırayla otomatik çalışır.",
+                "Routine'ler deterministik çalışır: kaydedilen adımlar doğrudan uygulanır, modele yeniden sorulmaz — hızlı ve tutarlı.",
+                "Routine yönetimi: listele, sil, yeniden adlandır, içeriğini göster ve tek tek adım çıkararak düzenle.",
+                "Kayıt akıllı süzer: yalnızca durum değiştiren eylemler (Spotify/Steam/sistem/dosya) kaydedilir; arama ve ekran görüntüsü gibi salt-okuma işlemleri atlanır.",
+            ],
+            en: [
+                "Routines: save multiple actions under one name. Say 'start recording: Game Mode', give your commands, say 'stop recording' — then 'turn on Game Mode' runs them all in order automatically.",
+                "Routines run deterministically: recorded steps are applied directly without asking the model again — fast and consistent.",
+                "Routine management: list, delete, rename, show contents, and edit by removing individual steps.",
+                "Recording filters smartly: only state-changing actions (Spotify/Steam/system/file) are captured; read-only operations like search and screenshot are skipped.",
+            ],
+            de: [
+                "Routinen: Mehrere Aktionen unter einem Namen speichern. Sage 'Aufnahme starten: Spielmodus', gib deine Befehle, sage 'Aufnahme beenden' — dann führt 'Spielmodus einschalten' alles automatisch der Reihe nach aus.",
+                "Routinen laufen deterministisch: Aufgezeichnete Schritte werden direkt ausgeführt, ohne das Modell erneut zu fragen — schnell und konsistent.",
+                "Routinenverwaltung: auflisten, löschen, umbenennen, Inhalt anzeigen und durch Entfernen einzelner Schritte bearbeiten.",
+                "Die Aufnahme filtert intelligent: Nur zustandsändernde Aktionen (Spotify/Steam/System/Datei) werden erfasst; reine Lesevorgänge wie Suche und Screenshot werden übersprungen.",
+            ],
+            fr: [
+                "Routines : enregistrez plusieurs actions sous un seul nom. Dites « démarre l'enregistrement : Mode Jeu », donnez vos commandes, dites « arrête l'enregistrement » — ensuite « active le Mode Jeu » les exécute toutes dans l'ordre automatiquement.",
+                "Les routines s'exécutent de façon déterministe : les étapes enregistrées sont appliquées directement sans redemander au modèle — rapide et cohérent.",
+                "Gestion des routines : lister, supprimer, renommer, afficher le contenu et modifier en retirant des étapes individuelles.",
+                "L'enregistrement filtre intelligemment : seules les actions modifiant l'état (Spotify/Steam/système/fichier) sont capturées ; les opérations en lecture seule comme la recherche et la capture d'écran sont ignorées.",
+            ],
+            es: [
+                "Rutinas: guarda varias acciones bajo un solo nombre. Di 'inicia grabación: Modo Juego', da tus comandos, di 'detén grabación' — luego 'activa el Modo Juego' las ejecuta todas en orden automáticamente.",
+                "Las rutinas se ejecutan de forma determinista: los pasos grabados se aplican directamente sin volver a preguntar al modelo — rápido y consistente.",
+                "Gestión de rutinas: listar, eliminar, renombrar, mostrar el contenido y editar quitando pasos individuales.",
+                "La grabación filtra de forma inteligente: solo se capturan las acciones que cambian el estado (Spotify/Steam/sistema/archivo); se omiten las operaciones de solo lectura como búsqueda y captura de pantalla.",
+            ],
+        },
+    },
+    {
         version: "1.6.1",
         date: "2026-06-16",
         notes: {

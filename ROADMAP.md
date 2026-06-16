@@ -1332,6 +1332,25 @@ _Mevcut 17 Spotify aracına ek olarak `example.claude/spotifyWebApi.json`'daki t
 
 ---
 
+## Faz 52 — Routines (Deterministik Çok-Adımlı Aksiyon Kaydı) ✅
+
+_Kullanıcı birden fazla aksiyonu tek isim altında kaydeder, sonra tek komutla tekrar çalıştırır.
+Macro'dan farkı: macro doğal-dil komut METNİ kaydedip LLM'e geri yollar; routine TOOL
+ÇAĞRILARINI ({tool, args}) yakalayıp doğrudan `executeTool` ile deterministik çalıştırır —
+LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
+
+- ✅ `electron/routines.ts` — kayıt durumu (RAM) + `routines.json` kalıcılığı; `Routine{id,name,steps,createdAt,updatedAt}`
+- ✅ **Kayıt:** `routine_record_start` ("Kayıt başlat: Oyun Modu") → sonraki eylem tool'ları yakalanır → `routine_record_stop` ("Kayıt bitir") routine olarak saklar; `routine_record_cancel` kaydetmeden iptal eder
+- ✅ **STM entegrasyonu:** `runAgent` tool döngüsünde `stmRecord`'un hemen yanında `routines.captureStep` çağrılır; sistem prompt'a "ROUTINE KAYDI AKTİF" notu inject edilir
+- ✅ **Akıllı süzme:** yalnız durum değiştiren eylemler kaydedilir; salt-okuma (web_search, screenshot, list_*, get_*, *_now_playing) + meta tool'lar (routine_*/macro/agent) atlanır (`isRecordableTool`)
+- ✅ **Çalıştır:** `routine_run` adımları sırayla deterministik uygular ("Oyun Modunu aç")
+- ✅ **CRUD + düzenle:** `routine_list` / `routine_show` / `routine_delete` / `routine_rename` / `routine_delete_step`
+- ✅ Aynı isimle yeniden kayıt → günceller (üzerine yazar); kısmi+case-insensitive isim eşleşmesi
+- ✅ 18 birim testi (`tests/tools/routines.test.ts`); trio 325/325; tam build temiz
+- Yeni provider/UI eklenmedi (built-in tool grubu; bağlam köklerine "routine/rutin/kayit/record/oyun modu" eklendi)
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -1390,4 +1409,5 @@ _Mevcut 17 Spotify aracına ek olarak `example.claude/spotifyWebApi.json`'daki t
 ✅  Faz 49   Onboarding fix & Bun geçişi  ← TAMAMLANDI
 ✅  Faz 50   AI çekirdeği: hafıza + deterministik router  ← TAMAMLANDI
 ✅  Faz 51   Spotify Web API tam entegrasyon (96 endpoint) ← TAMAMLANDI
+✅  Faz 52   Routines (deterministik çok-adımlı aksiyon kaydı) ← TAMAMLANDI
 ```

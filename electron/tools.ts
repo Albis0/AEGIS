@@ -6,6 +6,7 @@ import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
 import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
+import * as routines from "./routines";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./memory-plus";
@@ -926,6 +927,118 @@ const macroSchemas: ChatCompletionTool[] = [
     },
 ];
 
+// Faz 52 — Routines: tool çağrılarını kaydedip deterministik tekrar çalıştırma
+const routineSchemas: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "routine_record_start",
+            description: "Routine kaydını başlat. Bundan sonra yaptığın EYLEMLER (spotify, steam, sistem, dosya vb.) bu routine'e otomatik kaydedilir. 'Kayıt başlat: Oyun Modu', 'Oyun Modu routine'i oluştur' gibi. Salt-okuma işlemleri (arama, ekran görüntüsü) kaydedilmez.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Routine adı, örn. 'Oyun Modu'"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_record_stop",
+            description: "Aktif routine kaydını bitir ve kaydet. 'Kayıt bitir', 'Kaydı durdur'.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_record_cancel",
+            description: "Aktif routine kaydını KAYDETMEDEN iptal et. 'Kaydı iptal et', 'Vazgeç'.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_run",
+            description: "Kayıtlı bir routine'i çalıştır — adımları sırayla deterministik olarak uygular. 'Oyun Modunu aç', 'Oyun Modu routine'ini çalıştır'.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Routine adı (kısmi eşleşme yeterli)"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_list",
+            description: "Kayıtlı routine'leri listele.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_show",
+            description: "Bir routine'in adımlarını ayrıntılı göster (düzenleme öncesi incelemek için).",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Routine adı veya ID"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_delete",
+            description: "Bir routine'i sil.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Silinecek routine adı veya ID"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_rename",
+            description: "Bir routine'i yeniden adlandır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name:     {type: "string", description: "Mevcut routine adı veya ID"},
+                    new_name: {type: "string", description: "Yeni ad"},
+                },
+                required: ["name", "new_name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "routine_delete_step",
+            description: "Bir routine'den belirli bir adımı çıkar (düzenleme). Adım numarasını 'routine_show' ile öğren.",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: {type: "string", description: "Routine adı veya ID"},
+                    step: {type: "string", description: "Çıkarılacak adımın numarası (1-tabanlı)"},
+                },
+                required: ["name", "step"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
+
 const agentSchemas: ChatCompletionTool[] = [
     {
         type: "function",
@@ -1433,7 +1546,8 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
     {schemas: () => knowledgeSchemas,   roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index", "indeks"]},
     {schemas: () => automationSchemas,  roots: ["otomasyon", "automation", "tetikle", "trigger", "workflow"]},
-    {schemas: () => macroSchemas,       roots: ["makro", "macro", "record"]},
+    {schemas: () => macroSchemas,       roots: ["makro", "macro"]},
+    {schemas: () => routineSchemas,     roots: ["routine", "rutin", "kayit", "record", "kaydet", "kaydi", "kayd", "oyun modu", "mod"]},
     {schemas: () => agentSchemas,       roots: ["ajan", "agent", "otonom"]},
     {schemas: () => watchSchemas,       roots: ["izle", "watch", "uyar", "alert", "esik", "threshold", "takip"]},
     {schemas: () => soundSchemas,       roots: ["bip", "beep", "calar"]},
@@ -1547,7 +1661,7 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
         selected = [
             ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
             ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
-            ...agentSchemas, ...watchSchemas,
+            ...routineSchemas, ...agentSchemas, ...watchSchemas,
             ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
             ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
             ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
@@ -2003,6 +2117,46 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async delete_macro({name}) {
         return deleteMacro(name ?? "");
+    },
+
+    // ---- Routines (Faz 52) ----
+    async routine_record_start({name}) {
+        return routines.startRecording(name ?? "");
+    },
+    async routine_record_stop() {
+        return routines.stopRecording();
+    },
+    async routine_record_cancel() {
+        return routines.cancelRecording();
+    },
+    async routine_run({name}) {
+        const r = routines.getRoutine(name ?? "");
+        if (!r) return `"${name}" adında routine bulunamadı. Mevcut: ${routines.listRoutines()}`;
+        if (r.steps.length === 0) return `"${r.name}" routine'i boş.`;
+        const log: string[] = [];
+        for (let i = 0; i < r.steps.length; i++) {
+            const {tool, args} = r.steps[i];
+            const res = await executeTool(tool, JSON.stringify(args ?? {}));
+            log.push(`  ${i + 1}. ${tool} → ${String(res).slice(0, 100)}`);
+        }
+        return `"${r.name}" routine'i çalıştırıldı (${r.steps.length} adım):\n${log.join("\n")}`;
+    },
+    async routine_list() {
+        return routines.listRoutines();
+    },
+    async routine_show({name}) {
+        return routines.showRoutine(name ?? "");
+    },
+    async routine_delete({name}) {
+        return routines.deleteRoutine(name ?? "");
+    },
+    async routine_rename({name, new_name}) {
+        return routines.renameRoutine(name ?? "", new_name ?? "");
+    },
+    async routine_delete_step({name, step}) {
+        const n = parseInt(String(step ?? ""), 10);
+        if (!Number.isFinite(n)) return "Adım numarası geçersiz.";
+        return routines.deleteRoutineStep(name ?? "", n);
     },
 
     async if_then({condition, action}) {

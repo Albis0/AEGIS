@@ -14,6 +14,7 @@ import {fetchModels} from "./models";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
+import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
 import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
@@ -771,7 +772,10 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock();
+    const routineNote = routineRecordingName()
+        ? `\n\nROUTINE KAYDI AKTİF: "${routineRecordingName()}". Kullanıcının komutlarını normal şekilde araçlarla uygula — yaptığın eylemler otomatik kaydediliyor. Kullanıcı "kayıt bitir/durdur" derse routine_record_stop çağır.`
+        : "";
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock() + routineNote;
     // Geçmiş kırpma artık callAI içinde MODELE GÖRE (bağlam penceresi token bütçesi +
     // boundary düzeltme) yapılıyor. Burada yalnız belleğin sınırsız büyümesini önlemek
     // için kaba bir üst sınır koyuyoruz; gerçek kırpmayı model yeteneği belirler.
@@ -859,6 +863,8 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
                 stmRecord(name, argsJson, String(result), true, "llm");
+                // Faz 52 — routine kaydı aktifse bu eylemi yakala (deterministik tekrar için)
+                try { routineCaptureStep(name, JSON.parse(argsJson || "{}")); } catch { /* parse fail → atla */ }
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
