@@ -1259,35 +1259,33 @@ _Kurulum ekranı düzeltmesi + paket yöneticisi modernizasyonu._
 
 _GPT analizi (2026-06-13): AEGIS şu an her mesajda sıfırdan başlıyor, tool sonuçlarını unutuyor, yönlendirme tutarsız, ve "bunu aç / onu kapat / tekrar yap" gibi referans komutları anlamıyor. Bunlar AEGIS'in "Jarvis hissi" vermesini engelleyen 4 temel sorun._
 
-### 50.1 Short-Term Konuşma Hafızası (RAM) ⬜
+### 50.1 Short-Term Konuşma Hafızası (RAM) ✅
 
 _Şu an: userMessage → LLM → tool seç → çalıştır → cevap (her seferinde bağlamsız)_
 _Olması gereken: conversationMemory → userMessage → intent → tool → tool result → memory update → response_
 
-- [ ] Son 20-50 işlemi RAM'de `shortTermMemory[]` olarak tut
-- [ ] Her tool çağrısı `{intent, tool, args, result, timestamp}` şeklinde kayıt
-- [ ] LLM'e gönderilen system prompt'a son N işlem özeti inject edilir
-- [ ] Örnek: `{intent:"spotify_volume", args:{volume:50}, result:"success", timestamp:1749840000}`
+- ✅ Son 20 işlem RAM'de tutuluyor (`electron/short-term-memory.ts`, `ToolMemoryEntry[]`, MAX_ENTRIES=20)
+- ✅ Her tool çağrısı `{tool, args, result, success, ts, entity, source}` şeklinde kayıt (`stmRecord`)
+- ✅ System prompt'a son 5 işlem özeti inject edilir (`stmBuildPromptBlock`)
 
-### 50.2 Tool Sonucu Hafızaya Yazılıyor ⬜
+### 50.2 Tool Sonucu Hafızaya Yazılıyor ✅
 
 _Şu an: `spotify_open` çalıştı → sistem unutuyor → "onu kapat" deyince ne olduğunu bilmiyor_
 
-- [ ] Her tool çalışınca `memory.push({tool, args, success, ts})` — son 20 işlem
-- [ ] `lastTool`, `lastTarget`, `lastSpotifyTrack`, `lastIntent` context değişkenleri güncellenir
-- [ ] "tekrar yap" / "onu kapat" / "geri al" gibi referans komutları bu context'ten çözülür
-- [ ] Örnek context: `{lastIntent:"spotify_volume", lastArgs:{volume:50}, lastTool:"spotify_volume", lastTrack:"spotify:track:xxxx"}`
+- ✅ Her tool çalışınca `stmRecord` ile kayıt (`main.ts` runAgent döngüsü, hem LLM hem resolver yolu)
+- ✅ `lastTool` / `lastTarget` / `lastSpotifyTrack` / `lastEntity` / `lastIntent` context değişkenleri güncellenir
+- ✅ "tekrar yap" / "onu kapat" / "geri al" referans komutları bu context'ten çözülür (Faz 50.4)
 
-### 50.3 Deterministik Tool Router ⬜
+### 50.3 Deterministik Tool Router ⬜ → Faz 55'e taşındı
 
-_Şu an: LLM bazen tool çağırıyor, bazen "spotify_volume 50" gibi metin yazıyor — tutarsız_
-_Olması gereken: LLM → JSON intent üret → VALIDATE → TOOL EXECUTE → LLM sadece sonucu insan diline çevirsin_
+_Bu maddenin asıl ölçülebilir hali Faz 55 (Tool-Seçim Eval Harness). Tool seçim
+tutarsızlığı ("bi çalışıyor bi çalışmıyor") önce SKORLU ölçülmeli, sonra router/validate
+katmanı buna göre tasarlanmalı. Aşağıdaki alt-maddeler hâlâ AÇIK iş:_
 
-- [ ] LLM her yanıtta sadece JSON intent üretir: `{tool: "spotify_volume", args: {volume: 50}}`
-- [ ] Router JSON'ı parse eder, schema'ya göre validate eder, tool'u çalıştırır
-- [ ] LLM ikinci tur: tool sonucunu insan diline çevir (Türkçe/seçili dil)
-- [ ] Tool adı geçersizse "anlamadım, şunu mu dedin: X?" ile clarification ister
+- [ ] JSON intent + schema validate + clarification katmanı (Faz 55 ölçümü üstüne)
+- [ ] Tool adı geçersizse "anlamadım, şunu mu dedin: X?" netleştirme
 - [ ] Belirsiz input → tool çağırmaz, önce sorar
+- _(Referans ifadeleri için deterministik çözüm Faz 50.4'te ✅ — resolver zaten bunu yapıyor)_
 
 ### 50.4 Referans Çözümleme (Asıl Jarvis Hissi) ✅
 
@@ -1351,6 +1349,168 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 
 ---
 
+# ════════════════════════════════════════════════════════════
+# AEGIS 2.0 — GÜVENİLİRLİK SÜRÜMÜ (Faz 53+)
+# ════════════════════════════════════════════════════════════
+
+_Buraya kadar olan 52 faz AEGIS'i "geniş" yaptı (345+ tool). Aşağıdaki fazlar
+AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
+Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
+ölçer, görevi bitirir, seni hatırlar. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+
+**Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
+Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
+Skorlu evaluation 🟡. AEGIS'in eksiği yetenek değil — yeteneklerine GÜVEN.
+
+---
+
+## Faz 53 — Loop Guard & Eylem Bütçesi 🛑 ⬜ [MUST HAVE]
+
+_`main.ts`'teki 8-adım limiti degenerate döngüyü çözmez, sadece geç keser. Aynı
+tool'u tekrar tekrar çağıran model token/para yakar + "AEGIS takıldı" hissi verir._
+
+- **Amaç:** Degenerate tool-call döngülerini (aynı çağrı tekrarı, A-B-A-B ping-pong, polling tükenmesi) tespit edip durdurmak.
+- **Kullanıcı etkisi:** AEGIS saçmaladığında kendini durdurur ve net söyler. Güvenin temel taşı.
+- **Etki: 9 · Zorluk: 3 · Borç riski: 2** — EN YÜKSEK ROI.
+- **Dosyalar:** yeni `electron/loop-guard.ts`; `electron/main.ts` (tool döngüsüne entegrasyon).
+- **Başarı kriteri:** Aynı (tool,args) hash'i 3. kez engellenir; A-B-A-B 2. turda yakalanır; polling tool'lara gevşek bütçe; harness'a döngü senaryosu eklenir.
+- **OpenJarvis ilhamı:** `agents/loop_guard.py` (max_identical_calls / ping_pong_window / poll_tool_budget). ~243 satır, neredeyse bire bir port edilebilir.
+
+## Faz 54 — Yıkıcı Eylem İzin Kapısı 🔐 ⬜ [MUST HAVE]
+
+_`run_command` / `delete_file` / `kill_heavy_process` şu an SINIRSIZ. Model tek yanlış
+argümanla geri dönülmez hasar verebilir. Güven = geri alınamaz eylemde durup sorma._
+
+- **Amaç:** Yıkıcı tool'lar yürütülmeden önce kategori-bazlı onay/teyit.
+- **Kullanıcı etkisi:** Tehlikeli eylemde "onayla/iptal" (veya "her zaman izin ver" ile öğret). Kontrol hissi = güven.
+- **Etki: 9 · Zorluk: 5 · Borç riski: 3**
+- **Dosyalar:** yeni `electron/permissions.ts` (tool→risk-tier + onay store `~/.aegis/permissions.json`); `electron/main.ts` (executeTool öncesi kapı); mevcut feed toast'ı yeterli (yeni ekran yok).
+- **Başarı kriteri:** Yıkıcı liste tanımlı; onaysız yürütülmüyor; "her zaman izin ver" kalıcı; salt-okuma tool'lar hiç sormaz.
+- **OpenJarvis ilhamı:** `security/capabilities.py` risk-tier + `proactive_agent` always_approve/always_deny deseni. (Tam RBAC ALINMAYACAK — overengineered.)
+
+## Faz 55 — Tool-Seçim Eval Harness'ı (Skorlu) 🎯 ⬜ [MUST HAVE]
+
+_"Bi çalışıyor bi çalışmıyor" sorunu şu an GÖRÜNMEZ — convo harness smoke düzeyinde,
+skor yok. Ölçemediğini düzeltemezsin. (Faz 50.3 "deterministik router"ın asıl işi budur.)_
+
+- **Amaç:** "Bu girdi için doğru tool seçildi mi?" sorusunu sayıyla ölçen, regresyon yakalayan değerlendirme.
+- **Kullanıcı etkisi:** Dolaylı ama en büyük — doğruluk yükselir, düşüşler yakalanır. Güvenin nicel temeli.
+- **Etki: 8 · Zorluk: 4 · Borç riski: 2**
+- **Dosyalar:** `tests/harness/scenarios.mjs` genişlet; yeni `tests/harness/tool-selection-eval.mjs`; CI raporu.
+- **Başarı kriteri:** ≥40 etiketli senaryo; her çalıştırmada tool-seçim doğruluk %'si; eşik altı CI uyarısı; resolver senaryoları dahil.
+- **OpenJarvis ilhamı:** `evals/core/agentic_runner.py` + `scorer.py` MİNİ çekirdeği (girdi→beklenen→skor). 37k satırlık framework + enerji/FLOP metrikleri ALINMAYACAK.
+
+## Faz 56 — Goal Executor: Plan → Adım → Doğrula → Toparla 🧩 ⬜ [SHOULD HAVE]
+
+_`agent_run` şu an "8 adım dene, olmazsa pes". Plan yok, ara-doğrulama yok, takılınca
+toparlama yok. "İkinci ben" = ben olsam bitirirdim; şu an bitiremiyor._
+
+- **Amaç:** Çok-adımlı görevi adımlara böl → her adımı doğrula → takılınca alternatif/dur.
+- **Kullanıcı etkisi:** "Şunu hallet" deyip güvenle bırakabilme.
+- **Etki: 8 · Zorluk: 6 · Borç riski: 4**
+- **Dosyalar:** `electron/main.ts` (`runAgent` evrimi); yeni `electron/goal-executor.ts`; Faz 53 + 54 ile entegre.
+- **Başarı kriteri:** 3-5 adımlı gerçek görev, ara hata toparlanarak tamamlanır; harness'ta ölçülür.
+- **OpenJarvis ilhamı:** `agents/executor.py` error taxonomy (classify_error/retry/escalate/fatal). Meta-planner (`spec_search/plan/planner.py`) ALINMAYACAK.
+
+## Faz 57 — Adaptif Hafıza: Semantik + Otomatik Çıkarım 🧠 ⬜ [SHOULD HAVE]
+
+_`facts.json` düz-JSON + keyword. AEGIS kullanıcıyı kaydediyor ama ÖĞRENMİYOR.
+"İkinci ben" için en kritik eksen._
+
+- **Amaç:** Embedding aranabilir + konuşmadan otomatik çıkarımlı + çelişki-çözen hafıza.
+- **Kullanıcı etkisi:** Eski bir tercihi tam anında geri getirmek — "beni hatırlıyor" hissi.
+- **Etki: 8 · Zorluk: 6 · Borç riski: 5**
+- **Dosyalar:** `electron/memory-plus.ts` + `electron/knowledge.ts` (mevcut BM25-lite yeniden kullan); embedding mevcut Ollama/yerel ile, ZORUNLU DEĞİL (yoksa keyword fallback). **Yeni provider eklenmez.**
+- **Başarı kriteri:** "Geçen ay X hakkında ne demiştim?" çalışır; otomatik fact çıkarımı çelişkide eskiyi günceller; embedding yoksa graceful keyword.
+- **OpenJarvis ilhamı:** `connectors/embedding_store.py` + `hybrid_search.py`. SQLite session consolidation/decay ALINMAYACAK.
+
+## Faz 58 — Boundary Guard: Dışarı Sızıntı Koruması 🛡️ ⬜ [SHOULD HAVE]
+
+_Tool sonuçları + dosya içeriği cloud LLM'e (trial'da senin proxy'inden) gidiyor.
+Bir `.env` okutup özetletmek = anahtarın log'a düşmesi. Bir sızıntı = kalıcı güven kaybı._
+
+- **Amaç:** Giden içerikte API key/parola/token tespit edip redakte etmek.
+- **Kullanıcı etkisi:** Çoğunlukla görünmez sigorta; bir kez işe yarar, güveni kurtarır.
+- **Etki: 7 · Zorluk: 4 · Borç riski: 3**
+- **Dosyalar:** yeni `electron/boundary-guard.ts`; `electron/ai-client.ts` (giden mesaj öncesi redact).
+- **Başarı kriteri:** Bilinen sır desenleri (AKIA…/sk-…/bearer/parola) cloud'a gitmeden redakte; birim test; perf etkisi ihmal edilebilir.
+- **OpenJarvis ilhamı:** `security/boundary.py` redact modu + `credential_stripper.py`. Taint/SSRF/signing ALINMAYACAK.
+
+## Faz 59 — Self-Healing: Tekrarlayan Hata Tanıma 🔁 ⬜ [NICE TO HAVE]
+
+- **Amaç:** Aynı tool'un aynı hatayı tekrar vermesini tanıyıp kör tekrar yerine strateji değiştirmek / net teşhis vermek.
+- **Kullanıcı etkisi:** "Spotify 3. kez başarısız, muhtemelen Premium gerekiyor" gibi teşhis.
+- **Etki: 6 · Zorluk: 5 · Borç riski: 4**
+- **Dosyalar:** `electron/short-term-memory.ts` (success/fail zaten var — örüntü çıkarımı ekle); `electron/main.ts`.
+- **Başarı kriteri:** Aynı (tool,hata) 3. tekrarında strateji değişir / teşhis sunulur; harness senaryosu.
+- **OpenJarvis ilhamı:** `agents/errors.py` classify_error taksonomisi. Trace-mining ALINMAYACAK.
+
+## Faz 60 — Computer Use Doğrulama Döngüsü 👁️🔁 ⬜ [NICE TO HAVE]
+
+- **Amaç:** Faz 47 kör-koordinat tıklamalarını "tıkla → ekran değişti mi doğrula → düzelt" döngüsüne çevirmek; mümkünse koordinat yerine UI elemanı hedeflemek.
+- **Kullanıcı etkisi:** Computer use'un gerçekten işe yarama oranının yükselmesi.
+- **Etki: 6 · Zorluk: 7 · Borç riski: 4**
+- **Dosyalar:** `electron/computer-use.ts` (post-action screenshot diff / doğrulama); opsiyonel Windows UIAutomation COM element-tree.
+- **Başarı kriteri:** Eylem sonrası beklenen değişiklik olmazsa AEGIS fark eder, yeniden dener veya durup sorar.
+- **OpenJarvis ilhamı:** `tools/browser_axtree.py` (koordinat yerine semantik tree) → Windows karşılığı UIAutomation.
+
+## Faz 61 — Proaktif Örüntü Öğrenme (Opt-in) 🌅 ⬜ [NICE TO HAVE]
+
+_"İkinci ben"in tacı proaktifliktir — ama güven tabanı kurulmadan ters teper. Bu yüzden EN SON ve opt-in._
+
+- **Amaç:** Habit sayacını "ne zaman + hangi bağlamda" örüntüsüne çıkarıp opt-in öneri sunmak.
+- **Kullanıcı etkisi:** Doğru zamanda doğru öneri = "beni tanıyor"; yanlışsa kapatabilme.
+- **Etki: 6 · Zorluk: 6 · Borç riski: 5**
+- **Dosyalar:** `electron/memory-plus.ts` (habit → zamanlı örüntü); `electron/scheduler.ts` (proaktif tetik); Faz 54 izin kapısıyla entegre.
+- **Başarı kriteri:** ≥2 gerçek örüntü tespit edilip opt-in öneri sunulur; kapatılabilir; spam yok.
+- **OpenJarvis ilhamı:** `agents/proactive_agent.py` cron + tier'lı öneri + always_approve/deny. digest_collect/connector ağı ALINMAYACAK.
+
+---
+
+## Faz 62 — Akıllı Ev Kontrolü (Home Assistant) 🏠💡 ✅
+
+_Jarvis fiziksel evi yönetsin: ışık, priz, kilit, termostat, panjur, sahne.
+Faz 18.3'teki düşük seviye HA plugin'i (entity/servis çağrısı) yerine, yerleşik ve
+akıllı bir katman: doğal dil hedefini cihazlara çözer, kritik cihazlarda onay ister._
+
+### 62.1 Home Assistant bağlantısı ✅
+
+- ✅ `electron/smart-home.ts` — HA REST API (`/api/states`, `/api/services/...`); tek HA
+  sunucusu arkasındaki tüm markaları (Hue/Tapo/Tuya/Matter/Zigbee) tek API'den yönetir
+- ✅ Kimlik: `AegisConfig.homeAssistantUrl` + `homeAssistantToken` (Ayarlar → API Keys);
+  `applyConfig` ile `HOME_ASSISTANT_URL/TOKEN` env'e yansır, executor anında okur
+- ✅ Bağlantı testi + anlamlı hata mesajları (401 token, ulaşılamadı, kurulu değil)
+
+### 62.2 Akıllı doğal-dil katmanı ✅
+
+- ✅ `resolveEntities`: "salonu karart", "her şeyi kapat", "yatak odasını %30 yap" →
+  entity çözümleme; oda adı o odadaki tüm ışıkları kapsar; ışık varsa ışıkları önceler
+- ✅ TR + EN + DE/FR/ES normalize (aksan→ASCII); toplu kapsam ("tüm ışıklar", "her şey")
+- ✅ 4 tool: `smart_home_devices` (oda bazlı liste+durum), `smart_home_status`,
+  `smart_home_control` (on/off/toggle/brightness/temperature/lock/cover), `smart_home_scene`
+- ✅ TOOL_GROUP kökleri (ışık/priz/kilit/termostat/oda adları, 4 dil) — Faz 50 router ile uyumlu
+
+### 62.3 Kritik cihaz onay kapısı ✅
+
+- ✅ `isCriticalEntity`: kilit/garaj/termostat/su ısıtıcı domain'leri + isim ipuçlu prizler
+  (ısıtıcı/soba/pompa) kritik sayılır
+- ✅ Işık/sahne gibi zararsız eylemler direkt çalışır; kritik cihaz komutunda `confirm:"true"`
+  yoksa AEGIS durup onay ister (Faz 54 izin kapısının küçük öncülü)
+- ✅ Birim testleri (`tests/smart-home.test.ts`, 14 test): çözümleme + onay + durum özeti
+- ✅ Trio validator template-literal kör noktası da düzeltildi (`scripts/validate-tools.mjs`)
+
+---
+
+## ⚠️ OpenJarvis'ten KOPYALANMAYACAKLAR (overengineered / ürün için anlamsız)
+
+LoRA/GRPO/SFT learning pipeline · 37k satır eval framework'ün tamamı · tam RBAC
+capability · Docker/WASM sandbox · A2A + multi-agent orchestration + harici agent
+runner'ları · litellm'e geçiş (mevcut elle provider katmanı daha iyi + "yeni provider
+ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsapp/imessage)
+· meta-planner (kendi config'ini yeniden yazan).
+
+---
+
 ## Öncelik Sırası
 
 ```
@@ -1410,4 +1570,16 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 ✅  Faz 50   AI çekirdeği: hafıza + deterministik router  ← TAMAMLANDI
 ✅  Faz 51   Spotify Web API tam entegrasyon (96 endpoint) ← TAMAMLANDI
 ✅  Faz 52   Routines (deterministik çok-adımlı aksiyon kaydı) ← TAMAMLANDI
+✅  Faz 62   Akıllı ev kontrolü (Home Assistant)  ← TAMAMLANDI
+
+──────────  AEGIS 2.0 — GÜVENİLİRLİK SÜRÜMÜ  ──────────
+⬜  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  (İLK İŞ)
+⬜  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5
+⬜  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4
+⬜  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6
+⬜  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6
+⬜  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4
+⬜  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5
+⬜  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7
+⬜  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6
 ```

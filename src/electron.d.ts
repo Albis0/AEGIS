@@ -138,6 +138,8 @@ export interface AegisConfig {
     elevenlabsApiKey?: string;
     steamApiKey?: string;
     steamId64?: string;
+    homeAssistantUrl?: string;
+    homeAssistantToken?: string;
 }
 
 export interface Weather {

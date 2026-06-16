@@ -69,6 +69,18 @@ export default function KeysTab({config, accent, ac, onApplyConfig, s}: Props) {
             value: config.steamId64 ?? "",
             onSave: (v) => onApplyConfig({steamId64: v || undefined}),
         },
+        {
+            label: "AKILLI EV — HOME ASSISTANT ADRESİ",
+            hint: "opsiyonel · http://homeassistant.local:8123 (ışık/priz/kilit/termostat)",
+            value: config.homeAssistantUrl ?? "",
+            onSave: (v) => onApplyConfig({homeAssistantUrl: v || undefined}),
+        },
+        {
+            label: "AKILLI EV — ERİŞİM TOKEN'I",
+            hint: "opsiyonel · HA → Profil → Uzun ömürlü erişim belirteci",
+            value: config.homeAssistantToken ?? "",
+            onSave: (v) => onApplyConfig({homeAssistantToken: v || undefined}),
+        },
     ];
 
     return (

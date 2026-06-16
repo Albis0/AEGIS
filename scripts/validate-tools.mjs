@@ -56,15 +56,17 @@ while ((m = fnRe.exec(src))) {
 }
 
 // ---------- Extract executors: method names + destructured params in `const executors = {` ----------
+// The executors object spans from `const executors = {` up to the start of the
+// `executeTool` function (which immediately follows it). Brace-matching the object
+// is unreliable because executor bodies contain template literals whose inner `}`
+// (e.g. `${log.join("\n")}`) would close the object early. Bounding by the next
+// top-level declaration is robust to that.
 const execMarker = "const executors = {";
 const execStart = src.indexOf(execMarker);
-let d = 0, i = execStart + execMarker.length - 1, execEnd = -1;
-for (; i < src.length; i++) {
-    const c = src[i];
-    if (c === "{") d++;
-    else if (c === "}") { d--; if (d === 0) { execEnd = i; break; } }
-}
-const execBlock = src.slice(execStart, execEnd + 1);
+const execStopRe = /\nasync function executeTool\b|\nexport async function executeTool\b|\nfunction executeTool\b/;
+const execStopMatch = execStopRe.exec(src.slice(execStart));
+const execEnd = execStopMatch ? execStart + execStopMatch.index : src.length;
+const execBlock = src.slice(execStart, execEnd);
 
 const executors = [];
 const execRe = /async\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;

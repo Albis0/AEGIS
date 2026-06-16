@@ -47,6 +47,8 @@ import {
 } from "./steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {stmGet} from "./short-term-memory";
+import * as smartHome from "./smart-home";
+import type {HAConfig, HAEntity, Action as SmartHomeAction} from "./smart-home";
 
 type ToolResult = string;
 
@@ -1212,6 +1214,17 @@ const iotSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"weather_station",description:"Hava durumu: sıcaklık, nem, basınç, rüzgar. Konum belirtilmezse kullanıcının IP konumunu kullanır. API key gerektirmez.",parameters:{type:"object",properties:{location:{type:"string",description:"Şehir adı (örn: Ankara, Istanbul, London). Boş bırakılırsa kullanıcının konumu otomatik algılanır."}},additionalProperties:false}}},
 ];
 
+// ───────────────────────────────────────── Faz 62 — Akıllı Ev (Home Assistant)
+// Tek HA sunucusu arkasındaki tüm markaları (Hue/Tapo/Tuya/Matter/Zigbee) yönetir.
+// Akıllı: doğal dil ("salonu karart", "her şeyi kapat") entity'lere çözülür.
+// Kritik cihazlar (kilit/ısıtıcı/garaj/priz) onay ister (confirm:"true").
+const smartHomeSchemas: ChatCompletionTool[] = [
+    {type:"function",function:{name:"smart_home_devices",description:"Akıllı ev cihazlarını listele (ışık, priz, kilit, termostat, panjur…) ve mevcut durumlarını göster. Home Assistant'a bağlanır.",parameters:{type:"object",properties:{area:{type:"string",description:"Sadece bu oda/alanı göster (opsiyonel, örn: salon, yatak odası, mutfak)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_status",description:"Belirli bir akıllı ev cihazının veya odanın durumunu sorgula. 'Salon ışığı açık mı?', 'Termostat kaç derece?' gibi.",parameters:{type:"object",properties:{target:{type:"string",description:"Cihaz veya oda adı (örn: salon ışığı, yatak odası, ön kapı kilidi)"}},required:["target"],additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_control",description:"Akıllı ev cihazını kontrol et: aç/kapat, parlaklık ayarla, kilitle/aç, panjur aç/kapat. Doğal dil hedefini otomatik çözer ('salonu karart', 'her şeyi kapat', 'yatak odasını %30 yap'). Kritik cihazlarda (kilit, ısıtıcı, garaj, priz) önce onay ister; kullanıcı onaylayınca confirm:\"true\" ile tekrar çağır.",parameters:{type:"object",properties:{target:{type:"string",description:"Hedef cihaz/oda/grup (örn: salon, yatak odası lambası, ön kapı, tüm ışıklar, her şey)"},action:{type:"string",enum:["on","off","toggle","brightness","temperature","lock","unlock","open","close"],description:"on=aç, off=kapat, toggle=değiştir, brightness=parlaklık (value gerekir), temperature=sıcaklık (value gerekir), lock/unlock=kilitle/aç, open/close=panjur/garaj aç/kapat"},value:{type:"string",description:"brightness için 0-100 yüzde, temperature için derece (°C). Diğer aksiyonlarda boş."},confirm:{type:"string",description:"Kritik cihaz onayı. Kullanıcı 'evet/onayla' dediyse \"true\" gönder; yoksa boş bırak."}},required:["target","action"],additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_scene",description:"Bir akıllı ev sahnesini (scene) veya script'ini etkinleştir. 'Film modu', 'iyi geceler', 'sabah rutini' gibi önceden HA'da tanımlı sahneler.",parameters:{type:"object",properties:{name:{type:"string",description:"Sahne/script adı (örn: film modu, iyi geceler)"}},required:["name"],additionalProperties:false}}},
+];
+
 // ───────────────────────────────────────────────────────────── Faz 29 Schemas
 const multiModelSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"model_compare",description:"Aynı soruyu birden fazla modele gönder ve yanıtları karşılaştır.",parameters:{type:"object",properties:{prompt:{type:"string",description:"Karşılaştırılacak soru/görev"},models:{type:"string",description:"Karşılaştırılacak modeller virgülle (örn: groq:qwen3-32b,groq:llama-3.3-70b)"}},required:["prompt"],additionalProperties:false}}},
@@ -1505,6 +1518,8 @@ const ACTION_ROOTS = [
     "carpeta", "pantalla", "haz", "pon",
     // Ortak EN eksikleri
     "set", "increase", "decrease", "turn", "make", "show", "list", "take",
+    // Akıllı ev aksiyon kökleri (Faz 62)
+    "karart", "aydinlat", "kilitle", "kilid", "dim", "lock", "unlock",
 ];
 
 // Türkçe karakterleri ASCII'ye indir — kullanıcı "dönüştür" veya "donustur"
@@ -1560,6 +1575,23 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox"]},
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
+    {schemas: () => smartHomeSchemas,   roots: [
+        // TR
+        "isik", "isigi", "isiklar", "lamba", "lamba", "ampul", "abajur", "spot", "led",
+        "priz", "fis", "kilit", "kapi", "garaj", "panjur", "perde", "kepenk", "stor",
+        "termostat", "isitici", "klima", "soba", "kombi", "sicaklik", "derece", "fan", "vantilator",
+        "salon", "yatakodasi", "yatak", "mutfak", "banyo", "oda", "koridor", "bahce", "ev",
+        "akilliev", "sahne", "scene", "filmmodu", "iyigeceler", "karart", "aydinlat", "parlaklik",
+        "homeassistant", "hue", "tapo", "kasa", "tuya", "matter", "zigbee", "smarthome",
+        // EN
+        "light", "lights", "lamp", "bulb", "plug", "outlet", "lock", "door", "garage",
+        "blind", "blinds", "curtain", "shade", "shutter", "thermostat", "heater", "climate",
+        "ac", "temperature", "living", "bedroom", "kitchen", "bathroom", "room", "home", "dim",
+        // DE/FR/ES
+        "licht", "lampe", "lumiere", "luz", "luces", "schloss", "serrure", "cerradura",
+        "thermostat", "heizung", "chauffage", "calefaccion", "wohnzimmer", "schlafzimmer",
+        "salon", "chambre", "cocina", "dormitorio", "rollladen", "volet", "persiana",
+    ]},
     // NOT: multiModelSchemas Faz 32-44'ü kapsayan büyük bir dizi — multi-model,
     // çeviri, dosya/içerik/uygulama arama, sistem optimizasyonu, workspace ve
     // raporlar hep burada. Kökler bu içeriğin TAMAMINI yakalamalı (harness'la bulundu).
@@ -1664,7 +1696,7 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
             ...routineSchemas, ...agentSchemas, ...watchSchemas,
             ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
             ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
-            ...learningSchemas, ...iotSchemas, ...multiModelSchemas,
+            ...learningSchemas, ...iotSchemas, ...smartHomeSchemas, ...multiModelSchemas,
             ...spotifySchemas, ...steamSchemas, ...computerUseSchemas,
             ...extraSchemas,
         ];
@@ -3458,7 +3490,157 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
 
         return `Computer Use tamamlandı (${maxSteps} adım limiti):\n${log.join("\n")}`;
     },
+
+    // ─────────────────────────────────────────── Faz 62 — Akıllı Ev (Home Assistant)
+    async smart_home_devices({area}) {
+        const cfg = getHAConfig();
+        if (!cfg) return HA_NOT_CONFIGURED;
+        try {
+            const all = smartHome.controllable(await smartHome.fetchStates(cfg));
+            if (all.length === 0) return "Home Assistant'a bağlanıldı ama kontrol edilebilir cihaz bulunamadı.";
+            let list = all;
+            if (area) {
+                const a = smartHome.normalize(area);
+                list = all.filter((e) => smartHome.normalize(e.friendly_name + " " + (e.attributes.area as string ?? "")).includes(a));
+                if (list.length === 0) return `"${area}" alanında cihaz bulunamadı. Tüm cihazları görmek için alan belirtme.`;
+            }
+            const byArea = smartHome.groupByArea(list);
+            const parts: string[] = [];
+            for (const [areaName, ents] of byArea) {
+                parts.push(`\n📍 ${areaName}:`);
+                for (const e of ents) parts.push(`  • ${smartHome.describeState(e)}${smartHome.isCriticalEntity(e) ? " ⚠️" : ""}`);
+            }
+            return `Akıllı ev cihazları (${list.length}):${parts.join("\n")}\n\n⚠️ = kritik cihaz (kontrol için onay ister)`;
+        } catch (e) {
+            return `Akıllı ev cihazları alınamadı: ${(e as Error).message}`;
+        }
+    },
+
+    async smart_home_status({target}) {
+        const cfg = getHAConfig();
+        if (!cfg) return HA_NOT_CONFIGURED;
+        try {
+            const states = await smartHome.fetchStates(cfg);
+            const {matches} = smartHome.resolveEntities(target, states);
+            if (matches.length === 0) return `"${target}" ile eşleşen cihaz bulunamadı. 'akıllı ev cihazlarını listele' diyerek mevcut cihazları gör.`;
+            return matches.map((e) => smartHome.describeState(e)).join("\n");
+        } catch (e) {
+            return `Durum sorgulanamadı: ${(e as Error).message}`;
+        }
+    },
+
+    async smart_home_control({target, action, value, confirm}) {
+        const cfg = getHAConfig();
+        if (!cfg) return HA_NOT_CONFIGURED;
+        try {
+            const states = await smartHome.fetchStates(cfg);
+            const {matches, scope} = smartHome.resolveEntities(target, states);
+            if (matches.length === 0) return `"${target}" ile eşleşen cihaz bulunamadı. 'akıllı ev cihazlarını listele' diyerek mevcut cihazları gör.`;
+
+            const act = buildSmartHomeAction(action, value);
+            if (typeof act === "string") return act; // hata mesajı
+
+            // Onay kapısı: eşleşenlerden biri kritikse ve confirm gelmemişse, dur ve sor.
+            const critical = matches.filter((e) => smartHome.isCriticalEntity(e));
+            const confirmed = String(confirm ?? "").toLowerCase() === "true";
+            if (critical.length > 0 && !confirmed) {
+                const names = critical.map((e) => e.friendly_name).join(", ");
+                return `ONAY GEREKLİ: Bu kritik cihaz(lar) etkilenecek → ${names}. ` +
+                    `Kullanıcıya "${names} için '${describeAction(action, value)}' yapayım mı?" diye sor. ` +
+                    `Onaylarsa aynı aracı confirm:"true" ile tekrar çağır.`;
+            }
+
+            const results: string[] = [];
+            for (const e of matches) {
+                try {
+                    results.push("✓ " + await smartHome.applyAction(cfg, e, act));
+                } catch (err) {
+                    results.push(`✗ ${e.friendly_name}: ${(err as Error).message}`);
+                }
+            }
+            const header = scope ? `${scope} → ${describeAction(action, value)}:\n` : "";
+            return header + results.join("\n");
+        } catch (e) {
+            return `Kontrol başarısız: ${(e as Error).message}`;
+        }
+    },
+
+    async smart_home_scene({name}) {
+        const cfg = getHAConfig();
+        if (!cfg) return HA_NOT_CONFIGURED;
+        try {
+            const states = await smartHome.fetchStates(cfg);
+            const target = smartHome.normalize(name);
+            // scene.* veya script.* domain'inde isim eşleşmesi ara
+            const cand = states.filter((e) => (e.domain === "scene" || e.domain === "script"))
+                .map((e) => ({e, hay: smartHome.normalize(e.friendly_name + " " + e.entity_id)}))
+                .filter((x) => target.split(" ").every((w) => x.hay.includes(w)));
+            if (cand.length === 0) return `"${name}" adında sahne veya script bulunamadı.`;
+            const chosen = cand[0].e;
+            if (chosen.domain === "scene") {
+                await smartHome.callService(cfg, "scene", "turn_on", {entity_id: chosen.entity_id});
+            } else {
+                await smartHome.callService(cfg, "script", "turn_on", {entity_id: chosen.entity_id});
+            }
+            return `✓ "${chosen.friendly_name}" etkinleştirildi.`;
+        } catch (e) {
+            return `Sahne etkinleştirilemedi: ${(e as Error).message}`;
+        }
+    },
 };
+
+// ── Akıllı ev yardımcıları ────────────────────────────────────────────────────
+const HA_NOT_CONFIGURED =
+    "Akıllı ev bağlı değil. Ayarlar → Akıllı Ev'den Home Assistant adresini (örn: " +
+    "http://homeassistant.local:8123) ve erişim token'ını gir. Home Assistant, tek " +
+    "bağlantıyla Philips Hue, Tapo, Tuya, Matter ve daha fazlasını kontrol etmeni sağlar.";
+
+function getHAConfig(): HAConfig | null {
+    const url = process.env.HOME_ASSISTANT_URL ?? "";
+    const token = process.env.HOME_ASSISTANT_TOKEN ?? "";
+    if (!url || !token) return null;
+    return {url, token};
+}
+
+// action + value → SmartHomeAction (veya kullanıcıya dönecek hata string'i).
+function buildSmartHomeAction(action: string, value?: string): SmartHomeAction | string {
+    switch (action) {
+        case "on": return {kind: "on"};
+        case "off": return {kind: "off"};
+        case "toggle": return {kind: "toggle"};
+        case "lock": return {kind: "lock"};
+        case "unlock": return {kind: "unlock"};
+        case "open": return {kind: "open"};
+        case "close": return {kind: "close"};
+        case "brightness": {
+            const pct = Number(value);
+            if (!Number.isFinite(pct)) return "Parlaklık için 0-100 arası bir yüzde değeri gerekli (value).";
+            return {kind: "brightness", pct};
+        }
+        case "temperature": {
+            const c = Number(value);
+            if (!Number.isFinite(c)) return "Sıcaklık için derece değeri gerekli (value).";
+            return {kind: "temperature", celsius: c};
+        }
+        default:
+            return `Bilinmeyen aksiyon: "${action}".`;
+    }
+}
+
+function describeAction(action: string, value?: string): string {
+    switch (action) {
+        case "on": return "aç";
+        case "off": return "kapat";
+        case "toggle": return "değiştir";
+        case "lock": return "kilitle";
+        case "unlock": return "kilidi aç";
+        case "open": return "aç (panjur/garaj)";
+        case "close": return "kapat (panjur/garaj)";
+        case "brightness": return `parlaklık %${value ?? "?"}`;
+        case "temperature": return `${value ?? "?"}°C`;
+        default: return action;
+    }
+}
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
     if (_disabledTools.has(name)) return `ENGELLENDI: "${name}" aracı ayarlardan devre dışı bırakılmış.`;

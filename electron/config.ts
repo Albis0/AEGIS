@@ -11,6 +11,8 @@ export interface AegisConfig {
     elevenlabsApiKey?: string;
     steamApiKey?: string;
     steamId64?: string;
+    homeAssistantUrl?: string;    // Faz 62 — akıllı ev: http://homeassistant.local:8123
+    homeAssistantToken?: string;  // long-lived access token
 }
 
 const CONFIG_PATH = path.join(os.homedir(), ".aegis", "config.json");
@@ -48,4 +50,6 @@ export function applyConfig(config: AegisConfig): void {
     if (config.elevenlabsApiKey) process.env.ELEVENLABS_API_KEY = config.elevenlabsApiKey;
     if (config.steamApiKey) process.env.STEAM_API_KEY = config.steamApiKey;
     if (config.steamId64) process.env.STEAM_ID64 = config.steamId64;
+    if (config.homeAssistantUrl) process.env.HOME_ASSISTANT_URL = config.homeAssistantUrl;
+    if (config.homeAssistantToken) process.env.HOME_ASSISTANT_TOKEN = config.homeAssistantToken;
 }
