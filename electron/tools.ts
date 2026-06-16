@@ -1187,7 +1187,7 @@ const multiModelSchemas: ChatCompletionTool[] = [
 // ── Faz 46: Spotify ──────────────────────────────────────────────────────────
 const spotifySchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"spotify_authorize",description:"Spotify hesabını AEGIS'e bağla (ilk kullanımda bir kez yapılır). Tarayıcıda Spotify login sayfası açılır.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Spotify kapalıysa açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Belirli bir şarkı/sanatçı istenirse 'query' ver (ör: 'play killshot', 'change it to X', 'X çal') → o şarkı aranıp çalınır. Boş bırakılırsa duraklatılmış müziği devam ettirir.",parameters:{type:"object",properties:{query:{type:"string",description:"İsteğe bağlı: çalınacak şarkı/sanatçı adı. Verilmezse mevcut müzik devam eder."}},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1314,7 +1314,7 @@ const steamSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"steam_who_is_playing",description:"Belirli bir oyunu oynayan arkadaşları listele. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı"}},required:["game"],additionalProperties:false}}},
 
     // ── Grup D: Deneysel — Steam dışarıdan tam kontrol vermez, sayfa/diyalog açar ──
-    {type:"function",function:{name:"steam_wishlist_add",description:"[DENEYSEL] Bir oyunu istek listesine ekle. Steam mağaza sayfasını açar (Steam dışarıdan sessiz ekleme vermez).",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_wishlist_add",description:"[DENEYSEL] Bir oyunu istek listesine ekle. Mağaza sayfasını açar ve computer-use ile '+ İstek Listesine Ekle' butonuna otomatik tıklamayı dener (Steam sessiz API vermediği için). Kırılgandır; başarısızsa sayfa açık kalır, elle eklenebilir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
     {type:"function",function:{name:"steam_wishlist_remove",description:"[DENEYSEL] Bir oyunu istek listesinden çıkar. Mağaza sayfasını açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
     {type:"function",function:{name:"steam_wishlist_list",description:"[DENEYSEL] İstek listeni göster (profil herkese açıksa).",parameters:{type:"object",properties:{},additionalProperties:false}}},
     {type:"function",function:{name:"steam_pause_download",description:"[DENEYSEL] İndirmeyi duraklat — indirme yöneticisini açar (Steam dışarıdan tekil kontrol vermez).",parameters:{type:"object",properties:{},additionalProperties:false}}},
@@ -1376,15 +1376,36 @@ const ACTION_ROOTS = [
     "azalt", "artir", "art", "kis", "yuksel", "dusur", "arttir", "yarila", "biraz",
     "parlak", "brightness", "tekrar", "yine", "aktar", "transfer", "temizle", "optimize",
     "bas", "tikla", "biliyor", "hakk", "tani", "bil", "pomodoro", "indeks", "rapor", "report",
+    // ── Çok dilli aksiyon kökleri (DE/FR/ES) — lang-scan ile bulundu ──
+    // Almanca
+    "offne", "schliess", "starte", "stoppe", "spiel", "abspiel", "lies", "schreib", "loschen",
+    "such", "erstell", "sende", "zeig", "liste", "einstell", "andere", "erhoh", "verring",
+    "helligkeit", "lautstark", "screenshot", "bildschirm", "datei", "ordner", "pinge", "starten",
+    // Fransızca
+    "ouvre", "ferme", "lance", "demarre", "arrete", "joue", "lis", "ecris", "supprim",
+    "cherche", "trouve", "cree", "envoie", "montre", "affiche", "regle", "change", "augment",
+    "baisse", "diminue", "luminosite", "volume", "capture", "fichier", "dossier", "ecran",
+    // İspanyolca
+    "abre", "cierra", "inicia", "lanza", "detén", "deten", "reproduce", "lee", "escribe",
+    "elimina", "borra", "busca", "encuentra", "crea", "envia", "muestra", "lista",
+    "ajusta", "cambia", "aumenta", "sube", "baja", "reduce", "brillo", "captura", "archivo",
+    "carpeta", "pantalla", "haz", "pon",
+    // Ortak EN eksikleri
+    "set", "increase", "decrease", "turn", "make", "show", "list", "take",
 ];
 
 // Türkçe karakterleri ASCII'ye indir — kullanıcı "dönüştür" veya "donustur"
 // yazsa da aynı eşleşsin. Eşleştirme hep normalize edilmiş metin üzerinde yapılır.
 function normalizeTr(s: string): string {
     return s.toLowerCase()
+        // Türkçe
         .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
         .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
-        .replace(/î/g, "i").replace(/â/g, "a");
+        .replace(/î/g, "i").replace(/â/g, "a")
+        // Almanca / Fransızca / İspanyolca aksanları — kökler ASCII tutulduğu için
+        // ("ecran", "espanol", "anadir") aksanlı girdiyi de ASCII'ye indir.
+        .replace(/[äàáâ]/g, "a").replace(/[éèêë]/g, "e").replace(/[íìï]/g, "i")
+        .replace(/[óòô]/g, "o").replace(/[úùû]/g, "u").replace(/ñ/g, "n").replace(/ß/g, "ss");
 }
 
 // Kelimelere böl (normalize sonrası ASCII).
@@ -1436,9 +1457,16 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
         "workspace", "calismaalani", "alan",
         "rapor", "report", "verimlilik", "productivity", "analiz", "ozet",
     ]},
-    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "aktar", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "dinle", "dinledik", "profil", "ozellik", "feature", "ilgili", "related", "tempo", "enerji", "bpm", "valence", "akustik"]},
+    {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "aktar", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "dinle", "dinledik", "profil", "ozellik", "feature", "ilgili", "related", "tempo", "enerji", "bpm", "valence", "akustik",
+        // Çok dilli müzik/ses (DE/FR/ES + EN): music/musique/música, play/spielen/jouer/reproducir, volume/lautstärke/son, next/nächste/suivant/siguiente
+        "music", "musik", "musique", "musica", "song", "lied", "chanson", "cancion",
+        "play", "spiel", "abspiel", "joue", "jouer", "reproduce", "reproduz",
+        "volume", "lautstark", "lauter", "leiser", "son", "vol", "louder", "quieter",
+        "nachste", "suivant", "siguiente", "vorher", "precedent", "anterior", "previous"]},
     {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "oyunlar", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite", "basarim", "achievement", "arkadas", "friend", "kutuphane", "library", "magaza", "store", "fiyat", "price", "indirim", "discount", "workshop", "yedek", "backup", "wishlist", "istek", "seviye", "level", "profil", "kur", "install", "dogrula", "validate", "playtime"]},
-    {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use", "bas", "ctrl", "alt", "enter", "kisayol"]},
+    {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use", "bas", "ctrl", "alt", "enter", "kisayol",
+        // Çok dilli ekran/fare/klavye: screen/Bildschirm/écran/pantalla, capture, klick, souris/ratón, clavier/teclado
+        "bildschirm", "ecran", "pantalla", "capture", "captura", "klick", "souris", "raton", "clavier", "teclado", "taste", "touche", "tecla"]},
 ];
 
 // Bir tool adının hangi TOOL_GROUP'a ait olduğunu bul (sticky context için).
@@ -1480,10 +1508,24 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
         const matchedGroups = TOOL_GROUPS.filter((g) => matchesRoots(words, g.roots));
         const actionSignal = hasActionSignal(words);
 
+        // STICKY ESCAPE: aksiyon kökü ve domain kelimesi YOK ama bir önceki tool
+        // bir domain grubuna aitse ("change it to X", "make it Y" gibi İngilizce
+        // devam mesajları hiçbir köke uymuyor) → o grubu yine de teklif et.
+        // Türkçede "değiştir/azalt" kökü olduğu için bu yola düşmez; sorun yalnız
+        // kök taşımayan (çoğu İngilizce) devam mesajlarında. Sohbet kapanışlarını
+        // (teşekkürler/tamam/ok…) dışarıda tutmak için kısa+selam kontrolü var.
+        const CHATTER = new Set([
+            "tesekkurler", "tesekkur", "sagol", "tamam", "ok", "okey", "tamamdir",
+            "thanks", "thank", "thx", "cool", "nice", "great", "super", "harika",
+            "evet", "hayir", "yes", "no", "peki", "guzel",
+        ]);
+        const isChatter = words.length > 0 && words.length <= 2 && words.every((w) => CHATTER.has(w));
+        const lastToolEarly = stmGet().lastTool;
+        const stickyEscape = !actionSignal && matchedGroups.length === 0 &&
+            !isChatter && words.length >= 2 && !!lastToolEarly && !!groupForTool(lastToolEarly);
+
         // Sohbet/selam/saçma metin (aksiyon sinyali yok, grup eşleşmesi yok) → HİÇ tool yok.
-        // Bu kontrol MESAJIN KENDİSİNE bakar; sticky context'ten ÖNCE çalışır ki bir
-        // önceki spotify aksiyonundan sonra "teşekkürler" demek tool getirmesin.
-        if (!actionSignal && matchedGroups.length === 0) {
+        if (!actionSignal && matchedGroups.length === 0 && !stickyEscape) {
             selected = [];
         } else {
             // STICKY CONTEXT: aksiyon var ama domain kelimesi yoksa ("biraz azalt",
@@ -2977,7 +3019,10 @@ else{
 
     // ── Faz 46: Spotify ──────────────────────────────────────────────────────
     async spotify_authorize() { return spotifyAuthorizeCmd(); },
-    async spotify_play() { return spotifyPlay(); },
+    async spotify_play({query}: {query?: unknown} = {}) {
+        const q = typeof query === "string" ? query.trim() : "";
+        return q ? spotifySearchPlay(q) : spotifyPlay();
+    },
     async spotify_pause() { return spotifyPause(); },
     async spotify_next() { return spotifyNext(); },
     async spotify_prev() { return spotifyPrev(); },
@@ -3117,7 +3162,27 @@ else{
     async steam_friend_current_game({friend}: {friend?: unknown}) { return steamGetFriendCurrentGame(String(friend ?? "")); },
     async steam_who_is_playing({game}: {game?: unknown}) { return steamWhoIsPlaying(String(game ?? "")); },
     // Grup D — deneysel
-    async steam_wishlist_add({game}: {game?: unknown}) { return steamWishlistAdd(String(game ?? ""), true); },
+    async steam_wishlist_add({game}: {game?: unknown}) {
+        // 1) Mağaza sayfasını aç (AppID çözülür). Steam 3rd-party'ye sessiz wishlist
+        //    yazma API'si vermez; sayfa açıldıktan sonra computer-use ile '+ İstek
+        //    Listesine Ekle' butonuna tıklamayı DENERİZ.
+        const opened = await steamWishlistAdd(String(game ?? ""), true);
+        if (/^HATA|bulunamadı/.test(opened)) return opened;
+
+        // Vision döngüsü kullanılamıyorsa (callback yok) sayfa açık kalır — kullanıcı elle ekler.
+        if (!_screenshotCallback || !_analyzeScreenCallback) {
+            return `${opened}\n(Otomatik tıklama için vision modeli gerekli — sayfadan elle ekleyebilirsin.)`;
+        }
+
+        // 2) Sayfanın yüklenmesini bekle, sonra butona otomatik tıkla.
+        await new Promise((r) => setTimeout(r, 3500));
+        const goal = "Açık olan Steam mağaza sayfasında '+ İstek Listesine Ekle' " +
+            "(veya İngilizce 'Add to your wishlist') butonunu bul ve TIKLA. " +
+            "Buton zaten 'İstek Listesinde' yazıyorsa zaten ekli demektir, done döndür. " +
+            "Tıkladıktan sonra done döndür.";
+        const cuResult = await executors.computer_use({goal, max_steps: "6"});
+        return `${opened}\n\nOtomatik ekleme denemesi:\n${cuResult}\n\n(Computer-use kırılgandır; eklenmediyse sayfadan elle '+ İstek Listesine Ekle'ye tıkla.)`;
+    },
     async steam_wishlist_remove({game}: {game?: unknown}) { return steamWishlistAdd(String(game ?? ""), false); },
     async steam_wishlist_list() { return steamWishlistList(); },
     async steam_pause_download() { return steamPauseResumeCancel("pause"); },

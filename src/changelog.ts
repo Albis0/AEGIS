@@ -12,6 +12,37 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.6.1",
+        date: "2026-06-16",
+        notes: {
+            tr: [
+                "Çok dilli güvenilirlik: İngilizce, Almanca, Fransızca ve İspanyolca komutlar artık doğru aracı çağırıyor — önceden bu dillerde 'Spotify çal', 'sesi ayarla', 'dosyayı oku' gibi komutlar bazen hiç çalışmıyordu (sadece Türkçe sağlamdı).",
+                "Spotify: 'play killshot' / 'change it to X' gibi komutlarda çıkan 'Model yanıt üretemedi' hatası giderildi — şarkıyı adıyla çalma artık tek araçla çalışıyor.",
+                "Steam istek listesi: 'oyunu istek listeme ekle' artık mağaza sayfasını açıp '+ İstek Listesine Ekle' butonuna otomatik tıklamayı deniyor (eskiden sadece sayfayı açıyordu).",
+            ],
+            en: [
+                "Multilingual reliability: English, German, French and Spanish commands now trigger the correct tool — previously commands like 'play music', 'set the volume', 'read the file' sometimes did nothing in those languages (only Turkish was solid).",
+                "Spotify: fixed the 'model could not generate a response' error on commands like 'play killshot' / 'change it to X' — playing a song by name now works in one step.",
+                "Steam wishlist: 'add the game to my wishlist' now opens the store page and tries to auto-click the '+ Add to wishlist' button (previously it only opened the page).",
+            ],
+            de: [
+                "Mehrsprachige Zuverlässigkeit: Englische, deutsche, französische und spanische Befehle lösen jetzt das richtige Werkzeug aus — zuvor taten Befehle wie 'Musik abspielen', 'Lautstärke einstellen', 'Datei lesen' in diesen Sprachen manchmal nichts (nur Türkisch war stabil).",
+                "Spotify: Fehler 'Modell konnte keine Antwort erzeugen' bei Befehlen wie 'play killshot' / 'change it to X' behoben — ein Lied per Name abspielen funktioniert jetzt in einem Schritt.",
+                "Steam-Wunschliste: 'Spiel zur Wunschliste hinzufügen' öffnet jetzt die Store-Seite und versucht, den Button '+ Zur Wunschliste' automatisch zu klicken (vorher nur Seite geöffnet).",
+            ],
+            fr: [
+                "Fiabilité multilingue : les commandes en anglais, allemand, français et espagnol déclenchent désormais le bon outil — auparavant des commandes comme « joue de la musique », « règle le volume », « lis le fichier » ne faisaient parfois rien dans ces langues (seul le turc était solide).",
+                "Spotify : corrigé l'erreur « le modèle n'a pas pu générer de réponse » sur des commandes comme « play killshot » / « change it to X » — lire une chanson par son nom fonctionne maintenant en une étape.",
+                "Liste de souhaits Steam : « ajoute le jeu à ma liste de souhaits » ouvre désormais la page boutique et tente de cliquer automatiquement sur « + Ajouter à la liste de souhaits » (avant, la page s'ouvrait seulement).",
+            ],
+            es: [
+                "Fiabilidad multilingüe: los comandos en inglés, alemán, francés y español ahora activan la herramienta correcta — antes comandos como 'reproduce música', 'ajusta el volumen', 'lee el archivo' a veces no hacían nada en esos idiomas (solo el turco era sólido).",
+                "Spotify: corregido el error 'el modelo no pudo generar una respuesta' en comandos como 'play killshot' / 'change it to X' — reproducir una canción por su nombre ahora funciona en un paso.",
+                "Lista de deseos de Steam: 'añade el juego a mi lista de deseos' ahora abre la página de la tienda e intenta hacer clic automáticamente en '+ Añadir a la lista de deseos' (antes solo abría la página).",
+            ],
+        },
+    },
+    {
         version: "1.6.0",
         date: "2026-06-15",
         notes: {

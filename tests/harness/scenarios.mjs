@@ -108,6 +108,18 @@ export const SCENARIOS = [
       {user: "o dosyayı sil", intent: "sil (ref)", tool: "delete_file", args: {path: "~/Desktop/notlar.txt"}, ref: "write_file", expectResult: /ENGELLENDI|Silindi|HATA/},
     ],
   },
+  // ── 11. EN "play X on spotify" → spotify_play(query) (failed_generation fix) ──
+  // Eskiden spotify_play hiç argüman almıyordu; model İngilizce "play killshot" deyince
+  // argüman tıkıştırıp Groq'tan failed_generation alıyordu ("Model yanıt üretemedi").
+  // Artık opsiyonel query kabul eder; verilirse ara+çal, verilmezse devam ettir.
+  {
+    name: "EN: play killshot on spotify → change it to X (sticky escape)",
+    steps: [
+      {user: "play killshot on spotify", intent: "ara ve çal", tool: "spotify_play", args: {query: "killshot"}, mockResult: "Çalınıyor: Killshot", expectSTM: {lastTool: "spotify_play"}},
+      // "change it to X": hiçbir kök yok → sticky escape ile önceki spotify grubu yine teklif edilir.
+      {user: "change it to Magdalena Bay", intent: "değiştir", tool: "spotify_play", args: {query: "Magdalena Bay"}, mockResult: "Çalınıyor: Magdalena Bay"},
+    ],
+  },
 ];
 
 // ── Jarvis Reliability Upgrade — deterministic reference-resolver scenarios ──
@@ -220,4 +232,31 @@ for (const [user, tool, args, root] of MORE) {
     name: `tekil: ${user}`,
     steps: [{user, intent: tool, tool, args, mockResult: "OK"}],
   });
+}
+
+// ── Çok dilli kapsam (EN/DE/FR/ES) — TR sağlam, diğer diller de tool görmeli ──
+// Her satır aynı niyetin 4 dildeki ifadesi; hepsi DOĞRU tool'u TEKLIF ettirmeli.
+// (Referans çözümleme TR'de; burada normal LLM turn'lerinin tool-offering'i test edilir.)
+// Format: [tool, args, {en, de, fr, es}]
+const MULTILANG = [
+  ["spotify_open",   {},                  {en:"open Spotify", de:"Spotify öffnen", fr:"ouvre Spotify", es:"abre Spotify"}],
+  ["spotify_play",   {},                  {en:"play music", de:"Musik abspielen", fr:"joue de la musique", es:"reproduce música"}],
+  ["spotify_volume", {level:"50"},        {en:"set volume to 50", de:"Lautstärke auf 50", fr:"règle le volume à 50", es:"pon el volumen a 50"}],
+  ["spotify_next",   {},                  {en:"next song", de:"nächstes Lied", fr:"chanson suivante", es:"siguiente canción"}],
+  ["steam_launch",   {game:"CS2"},        {en:"launch the game CS2", de:"starte das Spiel CS2", fr:"lance le jeu CS2", es:"abre el juego CS2"}],
+  ["steam_list",     {},                  {en:"list my steam games", de:"meine Steam-Spiele auflisten", fr:"liste mes jeux steam", es:"lista mis juegos de steam"}],
+  ["write_file",     {path:"~/a.txt"},    {en:"create a file", de:"erstelle eine Datei", fr:"crée un fichier", es:"crea un archivo"}],
+  ["read_file",      {path:"~/a.txt"},    {en:"read the file", de:"lies die Datei", fr:"lis le fichier", es:"lee el archivo"}],
+  ["set_brightness", {level:"80"},        {en:"increase brightness", de:"Helligkeit erhöhen", fr:"augmente la luminosité", es:"aumenta el brillo"}],
+  ["web_search",     {query:"x"},         {en:"search the web", de:"im Web suchen", fr:"cherche sur le web", es:"busca en la web"}],
+  ["screenshot",     {},                  {en:"take a screenshot", de:"mach einen Screenshot", fr:"prends une capture d'écran", es:"toma una captura"}],
+];
+
+for (const [tool, args, msgs] of MULTILANG) {
+  for (const lang of ["en", "de", "fr", "es"]) {
+    SCENARIOS.push({
+      name: `[${lang}] ${msgs[lang]} → ${tool}`,
+      steps: [{user: msgs[lang], intent: tool, tool, args, mockResult: "OK"}],
+    });
+  }
 }
