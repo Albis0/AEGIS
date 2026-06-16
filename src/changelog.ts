@@ -12,6 +12,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.7.1",
+        date: "2026-06-16",
+        notes: {
+            tr: [
+                "Güncelleme düzeltmesi: 'İNDİR'e bastıktan sonra buton ~2 saniye sonra geri geliyordu ve indirme başlamıyor gibi görünüyordu — artık indirme durumu korunuyor ve ilerleme sorunsuz gösteriliyor.",
+            ],
+            en: [
+                "Updater fix: after clicking 'DOWNLOAD' the button reappeared after ~2 seconds and it looked like the download never started — the downloading state is now preserved and progress shows smoothly.",
+            ],
+            de: [
+                "Updater-Korrektur: Nach dem Klick auf 'HERUNTERLADEN' erschien die Schaltfläche nach ~2 Sekunden wieder und der Download schien nicht zu starten — der Download-Status bleibt jetzt erhalten und der Fortschritt wird sauber angezeigt.",
+            ],
+            fr: [
+                "Correctif de mise à jour : après avoir cliqué sur « TÉLÉCHARGER », le bouton réapparaissait après ~2 secondes et le téléchargement semblait ne pas démarrer — l'état de téléchargement est désormais conservé et la progression s'affiche correctement.",
+            ],
+            es: [
+                "Corrección del actualizador: tras pulsar 'DESCARGAR', el botón reaparecía después de ~2 segundos y parecía que la descarga no comenzaba — ahora se conserva el estado de descarga y el progreso se muestra correctamente.",
+            ],
+        },
+    },
+    {
         version: "1.7.0",
         date: "2026-06-16",
         notes: {
