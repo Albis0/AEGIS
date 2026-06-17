@@ -2,7 +2,7 @@
 
 > Windows için kişisel AI asistanı. Dinler, düşünür, yapar.
 
-**AEGIS**, konuşma tanıma, LLM zekası ve 300+ araçla donatılmış, Windows masaüstüne entegre bir yapay zeka asistanıdır. Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral ve Ollama'yı destekler. Sesle veya yazıyla komut verebilir, sistem kontrolü, Spotify, Steam, web araması, dosya yönetimi ve çok daha fazlasını yapabilirsiniz.
+**AEGIS**, konuşma tanıma, LLM zekası ve **329 araçla** donatılmış, Windows masaüstüne entegre bir yapay zeka asistanıdır. Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral ve Ollama'yı destekler. Sesle veya yazıyla komut verebilir; sistem kontrolü, Spotify, Steam, akıllı ev, web araması, dosya yönetimi, ekranı görme, fare/klavye kontrolü ve çok daha fazlasını yapabilirsiniz.
 
 ---
 
@@ -20,7 +20,10 @@
 | **Vision**       | Ekran görüntüsü al + AI analiz, görsel soru-cevap                                           |
 | **Computer Use** | AI fareyi ve klavyeyi kontrol eder, serbest dil hedefleri                                   |
 | **Hafıza**       | Kullanıcı profili, notlar, gerçekler, session özeti, bulut sync                             |
-| **Otomasyon**    | Zamanlanmış görevler, koşullu otomasyon, makrolar, ajans modu                               |
+| **Otomasyon**    | Zamanlanmış görevler, koşullu otomasyon, makrolar, routine'ler, ajans modu                  |
+| **Akıllı Ev**    | Home Assistant (ışık/priz/kilit/termostat/sahne), doğal dil cihaz kontrolü                  |
+| **Geliştirici**  | Git, derleme/test koşma, proje şablonları, terminal çıktı analizi, SSH/Docker               |
+| **Üretkenlik**   | Takvim, pomodoro, zaman takibi, flashcard, hedefler, e-posta, gerçek zamanlı çeviri         |
 | **Telemetri**    | CPU/RAM/GPU/Disk/Batarya/Ağ anlık izleme + uyarılar                                         |
 | **Güvenlik**     | API key vault (OS DPAPI), gizlilik denetimi                                                 |
 | **UI**           | 4 skin ailesi × 4 ferdi (16 skin), 5 dil, özel aksanlar                                     |
@@ -129,7 +132,7 @@ src/               # Renderer (React UI)
   components/
     skins/         # 4 aile × 4 ferdi = 16 skin
     settings/      # Ayarlar sekmesi bileşenleri
-tests/             # Vitest testleri (82 test) + konuşma harness (60 senaryo)
+tests/             # Vitest testleri (213 test / 15 dosya) + konuşma harness (60 senaryo)
 supabase/          # Edge Function + schema
 ```
 

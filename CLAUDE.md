@@ -2,10 +2,13 @@
 
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
+Güncel durum (v1.7.1): **329 tool**, 8 AI provider, 44 electron modülü, 16 skin, 5 dil,
+213 test (15 dosya). Faz 1–52 + 62 ✅; Faz 53–61 (AEGIS 2.0 güvenilirlik) planlı.
+
 ## Mimari
 
-- **electron/** (main process, CJS) — `main.ts` giriş; `tools.ts` (~3000 satır, 263 tool: `toolSchemas`+`executors`+`getAllToolSchemas`); `spotify.ts`, `tts.ts`, `short-term-memory.ts` (referans çözümleme), `aegis-config.ts` (gömülü public token/url).
-- **src/** (renderer, React) — `App.tsx` (üst seviye; update toast burada), `components/settings/tabs/`, `i18n.ts` (5 dil: tr/en/de/fr/es), `changelog.ts` (yama notları), `update-state.ts` (updater toast reducer).
+- **electron/** (main process, CJS, 44 modül) — `main.ts` giriş (runAgent tool döngüsü, system prompt); `tools.ts` (~3666 satır, **329 tool**: `toolSchemas`+`executors`+`getAllToolSchemas`); `ai-client.ts` (provider çağrıları, param kırpma); `model-capabilities.ts` (model yetenek kayıt defteri — sıfır-hata AI katmanı); `model-router.ts` (deterministik tool yönlendirme); `short-term-memory.ts` + `reference-resolver.ts` (referans çözümleme); `routines.ts` (deterministik çok-adımlı kayıt), `macros.ts`, `automations.ts`; `memory-plus.ts` (facts/habits/sabah özeti); `spotify.ts`, `steam.ts`, `smart-home.ts` (Home Assistant), `computer-use.ts`; `tts.ts`, `auth.ts`+`cloud-sync.ts`+`aegis-config.ts` (Supabase deneme modu/gömülü public token).
+- **src/** (renderer, React) — `App.tsx` (üst seviye; update toast burada), `components/skins/registry.tsx` (4 aile × 4 ferdi), `components/settings/tabs/`, `i18n.ts` (5 dil: tr/en/de/fr/es), `changelog.ts` (yama notları), `update-state.ts` (updater toast reducer).
 - IPC: `electron/preload.ts` (`window.jarvis`), tip: `src/electron.d.ts`.
 
 ## Komutlar
@@ -30,6 +33,12 @@ Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 - **Bu shell'de `ELECTRON_RUN_AS_NODE=1` baked** → electron.exe GUI yerine Node açar (app undefined). GUI testi için: vite + Playwright ile renderer'ı aç, `window.jarvis`'i `addInitScript` ile stub'la (stub metodları Promise döndürmeli).
 - Paketlenmiş app'te asar/node_modules **salt-okunur**: runtime yazma `app.getPath("userData")`'ya. Kokoro modeli oraya iner.
 - **Tool seçimi (tools.ts)**: Groq 64-tool limiti var; eşleşen grup tool'ları öne alınır. Şema `number` paramları `string` olmalı (Groq number'a string gelince tool_use_failed). Referans turnleri için STM sticky-context.
+
+## Test
+
+- Test stratejisini Claude belirler; kullanıcı "test yaz" demez. Her değişiklikte gerekli testi sessizce ekle (yeni özellik → birim/harness, bug fix → bug'ı yakalayan test, davranış değişikliği → regresyon). Spam yapma; aynı bug'ın geri dönmesini önleyecek kadar koruma kur.
+- I/O modülleri gerçek `~/.aegis/` dosyalarıyla test edilir (`beforeEach`/`afterEach` temizlik); saf-fonksiyon modülleri (model-capabilities) mock'suz.
+- Trio (`test:trio`): tool schema ↔ executor senkronu. Number paramlar string olmalı (Groq).
 
 ## Detay
 

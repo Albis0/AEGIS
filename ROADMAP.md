@@ -2,22 +2,27 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
+**Özet (v1.7.1):** 329 tool · 8 AI provider · 16 skin · 5 dil · 213 test (15 dosya) ·
+Faz 1–52 + 62 tamamlandı; Faz 53–61 (AEGIS 2.0 Güvenilirlik Sürümü) planlı.
+
 ---
 
 ## Mevcut Durum ✓
 
-| Özellik                                       | Durum |
-| --------------------------------------------- | ----- |
-| Groq LLM (qwen3-32b) + tool calling           | ✅    |
-| PowerShell komut çalıştırma                   | ✅    |
-| Dosya okuma / yazma / listeleme               | ✅    |
-| Web arama (Tavily)                            | ✅    |
-| Ses tanıma — Whisper, Türkçe                  | ✅    |
-| TTS — Edge EmelNeural                         | ✅    |
-| Wake-word / always-on mod                     | ✅    |
-| Sistem telemetri (CPU/RAM/disk/batarya/ağ)    | ✅    |
-| Hava durumu                                   | ✅    |
-| Supabase entegrasyonu (session + mesaj kaydı) | ✅    |
+| Özellik                                          | Durum |
+| ------------------------------------------------ | ----- |
+| 8 AI provider + tool calling (329 tool)          | ✅    |
+| PowerShell komut çalıştırma                      | ✅    |
+| Dosya okuma / yazma / listeleme / organizasyon   | ✅    |
+| Web arama (Tavily / Serper / DuckDuckGo)         | ✅    |
+| Ses tanıma — Whisper, çok dilli                  | ✅    |
+| TTS — Edge / ElevenLabs / Kokoro (offline)       | ✅    |
+| Wake-word / always-on mod + VAD                  | ✅    |
+| Sistem telemetri (CPU/RAM/GPU/disk/batarya/ağ)   | ✅    |
+| Vision (ekran görüntüsü analizi) + Computer Use  | ✅    |
+| Spotify (Web API) + Steam built-in kontrol       | ✅    |
+| Akıllı ev (Home Assistant) + IoT                 | ✅    |
+| Supabase: deneme modu proxy + auth + cloud sync  | ✅    |
 
 ---
 
@@ -1135,6 +1140,11 @@ _"10 saat açık bırakınca çöküyor mu?" sorusunun cevabı burada._
 - ✅ Benchmark sadece `main` push'unda çalışır, sonuçlar artifact olarak upload edilir
 - ✅ Test başarısız → CI job fail → merge engellenir
 
+> **Güncel test durumu (v1.7.1):** 213 test / 15 dosya geçiyor. Faz 45'ten bu yana
+> eklenenler: routines, model-capabilities, memory-plus, macros, automations,
+> reference-resolver, smart-home, updater-logic, update-state birim testleri +
+> konuşma harness'i (`tests/harness/`, 60 senaryo).
+
 ---
 
 ## Faz 46 — Spotify & Steam Built-in Kontrol 🎵🎮 ✅
@@ -1160,6 +1170,31 @@ _Plugin kurma gerektirmeden, direkt built-in tool olarak Spotify ve Steam kontro
 - ✅ `steam_close` — Steam'i kapat
 - ✅ `steam_game_running` — şu an çalışan oyun var mı?
 - Yöntem: `steam://rungameid/` URI protokolü + acf dosyalarından oyun listesi
+
+---
+
+## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖 ✅
+
+_AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder._
+
+### 47.1 Temel Input Kontrolü ✅
+
+- ✅ `mouse_move(x, y)` — fare imleci taşı
+- ✅ `mouse_click(x, y, button, double)` — sol/sağ/orta, tek/çift tıklama
+- ✅ `mouse_scroll(x, y, direction, amount)` — kaydır
+- ✅ `mouse_drag(x1, y1, x2, y2)` — sürükle bırak
+- ✅ `key_press(keys)` — klavye kısayolu (ctrl+c, alt+tab, win+d, f5 vb.)
+- ✅ `type_text(text)` — aktif alana metin yaz (WScript.Shell SendKeys)
+- ✅ `screen_size` — ekran çözünürlüğünü öğren
+- Yöntem: WinAPI P/Invoke (Add-Type + user32.dll SendInput / SetCursorPos)
+
+### 47.2 Vision Döngüsü ✅
+
+- ✅ `computer_use(goal, max_steps)` — serbest dil hedefi → screenshot → AI analiz → eylem → tekrar
+- ✅ AI her adımda JSON eylem döndürür: click/double_click/right_click/type/key/scroll/move/done/fail
+- ✅ Maksimum 20 adım limiti; `done`/`fail` ile erken çıkış
+- ✅ Her adım arası 600ms bekleme (UI güncellemesi için)
+- Örnek: "Chrome aç ve youtube.com'a git", "Spotify'da arama yap"
 
 ---
 
@@ -1210,31 +1245,6 @@ _Her ağda, her PC'de çalışır. Hata olunca kullanıcı ne olduğunu anlar._
 - ✅ Spotify duplicate tool fix — `CORE_SCHEMAS`'dan çıkarıldı, sadece bağlama göre ekleniyor
 - ✅ Sistem prompt'a yerel tarih/saat inject — "saat kaç?" soruları çalışır
 - ✅ `spotify_open` sistem prompt kurallarına eklendi — AI artık `run_command` değil `spotify_open` kullanır
-
----
-
-## Faz 47 — Computer Use: AI ile Bilgisayar Kontrolü 🖥️🤖
-
-_AI mouse ve klavyeyi kullanarak her uygulamayı direkt kontrol eder._
-
-### 47.1 Temel Input Kontrolü ✅
-
-- ✅ `mouse_move(x, y)` — fare imleci taşı
-- ✅ `mouse_click(x, y, button, double)` — sol/sağ/orta, tek/çift tıklama
-- ✅ `mouse_scroll(x, y, direction, amount)` — kaydır
-- ✅ `mouse_drag(x1, y1, x2, y2)` — sürükle bırak
-- ✅ `key_press(keys)` — klavye kısayolu (ctrl+c, alt+tab, win+d, f5 vb.)
-- ✅ `type_text(text)` — aktif alana metin yaz (WScript.Shell SendKeys)
-- ✅ `screen_size` — ekran çözünürlüğünü öğren
-- Yöntem: WinAPI P/Invoke (Add-Type + user32.dll SendInput / SetCursorPos)
-
-### 47.2 Vision Döngüsü ✅
-
-- ✅ `computer_use(goal, max_steps)` — serbest dil hedefi → screenshot → AI analiz → eylem → tekrar
-- ✅ AI her adımda JSON eylem döndürür: click/double_click/right_click/type/key/scroll/move/done/fail
-- ✅ Maksimum 20 adım limiti; `done`/`fail` ile erken çıkış
-- ✅ Her adım arası 600ms bekleme (UI güncellemesi için)
-- Örnek: "Chrome aç ve youtube.com'a git", "Spotify'da arama yap"
 
 ---
 
@@ -1353,7 +1363,7 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 # AEGIS 2.0 — GÜVENİLİRLİK SÜRÜMÜ (Faz 53+)
 # ════════════════════════════════════════════════════════════
 
-_Buraya kadar olan 52 faz AEGIS'i "geniş" yaptı (345+ tool). Aşağıdaki fazlar
+_Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (329 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
 ölçer, görevi bitirir, seni hatırlar. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
