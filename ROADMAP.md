@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 376 test (25 dosya) ·
-Faz 1–52 + 62 tamamlandı; Faz 53–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 386 test (26 dosya) ·
+Faz 1–53 + 62 tamamlandı; Faz 54–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Not:** bu blok bir GELECEK PLANIDIR; Faz
-53–61'in hiçbiri henüz uygulanmadı (hepsi ⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53 (Loop Guard) tamamlandı;
+Faz 54–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1375,17 +1375,19 @@ Skorlu evaluation 🟡. AEGIS'in eksiği yetenek değil — yeteneklerine GÜVEN
 
 ---
 
-## Faz 53 — Loop Guard & Eylem Bütçesi 🛑 ⬜ [MUST HAVE]
+## Faz 53 — Loop Guard & Eylem Bütçesi 🛑 ✅ [MUST HAVE]
 
 _`main.ts`'teki 8-adım limiti degenerate döngüyü çözmez, sadece geç keser. Aynı
 tool'u tekrar tekrar çağıran model token/para yakar + "AEGIS takıldı" hissi verir._
 
-- **Amaç:** Degenerate tool-call döngülerini (aynı çağrı tekrarı, A-B-A-B ping-pong, polling tükenmesi) tespit edip durdurmak.
-- **Kullanıcı etkisi:** AEGIS saçmaladığında kendini durdurur ve net söyler. Güvenin temel taşı.
-- **Etki: 9 · Zorluk: 3 · Borç riski: 2** — EN YÜKSEK ROI.
-- **Dosyalar:** yeni `electron/loop-guard.ts`; `electron/main.ts` (tool döngüsüne entegrasyon).
-- **Başarı kriteri:** Aynı (tool,args) hash'i 3. kez engellenir; A-B-A-B 2. turda yakalanır; polling tool'lara gevşek bütçe; harness'a döngü senaryosu eklenir.
-- **OpenJarvis ilhamı:** `agents/loop_guard.py` (max_identical_calls / ping_pong_window / poll_tool_budget). ~243 satır, neredeyse bire bir port edilebilir.
+- ✅ Yeni `electron/loop-guard.ts` — saf `LoopGuard` sınıfı (Electron/IO bağımsız); `runAgent` her çağrıda kendi örneğini açar (paralel istek izolasyonu)
+- ✅ **Aynı (tool,args) tekrarı:** anahtar-sırası bağımsız imza hash'i; 3. çağrı (`MAX_IDENTICAL`) engellenir
+- ✅ **A-B-A-B ping-pong:** son 4 çağrılık pencerede tam-değişimli salınım 2. turda yakalanır
+- ✅ **Polling tool'ları** (status/durum/get_/list_/check/ilerleme…) identical/ping-pong'tan muaf; yalnızca gevşek `POLL_BUDGET` (6) uygulanır
+- ✅ Engellenen çağrı `executeTool`'a HİÇ gitmez → model'e açıklayıcı "ENGELLENDI (döngü koruması)" sonucu döner; tüm tur engellenirse bir toparlama turu sonrası temiz kapanış
+- ✅ 10 birim testi (`tests/tools/loop-guard.test.ts`): identical eşiği, args sırası, ping-pong, poll muafiyeti/bütçesi, örnek izolasyonu — tüm başarı kriterleri kapsanıyor
+- ✅ Doğrulama: electron+renderer tsc, trio 330/330, 386 test (26 dosya), vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `agents/loop_guard.py` (max_identical_calls / ping_pong_window / poll_tool_budget) sadeleştirilerek port edildi
 
 ## Faz 54 — Yıkıcı Eylem İzin Kapısı 🔐 ⬜ [MUST HAVE]
 
@@ -1584,7 +1586,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 62   Akıllı ev kontrolü (Home Assistant)  ← TAMAMLANDI
 
 ──────────  GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (henüz başlanmadı)  ──────────
-⬜  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  (İLK İŞ)
+✅  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  ← TAMAMLANDI
 ⬜  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5
 ⬜  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4
 ⬜  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6

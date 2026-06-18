@@ -31,6 +31,7 @@ import {performCheck, performDownload} from "./updater-logic";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
+import {LoopGuard} from "./loop-guard";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -835,6 +836,10 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
 
     const lockedTools = getAllToolSchemas(currentSettings.aiProvider, toolContextStr);
 
+    // Faz 53 — Loop Guard: degenerate tool-call döngülerini erken yakala.
+    // Her runAgent çağrısı kendi örneğini açar (paralel istek izolasyonu).
+    const guard = new LoopGuard();
+
     for (let step = 0; step < 8; step++) {
         // Groq: tokens stream via onDelta. Other providers: full response returned.
         const completion = await callAI(messages, (text) => send("chat-delta", {text}), lockedTools, currentSettings, MODEL, groq);
@@ -853,11 +858,24 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
 
         messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as OAIMessage);
 
+        // Faz 53 — döngü tespiti: engellenen çağrılar executeTool'a HİÇ gitmez,
+        // model'e açıklayıcı bir sonuç döner (toparlanabilsin/durabilsin diye).
+        let blockedCount = 0;
         // Run all tool calls in parallel — allSettled so one failure doesn't abort others
         const settled = await Promise.allSettled(
             toolCalls.map(async (call) => {
                 const name = call.function.name;
                 const argsJson = call.function.arguments || "{}";
+                let parsedArgs: unknown = {};
+                try { parsedArgs = JSON.parse(argsJson); } catch { /* ham string ile devam */ parsedArgs = argsJson; }
+                const verdict = guard.check(name, parsedArgs);
+                if (!verdict.ok) {
+                    blockedCount++;
+                    const blockMsg = `ENGELLENDI (döngü koruması): ${verdict.reason}`;
+                    send("tool-event", {phase: "done", name, result: blockMsg});
+                    stmRecord(name, argsJson, blockMsg, false, "llm");
+                    return {id: call.id, content: blockMsg};
+                }
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
@@ -881,6 +899,19 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         });
         for (const r of toolResults) {
             messages.push({role: "tool", tool_call_id: r.id, content: r.content});
+        }
+
+        // Faz 53 — bu turdaki tüm çağrılar döngü koruması tarafından engellendiyse
+        // model kısır döngüde demektir; bir tur daha LLM'e dönüp toparlanmasına izin
+        // verip sonra kesiyoruz (model engel sonucunu görüp düzgün bir kapanış yazar).
+        if (blockedCount === toolCalls.length) {
+            const recovery = await callAI(messages, (text) => send("chat-delta", {text}), lockedTools, currentSettings, MODEL, groq);
+            const rMsg = recovery.choices[0]?.message;
+            if (rMsg?.content && !(rMsg?.tool_calls?.length)) {
+                await saveMessage("assistant", rMsg.content).catch((e) => console.error("[saveMessage]", e.message));
+            }
+            send("chat-done", {});
+            return;
         }
     }
 
