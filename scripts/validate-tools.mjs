@@ -6,8 +6,15 @@ import path from "path";
 import {fileURLToPath} from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const JS = path.join(__dirname, "..", "dist-electron", "tools.js");
-const src = fs.readFileSync(JS, "utf-8");
+const DIST = path.join(__dirname, "..", "dist-electron");
+// Şemalar artık tools/schemas.js'te (Faz: modülerleştirme), executor'lar tools.js'te.
+// İkisini birleştirip analiz et — schema↔executor senkronu her iki dosyayı kapsar.
+const TOOLS_JS = path.join(DIST, "tools.js");
+const SCHEMAS_JS = path.join(DIST, "tools", "schemas.js");
+const schemaSrc = fs.existsSync(SCHEMAS_JS) ? fs.readFileSync(SCHEMAS_JS, "utf-8") : "";
+const execSrc = fs.readFileSync(TOOLS_JS, "utf-8");
+// Şema çıkarımı her iki dosyadan; executor çıkarımı yalnız tools.js'ten.
+const src = schemaSrc + "\n" + execSrc;
 
 // ---------- Extract schemas: every `function: { name: "x", description, parameters }` ----------
 const schemas = [];
@@ -62,11 +69,11 @@ while ((m = fnRe.exec(src))) {
 // (e.g. `${log.join("\n")}`) would close the object early. Bounding by the next
 // top-level declaration is robust to that.
 const execMarker = "const executors = {";
-const execStart = src.indexOf(execMarker);
+const execStart = execSrc.indexOf(execMarker);
 const execStopRe = /\nasync function executeTool\b|\nexport async function executeTool\b|\nfunction executeTool\b/;
-const execStopMatch = execStopRe.exec(src.slice(execStart));
-const execEnd = execStopMatch ? execStart + execStopMatch.index : src.length;
-const execBlock = src.slice(execStart, execEnd);
+const execStopMatch = execStopRe.exec(execSrc.slice(execStart));
+const execEnd = execStopMatch ? execStart + execStopMatch.index : execSrc.length;
+const execBlock = execSrc.slice(execStart, execEnd);
 
 const executors = [];
 const execRe = /async\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;
