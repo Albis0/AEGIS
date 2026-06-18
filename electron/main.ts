@@ -5,13 +5,12 @@ import * as os from "os";
 import {exec} from "child_process";
 // @ts-ignore
 import Groq from "groq-sdk";
-import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
-import {AEGIS_PROXY_URL, AEGIS_GITHUB_TOKEN} from "./aegis-config";
+import {AEGIS_GITHUB_TOKEN} from "./aegis-config";
 import {fetchModels} from "./models";
-import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
+import {getModelCapabilities} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
@@ -30,7 +29,7 @@ import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {performCheck, performDownload} from "./updater-logic";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
-import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
+import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
@@ -1053,8 +1052,8 @@ async function bootApp(): Promise<void> {
                 generationConfig: {maxOutputTokens: 1024},
             };
             const resp = await fetchWithTimeout(
-                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-                {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+                `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+                {method: "POST", headers: {"Content-Type": "application/json", "x-goog-api-key": key}, body: JSON.stringify(body)},
                 60_000,
             );
             if (!resp.ok) throw new Error(await friendlyHttpError("Gemini vision", resp));
@@ -1170,7 +1169,6 @@ async function bootApp(): Promise<void> {
     });
 
     ipcMain.on("chat-stream", async (_e, {messages, reqId}: {messages: {role: string; content: string | MsgPart[]}[]; reqId: string}) => {
-        let errSent = false;
         try {
             const last = messages[messages.length - 1];
             if (last?.role === "user") {
@@ -1180,7 +1178,6 @@ async function bootApp(): Promise<void> {
             }
             await runAgent(messages, reqId);
         } catch (e) {
-            errSent = true;
             let msg = (e as Error).message ?? String(e);
             if (isTimeoutError(e)) {
                 msg = TIMEOUT_MSG;

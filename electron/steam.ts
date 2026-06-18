@@ -291,8 +291,8 @@ export async function steamLaunchGame(nameOrId: string): Promise<string> {
     return `"${g.name}" başlatılıyor (AppID: ${g.appid}).`;
 }
 
-export async function steamCloseGame(nameOrId?: string): Promise<string> {
-    // Çalışan oyun sürecini bul ve kapat
+export async function steamCloseGame(_nameOrId?: string): Promise<string> {
+    // Çalışan oyun sürecini bul ve kapat (parametre imza uyumluluğu için tutulur)
     const out = await ps(
         "Get-Process | Where-Object { $_.Path -like '*steamapps*common*' } | Select-Object -ExpandProperty Id"
     );

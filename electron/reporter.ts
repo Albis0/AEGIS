@@ -10,10 +10,6 @@ const GOALS_PATH = path.join(os.homedir(), ".aegis", "goals.json");
 function load<T>(p: string, def: T): T {
     try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return def; }
 }
-function save(p: string, data: unknown): void {
-    fs.mkdirSync(path.dirname(p), {recursive: true});
-    fs.writeFileSync(p, JSON.stringify(data, null, 2));
-}
 function ensureDir(): void {
     fs.mkdirSync(REPORTS_DIR, {recursive: true});
 }

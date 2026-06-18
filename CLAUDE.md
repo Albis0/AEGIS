@@ -2,12 +2,12 @@
 
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
-Güncel durum (v1.7.1): **329 tool**, 8 AI provider, 44 electron modülü, 16 skin, 5 dil,
-213 test (15 dosya). Faz 1–52 + 62 ✅; Faz 53–61 (AEGIS 2.0 güvenilirlik) planlı.
+Güncel durum (v1.7.1): **330 tool**, 8 AI provider, 47 electron modülü, 16 skin, 5 dil,
+376 test (25 dosya). Faz 1–52 + 62 ✅; Faz 53–61 (AEGIS 2.0 güvenilirlik) planlı.
 
 ## Mimari
 
-- **electron/** (main process, CJS, 44 modül) — `main.ts` giriş (runAgent tool döngüsü, system prompt); `tools.ts` (~3666 satır, **329 tool**: `toolSchemas`+`executors`+`getAllToolSchemas`); `ai-client.ts` (provider çağrıları, param kırpma); `model-capabilities.ts` (model yetenek kayıt defteri — sıfır-hata AI katmanı); `model-router.ts` (deterministik tool yönlendirme); `short-term-memory.ts` + `reference-resolver.ts` (referans çözümleme); `routines.ts` (deterministik çok-adımlı kayıt), `macros.ts`, `automations.ts`; `memory-plus.ts` (facts/habits/sabah özeti); `spotify.ts`, `steam.ts`, `smart-home.ts` (Home Assistant), `computer-use.ts`; `tts.ts`, `auth.ts`+`cloud-sync.ts`+`aegis-config.ts` (Supabase deneme modu/gömülü public token).
+- **electron/** (main process, CJS, 47 modül) — `main.ts` giriş (runAgent tool döngüsü, system prompt); `tools.ts` (~3705 satır, **330 tool**: `toolSchemas`+`executors`+`getAllToolSchemas`); `ai-client.ts` (provider çağrıları, param kırpma); `model-capabilities.ts` (model yetenek kayıt defteri — sıfır-hata AI katmanı); `model-router.ts` (deterministik tool yönlendirme); `short-term-memory.ts` + `reference-resolver.ts` (referans çözümleme); `routines.ts` (deterministik çok-adımlı kayıt), `macros.ts`, `automations.ts`; `memory-plus.ts` (facts/habits/sabah özeti); `spotify.ts`, `steam.ts`, `smart-home.ts` (Home Assistant), `local-devices.ts` (HA'sız yerel ağ cihaz keşfi — mDNS/SSDP), `computer-use.ts`; `tts.ts`, `auth.ts`+`cloud-sync.ts`+`aegis-config.ts` (Supabase deneme modu/gömülü public token).
 - **src/** (renderer, React) — `App.tsx` (üst seviye; update toast burada), `components/skins/registry.tsx` (4 aile × 4 ferdi), `components/settings/tabs/`, `i18n.ts` (5 dil: tr/en/de/fr/es), `changelog.ts` (yama notları), `update-state.ts` (updater toast reducer).
 - IPC: `electron/preload.ts` (`window.jarvis`), tip: `src/electron.d.ts`.
 

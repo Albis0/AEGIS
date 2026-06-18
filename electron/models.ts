@@ -25,7 +25,8 @@ async function fetchOpenAICompat(baseUrl: string, key: string): Promise<LiveMode
 }
 
 async function fetchGemini(key: string): Promise<LiveModel[]> {
-    const resp = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {}, 10_000);
+    // Anahtar query param yerine başlıkta — loglara/proxy'lere sızmaz (ai-client ile tutarlı).
+    const resp = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {headers: {"x-goog-api-key": key}}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string; supportedGenerationMethods?: string[]}[]};
     return (data.models ?? [])
@@ -50,14 +51,16 @@ async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
     return (data.models ?? []).map((m) => ({id: m.name}));
 }
 
-// Groq fallback — API erişilemez olduğunda gösterilecek bilinen modeller
+// Groq fallback — API erişilemez olduğunda gösterilecek bilinen, AKTİF modeller.
+// (Haziran 2026: gemma2-9b-it, mistral-saba-24b ve llama-4-maverick Groq
+// production listesinden kalktı/deprecate edildi → fallback'ten çıkarıldı.
+// Yerlerine Groq'un önerdiği gpt-oss serisi eklendi. Scout vision için tutuldu.)
 const GROQ_FALLBACK: LiveModel[] = [
-    {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout (Groq)"},
-    {id: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Llama 4 Maverick (Groq)"},
     {id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)"},
     {id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq)"},
-    {id: "gemma2-9b-it", label: "Gemma2 9B (Groq)"},
-    {id: "mistral-saba-24b", label: "Mistral Saba 24B (Groq)"},
+    {id: "openai/gpt-oss-120b", label: "GPT-OSS 120B (Groq)"},
+    {id: "openai/gpt-oss-20b", label: "GPT-OSS 20B (Groq)"},
+    {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout · Vizyon (Groq)"},
 ];
 
 // provider + key (+ ollama url) → canlı model listesi. Hata olursa fallback döner.

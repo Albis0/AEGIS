@@ -10,14 +10,6 @@ function ensureSoundsDir(): void {
     if (!fs.existsSync(SOUNDS_DIR)) fs.mkdirSync(SOUNDS_DIR, {recursive: true});
 }
 
-function run(cmd: string, timeout = 30000): Promise<string> {
-    return new Promise((resolve) => {
-        exec(cmd, {timeout, windowsHide: true, maxBuffer: 512 * 1024}, (_err, stdout, stderr) => {
-            resolve(((stdout || "").trim()) || ((stderr || "").trim()) || "");
-        });
-    });
-}
-
 // ---- Play sound ----
 let currentAmbientProcess: ReturnType<typeof exec> | null = null;
 let ambientPlaying = false;
@@ -59,14 +51,6 @@ Start-Sleep -Seconds ([int]$mp.NaturalDuration.TimeSpan.TotalSeconds + 1)
 }
 
 // ---- Ambient sound ----
-const AMBIENT_URLS: Record<string, string> = {
-    rain:   "https://www.soundjay.com/nature/sounds/rain-01.mp3",
-    forest: "https://www.soundjay.com/nature/sounds/forest-1.mp3",
-    cafe:   "https://www.soundjay.com/misc/sounds/coffee-shop-1.mp3",
-    white:  "https://www.soundjay.com/misc/sounds/white-noise-1.mp3",
-    space:  "", // local generation via beep
-};
-
 export function ambientStart(category: string, volume = 30): string {
     if (ambientPlaying) {
         ambientStop();

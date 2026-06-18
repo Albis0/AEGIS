@@ -160,6 +160,10 @@ function geminiCaps(id: string): ModelCaps {
     if (/gemma/.test(id)) {
         return base({supportsTools: false, supportsVision: /vision/.test(id), contextWindow: 8 * K, maxOutputTokens: 8 * K});
     }
+    // 3.x serisi (3 / 3.1 / 3.5 Pro+Flash) reasoning; 1M ctx, 64K çıktı.
+    if (/gemini-3/.test(id)) {
+        return base({supportsTools: true, supportsVision: true, reasoning: true, contextWindow: 1000 * K, maxOutputTokens: 64 * K});
+    }
     // 2.5 serisi reasoning/thinking; tool + vision + system + büyük çıktı.
     if (/gemini-2\.5|gemini-2-5/.test(id)) {
         return base({supportsTools: true, supportsVision: true, reasoning: true, contextWindow: 1000 * K, maxOutputTokens: 64 * K});
@@ -183,8 +187,14 @@ function mistralCaps(id: string): ModelCaps {
 
 // ───────────────────────────────────────────────────────────── DeepSeek
 function deepseekCaps(id: string): ModelCaps {
+    // V4 (deepseek-v4-flash / deepseek-v4-pro) — tool + temperature var, 128K ctx.
+    // deepseek-chat/reasoner 2026-07-24'te kalkıyor; v4-flash thinking modunu
+    // model adıyla değil API parametresiyle açar, yani burada reasoning=false güvenli.
+    if (/deepseek-v4|v4-flash|v4-pro/.test(id)) {
+        return base({supportsTools: true, maxTemperature: 2, contextWindow: 128 * K, maxOutputTokens: 8 * K});
+    }
     if (/reasoner|r1/.test(id)) {
-        // R1: tool YOK, temperature/top_p/penalty YOK. max_tokens default 32K / max 64K (CoT dahil).
+        // R1 / deepseek-reasoner: tool YOK, temperature/top_p/penalty YOK. max 64K (CoT dahil).
         return base({
             reasoning: true, supportsTools: false, supportsTemperature: false,
             contextWindow: 64 * K, maxOutputTokens: 8 * K,

@@ -488,9 +488,11 @@ export async function callAI(
         if (sysMsg?.content) body.systemInstruction = {parts: [{text: extractTextContent(sysMsg.content)}]};
         if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
 
+        // Anahtarı query param yerine x-goog-api-key başlığıyla gönder — Google'ın
+        // güncel standardı; ayrıca URL'deki key hata loglarına/proxy'lere sızmaz.
         const resp = await fetchWithTimeout(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-            {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)},
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {method: "POST", headers: {"Content-Type": "application/json", "x-goog-api-key": key}, body: JSON.stringify(body)},
             60_000,
         );
         if (!resp.ok) throw new Error(await friendlyHttpError("Gemini", resp));
@@ -553,7 +555,7 @@ export async function callAI(
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
             body: JSON.stringify(body),
         }, 60_000);
-        if (!resp.ok) throw new Error(`xAI ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(await friendlyHttpError("xAI", resp));
         const result = await resp.json() as OAICompletion;
         const text = result.choices[0]?.message?.content;
         if (text) onDelta?.(text);
@@ -571,7 +573,7 @@ export async function callAI(
             headers: {"Authorization": `Bearer ${key}`, "Content-Type": "application/json"},
             body: JSON.stringify(body),
         }, 60_000);
-        if (!resp.ok) throw new Error(`DeepSeek ${resp.status}: ${await resp.text()}`);
+        if (!resp.ok) throw new Error(await friendlyHttpError("DeepSeek", resp));
         const result = await resp.json() as OAICompletion;
         const text = result.choices[0]?.message?.content;
         if (text) onDelta?.(text);

@@ -5,23 +5,23 @@ import * as os from "os";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
-import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps, isRecording, addMacroStep} from "./macros";
+import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps} from "./macros";
 import * as routines from "./routines";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
-import {addFact, listFacts, removeFact, listHabits, recordToolUsage} from "./memory-plus";
+import {addFact, listFacts, removeFact, listHabits} from "./memory-plus";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
 import {fetchWithTimeout} from "./fetch-utils";
 import {pomodoroStart, pomodoroStop, timeTrackStart, timeTrackStop, timeTrackReport} from "./time-manager";
-import {addPersona, listPersonas, setActivePersona, getActivePersona, startRoleplay, stopRoleplay, getRoleplayPrompt} from "./persona";
+import {addPersona, listPersonas, setActivePersona, getActivePersona, startRoleplay, stopRoleplay} from "./persona";
 import {addFlashcard, reviewFlashcard, addReadingItem, getReadingList, summarizeUrl, setGoal, checkInGoal, listGoals} from "./learning";
 import {modelCompare, pipelineRun, listPipelines, savePipeline, getModelRoutingRules, setModelRoutingRule} from "./model-router";
 import {translationStart, translationStop, translateText, translateFile, subtitleToggle} from "./translator";
 import {getRecentNotifications, notifFilterSet, notifFilterList, dndSet, dndOff, getNotifHistory} from "./notif-monitor";
-import {detectProject, buildProject, runTests, lintProject, formatCode, getProjectInfo} from "./dev-runner";
-import {rssAdd, rssRemove, rssList, rssFetch, getPrice, getCryptoPrice, getFxRate, priceAlertSet, portfolioSummary} from "./feeds";
+import {buildProject, runTests, lintProject, formatCode, getProjectInfo} from "./dev-runner";
+import {rssAdd, rssRemove, rssList, rssFetch, getPrice, getCryptoPrice, getFxRate, priceAlertSet} from "./feeds";
 import {meetingStart, meetingStop, meetingList, meetingSummarize, meetingExport, meetingActionItems} from "./meeting";
 import {getActiveContext, contextRuleSet, contextRuleList, clipboardWatch, clipboardHistory, clipboardSearch} from "./context-actions";
 import {fileSearch, contentSearch, appSearch} from "./search-plus";
@@ -33,11 +33,11 @@ import {
     steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning,
     steamRestart, steamCloseGame, steamRestartGame, steamListRunningGames, steamIsGameRunning,
     steamInstallGame, steamUninstallGame, steamVerifyGameFiles, steamUpdateGame,
-    steamOpenDownloads, steamDownloadStatus, steamPauseResumeCancel,
+    steamDownloadStatus, steamPauseResumeCancel,
     steamOpenStorePage, steamOpenWorkshop, steamWorkshopSubscribe, steamListWorkshopSubs,
     steamOpenScreenshots, steamShowStorageUsage, steamLocateInstallation, steamOpenGameFolder,
     steamBackupGame, steamRestoreBackup, steamOpenChat, steamSendMessage, steamRepeatLastAction,
-    steamWishlistOpen, steamWishlistAdd, steamWishlistList, steamTakeScreenshot,
+    steamWishlistAdd, steamWishlistList, steamTakeScreenshot,
     steamGetOwnedGames, steamSearchOwnedGames, steamGetRecentGames, steamGetMostPlayed,
     steamGetGamePlaytime, steamGetTotalPlaytime, steamSuggestGame,
     steamGetGameAchievements, steamGetAchievementProgress, steamGetPlayerStats,
@@ -48,7 +48,8 @@ import {
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {stmGet} from "./short-term-memory";
 import * as smartHome from "./smart-home";
-import type {HAConfig, HAEntity, Action as SmartHomeAction} from "./smart-home";
+import type {HAConfig, Action as SmartHomeAction} from "./smart-home";
+import {discoverAll, getNetworkInfo, formatDevices} from "./local-devices";
 
 type ToolResult = string;
 
@@ -1179,7 +1180,7 @@ const networkSchemas: ChatCompletionTool[] = [
 // ───────────────────────────────────────────────────────────── Faz 25 Schemas
 const vizSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"create_chart",description:"Veriden ASCII grafik oluştur. Sütun, çizgi veya pasta grafik. Feed'de gösterilir.",parameters:{type:"object",properties:{type:{type:"string",description:"Grafik tipi: bar, line, pie"},data:{type:"string",description:"JSON formatında veri: {labels:[...], values:[...]} veya [[label,value],...]"},title:{type:"string",description:"Grafik başlığı (opsiyonel)"}},required:["type","data"],additionalProperties:false}}},
-    {type:"function",function:{name:"system_report",description:"Sistem sağlık raporu oluştur: CPU, RAM, disk, GPU son 24 saatin özeti.",parameters:{type:"object",properties:{format:{type:"string",description:"Çıktı formatı: text veya html (varsayılan text)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"system_report",description:"Sistem sağlık raporu oluştur: CPU, RAM, disk, GPU son 24 saatin özeti.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 26 Schemas
@@ -1223,6 +1224,7 @@ const smartHomeSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"smart_home_status",description:"Belirli bir akıllı ev cihazının veya odanın durumunu sorgula. 'Salon ışığı açık mı?', 'Termostat kaç derece?' gibi.",parameters:{type:"object",properties:{target:{type:"string",description:"Cihaz veya oda adı (örn: salon ışığı, yatak odası, ön kapı kilidi)"}},required:["target"],additionalProperties:false}}},
     {type:"function",function:{name:"smart_home_control",description:"Akıllı ev cihazını kontrol et: aç/kapat, parlaklık ayarla, kilitle/aç, panjur aç/kapat. Doğal dil hedefini otomatik çözer ('salonu karart', 'her şeyi kapat', 'yatak odasını %30 yap'). Kritik cihazlarda (kilit, ısıtıcı, garaj, priz) önce onay ister; kullanıcı onaylayınca confirm:\"true\" ile tekrar çağır.",parameters:{type:"object",properties:{target:{type:"string",description:"Hedef cihaz/oda/grup (örn: salon, yatak odası lambası, ön kapı, tüm ışıklar, her şey)"},action:{type:"string",enum:["on","off","toggle","brightness","temperature","lock","unlock","open","close"],description:"on=aç, off=kapat, toggle=değiştir, brightness=parlaklık (value gerekir), temperature=sıcaklık (value gerekir), lock/unlock=kilitle/aç, open/close=panjur/garaj aç/kapat"},value:{type:"string",description:"brightness için 0-100 yüzde, temperature için derece (°C). Diğer aksiyonlarda boş."},confirm:{type:"string",description:"Kritik cihaz onayı. Kullanıcı 'evet/onayla' dediyse \"true\" gönder; yoksa boş bırak."}},required:["target","action"],additionalProperties:false}}},
     {type:"function",function:{name:"smart_home_scene",description:"Bir akıllı ev sahnesini (scene) veya script'ini etkinleştir. 'Film modu', 'iyi geceler', 'sabah rutini' gibi önceden HA'da tanımlı sahneler.",parameters:{type:"object",properties:{name:{type:"string",description:"Sahne/script adı (örn: film modu, iyi geceler)"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"local_devices_scan",description:"Ev ağındaki (yerel WiFi/LAN) cihazları KEŞFET — Home Assistant GEREKMEZ. mDNS/Bonjour ve SSDP/UPnP yayınıyla Chromecast, akıllı TV, AirPlay, yazıcı, NAS, hoparlör, router gibi cihazları bulur. 'evdeki cihazları bul', 'ağda ne var', 'cihazları tara', 'yerel cihazlar' gibi isteklerde kullan.",parameters:{type:"object",properties:{duration_ms:{type:"string",description:"Tarama süresi ms (varsayılan 3000, 1000-6000 arası önerilir)"}},additionalProperties:false}}},
 ];
 
 // ───────────────────────────────────────────────────────────── Faz 29 Schemas
@@ -1591,6 +1593,9 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
         "licht", "lampe", "lumiere", "luz", "luces", "schloss", "serrure", "cerradura",
         "thermostat", "heizung", "chauffage", "calefaccion", "wohnzimmer", "schlafzimmer",
         "salon", "chambre", "cocina", "dormitorio", "rollladen", "volet", "persiana",
+        // Yerel ağ keşfi (local_devices_scan) — HA gerekmeyen tarama
+        "ag", "network", "agda", "tara", "tarat", "kesfet", "kesfi", "bul", "scan",
+        "discover", "chromecast", "tv", "airplay", "upnp", "dlna", "yayin", "yerel", "lan", "wifi",
     ]},
     // NOT: multiModelSchemas Faz 32-44'ü kapsayan büyük bir dizi — multi-model,
     // çeviri, dosya/içerik/uygulama arama, sistem optimizasyonu, workspace ve
@@ -1629,6 +1634,26 @@ function groupForTool(toolName: string): typeof TOOL_GROUPS[number] | null {
         }
     }
     return _toolGroupIndex.get(toolName) ?? null;
+}
+
+// "Tüm şemalar" listesinin memoize hali (ajan modu sıcak yolu). extraSchemas
+// (plugin) uzunluğu değişince geçersizleşir → plugin reload sonrası taze kurulur.
+let _allSchemasCache: ChatCompletionTool[] | null = null;
+let _allSchemasExtraLen = -1;
+function getAllSchemasMemo(): ChatCompletionTool[] {
+    if (_allSchemasCache && _allSchemasExtraLen === extraSchemas.length) return _allSchemasCache;
+    _allSchemasCache = [
+        ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
+        ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
+        ...routineSchemas, ...agentSchemas, ...watchSchemas,
+        ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
+        ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
+        ...learningSchemas, ...iotSchemas, ...smartHomeSchemas, ...multiModelSchemas,
+        ...spotifySchemas, ...steamSchemas, ...computerUseSchemas,
+        ...extraSchemas,
+    ];
+    _allSchemasExtraLen = extraSchemas.length;
+    return _allSchemasCache;
 }
 
 // İsme göre tekille (aynı tool birden fazla gruptan gelebilir).
@@ -1689,17 +1714,10 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
             selected = dedupeByName([...groupTools, ...CORE_SCHEMAS()]);
         }
     } else {
-        // Bağlam yok (ör. ajan modu) → eski davranış: hepsi.
-        selected = [
-            ...toolSchemas, ...schedulerSchemas, ...marketplaceSchemas, ...securitySchemas,
-            ...memoryPlusSchemas, ...knowledgeSchemas, ...automationSchemas, ...macroSchemas,
-            ...routineSchemas, ...agentSchemas, ...watchSchemas,
-            ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
-            ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
-            ...learningSchemas, ...iotSchemas, ...smartHomeSchemas, ...multiModelSchemas,
-            ...spotifySchemas, ...steamSchemas, ...computerUseSchemas,
-            ...extraSchemas,
-        ];
+        // Bağlam yok (ör. ajan modu döngüsü) → hepsi. Bu liste extraSchemas
+        // (plugin) dışında sabit; her döngü adımında 25 array spread etmemek için
+        // memoize ediyoruz, yalnız plugin sayısı değişince yeniden kuruyoruz.
+        selected = getAllSchemasMemo();
     }
 
     const filtered = _disabledTools.size > 0
@@ -2637,7 +2655,6 @@ try {
         const h = height ? Number(height) : 0;
         const ext = path.extname(target);
         const outPath = output_path ? resolvePath(output_path) : target.replace(ext, `_resized${ext}`);
-        const heightParam = h > 0 ? h : Math.round(w * 0.75);
         const ps = `
 Add-Type -AssemblyName System.Drawing
 $img = [System.Drawing.Image]::FromFile("${target.replace(/\\/g, "\\\\")}")
@@ -2822,7 +2839,7 @@ try {
             return `HATA: Veri ayrıştırılamadı — ${(e as Error).message}`;
         }
     },
-    async system_report({format}) {
+    async system_report() {
         const cpus = os.cpus();
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
@@ -2857,21 +2874,30 @@ try {
         const lang = language ?? "tr";
         const t = tone ?? "formal";
         const toneDesc = t === "friendly" ? "samimi ve sıcak" : t === "assertive" ? "net ve kararlı" : "profesyonel ve resmi";
-        const recip = recipient ? `${recipient}'a` : "alıcıya";
         return `E-posta taslağı hazırlanıyor (${lang === "tr" ? "Türkçe" : "İngilizce"}, ${toneDesc} ton):\n\n---\nKonu: [Konuyu buraya yaz]\n\nSayın ${recipient ?? "[Alıcı]"},\n\n${intent}\n\nSaygılarımla,\n[İmza]\n---\n\nNot: SMTP ile göndermek için önce 'email_setup_smtp' ile profil kur.`;
     },
     async email_setup_smtp({alias, smtp_host, smtp_port, imap_host, imap_port, username, password}) {
         const profilesPath = path.join(os.homedir(), ".aegis", "email-profiles.json");
         const profiles = fs.existsSync(profilesPath) ? JSON.parse(fs.readFileSync(profilesPath, "utf-8")) : {};
-        profiles[alias ?? "default"] = {
+        const aliasKey = alias ?? "default";
+        profiles[aliasKey] = {
             smtp: {host: smtp_host, port: smtp_port ?? 587},
             imap: imap_host ? {host: imap_host, port: imap_port ?? 993} : null,
             username,
             password_hint: "[vault'ta şifreli]",
         };
-        // Save password to vault key
         fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
-        return `E-posta profili kaydedildi: ${alias}. Şifre vault'a ekleniyor (vault_store ile 'email_${alias}_pass' key kullan).`;
+        // Şifreyi düz metin olarak profil dosyasına YAZMA — şifreli vault'a koy.
+        let vaultNote = "";
+        if (password) {
+            try {
+                vaultStore(`email_${aliasKey}_pass`, password);
+                vaultNote = " Şifre vault'a şifreli olarak kaydedildi.";
+            } catch (e) {
+                vaultNote = ` (Şifre vault'a kaydedilemedi: ${(e as Error).message})`;
+            }
+        }
+        return `E-posta profili kaydedildi: ${aliasKey}.${vaultNote}`;
     },
     async email_send({to, subject, body, from_alias}) {
         const profilesPath = path.join(os.homedir(), ".aegis", "email-profiles.json");
@@ -3585,6 +3611,19 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
             return `✓ "${chosen.friendly_name}" etkinleştirildi.`;
         } catch (e) {
             return `Sahne etkinleştirilemedi: ${(e as Error).message}`;
+        }
+    },
+
+    async local_devices_scan({duration_ms}) {
+        // Home Assistant GEREKMEZ — saf yerel ağ keşfi (mDNS + SSDP).
+        const raw = parseInt(String(duration_ms ?? "3000"), 10);
+        const dur = Number.isFinite(raw) ? Math.min(6000, Math.max(1000, raw)) : 3000;
+        try {
+            const net = getNetworkInfo();
+            const devices = await discoverAll(dur);
+            return formatDevices(devices, net);
+        } catch (e) {
+            return `Yerel cihaz taraması başarısız: ${(e as Error).message}`;
         }
     },
 };

@@ -125,6 +125,21 @@ describe("gemini", () => {
         const c = getModelCapabilities("gemini", "gemma-3-27b-it");
         expect(c.supportsTools).toBe(false);
     });
+
+    it("gemini-3-flash — reasoning + vision + tool + 1M ctx, 64K çıktı", () => {
+        const c = getModelCapabilities("gemini", "gemini-3-flash");
+        expect(c.supportsTools).toBe(true);
+        expect(c.supportsVision).toBe(true);
+        expect(c.reasoning).toBe(true);
+        expect(c.contextWindow).toBe(1000 * 1024);
+        expect(c.maxOutputTokens).toBe(64 * 1024);
+    });
+
+    it("gemini-3.5-flash — yeni nesil de yakalanır (8K'ya düşmez)", () => {
+        const c = getModelCapabilities("gemini", "gemini-3.5-flash");
+        expect(c.maxOutputTokens).toBe(64 * 1024);
+        expect(c.reasoning).toBe(true);
+    });
 });
 
 // ─── DeepSeek ──────────────────────────────────────────────────────────────
@@ -146,6 +161,19 @@ describe("deepseek", () => {
         const c = getModelCapabilities("deepseek", "deepseek-chat");
         expect(c.supportsTools).toBe(true);
         expect(c.supportsTemperature).toBe(true);
+    });
+
+    it("deepseek-v4-flash — tool + temperature var, 128K ctx", () => {
+        const c = getModelCapabilities("deepseek", "deepseek-v4-flash");
+        expect(c.supportsTools).toBe(true);
+        expect(c.supportsTemperature).toBe(true);
+        expect(c.contextWindow).toBe(128 * 1024);
+    });
+
+    it("deepseek-v4-pro — tool + temperature var", () => {
+        const c = getModelCapabilities("deepseek", "deepseek-v4-pro");
+        expect(c.supportsTools).toBe(true);
+        expect(c.contextWindow).toBe(128 * 1024);
     });
 });
 

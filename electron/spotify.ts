@@ -17,7 +17,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
+import {fetchWithTimeout, isTimeoutError} from "./fetch-utils";
 
 // ── Credentials (set from main.ts after vault init) ──────────────────────────
 const CLIENT_ID = "3650da8ef6774cc99e857cfdc1d9999a";

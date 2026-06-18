@@ -83,8 +83,8 @@ export function broadcastFeedEvent(type: "delta" | "done" | "tool" | "user", dat
     }
 }
 
-// Minimal web UI HTML
-function buildWebUI(ip: string, port: number): string {
+// Minimal web UI HTML (ip/port istemci tarafında window.location'dan alınır)
+function buildWebUI(): string {
     return `<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -194,7 +194,7 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // Web UI (no auth for HTML)
         if ((url === "/" || url === "/index.html") && req.method === "GET") {
             res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"});
-            res.end(buildWebUI(ip, port)); return;
+            res.end(buildWebUI()); return;
         }
 
         // Health check (no auth)

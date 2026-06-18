@@ -140,8 +140,7 @@ export const GROQ_MODELS: ModelEntry[] = [
     {id: "llama-3.1-8b-instant",                      label: "Llama 3.1 8B",           tag: "hızlı",      ctx: "128K", note: "~560 tok/s"},
     {id: "groq/compound",                             label: "Groq Compound",          tag: "agentic",    ctx: "131K", note: "Web+Kod dahil"},
     {id: "groq/compound-mini",                        label: "Groq Compound Mini",     tag: "agentic",    ctx: "131K"},
-    {id: "gemma2-9b-it",                              label: "Gemma2 9B",              tag: "",           ctx: "8K"},
-    {id: "mixtral-8x7b-32768",                        label: "Mixtral 8×7B",           tag: "klasik",     ctx: "32K"},
+    // Not: gemma2-9b-it ve mixtral-8x7b-32768 Groq production'dan kaldırıldı (2026) → çıkarıldı.
 ];
 
 export const OPENAI_MODELS: ModelEntry[] = [
