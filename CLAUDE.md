@@ -2,8 +2,8 @@
 
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
-Güncel durum (v1.7.1): **330 tool**, 8 AI provider, 47 electron modülü, 16 skin, 5 dil,
-376 test (25 dosya). Faz 1–52 + 62 ✅; Faz 53–61 (AEGIS 2.0 güvenilirlik) planlı.
+Güncel durum (v1.8.0): **330 tool**, 8 AI provider, 47 electron modülü, 16 skin, 5 dil,
+376 test (25 dosya). Faz 1–52 + 62 ✅; Faz 53–61 (güvenilirlik — gelecek hedef) planlı.
 
 ## Mimari
 

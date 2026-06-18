@@ -12,6 +12,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.8.0",
+        date: "2026-06-18",
+        notes: {
+            tr: [
+                "Yeni: yerel ağ cihaz keşfi — Home Assistant olmadan da evdeki cihazları (Chromecast, akıllı TV, yazıcı, hoparlör vb.) ağda tarayıp bulur. 'Ağdaki cihazları tara' deyin.",
+                "Güvenilirlik: 8 yapay zekâ sağlayıcısının tamamı resmi dokümana göre yeniden doğrulandı; Gemini API anahtarı artık URL yerine güvenli başlıkta gönderiliyor, eski/kullanımdan kalkan modeller temizlendi.",
+                "Düzeltme: e-posta SMTP kurulumunda şifre aslında kasaya kaydedilmiyordu — artık gerçekten güvenli kasaya yazılıyor.",
+                "İç iyileştirme: kod tabanı sadeleştirildi ve hızlandırıldı; test sayısı 213'ten 376'ya çıkarıldı (daha az 'bir çalışıyor bir çalışmıyor').",
+            ],
+            en: [
+                "New: local network device discovery — even without Home Assistant, AEGIS scans your network for devices (Chromecast, smart TVs, printers, speakers, etc.). Just say 'scan network devices'.",
+                "Reliability: all 8 AI providers re-verified against official docs; the Gemini API key is now sent in a secure header instead of the URL, and deprecated models were cleaned up.",
+                "Fix: email SMTP setup wasn't actually saving the password to the vault — it now really does.",
+                "Internal: codebase streamlined and sped up; test count raised from 213 to 376 (fewer 'works sometimes' issues).",
+            ],
+            de: [
+                "Neu: Geräteerkennung im lokalen Netzwerk — auch ohne Home Assistant durchsucht AEGIS das Netzwerk nach Geräten (Chromecast, Smart-TVs, Drucker, Lautsprecher usw.). Sagen Sie einfach 'Netzwerkgeräte scannen'.",
+                "Zuverlässigkeit: Alle 8 KI-Anbieter anhand der offiziellen Doku neu verifiziert; der Gemini-API-Schlüssel wird jetzt in einem sicheren Header statt in der URL gesendet, veraltete Modelle wurden entfernt.",
+                "Fehlerbehebung: Bei der E-Mail-SMTP-Einrichtung wurde das Passwort nicht wirklich im Tresor gespeichert — jetzt schon.",
+                "Intern: Codebasis verschlankt und beschleunigt; Testanzahl von 213 auf 376 erhöht (weniger 'funktioniert mal, mal nicht').",
+            ],
+            fr: [
+                "Nouveau : découverte des appareils du réseau local — même sans Home Assistant, AEGIS scanne le réseau à la recherche d'appareils (Chromecast, TV connectées, imprimantes, enceintes, etc.). Dites simplement « scanner les appareils du réseau ».",
+                "Fiabilité : les 8 fournisseurs d'IA revérifiés selon la doc officielle ; la clé API Gemini est désormais envoyée dans un en-tête sécurisé plutôt que dans l'URL, et les modèles obsolètes ont été supprimés.",
+                "Correctif : la configuration SMTP des e-mails n'enregistrait pas réellement le mot de passe dans le coffre — c'est désormais le cas.",
+                "Interne : base de code allégée et accélérée ; nombre de tests porté de 213 à 376 (moins de « ça marche une fois sur deux »).",
+            ],
+            es: [
+                "Nuevo: descubrimiento de dispositivos en la red local — incluso sin Home Assistant, AEGIS escanea la red en busca de dispositivos (Chromecast, smart TVs, impresoras, altavoces, etc.). Solo di 'escanear dispositivos de red'.",
+                "Fiabilidad: los 8 proveedores de IA reverificados según la documentación oficial; la clave de API de Gemini ahora se envía en una cabecera segura en lugar de en la URL, y se eliminaron modelos obsoletos.",
+                "Corrección: la configuración SMTP del correo no guardaba realmente la contraseña en la bóveda — ahora sí lo hace.",
+                "Interno: base de código simplificada y acelerada; número de pruebas elevado de 213 a 376 (menos 'a veces funciona').",
+            ],
+        },
+    },
+    {
         version: "1.7.1",
         date: "2026-06-16",
         notes: {

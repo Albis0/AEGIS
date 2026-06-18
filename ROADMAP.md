@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.7.1):** 329 tool · 8 AI provider · 16 skin · 5 dil · 213 test (15 dosya) ·
-Faz 1–52 + 62 tamamlandı; Faz 53–61 (AEGIS 2.0 Güvenilirlik Sürümü) planlı.
+**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 376 test (25 dosya) ·
+Faz 1–52 + 62 tamamlandı; Faz 53–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -11,7 +11,7 @@ Faz 1–52 + 62 tamamlandı; Faz 53–61 (AEGIS 2.0 Güvenilirlik Sürümü) pla
 
 | Özellik                                          | Durum |
 | ------------------------------------------------ | ----- |
-| 8 AI provider + tool calling (329 tool)          | ✅    |
+| 8 AI provider + tool calling (330 tool)          | ✅    |
 | PowerShell komut çalıştırma                      | ✅    |
 | Dosya okuma / yazma / listeleme / organizasyon   | ✅    |
 | Web arama (Tavily / Serper / DuckDuckGo)         | ✅    |
@@ -1360,13 +1360,14 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 ---
 
 # ════════════════════════════════════════════════════════════
-# AEGIS 2.0 — GÜVENİLİRLİK SÜRÜMÜ (Faz 53+)
+# GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (Faz 53+, henüz başlanmadı)
 # ════════════════════════════════════════════════════════════
 
-_Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (329 tool). Aşağıdaki fazlar
+_Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Not:** bu blok bir GELECEK PLANIDIR; Faz
+53–61'in hiçbiri henüz uygulanmadı (hepsi ⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1582,7 +1583,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 52   Routines (deterministik çok-adımlı aksiyon kaydı) ← TAMAMLANDI
 ✅  Faz 62   Akıllı ev kontrolü (Home Assistant)  ← TAMAMLANDI
 
-──────────  AEGIS 2.0 — GÜVENİLİRLİK SÜRÜMÜ  ──────────
+──────────  GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (henüz başlanmadı)  ──────────
 ⬜  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  (İLK İŞ)
 ⬜  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5
 ⬜  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4
