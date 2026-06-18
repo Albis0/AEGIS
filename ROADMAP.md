@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 386 test (26 dosya) ·
-Faz 1–53 + 62 tamamlandı; Faz 54–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 396 test (27 dosya) ·
+Faz 1–54 + 62 tamamlandı; Faz 55–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53 (Loop Guard) tamamlandı;
-Faz 54–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53 (Loop Guard) + 54 (İzin
+Kapısı) tamamlandı; Faz 55–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1389,17 +1389,21 @@ tool'u tekrar tekrar çağıran model token/para yakar + "AEGIS takıldı" hissi
 - ✅ Doğrulama: electron+renderer tsc, trio 330/330, 386 test (26 dosya), vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `agents/loop_guard.py` (max_identical_calls / ping_pong_window / poll_tool_budget) sadeleştirilerek port edildi
 
-## Faz 54 — Yıkıcı Eylem İzin Kapısı 🔐 ⬜ [MUST HAVE]
+## Faz 54 — Yıkıcı Eylem İzin Kapısı 🔐 ✅ [MUST HAVE]
 
 _`run_command` / `delete_file` / `kill_heavy_process` şu an SINIRSIZ. Model tek yanlış
 argümanla geri dönülmez hasar verebilir. Güven = geri alınamaz eylemde durup sorma._
 
-- **Amaç:** Yıkıcı tool'lar yürütülmeden önce kategori-bazlı onay/teyit.
-- **Kullanıcı etkisi:** Tehlikeli eylemde "onayla/iptal" (veya "her zaman izin ver" ile öğret). Kontrol hissi = güven.
-- **Etki: 9 · Zorluk: 5 · Borç riski: 3**
-- **Dosyalar:** yeni `electron/permissions.ts` (tool→risk-tier + onay store `~/.aegis/permissions.json`); `electron/main.ts` (executeTool öncesi kapı); mevcut feed toast'ı yeterli (yeni ekran yok).
-- **Başarı kriteri:** Yıkıcı liste tanımlı; onaysız yürütülmüyor; "her zaman izin ver" kalıcı; salt-okuma tool'lar hiç sormaz.
-- **OpenJarvis ilhamı:** `security/capabilities.py` risk-tier + `proactive_agent` always_approve/always_deny deseni. (Tam RBAC ALINMAYACAK — overengineered.)
+- ✅ Yeni `electron/permissions.ts` — saf risk sınıflandırma + kalıcı izin store
+  - `classifyRisk(tool,args)`: `delete_file`/`move_file`/`kill_heavy_process`/`bulk_rename`/`clear_old_data`/`organize_folder`/`format_code` her zaman yıkıcı; `run_command` argümanı tehlikeliyse (Remove-Item, rm -rf, Stop-Process, taskkill, reg delete, Restart-Computer, Format…) yıkıcı; geri kalan **safe**
+  - `~/.aegis/permissions.json` "her zaman izin ver" store (load/save/grant/revoke, in-memory cache); bozuk JSON → boş liste (çökmez)
+- ✅ `main.ts` — guard'dan sonra, `executeTool` öncesi kapı: yıkıcı + kalıcı izin yok → native `dialog.showMessageBox` (İptal / İzin ver / Her zaman izin ver); varsayılan = İptal (güvenli)
+  - "Her zaman izin ver" → `grantAlways`, bir daha sorulmaz; reddedilirse model'e "kullanıcı onayı reddedildi" sonucu döner
+  - **Tam PC Erişimi** açıksa kapı sormaz (kullanıcı zaten tam yetki vermiş); sub-agent çağrılarında da sormaz (otomasyon kilitlenmesin)
+  - 5 dilli system prompt güncellendi ("onay isteme" → "sistem otomatik onay gösterebilir, reddedilirse ısrar etme")
+- ✅ 10 birim testi (`tests/tools/permissions.test.ts`): salt-okuma muafiyeti, sabit+komut yıkıcı sınıflandırma, kalıcı izin diske yazım/geri alma, duplicate yok, bozuk dosya
+- ✅ Doğrulama: electron+renderer tsc, trio 330/330, 396 test (27 dosya), vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `security/capabilities.py` risk-tier + always_approve/deny deseni sadeleştirilerek alındı (tam RBAC ALINMADI)
 
 ## Faz 55 — Tool-Seçim Eval Harness'ı (Skorlu) 🎯 ⬜ [MUST HAVE]
 
@@ -1587,7 +1591,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 
 ──────────  GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (henüz başlanmadı)  ──────────
 ✅  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  ← TAMAMLANDI
-⬜  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5
+✅  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5  ← TAMAMLANDI
 ⬜  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4
 ⬜  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6
 ⬜  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6

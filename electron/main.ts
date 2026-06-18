@@ -1,4 +1,4 @@
-import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification, Tray, Menu, nativeImage} from "electron";
+import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification, Tray, Menu, nativeImage, dialog} from "electron";
 import * as zlib from "zlib";
 import * as path from "path";
 import * as os from "os";
@@ -32,6 +32,7 @@ import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModel
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
 import {LoopGuard} from "./loop-guard";
+import {needsApproval, grantAlways} from "./permissions";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -91,7 +92,7 @@ GÜVENLİK KURALLARI (SADECE BUNLAR):
 - Format-Volume, Clear-Disk, Initialize-Disk gibi disk yıkım komutlarını çalıştırma.
 - shutdown /s, shutdown /r, Restart-Computer, Stop-Computer gibi sistemi kapatma/yeniden başlatma komutlarını çalıştırma.
 - Remove-Item -Recurse ile tüm disk/sürücü silme işlemi yapma.
-- Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap, onay isteme.`,
+- Yukarıdaki listede OLMAYAN her şeyi (Stop-Process, taskkill, uygulama kapatma, dosya silme vb.) kullanıcı isterse DOĞRUDAN yap. Geri alınamaz işlemlerde (dosya silme, süreç öldürme, riskli komut) sistem kullanıcıya otomatik bir onay penceresi gösterebilir — sen aracı normal şekilde çağır, onayı kullanıcı verir. Reddedilirse durumu açıkla, ısrar etme.`,
 
     en: `You are AEGIS, a personal AI assistant. Speak English, be short and precise. Running on Windows 11. Use tools when needed — act first, summarize after.
 
@@ -123,7 +124,7 @@ SECURITY RULES (ONLY THESE):
 - Do not run disk-destruction commands: Format-Volume, Clear-Disk, Initialize-Disk.
 - Do not run shutdown/restart commands: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
 - Do not use Remove-Item -Recurse on entire drives.
-- Everything NOT on the list above — do it directly if the user asks, no confirmation needed.`,
+- Everything NOT on the list above — do it directly if the user asks. For irreversible actions (deleting files, killing processes, risky commands) the system may show the user an automatic confirmation dialog — just call the tool normally; the user grants approval. If denied, explain and do not insist.`,
 
     de: `Du bist AEGIS, ein persönlicher KI-Assistent. Sprich Deutsch, sei kurz und präzise. Läuft unter Windows 11. Verwende PowerShell-Syntax. Start-Process zum Öffnen, Stop-Process zum Schließen von Apps. Verwende Tools wenn nötig — handele zuerst, dann fasse zusammen.
 
@@ -136,7 +137,7 @@ SICHERHEITSREGELN (NUR DIESE):
 - Keine Befehle: Format-Volume, Clear-Disk, Initialize-Disk.
 - Kein Herunterfahren/Neustart: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
 - Kein Remove-Item -Recurse auf ganzen Laufwerken.
-- Alles, was nicht auf der Liste steht — direkt ausführen.`,
+- Alles, was nicht auf der Liste steht — direkt ausführen. Bei unwiderruflichen Aktionen (Dateien löschen, Prozesse beenden, riskante Befehle) zeigt das System dem Nutzer ggf. einen Bestätigungsdialog — rufe das Tool normal auf, der Nutzer bestätigt. Bei Ablehnung erklären, nicht insistieren.`,
 
     fr: `Tu es AEGIS, un assistant IA personnel. Parle français, sois bref et précis. Fonctionne sous Windows 11. Utilise la syntaxe PowerShell. Start-Process pour ouvrir, Stop-Process pour fermer. Utilise les outils si nécessaire — agis d'abord, résume ensuite.
 
@@ -149,7 +150,7 @@ RÈGLES DE SÉCURITÉ (UNIQUEMENT CES COMMANDES):
 - Ne pas exécuter: Format-Volume, Clear-Disk, Initialize-Disk.
 - Ne pas exécuter: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
 - Ne pas utiliser Remove-Item -Recurse sur des lecteurs entiers.
-- Tout le reste — exécute-le directement si l'utilisateur le demande.`,
+- Tout le reste — exécute-le directement si l'utilisateur le demande. Pour les actions irréversibles (supprimer des fichiers, tuer des processus, commandes risquées), le système peut afficher une fenêtre de confirmation — appelle l'outil normalement, l'utilisateur approuve. En cas de refus, explique sans insister.`,
 
     es: `Eres AEGIS, un asistente IA personal. Habla español, sé breve y preciso. Funciona en Windows 11. Usa sintaxis PowerShell. Start-Process para abrir apps, Stop-Process para cerrarlas. Usa herramientas cuando sea necesario — actúa primero, resume después.
 
@@ -162,7 +163,7 @@ REGLAS DE SEGURIDAD (SOLO ESTAS):
 - No ejecutar: Format-Volume, Clear-Disk, Initialize-Disk.
 - No ejecutar: shutdown /s, shutdown /r, Restart-Computer, Stop-Computer.
 - No usar Remove-Item -Recurse en unidades enteras.
-- Todo lo demás — ejecútalo directamente si el usuario lo pide.`,
+- Todo lo demás — ejecútalo directamente si el usuario lo pide. En acciones irreversibles (borrar archivos, terminar procesos, comandos peligrosos) el sistema puede mostrar al usuario una ventana de confirmación — llama a la herramienta normalmente, el usuario aprueba. Si se rechaza, explícalo sin insistir.`,
 };
 
 const _winBuild = parseInt((os.release().split(".")[2]) ?? "0");
@@ -755,6 +756,35 @@ let cachedProfile: Record<string, string> = {};
 let profileCachedAt = 0;
 
 // ---- Agentic streaming chat ----
+// Faz 54 — Yıkıcı eylem onay diyaloğu. Native modal (renderer'a bağımlı değil).
+// Dönüş: "allow" (bir kez), "always" (kalıcı izin), "deny" (iptal).
+async function askDestructiveApproval(tool: string, argsJson: string): Promise<"allow" | "always" | "deny"> {
+    // Tam PC Erişimi açıksa kullanıcı zaten tam yetki vermiş — sormadan geç.
+    if (currentSettings.fullPcAccess) return "allow";
+    const lang = currentSettings.language ?? "tr";
+    const detailArgs = argsJson && argsJson !== "{}" ? `\n\n${argsJson.slice(0, 300)}` : "";
+    const L = lang === "tr"
+        ? {title: "Yıkıcı eylem onayı", msg: `AEGIS geri alınamaz olabilecek bir işlem yapmak istiyor:\n\n${tool}${detailArgs}`, buttons: ["İptal", "İzin ver", "Her zaman izin ver"]}
+        : {title: "Destructive action", msg: `AEGIS wants to run a potentially irreversible action:\n\n${tool}${detailArgs}`, buttons: ["Cancel", "Allow once", "Always allow"]};
+    try {
+        const {response} = await dialog.showMessageBox(mainWindow ?? undefined as never, {
+            type: "warning",
+            title: L.title,
+            message: L.msg,
+            buttons: L.buttons,
+            defaultId: 0,   // güvenli varsayılan: İptal
+            cancelId: 0,
+            noLink: true,
+        });
+        if (response === 2) return "always";
+        if (response === 1) return "allow";
+        return "deny";
+    } catch {
+        // Diyalog açılamadıysa (ör. pencere yok) güvenli tarafta kal: reddet.
+        return "deny";
+    }
+}
+
 async function runAgent(history: {role: string; content: string | MsgPart[]}[], reqId: string, isSubAgent = false): Promise<void> {
     // Only update sessionHistory for the main chat flow, not sub-agent calls (prevents race on parallel agents)
     if (!isSubAgent) {
@@ -875,6 +905,18 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                     send("tool-event", {phase: "done", name, result: blockMsg});
                     stmRecord(name, argsJson, blockMsg, false, "llm");
                     return {id: call.id, content: blockMsg};
+                }
+                // Faz 54 — Yıkıcı eylem izin kapısı: riskli + kalıcı izin yoksa kullanıcıya sor.
+                const pArgs = (parsedArgs && typeof parsedArgs === "object") ? parsedArgs as Record<string, unknown> : {};
+                if (!isSubAgent && needsApproval(name, pArgs)) {
+                    const decision = await askDestructiveApproval(name, argsJson);
+                    if (decision === "deny") {
+                        const denyMsg = `ENGELLENDI (kullanıcı onayı reddedildi): "${name}" yıkıcı bir eylem ve kullanıcı izin vermedi.`;
+                        send("tool-event", {phase: "done", name, result: denyMsg});
+                        stmRecord(name, argsJson, denyMsg, false, "llm");
+                        return {id: call.id, content: denyMsg};
+                    }
+                    if (decision === "always") grantAlways(name);
                 }
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
