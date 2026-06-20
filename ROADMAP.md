@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 467 test (32 dosya) ·
-Faz 1–58 + 62 tamamlandı; Faz 59–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 475 test (33 dosya) ·
+Faz 1–59 + 62 tamamlandı; Faz 60–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–58 (Loop Guard, İzin Kapısı,
-Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard) tamamlandı; Faz 59–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–59 (Loop Guard, İzin Kapısı,
+Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard, Self-Healing) tamamlandı; Faz 60–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1468,14 +1468,15 @@ Bir `.env` okutup özetletmek = anahtarın log'a düşmesi. Bir sızıntı = kal
 - ✅ Doğrulama: electron+renderer tsc, trio 331/331, 467 test (32 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `boundary.py` redact modu + `credential_stripper.py` sadeleştirilerek alındı; taint/SSRF/signing ALINMADI
 
-## Faz 59 — Self-Healing: Tekrarlayan Hata Tanıma 🔁 ⬜ [NICE TO HAVE]
+## Faz 59 — Self-Healing: Tekrarlayan Hata Tanıma 🔁 ✅ [NICE TO HAVE]
 
-- **Amaç:** Aynı tool'un aynı hatayı tekrar vermesini tanıyıp kör tekrar yerine strateji değiştirmek / net teşhis vermek.
-- **Kullanıcı etkisi:** "Spotify 3. kez başarısız, muhtemelen Premium gerekiyor" gibi teşhis.
-- **Etki: 6 · Zorluk: 5 · Borç riski: 4**
-- **Dosyalar:** `electron/short-term-memory.ts` (success/fail zaten var — örüntü çıkarımı ekle); `electron/main.ts`.
-- **Başarı kriteri:** Aynı (tool,hata) 3. tekrarında strateji değişir / teşhis sunulur; harness senaryosu.
-- **OpenJarvis ilhamı:** `agents/errors.py` classify_error taksonomisi. Trace-mining ALINMAYACAK.
+- ✅ Yeni `electron/self-healing.ts` — saf `diagnose(recent, threshold=3)` (Electron/IO bağımsız):
+  - STM geçmişinde (tool-AİLESİ + hata-SINIFI) örüntüsünü çıkarır → aynı domain (ör. "spotify") farklı argümanlarla da olsa 3+ kez aynı tür hatayla düşüyorsa yakalar (loop-guard'ın AYNI-çağrı tekrarından farkı: aynı KÖK SEBEP)
+  - Faz 56 `classifyError` ile hata sınıfını paylaşır; her sınıfa eyleme dönük, domain-duyarlı teşhis ("Spotify yetki/Premium…", "hedef bulunamıyor, adı doğrula…")
+- ✅ `main.ts`: tool turundan sonra örüntü tespit edilirse modele `[ÖZ-İYİLEŞME TEŞHİSİ]` system mesajı **bir kez** enjekte edilir → kör tekrar yerine yön değişir
+- ✅ 8 birim testi (`tests/tools/self-healing.test.ts`): eşik, sınıf ayrımı, domain izolasyonu, başarı kirletmemesi, parametrik eşik, tekil tool
+- ✅ Doğrulama: electron+renderer tsc, trio 331/331, 475 test (33 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `agents/errors.py` classify_error taksonomisi; trace-mining ALINMADI
 
 ## Faz 60 — Computer Use Doğrulama Döngüsü 👁️🔁 ⬜ [NICE TO HAVE]
 
@@ -1611,7 +1612,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ✅  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ✅  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4  ← TAMAMLANDI
-⬜  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5
+✅  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5  ← TAMAMLANDI
 ⬜  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7
 ⬜  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6
 ```

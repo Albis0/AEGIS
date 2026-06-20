@@ -30,8 +30,9 @@ import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {performCheck, performDownload} from "./updater-logic";
 import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
-import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
+import {stmRecord, stmClear, stmBuildPromptBlock, stmGet} from "./short-term-memory";
 import {LoopGuard} from "./loop-guard";
+import {diagnose} from "./self-healing";
 import {needsApproval, grantAlways} from "./permissions";
 import {buildPlanPrompt, classifyError} from "./goal-executor";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
@@ -877,6 +878,8 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     // Faz 53 — Loop Guard: degenerate tool-call döngülerini erken yakala.
     // Her runAgent çağrısı kendi örneğini açar (paralel istek izolasyonu).
     const guard = new LoopGuard();
+    // Faz 59 — Self-Healing: tekrarlayan hata teşhisi en fazla bir kez enjekte edilir.
+    let healInjected = false;
 
     for (let step = 0; step < 8; step++) {
         // Groq: tokens stream via onDelta. Other providers: full response returned.
@@ -957,6 +960,17 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         });
         for (const r of toolResults) {
             messages.push({role: "tool", tool_call_id: r.id, content: r.content});
+        }
+
+        // Faz 59 — Self-Healing: STM geçmişinde tekrarlayan (tool-ailesi, hata-sınıfı)
+        // örüntüsü varsa (aynı domain 3+ kez aynı tür hatayla düşüyorsa) modele NET bir
+        // teşhis + strateji enjekte et — bir kez. Böylece kör tekrar yerine yön değişir.
+        if (!healInjected) {
+            const diag = diagnose(stmGet().recentTools.map((e) => ({tool: e.tool, success: e.success, result: e.result})));
+            if (diag.detected) {
+                healInjected = true;
+                messages.push({role: "system", content: `[ÖZ-İYİLEŞME TEŞHİSİ] ${diag.advice}`} as OAIMessage);
+            }
         }
 
         // Faz 53 — bu turdaki tüm çağrılar döngü koruması tarafından engellendiyse
