@@ -1297,6 +1297,18 @@ async function bootApp(): Promise<void> {
 
     ipcMain.handle("weather", () => getWeather());
 
+    // Faz 63 — Genel tool çağrısı (UI widget/modal'ları için). Domain widget'ları
+    // canlı veriyi buradan çeker. Yıkıcı eylemler executeTool'un kendi ENGELLENDI
+    // mantığına takılır (delete_file vb. fullPcAccess kapalıyken durur); widget'lar
+    // zaten yalnız okuma/güvenli durum tool'ları çağırır.
+    ipcMain.handle("run-tool", async (_e, {name, args}: {name: string; args?: Record<string, unknown>}) => {
+        try {
+            return await executeTool(name, JSON.stringify(args ?? {}));
+        } catch (e) {
+            return `HATA: ${(e as Error).message ?? String(e)}`;
+        }
+    });
+
     ipcMain.handle("spotify-now-playing", () => spotifyGetState());
     ipcMain.handle("spotify-control", (_e, {action, value}: {action: string; value?: number}) => {
         if (action === "play")   return spotifyPlay();

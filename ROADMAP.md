@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.9.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 497 test (36 dosya) ·
-**Faz 1–62 TAMAMLANDI** (Güvenilirlik Sürümü Faz 53–61 dahil) · Faz 63 (Domain UI bileşenleri) planlı.
+**Özet (v1.9.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 505 test (37 dosya) ·
+**Faz 1–62 TAMAMLANDI** (Güvenilirlik Sürümü Faz 53–61 dahil) · Faz 63 (Domain UI) başladı (Steam + Hafıza ✅).
 
 ---
 
@@ -1542,7 +1542,11 @@ akıllı bir katman: doğal dil hedefini cihazlara çözer, kritik cihazlarda on
 
 ---
 
-## Faz 63 — Domain UI Bileşenleri (Widget / Popup / Modal) 🎨🧩 ⬜ [PLANLI]
+## Faz 63 — Domain UI Bileşenleri (Widget / Popup / Modal) 🎨🧩 🔶 [DEVAM EDİYOR]
+
+> **Altyapı ✅:** Genel `window.jarvis.runTool(name, args)` IPC'si eklendi (`main.ts`
+> `run-tool` handler + `preload.ts` + `electron.d.ts`) → tüm domain UI'ları canlı veriyi
+> tek köprüden çeker, her biri için ayrı IPC gerekmez. İlk iki bileşen bu altyapıyla yapıldı.
 
 _Bugün yalnız **Spotify**'ın sol panelde canlı, interaktif bir widget'ı var (`SpotifyWidget.tsx`:
 tool çıktısını parse edip kart + kaydırıcı + butona çevirir). Diğer onlarca tool grubu yalnız
@@ -1558,8 +1562,9 @@ bittiğinde dur–göster–onay. Sıra: önce yüksek-değer widget'lar.
 
 - **63.1 Sistem Telemetri widget'ı** ⬜ — CPU/RAM/GPU/disk canlı bar + mini sparkline kart
   (telemetri satırları var ama Spotify gibi şık değil; `system_report`/telemetri akışını kullanır)
-- **63.2 Steam / Now-Playing Oyun widget'ı** ⬜ — çalışan oyun, oynama süresi, kütüphane kısayolu
-  (Spotify'ın oyun karşılığı; `steam_game_running`/`steam_list`)
+- **63.2 Steam / Çalışan Oyun widget'ı** ✅ — `SteamWidget.tsx`: çalışan oyun(lar)ı canlı gösterir
+  (8sn poll, `steam_game_running` çıktısını parse eder), hover'da "oyunu kapat" butonu
+  (`steam_close_game`); oyun yokken render etmez. Sol panele Spotify yanına eklendi
 - **63.3 Akıllı Ev widget'ı** ⬜ — oda bazlı ışık/priz/termostat anlık toggle'ları
   (`smart_home_devices`/`smart_home_control`; kritik cihazda Faz 54 onayı)
 - **63.4 Zaman & Pomodoro widget'ı** ⬜ — aktif pomodoro geri sayımı + zaman-takibi sayacı (canlı)
@@ -1567,7 +1572,9 @@ bittiğinde dur–göster–onay. Sıra: önce yüksek-değer widget'lar.
 
 ### 🥈 Orta değer — POPUP / MODAL (tıkla-aç)
 
-- **63.6 Hafıza & Gerçekler modal'ı** ⬜ — kayıtlı gerçekler + alışkanlıklar + `search_memory` arama kutusu (Faz 57)
+- **63.6 Hafıza & Gerçekler modal'ı** ✅ — `MemoryModal.tsx`: öğrenilen gerçekleri listeler
+  (`list_facts`), anlamca arama kutusu (`search_memory` — Faz 57), gerçek silme (`forget_fact`);
+  title bar'da beyin ikonu butonu + Esc ile kapanır; 5 dilli ipucu (`tipMemory`)
 - **63.7 Bilgi Tabanı / RAG modal'ı** ⬜ — indekslenmiş dosyalar + semantik arama sonuçları
 - **63.8 Öğrenme modal'ı** ⬜ — flashcard tekrar arayüzü + hedef progress bar'ları
 - **63.9 Plugin Marketplace modal'ı** ⬜ — yüklü/aranabilir pluginler, kur/kaldır
@@ -1670,5 +1677,5 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6  ← TAMAMLANDI
 
 ──────────  UI GENİŞLEME  ──────────
-⬜  Faz 63   Domain UI bileşenleri (widget/popup/modal)  ← PLANLI · 14 alt madde (önce 63.1–63.5 widget'lar)
+🔶  Faz 63   Domain UI bileşenleri (widget/popup/modal)  ← DEVAM · runTool altyapısı + 63.2 Steam + 63.6 Hafıza ✅; kalan 12 madde
 ```

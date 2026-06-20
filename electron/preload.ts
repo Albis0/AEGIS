@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld("jarvis", {
     spotifyAuthorize: () => ipcRenderer.invoke("spotify-authorize"),
     spotifyNowPlaying: () => ipcRenderer.invoke("spotify-now-playing"),
     spotifyControl: (action: string, value?: number) => ipcRenderer.invoke("spotify-control", {action, value}),
+    // Faz 63 — genel tool çağrısı (domain widget/modal'ları için)
+    runTool: (name: string, args?: Record<string, unknown>) => ipcRenderer.invoke("run-tool", {name, args}),
 
     screenshot: () => ipcRenderer.invoke("screenshot"),
 
