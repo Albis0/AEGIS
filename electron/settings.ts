@@ -43,6 +43,7 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
+    proactiveSuggestions: boolean;   // Faz 61 — opt-in proaktif örüntü önerileri (varsayılan kapalı)
     apiServerEnabled: boolean;
     alertCpuPct: number | null;
     alertRamPct: number | null;
@@ -91,6 +92,7 @@ const DEFAULTS: AppSettings = {
     mistralSafeMode: false,
     autoLaunch: false,
     minimizeToTray: true,
+    proactiveSuggestions: false,   // Faz 61 — varsayılan KAPALI (opt-in)
     apiServerEnabled: false,
     alertCpuPct: null,
     alertRamPct: null,

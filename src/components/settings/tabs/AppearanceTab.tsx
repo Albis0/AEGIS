@@ -270,9 +270,10 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 <SectionLabel label={s.apApp} accent={accent} />
                 <div className="space-y-2">
                     {([
-                        {key: "minimizeToTray"   as const, label: s.apTray,       sub: ""},
-                        {key: "autoLaunch"       as const, label: s.apAutoLaunch, sub: ""},
-                        {key: "apiServerEnabled" as const, label: s.apApiServer,  sub: ""},
+                        {key: "minimizeToTray"      as const, label: s.apTray,       sub: ""},
+                        {key: "autoLaunch"          as const, label: s.apAutoLaunch, sub: ""},
+                        {key: "proactiveSuggestions" as const, label: s.apProactive,  sub: ""},
+                        {key: "apiServerEnabled"    as const, label: s.apApiServer,  sub: ""},
                     ]).map(({key, label, sub}) => {
                         const active = !!(settings as unknown as Record<string, unknown>)[key];
                         return (

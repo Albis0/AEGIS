@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 485 test (34 dosya) ·
-Faz 1–60 + 62 tamamlandı; Faz 61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 497 test (36 dosya) ·
+**Faz 1–62 TAMAMLANDI** — Güvenilirlik Sürümü (Faz 53–61) dahil tüm roadmap bitti.
 
 ---
 
@@ -1360,14 +1360,15 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 ---
 
 # ════════════════════════════════════════════════════════════
-# GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (Faz 53+, henüz başlanmadı)
+# GÜVENİLİRLİK SÜRÜMÜ — Faz 53–61 ✅ TAMAMLANDI
 # ════════════════════════════════════════════════════════════
 
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–60 (Loop Guard, İzin Kapısı,
-Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard, Self-Healing, Computer Use Doğrulama) tamamlandı; yalnız Faz 61 (proaktif öğrenme) kaldı. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum: TAMAMLANDI** — Faz 53–61'in tamamı
+(Loop Guard, İzin Kapısı, Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard,
+Self-Healing, Computer Use Doğrulama, Proaktif Öğrenme) bitti. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1490,16 +1491,20 @@ Bir `.env` okutup özetletmek = anahtarın log'a düşmesi. Bir sızıntı = kal
 - ✅ Doğrulama: electron+renderer tsc, trio 331/331, 485 test (34 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `browser_axtree.py` (koordinat yerine doğrulama) ruhu; tam UIAutomation element-tree opsiyonel/sonraya bırakıldı
 
-## Faz 61 — Proaktif Örüntü Öğrenme (Opt-in) 🌅 ⬜ [NICE TO HAVE]
+## Faz 61 — Proaktif Örüntü Öğrenme (Opt-in) 🌅 ✅ [NICE TO HAVE]
 
 _"İkinci ben"in tacı proaktifliktir — ama güven tabanı kurulmadan ters teper. Bu yüzden EN SON ve opt-in._
 
-- **Amaç:** Habit sayacını "ne zaman + hangi bağlamda" örüntüsüne çıkarıp opt-in öneri sunmak.
-- **Kullanıcı etkisi:** Doğru zamanda doğru öneri = "beni tanıyor"; yanlışsa kapatabilme.
-- **Etki: 6 · Zorluk: 6 · Borç riski: 5**
-- **Dosyalar:** `electron/memory-plus.ts` (habit → zamanlı örüntü); `electron/scheduler.ts` (proaktif tetik); Faz 54 izin kapısıyla entegre.
-- **Başarı kriteri:** ≥2 gerçek örüntü tespit edilip opt-in öneri sunulur; kapatılabilir; spam yok.
-- **OpenJarvis ilhamı:** `agents/proactive_agent.py` cron + tier'lı öneri + always_approve/deny. digest_collect/connector ağı ALINMAYACAK.
+- ✅ Yeni `electron/proactive.ts` — saf örüntü çıkarımı (Electron/IO bağımsız):
+  - `detectPatterns(records)` — zaman-damgalı kullanımları (tool + saat-bandı) gruplar; "gerçek alışkanlık" eşiği: ≥2 AYRI gün + ≥3 tekrar (tek-seferlik tesadüf elenir); 3 saatlik bant + sabah/öğle/akşam/gece etiketi
+  - `buildProactiveSuggestion(records, enabled)` — **opt-in**: `enabled=false` (varsayılan) → `null` (spam yok)
+- ✅ `memory-plus.ts`: `recordToolUsage` artık zaman-damgalı `usage-log.json` da tutar (son 500); `getProactivePatterns` / `getProactiveSuggestion`
+- ✅ `settings.ts`: `proactiveSuggestions` bayrağı (varsayılan **KAPALI**); `main.ts`: sabah özetine açıksa örüntü önerisi eklenir (model "otomatikleştirmek ister misin?" diye SORAR, zorlamaz — Faz 54 izin kapısıyla uyumlu, öneri ≠ otomatik eylem)
+- ✅ UI: Ayarlar → Görünüm → Uygulama'da "Proaktif öneriler" toggle (5 dilli) → **kapatılabilir**
+- ✅ Başarı kriterleri: ≥2 gün+ tekrar örüntüsü tespit edilir; opt-in; kapatılabilir; eşikler spam'i önler — hepsi karşılandı
+- ✅ 9 + 3 birim/I/O testi (`tests/tools/proactive.test.ts`, `memory-plus.test.ts` Faz 61 bloğu)
+- ✅ Doğrulama: electron+renderer tsc, trio 331/331, 497 test (36 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `proactive_agent.py` cron + tier'lı öneri ruhu; digest_collect/connector ağı ALINMADI
 
 ---
 
@@ -1608,7 +1613,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 52   Routines (deterministik çok-adımlı aksiyon kaydı) ← TAMAMLANDI
 ✅  Faz 62   Akıllı ev kontrolü (Home Assistant)  ← TAMAMLANDI
 
-──────────  GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (henüz başlanmadı)  ──────────
+──────────  GÜVENİLİRLİK SÜRÜMÜ — Faz 53–61 ✅ TAMAMLANDI  ──────────
 ✅  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  ← TAMAMLANDI
 ✅  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5  ← TAMAMLANDI
 ✅  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4  ← TAMAMLANDI
@@ -1617,5 +1622,5 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4  ← TAMAMLANDI
 ✅  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5  ← TAMAMLANDI
 ✅  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7  ← TAMAMLANDI
-⬜  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6
+✅  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6  ← TAMAMLANDI
 ```

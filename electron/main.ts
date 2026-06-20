@@ -14,7 +14,7 @@ import {getModelCapabilities} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
-import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage} from "./memory-plus";
+import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage, getProactiveSuggestion} from "./memory-plus";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
@@ -1504,7 +1504,13 @@ async function bootApp(): Promise<void> {
     if (shouldShowMorningSummary()) {
         markMorningSummaryShown();
         setTimeout(() => {
-            const prompt = buildMorningSummaryPrompt();
+            let prompt = buildMorningSummaryPrompt();
+            // Faz 61 — opt-in proaktif öneri: kullanıcı açtıysa zamansal alışkanlık
+            // örüntülerini sabah özetine ekle (kapalıyken null → hiç eklenmez, spam yok).
+            const proactive = getProactiveSuggestion(currentSettings.proactiveSuggestions ?? false);
+            if (proactive) {
+                prompt += `\n\nAyrıca kullanıcının şu alışkanlık örüntülerini fark ettim; doğal bir dille bahset ve otomatikleştirmek isteyip istemediğini SOR (zorlama):\n${proactive}`;
+            }
             const msgs = [...sessionHistory, {role: "user", content: prompt}];
             saveMessage("user", prompt).catch(() => {});
             runAgent(msgs, `morning-${Date.now()}`, true).catch(() => {});

@@ -10,10 +10,12 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import {searchFacts, inferFacts, reconcileFact, subjectOf} from "./adaptive-memory";
+import {detectPatterns, buildProactiveSuggestion, type UsageRecord} from "./proactive";
 
 const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH  = path.join(BASE, "facts.json");
 const HABITS_PATH = path.join(BASE, "habits.json");
+const USAGE_LOG_PATH = path.join(BASE, "usage-log.json");   // Faz 61 — zaman-damgalı kullanım
 
 function ensureDir(): void { fs.mkdirSync(BASE, {recursive: true}); }
 
@@ -166,6 +168,37 @@ export function recordToolUsage(toolName: string): void {
         habits.push({tool: toolName, count: 1, lastUsed: new Date().toISOString()});
     }
     saveHabits(habits);
+    recordUsageTimestamped(toolName);   // Faz 61 — zamansal örüntü için
+}
+
+// ---- Faz 61 — Proaktif örüntü öğrenme (opt-in) ----
+
+const MAX_USAGE_LOG = 500;   // son N kullanım; alışkanlık çıkarımına yeter, dosya şişmez
+
+function loadUsageLog(): UsageRecord[] {
+    try { return JSON.parse(fs.readFileSync(USAGE_LOG_PATH, "utf-8")); } catch { return []; }
+}
+
+function recordUsageTimestamped(tool: string): void {
+    const log = loadUsageLog();
+    const now = new Date();
+    log.push({tool, hour: now.getHours(), ts: now.getTime()});
+    if (log.length > MAX_USAGE_LOG) log.splice(0, log.length - MAX_USAGE_LOG);
+    try { ensureDir(); fs.writeFileSync(USAGE_LOG_PATH, JSON.stringify(log), "utf-8"); }
+    catch (e) { console.error("[usage-log]", (e as Error).message); }
+}
+
+/** Tespit edilen zamansal alışkanlık örüntülerini döndürür (opt-in'den bağımsız ham veri). */
+export function getProactivePatterns(): ReturnType<typeof detectPatterns> {
+    return detectPatterns(loadUsageLog());
+}
+
+/**
+ * Opt-in proaktif öneri. `enabled` false (varsayılan) ise null döner — güven tabanı
+ * kurulmadan ters tepmesin. Açıksa en güçlü zamansal örüntüleri özetler.
+ */
+export function getProactiveSuggestion(enabled: boolean): string | null {
+    return buildProactiveSuggestion(loadUsageLog(), enabled);
 }
 
 export function getTopTools(n = 5): {tool: string; count: number}[] {

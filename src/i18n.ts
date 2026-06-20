@@ -428,7 +428,7 @@ export interface SettingsStrings {
     // AppearanceTab
     apSkin: string; apDensity: string; apNormal: string; apCompact: string;
     apFineAdj: string; apAccent: string; apPalette: string; apFont: string;
-    apApp: string; apTray: string; apAutoLaunch: string; apApiServer: string;
+    apApp: string; apTray: string; apAutoLaunch: string; apApiServer: string; apProactive: string;
     apCustomCss: string; apCssHint: string; apActive: string;
     // KeysTab
     keysSection: string; keysHint: string;
@@ -482,7 +482,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voTest: "SES TESTİ", voTestPlaying: "ÇALINIYOR…", voTestHint: " motoru kullanılır.",
         apSkin: "GÖRÜNÜM", apDensity: "YOĞUNLUK", apNormal: "Normal", apCompact: "Kompakt",
         apFineAdj: "İNCE AYAR", apAccent: "VURGU RENGİ", apPalette: "PALET", apFont: "FONT",
-        apApp: "UYGULAMA", apTray: "Sistem tepsisine küçült", apAutoLaunch: "Başlangıçta başlat", apApiServer: "API Sunucusu",
+        apApp: "UYGULAMA", apTray: "Sistem tepsisine küçült", apAutoLaunch: "Başlangıçta başlat", apApiServer: "API Sunucusu", apProactive: "Proaktif öneriler (alışkanlık örüntüleri)",
         apCustomCss: "ÖZEL CSS", apCssHint: "Tüm CSS değişkenlerine ve sınıflarına erişebilirsin.", apActive: "AKTİF",
         keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
         telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
@@ -528,7 +528,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voTest: "VOICE TEST", voTestPlaying: "PLAYING…", voTestHint: " engine is used.",
         apSkin: "APPEARANCE", apDensity: "DENSITY", apNormal: "Normal", apCompact: "Compact",
         apFineAdj: "FINE TUNE", apAccent: "ACCENT COLOR", apPalette: "PALETTE", apFont: "FONT",
-        apApp: "APPLICATION", apTray: "Minimize to tray", apAutoLaunch: "Launch at startup", apApiServer: "API Server",
+        apApp: "APPLICATION", apTray: "Minimize to tray", apAutoLaunch: "Launch at startup", apApiServer: "API Server", apProactive: "Proactive suggestions (habit patterns)",
         apCustomCss: "CUSTOM CSS", apCssHint: "You have access to all CSS variables and classes.", apActive: "ACTIVE",
         keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
         telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
@@ -574,7 +574,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voTest: "STIMMTEST", voTestPlaying: "WIRD ABGESPIELT…", voTestHint: " Engine wird verwendet.",
         apSkin: "AUSSEHEN", apDensity: "DICHTE", apNormal: "Normal", apCompact: "Kompakt",
         apFineAdj: "FEINEINSTELLUNG", apAccent: "AKZENTFARBE", apPalette: "PALETTE", apFont: "SCHRIFTART",
-        apApp: "ANWENDUNG", apTray: "In Taskleiste minimieren", apAutoLaunch: "Beim Start ausführen", apApiServer: "API-Server",
+        apApp: "ANWENDUNG", apTray: "In Taskleiste minimieren", apAutoLaunch: "Beim Start ausführen", apApiServer: "API-Server", apProactive: "Proaktive Vorschläge (Gewohnheitsmuster)",
         apCustomCss: "BENUTZERDEFINIERTES CSS", apCssHint: "Zugriff auf alle CSS-Variablen und Klassen.", apActive: "AKTIV",
         keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
         telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
@@ -620,7 +620,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voTest: "TEST VOCAL", voTestPlaying: "LECTURE…", voTestHint: " moteur utilisé.",
         apSkin: "APPARENCE", apDensity: "DENSITÉ", apNormal: "Normal", apCompact: "Compact",
         apFineAdj: "RÉGLAGE FIN", apAccent: "COULEUR D'ACCENT", apPalette: "PALETTE", apFont: "POLICE",
-        apApp: "APPLICATION", apTray: "Réduire dans la barre", apAutoLaunch: "Lancer au démarrage", apApiServer: "Serveur API",
+        apApp: "APPLICATION", apTray: "Réduire dans la barre", apAutoLaunch: "Lancer au démarrage", apApiServer: "Serveur API", apProactive: "Suggestions proactives (habitudes)",
         apCustomCss: "CSS PERSONNALISÉ", apCssHint: "Accès à toutes les variables et classes CSS.", apActive: "ACTIF",
         keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
         telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
@@ -666,7 +666,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voTest: "PRUEBA DE VOZ", voTestPlaying: "REPRODUCIENDO…", voTestHint: " motor en uso.",
         apSkin: "APARIENCIA", apDensity: "DENSIDAD", apNormal: "Normal", apCompact: "Compacto",
         apFineAdj: "AJUSTE FINO", apAccent: "COLOR DE ACENTO", apPalette: "PALETA", apFont: "FUENTE",
-        apApp: "APLICACIÓN", apTray: "Minimizar a bandeja", apAutoLaunch: "Iniciar al arranque", apApiServer: "Servidor API",
+        apApp: "APLICACIÓN", apTray: "Minimizar a bandeja", apAutoLaunch: "Iniciar al arranque", apApiServer: "Servidor API", apProactive: "Sugerencias proactivas (hábitos)",
         apCustomCss: "CSS PERSONALIZADO", apCssHint: "Acceso a todas las variables y clases CSS.", apActive: "ACTIVO",
         keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
         telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",

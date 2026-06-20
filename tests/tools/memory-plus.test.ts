@@ -7,16 +7,18 @@ const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH = path.join(BASE, "facts.json");
 const HABITS_PATH = path.join(BASE, "habits.json");
 const MORNING_PATH = path.join(BASE, "morning-check.json");
+const USAGE_LOG_PATH = path.join(BASE, "usage-log.json");
 
 import {
     addFact, listFacts, removeFact, getFactsForContext,
     recordToolUsage, getTopTools, listHabits,
     shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt,
     addFactReconciled, searchMemory, autoLearnFromMessage,
+    getProactivePatterns, getProactiveSuggestion,
 } from "../../electron/memory-plus";
 
 function clearFiles(): void {
-    for (const p of [FACTS_PATH, HABITS_PATH, MORNING_PATH]) {
+    for (const p of [FACTS_PATH, HABITS_PATH, MORNING_PATH, USAGE_LOG_PATH]) {
         try { fs.unlinkSync(p); } catch { /* yok */ }
     }
 }
@@ -222,5 +224,28 @@ describe("Faz 57 — adaptif hafıza (I/O)", () => {
     it("autoLearn komut cümlesinden gerçek çıkarmaz", () => {
         const learned = autoLearnFromMessage("spotify aç ve müzik çal");
         expect(learned).toHaveLength(0);
+    });
+});
+
+// ── Faz 61 — Proaktif örüntü öğrenme (gerçek usage-log.json) ─────────────────
+describe("Faz 61 — proaktif öğrenme (I/O)", () => {
+    it("recordToolUsage zaman-damgalı log da tutar", () => {
+        recordToolUsage("spotify_play");
+        recordToolUsage("spotify_play");
+        const raw = JSON.parse(fs.readFileSync(USAGE_LOG_PATH, "utf-8"));
+        expect(raw.length).toBe(2);
+        expect(raw[0]).toHaveProperty("hour");
+        expect(raw[0]).toHaveProperty("ts");
+    });
+
+    it("opt-in KAPALI iken öneri null (varsayılan — spam yok)", () => {
+        for (let i = 0; i < 5; i++) recordToolUsage("spotify_play");
+        expect(getProactiveSuggestion(false)).toBeNull();
+    });
+
+    it("getProactivePatterns ham veriyi döndürür (opt-in'den bağımsız)", () => {
+        // tek oturum → days=1, örüntü oluşmaz; ama API çökmeden dönmeli
+        recordToolUsage("git_status");
+        expect(Array.isArray(getProactivePatterns())).toBe(true);
     });
 });
