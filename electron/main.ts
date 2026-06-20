@@ -33,6 +33,7 @@ import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError
 import {stmRecord, stmClear, stmBuildPromptBlock} from "./short-term-memory";
 import {LoopGuard} from "./loop-guard";
 import {needsApproval, grantAlways} from "./permissions";
+import {buildPlanPrompt, classifyError} from "./goal-executor";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
 // .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
@@ -921,15 +922,23 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
-                stmRecord(name, argsJson, String(result), true, "llm");
+                // Faz 56 — sonucu hata taksonomisine ata: başarı/başarısızlığı doğru
+                // kaydet ve hata ise modele kör tekrarı önleyen kısa yönlendirme ekle.
+                const ev = classifyError(String(result));
+                stmRecord(name, argsJson, String(result), !ev.isError, "llm");
                 // Faz 52 — routine kaydı aktifse bu eylemi yakala (deterministik tekrar için)
                 try { routineCaptureStep(name, JSON.parse(argsJson || "{}")); } catch { /* parse fail → atla */ }
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
-                const clipped = forModel.length > 6000
+                let clipped = forModel.length > 6000
                     ? forModel.slice(0, 6000) + `\n\n[...kısaltıldı, toplam ${forModel.length} karakter]`
                     : forModel;
+                // Yeniden-denenmemesi gereken hatalarda (hedef yok / argüman hatası /
+                // yetki) modele net yönlendirme ekle — aynı çağrıyı tekrarlamasın.
+                if (ev.isError && !ev.retriable && ev.kind !== "fatal") {
+                    clipped += `\n\n[YÖNLENDİRME: ${ev.advice}]`;
+                }
                 return {id: call.id, content: clipped};
             })
         );
@@ -1214,7 +1223,8 @@ async function bootApp(): Promise<void> {
 
     registerAgentCallback((goal, maxSteps) => {
         const reqId = `agent-${Date.now()}`;
-        const agentPrompt = `[AJAN MODU — maks ${maxSteps} adım] Hedef: ${goal}\n\nBu hedefi araçları kullanarak adım adım tamamla. Her adımda kısa bir durum bildirimi yaz. Bitince özet sun.`;
+        // Faz 56 — plan-temelli ajan promptu (planla → yap → doğrula → takılınca dur).
+        const agentPrompt = buildPlanPrompt(goal, maxSteps);
         const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
         saveMessage("user", agentPrompt).catch(() => {});
         runAgent(messages, reqId, true).catch(() => {});

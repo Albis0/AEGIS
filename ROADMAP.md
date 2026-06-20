@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 411 test (28 dosya) ·
-Faz 1–55 + 62 tamamlandı; Faz 56–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 424 test (29 dosya) ·
+Faz 1–56 + 62 tamamlandı; Faz 57–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53 (Loop Guard) + 54 (İzin
-Kapısı) + 55 (Eval Harness) tamamlandı; Faz 56–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–56 (Loop Guard, İzin Kapısı,
+Eval Harness, Goal Executor) tamamlandı; Faz 57–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1421,17 +1421,21 @@ skor yok. Ölçemediğini düzeltemezsin. (Faz 50.3 "deterministik router"ın as
 - ✅ Doğrulama: electron+renderer tsc, trio 330/330, 411 test (28 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `agentic_runner.py` + `scorer.py` mini çekirdeği (girdi→beklenen→skor); 37k satırlık framework + enerji/FLOP metrikleri ALINMADI
 
-## Faz 56 — Goal Executor: Plan → Adım → Doğrula → Toparla 🧩 ⬜ [SHOULD HAVE]
+## Faz 56 — Goal Executor: Plan → Adım → Doğrula → Toparla 🧩 ✅ [SHOULD HAVE]
 
 _`agent_run` şu an "8 adım dene, olmazsa pes". Plan yok, ara-doğrulama yok, takılınca
 toparlama yok. "İkinci ben" = ben olsam bitirirdim; şu an bitiremiyor._
 
-- **Amaç:** Çok-adımlı görevi adımlara böl → her adımı doğrula → takılınca alternatif/dur.
-- **Kullanıcı etkisi:** "Şunu hallet" deyip güvenle bırakabilme.
-- **Etki: 8 · Zorluk: 6 · Borç riski: 4**
-- **Dosyalar:** `electron/main.ts` (`runAgent` evrimi); yeni `electron/goal-executor.ts`; Faz 53 + 54 ile entegre.
-- **Başarı kriteri:** 3-5 adımlı gerçek görev, ara hata toparlanarak tamamlanır; harness'ta ölçülür.
-- **OpenJarvis ilhamı:** `agents/executor.py` error taxonomy (classify_error/retry/escalate/fatal). Meta-planner (`spec_search/plan/planner.py`) ALINMAYACAK.
+- ✅ Yeni `electron/goal-executor.ts` — saf çekirdek (Electron/IO bağımsız):
+  - `classifyError(result)` — tool sonucunu hata TAKSONOMİSİNE atar: ok / transient (yeniden dene) / permission / not_found / invalid_args / blocked / fatal; her birine retriable + Türkçe yönlendirme
+  - `verifyStep(result)` — adım doğrulama: progress / retry / stuck / fail kararı
+  - `buildPlanPrompt(goal, maxSteps)` — hedefi "planla → yap → doğrula → takılınca dur" promptuna çevirir (sonsuz deneme yasak)
+- ✅ `main.ts` entegrasyonu: `agent_run` artık plan-temelli prompt kullanır; `runAgent` döngüsünde her tool sonucu `classifyError`'dan geçer →
+  - STM `success` artık doğru hesaplanır (önceden her zaman `true` idi — sessiz bug düzeltildi)
+  - yeniden-denenmemesi gereken hatalarda (not_found/invalid_args/permission) modele `[YÖNLENDİRME: …]` eklenir → kör tekrar önlenir (Faz 53 loop-guard'ı tamamlar)
+- ✅ 13 birim testi (`tests/tools/goal-executor.test.ts`): tüm taksonomi sınıfları, öncelik sırası, verifyStep kararları, plan prompt
+- ✅ Doğrulama: electron+renderer tsc, trio 330/330, 424 test (29 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `agents/executor.py` error taxonomy sadeleştirilerek alındı; meta-planner ALINMADI
 
 ## Faz 57 — Adaptif Hafıza: Semantik + Otomatik Çıkarım 🧠 ⬜ [SHOULD HAVE]
 
@@ -1597,7 +1601,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  ← TAMAMLANDI
 ✅  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5  ← TAMAMLANDI
 ✅  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4  ← TAMAMLANDI
-⬜  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6
+✅  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ⬜  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6
 ⬜  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4
 ⬜  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5
