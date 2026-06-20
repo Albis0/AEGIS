@@ -14,7 +14,7 @@ import {getModelCapabilities} from "./model-capabilities";
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
-import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt} from "./memory-plus";
+import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage} from "./memory-plus";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
@@ -790,6 +790,13 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     // Only update sessionHistory for the main chat flow, not sub-agent calls (prevents race on parallel agents)
     if (!isSubAgent) {
         sessionHistory = history.map((m) => ({role: m.role, content: extractTextContent(m.content)}));
+        // Faz 57 — adaptif hafıza: son kullanıcı mesajından sessizce gerçek öğren
+        // ("adım X", "Python kullanıyorum", "kahveyi severim"). Çelişki-çözer (eskiyi günceller).
+        const lastUser = [...history].reverse().find((m) => m.role === "user");
+        if (lastUser) {
+            try { autoLearnFromMessage(extractTextContent(lastUser.content)); }
+            catch (e) { console.error("[autoLearn]", (e as Error).message); }
+        }
     }
 
     // Refresh profile at most once per minute

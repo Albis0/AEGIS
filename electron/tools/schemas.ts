@@ -586,6 +586,21 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
     {
         type: "function",
         function: {
+            name: "search_memory",
+            description: "Kayıtlı gerçekler içinde anlamca arama yap. 'Geçen ay X hakkında ne demiştim?', 'şu konuda ne biliyorsun?' gibi sorularda kullan — list_facts'tan farkı, en alakalı gerçekleri uyum skoruyla bulmasıdır.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {type: "string", description: "Aranacak konu/soru"},
+                },
+                required: ["query"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "forget_fact",
             description: "Kayıtlı bir gerçeği sil.",
             parameters: {

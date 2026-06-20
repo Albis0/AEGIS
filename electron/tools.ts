@@ -9,7 +9,7 @@ import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMac
 import * as routines from "./routines";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
-import {addFact, listFacts, removeFact, listHabits} from "./memory-plus";
+import {addFact, addFactReconciled, searchMemory, listFacts, removeFact, listHabits} from "./memory-plus";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
@@ -942,11 +942,18 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
 
     async remember_fact({content, tags}) {
+        // Faz 57 — çelişki-çözer ekleme: aynı özneli eski gerçek varsa güncellenir.
+        // (Etiket verildiyse eski düz ekleme yolunu kullan; aksi halde reconcile.)
         const tagList = tags ? String(tags).split(",").map((t) => t.trim()).filter(Boolean) : [];
-        return addFact(content ?? "", "manual", tagList);
+        if (tagList.length) return addFact(content ?? "", "manual", tagList);
+        return addFactReconciled(content ?? "", "manual");
     },
     async list_facts({filter}) {
         return listFacts(filter ?? "");
+    },
+    async search_memory({query}) {
+        // Faz 57 — "geçen ay X hakkında ne demiştim?" — anlamca en yakın gerçekler.
+        return searchMemory(String(query ?? ""));
     },
     async forget_fact({id_or_content}) {
         return removeFact(id_or_content ?? "");

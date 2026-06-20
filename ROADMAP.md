@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 424 test (29 dosya) ·
-Faz 1–56 + 62 tamamlandı; Faz 57–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 444 test (31 dosya) ·
+Faz 1–57 + 62 tamamlandı; Faz 58–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–56 (Loop Guard, İzin Kapısı,
-Eval Harness, Goal Executor) tamamlandı; Faz 57–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–57 (Loop Guard, İzin Kapısı,
+Eval Harness, Goal Executor, Adaptif Hafıza) tamamlandı; Faz 58–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1437,17 +1437,21 @@ toparlama yok. "İkinci ben" = ben olsam bitirirdim; şu an bitiremiyor._
 - ✅ Doğrulama: electron+renderer tsc, trio 330/330, 424 test (29 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `agents/executor.py` error taxonomy sadeleştirilerek alındı; meta-planner ALINMADI
 
-## Faz 57 — Adaptif Hafıza: Semantik + Otomatik Çıkarım 🧠 ⬜ [SHOULD HAVE]
+## Faz 57 — Adaptif Hafıza: Semantik + Otomatik Çıkarım 🧠 ✅ [SHOULD HAVE]
 
 _`facts.json` düz-JSON + keyword. AEGIS kullanıcıyı kaydediyor ama ÖĞRENMİYOR.
 "İkinci ben" için en kritik eksen._
 
-- **Amaç:** Embedding aranabilir + konuşmadan otomatik çıkarımlı + çelişki-çözen hafıza.
-- **Kullanıcı etkisi:** Eski bir tercihi tam anında geri getirmek — "beni hatırlıyor" hissi.
-- **Etki: 8 · Zorluk: 6 · Borç riski: 5**
-- **Dosyalar:** `electron/memory-plus.ts` + `electron/knowledge.ts` (mevcut BM25-lite yeniden kullan); embedding mevcut Ollama/yerel ile, ZORUNLU DEĞİL (yoksa keyword fallback). **Yeni provider eklenmez.**
-- **Başarı kriteri:** "Geçen ay X hakkında ne demiştim?" çalışır; otomatik fact çıkarımı çelişkide eskiyi günceller; embedding yoksa graceful keyword.
-- **OpenJarvis ilhamı:** `connectors/embedding_store.py` + `hybrid_search.py`. SQLite session consolidation/decay ALINMAYACAK.
+- ✅ Yeni `electron/adaptive-memory.ts` — saf çekirdek (Electron/IO bağımsız), `memory-plus.ts`'e bağlandı:
+  - `searchFacts` — token-overlap (Jaccard-benzeri) semantik arama; **embedding YOK**, yerel sıfır-bağımlılık keyword (ROADMAP "graceful keyword" kriteri); embedding eklenirse buraya takılır
+  - `inferFacts` — konuşmadan otomatik çıkarım (isim / kullanılan dil / sevme-sevmeme; TR+EN); komut/geçici cümlelerden çıkarmaz
+  - `reconcileFact` + `subjectOf` — çelişki çözme: aynı özneli yeni gerçek ESKİYİ günceller (kopya değil); girdi + kayıtlı çıktı kalıplarını tanır
+- ✅ `memory-plus.ts`: `searchMemory` (→ `search_memory` tool'u, trio 331), `addFactReconciled` (çelişki-çözer `remember_fact`), `autoLearnFromMessage`
+- ✅ `main.ts`: `runAgent` her ana-akış turunda son kullanıcı mesajından **sessizce öğrenir** (autoLearn) → AEGIS konuşurken hatırlamaya başlar
+- ✅ "Geçen ay X hakkında ne demiştim?" çalışır; otomatik çıkarım çelişkide eskiyi günceller; embedding yoksa keyword fallback — üç başarı kriteri de karşılandı
+- ✅ 15 + 5 birim/I/O testi (`tests/tools/adaptive-memory.test.ts`, `memory-plus.test.ts` Faz 57 bloğu)
+- ✅ Doğrulama: electron+renderer tsc, trio 331/331, 444 test (31 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `embedding_store.py` + `hybrid_search.py` ruhu (semantik arama soyutlaması); SQLite consolidation/decay ALINMADI; **yeni provider eklenmedi**
 
 ## Faz 58 — Boundary Guard: Dışarı Sızıntı Koruması 🛡️ ⬜ [SHOULD HAVE]
 
@@ -1602,7 +1606,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5  ← TAMAMLANDI
 ✅  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4  ← TAMAMLANDI
 ✅  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
-⬜  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6
+✅  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ⬜  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4
 ⬜  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5
 ⬜  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7

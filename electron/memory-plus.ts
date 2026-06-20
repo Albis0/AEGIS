@@ -9,6 +9,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {searchFacts, inferFacts, reconcileFact, subjectOf} from "./adaptive-memory";
 
 const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH  = path.join(BASE, "facts.json");
@@ -76,6 +77,66 @@ export function getFactsForContext(): string {
     const facts = loadFacts();
     if (facts.length === 0) return "";
     return `\n\nKAYITLI GERÇEKLER:\n${facts.map((f) => `- ${f.content}`).join("\n")}`;
+}
+
+// ---- Faz 57 — Adaptif Hafıza (semantik arama + otomatik çıkarım + çelişki çözme) ----
+
+/**
+ * "Geçen ay X hakkında ne demiştim?" — kayıtlı gerçekler içinde anlamca en yakın
+ * olanları bulur (yerel token-overlap; embedding gerekmez). Tool: search_memory.
+ */
+export function searchMemory(query: string, limit = 5): string {
+    const facts = loadFacts();
+    if (facts.length === 0) return "Kayıtlı gerçek yok.";
+    const hits = searchFacts(facts, query, limit);
+    if (hits.length === 0) return `"${query}" ile anlamca eşleşen gerçek bulunamadı.`;
+    return `"${query}" için en alakalı gerçekler:\n` +
+        hits.map((h) => `• ${h.fact.content}  (%${Math.round(h.score * 100)} uyum)`).join("\n");
+}
+
+/**
+ * Çelişki-çözen ekleme: yeni gerçek mevcut bir gerçekle aynı özneye sahipse
+ * (ör. tekrar "adım …") eskiyi GÜNCELLER, yenisini eklemek yerine. Manuel
+ * `remember_fact` ve otomatik çıkarım bunu kullanır.
+ */
+export function addFactReconciled(content: string, source: "manual" | "auto" = "manual"): string {
+    if (!content.trim()) return "HATA: Boş gerçek eklenemez.";
+    const facts = loadFacts();
+    const subject = subjectOf(content);
+    const res = reconcileFact(facts, content, subject);
+    if (res.action !== "duplicate") {
+        const out = res.facts as Fact[];
+        if (source === "manual") {
+            const target = out.find((f) => f.content.trim() === content.trim());
+            if (target) target.source = "manual"; // reconcile auto işaretler; manuel'i koru
+        }
+        saveFacts(out);
+    }
+    return res.message;
+}
+
+/**
+ * Bir kullanıcı mesajından otomatik gerçek çıkarır ve çelişki-çözerek kaydeder.
+ * runAgent her kullanıcı turunda (sessizce) çağırır → AEGIS konuşurken öğrenir.
+ * Döndürülen liste, gerçekten yeni/güncellenen gerçeklerin özetidir (boş olabilir).
+ */
+export function autoLearnFromMessage(message: string): string[] {
+    const inferred = inferFacts(message);
+    if (inferred.length === 0) return [];
+    const learned: string[] = [];
+    for (const inf of inferred) {
+        const facts = loadFacts();
+        const res = reconcileFact(facts, inf.content, inf.subject);
+        if (res.action !== "duplicate") {
+            // çıkarılan tag'leri uygula
+            const updated = res.facts as Fact[];
+            const target = updated.find((f) => f.content.trim() === inf.content.trim());
+            if (target && inf.tags.length) target.tags = inf.tags;
+            saveFacts(updated);
+            learned.push(res.action === "updated" ? `↻ ${inf.content}` : inf.content);
+        }
+    }
+    return learned;
 }
 
 // ---- 16.2 Alışkanlık Takibi ----

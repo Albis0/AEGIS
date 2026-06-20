@@ -12,6 +12,7 @@ import {
     addFact, listFacts, removeFact, getFactsForContext,
     recordToolUsage, getTopTools, listHabits,
     shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt,
+    addFactReconciled, searchMemory, autoLearnFromMessage,
 } from "../../electron/memory-plus";
 
 function clearFiles(): void {
@@ -181,5 +182,45 @@ describe("buildMorningSummaryPrompt", () => {
         expect(p).toContain("Hava durumu");
         expect(p).toContain("notlar");
         expect(p).toContain("görevler");
+    });
+});
+
+// ── Faz 57 — Adaptif hafıza uçtan uca (gerçek facts.json) ────────────────────
+describe("Faz 57 — adaptif hafıza (I/O)", () => {
+    it("searchMemory anlamca en yakın gerçeği bulur", () => {
+        addFact("Kullanıcı Python kullanıyor.");
+        addFact("Proje teslim tarihi 15 Temmuz.");
+        const out = searchMemory("hangi programlama dilini kullanıyorum python");
+        expect(out).toContain("Python");
+    });
+
+    it("addFactReconciled aynı özneli gerçeği günceller (iki kayıt değil)", () => {
+        addFactReconciled("Kullanıcının adı Ahmet.");
+        const out = addFactReconciled("Kullanıcının adı Mehmet.");
+        expect(out).toMatch(/Güncellendi/);
+        const list = listFacts();
+        expect(list).toContain("Mehmet");
+        expect(list).not.toContain("Ahmet");
+    });
+
+    it("autoLearnFromMessage konuşmadan gerçek çıkarıp kaydeder", () => {
+        const learned = autoLearnFromMessage("benim adım Zeynep ve TypeScript kullanıyorum");
+        expect(learned.length).toBeGreaterThanOrEqual(2);
+        const ctx = getFactsForContext();
+        expect(ctx).toContain("Zeynep");
+        expect(ctx).toContain("TypeScript");
+    });
+
+    it("autoLearn çelişkide eskiyi günceller (öğrenme, kopya değil)", () => {
+        autoLearnFromMessage("benim adım Ali");
+        autoLearnFromMessage("aslında adım Veli");
+        const list = listFacts();
+        expect(list).toContain("Veli");
+        expect(list).not.toContain("Ali.");   // "Ali." eski içerik gitmiş olmalı
+    });
+
+    it("autoLearn komut cümlesinden gerçek çıkarmaz", () => {
+        const learned = autoLearnFromMessage("spotify aç ve müzik çal");
+        expect(learned).toHaveLength(0);
     });
 });

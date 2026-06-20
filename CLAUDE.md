@@ -2,12 +2,12 @@
 
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
-Güncel durum (v1.8.0): **330 tool**, 8 AI provider, 50 electron modülü, 16 skin, 5 dil,
-424 test (29 dosya). Faz 1–56 + 62 ✅; Faz 57–61 (güvenilirlik — gelecek hedef) planlı.
+Güncel durum (v1.8.0): **331 tool**, 8 AI provider, 51 electron modülü, 16 skin, 5 dil,
+444 test (31 dosya). Faz 1–57 + 62 ✅; Faz 58–61 (güvenilirlik — gelecek hedef) planlı.
 
 ## Mimari
 
-- **electron/** (main process, CJS, 47 modül) — `main.ts` giriş (runAgent tool döngüsü, system prompt); `tools.ts` (~2366 satır: `executors`+`getAllToolSchemas`+executeTool) + `tools/schemas.ts` (**330 tool** şeması, saf veri — tools.ts import+re-export eder); `ai-client.ts` (provider çağrıları, param kırpma); `model-capabilities.ts` (model yetenek kayıt defteri — sıfır-hata AI katmanı); `model-router.ts` (deterministik tool yönlendirme); `short-term-memory.ts` + `reference-resolver.ts` (referans çözümleme); `routines.ts` (deterministik çok-adımlı kayıt), `macros.ts`, `automations.ts`; `memory-plus.ts` (facts/habits/sabah özeti); `spotify.ts`, `steam.ts`, `smart-home.ts` (Home Assistant), `local-devices.ts` (HA'sız yerel ağ cihaz keşfi — mDNS/SSDP), `computer-use.ts`; `tts.ts`, `auth.ts`+`cloud-sync.ts`+`aegis-config.ts` (Supabase deneme modu/gömülü public token).
+- **electron/** (main process, CJS, 47 modül) — `main.ts` giriş (runAgent tool döngüsü, system prompt); `tools.ts` (~2366 satır: `executors`+`getAllToolSchemas`+executeTool) + `tools/schemas.ts` (**331 tool** şeması, saf veri — tools.ts import+re-export eder); `ai-client.ts` (provider çağrıları, param kırpma); `model-capabilities.ts` (model yetenek kayıt defteri — sıfır-hata AI katmanı); `model-router.ts` (deterministik tool yönlendirme); `short-term-memory.ts` + `reference-resolver.ts` (referans çözümleme); `routines.ts` (deterministik çok-adımlı kayıt), `macros.ts`, `automations.ts`; `memory-plus.ts` (facts/habits/sabah özeti); `spotify.ts`, `steam.ts`, `smart-home.ts` (Home Assistant), `local-devices.ts` (HA'sız yerel ağ cihaz keşfi — mDNS/SSDP), `computer-use.ts`; `tts.ts`, `auth.ts`+`cloud-sync.ts`+`aegis-config.ts` (Supabase deneme modu/gömülü public token).
 - **src/** (renderer, React) — `App.tsx` (üst seviye; update toast burada), `components/skins/registry.tsx` (4 aile × 4 ferdi), `components/settings/tabs/`, `i18n.ts` (5 dil: tr/en/de/fr/es), `changelog.ts` (yama notları), `update-state.ts` (updater toast reducer).
 - IPC: `electron/preload.ts` (`window.jarvis`), tip: `src/electron.d.ts`.
 
