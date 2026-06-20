@@ -46,6 +46,7 @@ import {
     steamSearchStore, steamGetGameDetails, steamGetGamePrice, steamGetDiscountedGames, steamGetGameNews,
 } from "./steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
+import {actWithVerification} from "./action-verifier";
 import {stmGet} from "./short-term-memory";
 import * as smartHome from "./smart-home";
 import type {HAConfig, Action as SmartHomeAction} from "./smart-home";
@@ -2119,8 +2120,18 @@ else{
     async mouse_move({x, y}: {x?: unknown; y?: unknown}) {
         return mouseMove(Number(x ?? 0), Number(y ?? 0));
     },
-    async mouse_click({x, y, button, double: dbl}: {x?: unknown; y?: unknown; button?: unknown; double?: unknown}) {
-        return mouseClick(Number(x ?? 0), Number(y ?? 0), (String(button ?? "left")) as "left"|"right"|"middle", Boolean(dbl));
+    async mouse_click({x, y, button, double: dbl, verify}: {x?: unknown; y?: unknown; button?: unknown; double?: unknown; verify?: unknown}) {
+        const doClick = () => mouseClick(Number(x ?? 0), Number(y ?? 0), (String(button ?? "left")) as "left"|"right"|"middle", Boolean(dbl));
+        // Faz 60 — verify="true" ise tıkla → ekran değişti mi doğrula → rapor et.
+        if (String(verify ?? "") === "true" && _screenshotCallback) {
+            const snap = async () => {
+                const r = await _screenshotCallback!();
+                return "base64" in r ? r.base64 : "";
+            };
+            const {actionResult, verify: v} = await actWithVerification(snap, doClick);
+            return `${actionResult}\n[DOĞRULAMA] ${v.note}`;
+        }
+        return doClick();
     },
     async mouse_scroll({x, y, direction, amount}: {x?: unknown; y?: unknown; direction?: unknown; amount?: unknown}) {
         return mouseScroll(Number(x ?? 0), Number(y ?? 0), (String(direction ?? "down")) as "up"|"down", Number(amount ?? 3));

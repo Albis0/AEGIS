@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 475 test (33 dosya) ·
-Faz 1–59 + 62 tamamlandı; Faz 60–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 485 test (34 dosya) ·
+Faz 1–60 + 62 tamamlandı; Faz 61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–59 (Loop Guard, İzin Kapısı,
-Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard, Self-Healing) tamamlandı; Faz 60–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–60 (Loop Guard, İzin Kapısı,
+Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard, Self-Healing, Computer Use Doğrulama) tamamlandı; yalnız Faz 61 (proaktif öğrenme) kaldı. Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1478,14 +1478,17 @@ Bir `.env` okutup özetletmek = anahtarın log'a düşmesi. Bir sızıntı = kal
 - ✅ Doğrulama: electron+renderer tsc, trio 331/331, 475 test (33 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `agents/errors.py` classify_error taksonomisi; trace-mining ALINMADI
 
-## Faz 60 — Computer Use Doğrulama Döngüsü 👁️🔁 ⬜ [NICE TO HAVE]
+## Faz 60 — Computer Use Doğrulama Döngüsü 👁️🔁 ✅ [NICE TO HAVE]
 
-- **Amaç:** Faz 47 kör-koordinat tıklamalarını "tıkla → ekran değişti mi doğrula → düzelt" döngüsüne çevirmek; mümkünse koordinat yerine UI elemanı hedeflemek.
-- **Kullanıcı etkisi:** Computer use'un gerçekten işe yarama oranının yükselmesi.
-- **Etki: 6 · Zorluk: 7 · Borç riski: 4**
-- **Dosyalar:** `electron/computer-use.ts` (post-action screenshot diff / doğrulama); opsiyonel Windows UIAutomation COM element-tree.
-- **Başarı kriteri:** Eylem sonrası beklenen değişiklik olmazsa AEGIS fark eder, yeniden dener veya durup sorar.
-- **OpenJarvis ilhamı:** `tools/browser_axtree.py` (koordinat yerine semantik tree) → Windows karşılığı UIAutomation.
+- ✅ Yeni `electron/action-verifier.ts` — saf doğrulama çekirdeği (Electron/IO bağımsız):
+  - `frameSignature` (parça-bazlı hafif imza — kısmi değişimi de yakalar) + `signatureDiff` ([0..1] normalize fark)
+  - `verifyChange(before, after)` — eşik altı fark = "tıklama ıskalamış olabilir" uyarısı; screenshot alınamazsa güvenli rapor
+  - `actWithVerification(snapshot, doAction)` — kare-al → eylem → kare-al → karşılaştır akışı (snapshot hatasında çökmez)
+- ✅ `tools.ts`: `mouse_click` artık `verify="true"` parametresini destekler → tıkla, ekran değişti mi doğrula, sonuca `[DOĞRULAMA]` notu ekle (kör tıklama kontrolü); şema güncellendi (trio 331)
+- ✅ Eylem sonrası beklenen değişiklik olmazsa AEGIS fark eder ve modele bildirir → başarı kriteri karşılandı
+- ✅ 10 birim testi (`tests/tools/action-verifier.test.ts`): imza/fark, değişim tespiti, ıska uyarısı, boş-kare güvenliği, akış sırası
+- ✅ Doğrulama: electron+renderer tsc, trio 331/331, 485 test (34 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `browser_axtree.py` (koordinat yerine doğrulama) ruhu; tam UIAutomation element-tree opsiyonel/sonraya bırakıldı
 
 ## Faz 61 — Proaktif Örüntü Öğrenme (Opt-in) 🌅 ⬜ [NICE TO HAVE]
 
@@ -1613,6 +1616,6 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ✅  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4  ← TAMAMLANDI
 ✅  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5  ← TAMAMLANDI
-⬜  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7
+✅  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7  ← TAMAMLANDI
 ⬜  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6
 ```
