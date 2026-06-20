@@ -4,7 +4,7 @@ export interface LangStrings {
     processing: string; listening: string; waitingVoice: string; idle: string;
     locale: string;
     send: string; stop: string; closeBtn: string; attachFile: string;
-    tipHistory: string; tipSettings: string; tipMinimize: string; tipFullscreen: string; tipClose: string; tipMemory: string;
+    tipHistory: string; tipSettings: string; tipMinimize: string; tipFullscreen: string; tipClose: string; tipMemory: string; tipCommandCenter: string;
     conversation: string;
     stLive: string; stProc: string; stResp: string; stListen: string; stErr: string; stReady: string;
     empty1: string; empty2: string; empty3: string; emptyDash: string;
@@ -19,7 +19,7 @@ export const UI: Record<Lang, LangStrings> = {
         processing: "AEGIS işliyor…", listening: "Dinliyorum, efendim…", waitingVoice: "Sesli komut bekleniyor…", idle: "Komutunuzu verin, efendim…",
         locale: "tr-TR",
         send: "GÖNDER", stop: "DURDUR", closeBtn: "KAPAT", attachFile: "Dosya ekle",
-        tipHistory: "Konuşma geçmişi", tipSettings: "Ayarlar", tipMinimize: "Küçült", tipFullscreen: "Tam ekran (F11)", tipClose: "Kapat", tipMemory: "Hafıza · öğrenilen gerçekler",
+        tipHistory: "Konuşma geçmişi", tipSettings: "Ayarlar", tipMinimize: "Küçült", tipFullscreen: "Tam ekran (F11)", tipClose: "Kapat", tipMemory: "Hafıza · öğrenilen gerçekler", tipCommandCenter: "Komut merkezi",
         conversation: "KONUŞMA",
         stLive: "CANLI", stProc: "İŞLENİYOR", stResp: "YANIT VERİYOR", stListen: "DİNLİYOR", stErr: "HATA", stReady: "HAZIR",
         empty1: "SYS: AEGIS çevrimiçi.", empty2: "SYS: Sistemler nominal.", empty3: "SYS: Emrinizi bekliyorum, efendim…", emptyDash: "Sistem hazır. Komut bekleniyor…",
@@ -32,7 +32,7 @@ export const UI: Record<Lang, LangStrings> = {
         processing: "AEGIS processing…", listening: "Listening, sir…", waitingVoice: "Waiting for voice command…", idle: "Give your command, sir…",
         locale: "en-US",
         send: "SEND", stop: "STOP", closeBtn: "CLOSE", attachFile: "Attach file",
-        tipHistory: "Chat history", tipSettings: "Settings", tipMinimize: "Minimize", tipFullscreen: "Fullscreen (F11)", tipClose: "Close", tipMemory: "Memory · learned facts",
+        tipHistory: "Chat history", tipSettings: "Settings", tipMinimize: "Minimize", tipFullscreen: "Fullscreen (F11)", tipClose: "Close", tipMemory: "Memory · learned facts", tipCommandCenter: "Command center",
         conversation: "CONVERSATION",
         stLive: "LIVE", stProc: "PROCESSING", stResp: "RESPONDING", stListen: "LISTENING", stErr: "ERROR", stReady: "READY",
         empty1: "SYS: AEGIS online.", empty2: "SYS: Systems nominal.", empty3: "SYS: Awaiting your command, sir…", emptyDash: "System ready. Awaiting command…",
@@ -45,7 +45,7 @@ export const UI: Record<Lang, LangStrings> = {
         processing: "AEGIS verarbeitet…", listening: "Ich höre, Sir…", waitingVoice: "Warte auf Sprachbefehl…", idle: "Ihr Befehl, Sir…",
         locale: "de-DE",
         send: "SENDEN", stop: "STOPP", closeBtn: "SCHLIESSEN", attachFile: "Datei anhängen",
-        tipHistory: "Verlauf", tipSettings: "Einstellungen", tipMinimize: "Minimieren", tipFullscreen: "Vollbild (F11)", tipClose: "Schließen", tipMemory: "Gedächtnis · gelernte Fakten",
+        tipHistory: "Verlauf", tipSettings: "Einstellungen", tipMinimize: "Minimieren", tipFullscreen: "Vollbild (F11)", tipClose: "Schließen", tipMemory: "Gedächtnis · gelernte Fakten", tipCommandCenter: "Kommandozentrale",
         conversation: "GESPRÄCH",
         stLive: "LIVE", stProc: "VERARBEITUNG", stResp: "ANTWORTET", stListen: "HÖRT ZU", stErr: "FEHLER", stReady: "BEREIT",
         empty1: "SYS: AEGIS online.", empty2: "SYS: Systeme nominal.", empty3: "SYS: Erwarte Ihren Befehl, Sir…", emptyDash: "System bereit. Warte auf Befehl…",
@@ -58,7 +58,7 @@ export const UI: Record<Lang, LangStrings> = {
         processing: "AEGIS traite…", listening: "J'écoute, Monsieur…", waitingVoice: "En attente d'une commande vocale…", idle: "Votre commande, Monsieur…",
         locale: "fr-FR",
         send: "ENVOYER", stop: "STOP", closeBtn: "FERMER", attachFile: "Joindre un fichier",
-        tipHistory: "Historique", tipSettings: "Paramètres", tipMinimize: "Réduire", tipFullscreen: "Plein écran (F11)", tipClose: "Fermer", tipMemory: "Mémoire · faits appris",
+        tipHistory: "Historique", tipSettings: "Paramètres", tipMinimize: "Réduire", tipFullscreen: "Plein écran (F11)", tipClose: "Fermer", tipMemory: "Mémoire · faits appris", tipCommandCenter: "Centre de commande",
         conversation: "CONVERSATION",
         stLive: "EN DIRECT", stProc: "TRAITEMENT", stResp: "RÉPONSE", stListen: "À L'ÉCOUTE", stErr: "ERREUR", stReady: "PRÊT",
         empty1: "SYS: AEGIS en ligne.", empty2: "SYS: Systèmes nominaux.", empty3: "SYS: En attente de votre commande, Monsieur…", emptyDash: "Système prêt. En attente…",
@@ -71,7 +71,7 @@ export const UI: Record<Lang, LangStrings> = {
         processing: "AEGIS procesando…", listening: "Escuchando, señor…", waitingVoice: "Esperando comando de voz…", idle: "Su orden, señor…",
         locale: "es-ES",
         send: "ENVIAR", stop: "DETENER", closeBtn: "CERRAR", attachFile: "Adjuntar archivo",
-        tipHistory: "Historial", tipSettings: "Ajustes", tipMinimize: "Minimizar", tipFullscreen: "Pantalla completa (F11)", tipClose: "Cerrar", tipMemory: "Memoria · hechos aprendidos",
+        tipHistory: "Historial", tipSettings: "Ajustes", tipMinimize: "Minimizar", tipFullscreen: "Pantalla completa (F11)", tipClose: "Cerrar", tipMemory: "Memoria · hechos aprendidos", tipCommandCenter: "Centro de comandos",
         conversation: "CONVERSACIÓN",
         stLive: "EN VIVO", stProc: "PROCESANDO", stResp: "RESPONDIENDO", stListen: "ESCUCHANDO", stErr: "ERROR", stReady: "LISTO",
         empty1: "SYS: AEGIS en línea.", empty2: "SYS: Sistemas nominales.", empty3: "SYS: Esperando su orden, señor…", emptyDash: "Sistema listo. Esperando comando…",

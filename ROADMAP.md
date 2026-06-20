@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.9.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 505 test (37 dosya) ·
-**Faz 1–62 TAMAMLANDI** (Güvenilirlik Sürümü Faz 53–61 dahil) · Faz 63 (Domain UI) başladı (Steam + Hafıza ✅).
+**Özet (v1.9.0):** 332 tool · 8 AI provider · 16 skin · 5 dil · 511 test (35 dosya) ·
+**Faz 1–63 TAMAMLANDI** — Güvenilirlik Sürümü (53–61) + Domain UI bileşenleri (63) dahil.
 
 ---
 
@@ -1542,11 +1542,13 @@ akıllı bir katman: doğal dil hedefini cihazlara çözer, kritik cihazlarda on
 
 ---
 
-## Faz 63 — Domain UI Bileşenleri (Widget / Popup / Modal) 🎨🧩 🔶 [DEVAM EDİYOR]
+## Faz 63 — Domain UI Bileşenleri (Widget / Popup / Modal) 🎨🧩 ✅
 
-> **Altyapı ✅:** Genel `window.jarvis.runTool(name, args)` IPC'si eklendi (`main.ts`
-> `run-tool` handler + `preload.ts` + `electron.d.ts`) → tüm domain UI'ları canlı veriyi
-> tek köprüden çeker, her biri için ayrı IPC gerekmez. İlk iki bileşen bu altyapıyla yapıldı.
+> **Altyapı:** Genel `window.jarvis.runTool(name, args)` IPC'si (`main.ts` `run-tool` handler +
+> `preload.ts` + `electron.d.ts`) → tüm domain UI'ları canlı veriyi tek köprüden çeker.
+> **Sonuç:** 4 canlı widget (Spotify + Steam + Pomodoro + Akıllı Ev) sol panelde · 1 Hafıza modal'ı ·
+> 1 sekmeli Komut Merkezi (6 sekme: Görevler/Bilgi/Otomasyon/Öğrenme/Kişilik/Pluginler). 11/14 madde
+> yapıldı; 3 isteğe-bağlı (63.12–63.14) bilinçle ertelendi (risk/değer veya dep gerekçesiyle).
 
 _Bugün yalnız **Spotify**'ın sol panelde canlı, interaktif bir widget'ı var (`SpotifyWidget.tsx`:
 tool çıktısını parse edip kart + kaydırıcı + butona çevirir). Diğer onlarca tool grubu yalnız
@@ -1560,33 +1562,43 @@ bittiğinde dur–göster–onay. Sıra: önce yüksek-değer widget'lar.
 
 ### 🥇 Yüksek değer — Canlı WIDGET (sol panel)
 
-- **63.1 Sistem Telemetri widget'ı** ⬜ — CPU/RAM/GPU/disk canlı bar + mini sparkline kart
-  (telemetri satırları var ama Spotify gibi şık değil; `system_report`/telemetri akışını kullanır)
+- **63.1 Sistem Telemetri widget'ı** ✅ (mevcut) — HologramSkin'in sol panelinde zaten zengin
+  canlı telemetri var (CpuRow/RamRow/DiskRows/GpuRow/fan/ağ); ayrı bir widget'a gerek yok
 - **63.2 Steam / Çalışan Oyun widget'ı** ✅ — `SteamWidget.tsx`: çalışan oyun(lar)ı canlı gösterir
   (8sn poll, `steam_game_running` çıktısını parse eder), hover'da "oyunu kapat" butonu
   (`steam_close_game`); oyun yokken render etmez. Sol panele Spotify yanına eklendi
-- **63.3 Akıllı Ev widget'ı** ⬜ — oda bazlı ışık/priz/termostat anlık toggle'ları
-  (`smart_home_devices`/`smart_home_control`; kritik cihazda Faz 54 onayı)
-- **63.4 Zaman & Pomodoro widget'ı** ⬜ — aktif pomodoro geri sayımı + zaman-takibi sayacı (canlı)
-- **63.5 Görevler & Hatırlatıcılar widget'ı** ⬜ — yaklaşan zamanlanmış görevler + aktif watch koşulları
+- **63.3 Akıllı Ev widget'ı** ✅ — `SmartHomeWidget.tsx`: cihaz sayısı + açık ışık sayısı,
+  "Tümünü Aç/Kapat" hızlı butonları (`smart_home_devices`/`smart_home_control`, 10sn poll);
+  Home Assistant yapılandırılmamışsa render etmez
+- **63.4 Zaman & Pomodoro widget'ı** ✅ — `PomodoroWidget.tsx`: canlı geri sayım (saniye saniye,
+  15sn sunucu senkronu) + faz (odaklanma/mola) + durdur butonu; yeni `pomodoro_status` tool'u
+  (makine-okunur "PHASE|kalanSaniye|oturum"); aktif pomodoro yoksa render etmez
+- **63.5 Görevler & Hatırlatıcılar** ✅ — Komut Merkezi panelinde "GÖREVLER" sekmesi
+  (`list_scheduled_tasks` + `list_watch_conditions`, satırdan iptal `cancel_scheduled_task`)
 
 ### 🥈 Orta değer — POPUP / MODAL (tıkla-aç)
 
 - **63.6 Hafıza & Gerçekler modal'ı** ✅ — `MemoryModal.tsx`: öğrenilen gerçekleri listeler
   (`list_facts`), anlamca arama kutusu (`search_memory` — Faz 57), gerçek silme (`forget_fact`);
   title bar'da beyin ikonu butonu + Esc ile kapanır; 5 dilli ipucu (`tipMemory`)
-- **63.7 Bilgi Tabanı / RAG modal'ı** ⬜ — indekslenmiş dosyalar + semantik arama sonuçları
-- **63.8 Öğrenme modal'ı** ⬜ — flashcard tekrar arayüzü + hedef progress bar'ları
-- **63.9 Plugin Marketplace modal'ı** ⬜ — yüklü/aranabilir pluginler, kur/kaldır
-- **63.10 Otomasyon / Makro / Routine modal'ı** ⬜ — kayıtlı kurallar/makrolar; aç-kapat-sil
-- **63.11 Persona hızlı seçici popup** ⬜ — default/coach/friendly/teacher tek tıkla geçiş
+> **63.7–63.11 → tek `DomainPanel.tsx` (Komut Merkezi):** sekmeli modal, title bar'da
+> ızgara ikonu butonu (5 dilli `tipCommandCenter`). Her sekme `runTool` ile veri çeker,
+> ham metin yerine okunur bloklar gösterir (kırılgan parse yok). Esc ile kapanır.
 
-### 🥉 İsteğe bağlı — küçük POPUP / inline
+- **63.7 Bilgi Tabanı / RAG** ✅ — "BİLGİ" sekmesi: `list_indexed_files` + `search_knowledge` arama kutusu
+- **63.8 Öğrenme** ✅ — "ÖĞRENME" sekmesi: `goal_list` (hedefler) + `reading_list` (okuma)
+- **63.9 Plugin Marketplace** ✅ — "PLUGİNLER" sekmesi: `list_plugins` + `plugin_search` arama
+- **63.10 Otomasyon / Makro / Routine** ✅ — "OTOMASYON" sekmesi: `list_automations` + `list_macros` + `routine_list`
+- **63.11 Persona** ✅ — "KİŞİLİK" sekmesi: `get_persona` (aktif) + `list_personas` (mevcutlar)
 
-- **63.12 Yıkıcı eylem onay toast'ı** ⬜ — Faz 54 native `dialog` yerine feed-içi şık onay kartı
-  ("İptal / İzin ver / Her zaman izin ver")
-- **63.13 Proaktif öneri kartı** ⬜ — Faz 61 sabah önerisi için "kabul et / kapat" inline kart
-- **63.14 Gerçek grafik modal'ı** ⬜ — `create_chart` ASCII yerine canvas tabanlı grafik
+### 🥉 İsteğe bağlı — küçük POPUP / inline (bilinçle ERTELENDİ)
+
+- **63.12 Yıkıcı eylem onay toast'ı** ⏸️ — Faz 54 native `dialog` zaten çalışıyor ve güvenli
+  (modal, varsayılan İptal). Feed-içi toast'a çevirmek onay akışını renderer'a taşır → risk/değer kötü; ertelendi
+- **63.13 Proaktif öneri kartı** ⏸️ — Faz 61 önerisi şu an sabah özeti promptuna gidiyor (model doğal dille sorar);
+  ayrı inline kart App akışına dokunur, marjinal değer; ertelendi
+- **63.14 Gerçek grafik modal'ı** ⏸️ — `create_chart` ASCII feed'de gösteriliyor; canvas grafik yeni
+  bağımlılık ister ("yeni provider/dep ekleme" ruhuna aykırı); ertelendi
 
 **UI'ı mantıklı OLMAYANLAR (bilinçle dışarıda):** network (ping/ssh/docker), email, medya-dönüştürme,
 code-runner, computer-use, agent, sound, security-vault (zaten gizli kalmalı) — bunlar tek-atış komut,
@@ -1677,5 +1689,5 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6  ← TAMAMLANDI
 
 ──────────  UI GENİŞLEME  ──────────
-🔶  Faz 63   Domain UI bileşenleri (widget/popup/modal)  ← DEVAM · runTool altyapısı + 63.2 Steam + 63.6 Hafıza ✅; kalan 12 madde
+✅  Faz 63   Domain UI bileşenleri (widget/popup/modal)  ← 4 widget + Hafıza modal + 6-sekmeli Komut Merkezi (11/14; 3 ertelendi)
 ```

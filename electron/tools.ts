@@ -14,7 +14,7 @@ import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
 import {fetchWithTimeout} from "./fetch-utils";
-import {pomodoroStart, pomodoroStop, timeTrackStart, timeTrackStop, timeTrackReport} from "./time-manager";
+import {pomodoroStart, pomodoroStop, pomodoroStatus, timeTrackStart, timeTrackStop, timeTrackReport} from "./time-manager";
 import {addPersona, listPersonas, setActivePersona, getActivePersona, startRoleplay, stopRoleplay} from "./persona";
 import {addFlashcard, reviewFlashcard, addReadingItem, getReadingList, summarizeUrl, setGoal, checkInGoal, listGoals} from "./learning";
 import {modelCompare, pipelineRun, listPipelines, savePipeline, getModelRoutingRules, setModelRoutingRule} from "./model-router";
@@ -1196,6 +1196,9 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async pomodoro_stop() {
         return pomodoroStop();
+    },
+    async pomodoro_status() {
+        return pomodoroStatus();
     },
     async time_track_start({task_name}) {
         return timeTrackStart(task_name ?? "");

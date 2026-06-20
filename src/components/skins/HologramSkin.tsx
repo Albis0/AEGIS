@@ -11,7 +11,10 @@ import type {FeedItemType} from "../FeedItem";
 import type {LangStrings} from "../../i18n";
 import SpotifyWidget from "../SpotifyWidget";
 import SteamWidget from "../SteamWidget";
+import SmartHomeWidget from "../SmartHomeWidget";
+import PomodoroWidget from "../PomodoroWidget";
 import MemoryModal from "../MemoryModal";
+import DomainPanel from "../DomainPanel";
 import type {FeedItem as FeedItemLocal, Attachment} from "../../types/feed";
 
 export interface SkinProps {
@@ -57,7 +60,8 @@ export default function HologramSkin({
     const show = (w: TelemetryWidget) => widgets.includes(w);
 
     const clock = useClock();
-    const [memOpen, setMemOpen] = useState(false);   // Faz 63.6 — hafıza modal'ı
+    const [memOpen, setMemOpen] = useState(false);    // Faz 63.6 — hafıza modal'ı
+    const [panelOpen, setPanelOpen] = useState(false); // Faz 63 — komut merkezi paneli
 
     return (
         <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col${compact ? " compact" : ""}`}>
@@ -80,6 +84,11 @@ export default function HologramSkin({
                             <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3v1a3 3 0 0 0 6 0v-1a3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3V5a3 3 0 0 0-3-3Z"/>
                         </svg>
                     </button>
+                    <button onClick={() => setPanelOpen(true)} title={t.tipCommandCenter} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+                        </svg>
+                    </button>
                     <button onClick={onSettingsOpen} title={t.tipSettings} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-sm" style={{color: "rgb(var(--hud))"}}>⚙</button>
                     <button onClick={() => window.jarvis.minimize()} title={t.tipMinimize} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition" style={{color: "rgb(var(--hud))"}}>─</button>
                     <button onClick={() => window.jarvis.fullscreen()} title={t.tipFullscreen} className="w-8 h-8 grid place-items-center opacity-50 hover:opacity-100 transition text-xs" style={{color: "rgb(var(--hud))"}}>⛶</button>
@@ -93,6 +102,8 @@ export default function HologramSkin({
                 <div className="shrink-0 w-[clamp(190px,17vw,230px)] flex flex-col overflow-y-auto hud" style={{gap: "var(--gap)", paddingTop: "var(--pad-y)", color: "rgb(var(--hud))"}}>
                     <SpotifyWidget />
                     <SteamWidget />
+                    <PomodoroWidget />
+                    <SmartHomeWidget />
                     <Section title="TIME">
                         <div className="text-3xl tabular-nums glow-text leading-none" style={{fontFamily: "Orbitron, sans-serif"}}>
                             {clock.toLocaleTimeString(t.locale, {hour: "2-digit", minute: "2-digit"})}
@@ -323,8 +334,9 @@ export default function HologramSkin({
                 </div>
             </div>
 
-            {/* Faz 63.6 — Hafıza modal'ı (HUD rengiyle çalışır) */}
+            {/* Faz 63 — Hafıza modal'ı + Komut Merkezi paneli (HUD rengiyle çalışır) */}
             <MemoryModal open={memOpen} onClose={() => setMemOpen(false)} accent="var(--hud)" />
+            <DomainPanel open={panelOpen} onClose={() => setPanelOpen(false)} accent="var(--hud)" />
         </div>
     );
 }

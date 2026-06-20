@@ -96,6 +96,17 @@ export function pomodoroStop(): string {
     return `Pomodoro durduruldu. ${state.phase === "work" ? "Çalışma" : "Mola"} fazında ${elapsed} dk geçmişti. Oturum #${state.session} tamamlanmadı.`;
 }
 
+// Faz 63.4 — Widget için makine-okunur durum. Aktifse "PHASE|remainingSec|session",
+// değilse "INACTIVE". Geri sayım UI tarafında saniye saniye yapılır (bu anlık fotoğraf).
+export function pomodoroStatus(): string {
+    const state = loadPomodoro();
+    if (!state.active) return "INACTIVE";
+    const totalSec = (state.phase === "work" ? state.workMinutes : state.breakMinutes) * 60;
+    const elapsedSec = Math.floor((Date.now() - state.startedAt) / 1000);
+    const remaining = Math.max(0, totalSec - elapsedSec);
+    return `${state.phase.toUpperCase()}|${remaining}|${state.session}`;
+}
+
 export function timeTrackStart(taskName: string): string {
     if (!taskName.trim()) return "HATA: Görev adı gerekli.";
     const log = loadTimeLog();
