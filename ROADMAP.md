@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 444 test (31 dosya) ·
-Faz 1–57 + 62 tamamlandı; Faz 58–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 467 test (32 dosya) ·
+Faz 1–58 + 62 tamamlandı; Faz 59–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1366,8 +1366,8 @@ LLM'e geri dönmeden, Faz 50 felsefesine uygun "Jarvis hissi"._
 _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazlar
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
-ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–57 (Loop Guard, İzin Kapısı,
-Eval Harness, Goal Executor, Adaptif Hafıza) tamamlandı; Faz 58–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53–58 (Loop Guard, İzin Kapısı,
+Eval Harness, Goal Executor, Adaptif Hafıza, Boundary Guard) tamamlandı; Faz 59–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1453,17 +1453,20 @@ _`facts.json` düz-JSON + keyword. AEGIS kullanıcıyı kaydediyor ama ÖĞRENM�
 - ✅ Doğrulama: electron+renderer tsc, trio 331/331, 444 test (31 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `embedding_store.py` + `hybrid_search.py` ruhu (semantik arama soyutlaması); SQLite consolidation/decay ALINMADI; **yeni provider eklenmedi**
 
-## Faz 58 — Boundary Guard: Dışarı Sızıntı Koruması 🛡️ ⬜ [SHOULD HAVE]
+## Faz 58 — Boundary Guard: Dışarı Sızıntı Koruması 🛡️ ✅ [SHOULD HAVE]
 
 _Tool sonuçları + dosya içeriği cloud LLM'e (trial'da senin proxy'inden) gidiyor.
 Bir `.env` okutup özetletmek = anahtarın log'a düşmesi. Bir sızıntı = kalıcı güven kaybı._
 
-- **Amaç:** Giden içerikte API key/parola/token tespit edip redakte etmek.
-- **Kullanıcı etkisi:** Çoğunlukla görünmez sigorta; bir kez işe yarar, güveni kurtarır.
-- **Etki: 7 · Zorluk: 4 · Borç riski: 3**
-- **Dosyalar:** yeni `electron/boundary-guard.ts`; `electron/ai-client.ts` (giden mesaj öncesi redact).
-- **Başarı kriteri:** Bilinen sır desenleri (AKIA…/sk-…/bearer/parola) cloud'a gitmeden redakte; birim test; perf etkisi ihmal edilebilir.
-- **OpenJarvis ilhamı:** `security/boundary.py` redact modu + `credential_stripper.py`. Taint/SSRF/signing ALINMAYACAK.
+- ✅ Yeni `electron/boundary-guard.ts` — saf redaksiyon (Electron/IO bağımsız):
+  - 14 sır deseni: AWS (AKIA + secret), OpenAI/Anthropic `sk-`, Google `AIza`, GitHub `ghp_`, Slack `xox`, Stripe, JWT, Bearer, private key blokları, `password=`/`parola=`, prefix'li `*_API_KEY`/`*_TOKEN`/`*_SECRET`
+  - `redactSecrets` (string), `redactContent` (parça dizisi — text maskelenir, görüntü dokunulmaz), `redactMessages` (mesaj dizisi)
+  - `hasSecret` maske-farkında → redaksiyon **idempotent**; sırsız metin AYNI referansla döner (perf)
+- ✅ `ai-client.ts`: `callAI` giden mesajları dönüşüm zincirinin başında redakte eder; **Ollama hariç** (içerik yerelden çıkmıyor) — cloud + deneme-modu proxy korunur
+- ✅ Normal metni bozmaz (kod örnekleri, "monkey/turkey/token" gibi kelimeler maskelenmez); birim testle kanıtlı
+- ✅ 23 birim testi (`tests/tools/boundary-guard.test.ts`): tüm sır türleri, normal-metin korunması, parça/mesaj redaksiyonu, idempotentlik
+- ✅ Doğrulama: electron+renderer tsc, trio 331/331, 467 test (32 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `boundary.py` redact modu + `credential_stripper.py` sadeleştirilerek alındı; taint/SSRF/signing ALINMADI
 
 ## Faz 59 — Self-Healing: Tekrarlayan Hata Tanıma 🔁 ⬜ [NICE TO HAVE]
 
@@ -1607,7 +1610,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4  ← TAMAMLANDI
 ✅  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
 ✅  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6  ← TAMAMLANDI
-⬜  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4
+✅  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4  ← TAMAMLANDI
 ⬜  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5
 ⬜  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7
 ⬜  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6

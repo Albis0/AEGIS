@@ -5,6 +5,7 @@ import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {getAccessToken} from "./auth";
+import {redactMessages} from "./boundary-guard";
 import type {AppSettings} from "./settings";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -330,6 +331,12 @@ export async function callAI(
     const maxTok = clampMaxTokens(reqMaxTok, caps);
     const sendTemp = resolveTemperature(temp, caps);
 
+    // Faz 58 — Boundary Guard: giden içerikte sır (API key/parola/token) varsa
+    // REDAKTE et. Yerel Ollama hariç (içerik kullanıcının makinesinden çıkmıyor);
+    // diğer tüm provider'lar + deneme-modu proxy 3. tarafa içerik gönderir.
+    if (effectiveProvider !== "ollama") {
+        messages = redactMessages(messages);
+    }
     messages = stripImagesIfNeeded(messages, caps);
     messages = mergeSystemIfNeeded(messages, caps);
     messages = trimToBudget(messages, caps, maxTok);

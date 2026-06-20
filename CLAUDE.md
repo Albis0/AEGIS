@@ -2,8 +2,8 @@
 
 Türkçe yanıt ver. Özellik bitip derleme temizse sorma, commit + push at.
 
-Güncel durum (v1.8.0): **331 tool**, 8 AI provider, 51 electron modülü, 16 skin, 5 dil,
-444 test (31 dosya). Faz 1–57 + 62 ✅; Faz 58–61 (güvenilirlik — gelecek hedef) planlı.
+Güncel durum (v1.8.0): **331 tool**, 8 AI provider, 52 electron modülü, 16 skin, 5 dil,
+467 test (32 dosya). Faz 1–58 + 62 ✅; Faz 59–61 (güvenilirlik — gelecek hedef) planlı.
 
 ## Mimari
 
