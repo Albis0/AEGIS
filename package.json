@@ -17,6 +17,7 @@
     "test:steam:live": "tsc -p tsconfig.electron.json && node tests/steam-live-smoke.cjs",
     "test:convo": "tsc -p tsconfig.electron.json && node tests/harness/conversation-harness.mjs",
     "test:convo:live": "tsc -p tsconfig.electron.json && node tests/harness/conversation-live.mjs",
+    "test:eval": "tsc -p tsconfig.electron.json && node tests/harness/tool-selection-eval.mjs",
     "test:gui": "node scripts/gui-test-update.mjs"
   },
   "trustedDependencies": [

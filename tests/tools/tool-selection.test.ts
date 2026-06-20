@@ -132,3 +132,37 @@ describe("Memoization (ajan modu sıcak yolu)", () => {
         expect(after).toBe(before); // temizlenince eski sayıya döner (invalidation çalışıyor)
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Faz 55 — eval harness ile bulunan tool-seçim açıklarının regresyon kalkanı.
+// Bu mesajlarda doğru tool 64-limitte kırpılıyordu; köklerle/öncelikle düzeltildi.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Faz 55 — tool-seçim açık düzeltmeleri", () => {
+    it("'cpu kullanımı' → system_report teklif edilir", () => {
+        expect(toolNames("groq", "cpu kullanımı ne durumda")).toContain("system_report");
+    });
+    it("'bugün hava nasıl' → weather_station teklif edilir", () => {
+        expect(toolNames("groq", "bugün hava nasıl")).toContain("weather_station");
+    });
+    it("'e-posta gönder' → email_send teklif edilir", () => {
+        expect(toolNames("groq", "e-posta gönder")).toContain("email_send");
+    });
+    it("'sistem sesini 30 yap' → set_volume (priorityCore, kırpılmaz)", () => {
+        expect(toolNames("groq", "sistem sesini 30 yap")).toContain("set_volume");
+    });
+    it("'10 dakika sonra hatırlat' → remind_in (scheduler grubu başı)", () => {
+        expect(toolNames("groq", "10 dakika sonra hatırlat")).toContain("remind_in");
+    });
+    it("'şu siteyi özetle <url>' → fetch_url (knowledge grubu başı)", () => {
+        expect(toolNames("groq", "şu siteyi özetle https://x.com")).toContain("fetch_url");
+    });
+    it("düzeltmeler 64-limitini bozmaz", () => {
+        for (const m of ["cpu kullanımı", "hava nasıl", "10 dakika sonra hatırlat", "şu siteyi özetle https://x.com"]) {
+            expect(getAllToolSchemas("groq", m).length).toBeLessThanOrEqual(64);
+        }
+    });
+    it("priorityCore büyük domain grubunu kuyruktan düşürmez (Spotify/Steam korunur)", () => {
+        // 'yeni çıkanları göster' Spotify (~50 tool) çeker; new_releases hâlâ gelmeli
+        expect(toolNames("groq", "yeni çıkanları göster")).toContain("spotify_new_releases");
+    });
+});

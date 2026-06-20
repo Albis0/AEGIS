@@ -148,6 +148,29 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
 // NOT: spotifySchemas burada YOK — TOOL_GROUPS üzerinden gelir. İkiye çıkmasın.
 const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
 
+// Faz 55 — Öncelikli çekirdek tool'lar. Bunlar sık kullanılan temel sistem
+// işleridir ve bir domain grubu (ör. Spotify) öne geçip 64-tool limitini
+// doldurduğunda CORE'un kuyruğunda kalıp KIRPILMAMALARI gerekir. getAllToolSchemas
+// bunları grup tool'larından hemen sonra, geri kalan CORE'dan önce yerleştirir.
+// (Eval harness ile bulundu: "sistem sesini 30 yap" → set_volume teklif edilmiyordu.)
+// MİNİMAL tutulur: her ek tool, büyük domain gruplarının (Spotify ~50, Steam ~40)
+// 64-limit içindeki payını kısar → domain tool'u kırpılır. Yalnızca domain'siz
+// günlük mesajlarda kırpıldığı eval ile KANITLANAN temel tool'lar burada.
+const PRIORITY_CORE_NAMES = new Set<string>([
+    "set_volume", "set_brightness", "remind_in", "fetch_url",
+]);
+function priorityCore(): ChatCompletionTool[] {
+    return CORE_SCHEMAS().filter((t) => PRIORITY_CORE_NAMES.has(t.function?.name ?? ""));
+}
+
+// Bir CORE tool'unu adıyla al — bir domain grubunun başına eklemek için (ör.
+// remind_in → scheduler grubu, fetch_url → knowledge grubu). Böylece domain'le
+// mantıksal olarak aynı olan temel tool, grubun başında gelir ve 64-limitte kırpılmaz.
+function coreByName(name: string): ChatCompletionTool[] {
+    const t = toolSchemas.find((s) => s.function?.name === name);
+    return t ? [t] : [];
+}
+
 // Aksiyon fiil/isim KÖKLERİ — hepsi NORMALIZE (ASCII, ç→c ş→s ı→i ö→o ü→u ğ→g).
 // Eşleştirme normalize edilmiş kelimeler üzerinde startsWith ile yapılır; Türkçe
 // ekler sona geldiğinden kök yeter (ac→aciyor, gonder→gonderdim). Kelime-içi
@@ -219,10 +242,14 @@ function hasActionSignal(words: string[]): boolean {
 // göndermek (false-positive = sadece token) tercih edilir.
 const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => memoryPlusSchemas,  roots: ["hatirla", "hafiza", "profil", "not", "tani", "tercih", "memory", "remember", "hakk", "biliyor", "bil", "alis", "habit", "fact"]},
-    {schemas: () => schedulerSchemas,   roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm"]},
+    // schedulerSchemas + remind_in (CORE'da ama aynı domain — "10 dk sonra hatırlat"
+    // doğru tool remind_in'dir; grup başına alınır ki 64-limitte kırpılmasın).
+    {schemas: () => [...coreByName("remind_in"), ...schedulerSchemas], roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm", "sonra", "dakika"]},
     {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace"]},
     {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
-    {schemas: () => knowledgeSchemas,   roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index", "indeks"]},
+    // knowledgeSchemas + fetch_url (CORE'da — "şu siteyi özetle <url>" doğru tool
+    // fetch_url'dür; grup başına alınır ki büyük gruplar 64-limitte kırpmasın).
+    {schemas: () => [...coreByName("fetch_url"), ...knowledgeSchemas], roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index", "indeks", "site", "url", "link", "sayfa", "ozetle", "ozet", "fetch"]},
     {schemas: () => automationSchemas,  roots: ["otomasyon", "automation", "tetikle", "trigger", "workflow"]},
     {schemas: () => macroSchemas,       roots: ["makro", "macro"]},
     {schemas: () => routineSchemas,     roots: ["routine", "rutin", "kayit", "record", "kaydet", "kaydi", "kayd", "oyun modu", "mod"]},
@@ -234,10 +261,14 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => mediaSchemas,       roots: ["resim", "resm", "gorsel", "image", "video", "medya", "media", "foto", "donustur", "convert", "kirp"]},
     {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
     {schemas: () => networkSchemas,     roots: ["ping", "ssh", "docker", "sunucu", "server", "network", "port"]},
-    {schemas: () => vizSchemas,         roots: ["grafik", "chart", "gorsellestir", "rapor", "report", "tablo", "istatistik", "graph"]},
-    {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox"]},
+    {schemas: () => vizSchemas,         roots: ["grafik", "chart", "gorsellestir", "rapor", "report", "tablo", "istatistik", "graph",
+        // Sistem sağlık raporu (system_report) — "cpu kullanımı", "ram durumu", "bellek" (eval ile bulundu)
+        "cpu", "ram", "bellek", "memory", "disk", "kullanim", "islemci", "donanim", "hardware", "saglik"]},
+    {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox", "posta", "gmail", "outlook"]},
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
-    {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer"]},
+    {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer",
+        // Hava durumu istasyonu (weather_station) — "hava nasıl", "sıcaklık", "nem" (eval ile bulundu)
+        "hava", "weather", "sicaklik", "nem", "ruzgar", "yagmur", "meteo"]},
     {schemas: () => smartHomeSchemas,   roots: [
         // TR
         "isik", "isigi", "isiklar", "lamba", "lamba", "ampul", "abajur", "spot", "led",
@@ -368,11 +399,16 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
                 const stickyGroup = groupForTool(lastTool);
                 if (stickyGroup && !matchedGroups.includes(stickyGroup)) matchedGroups.push(stickyGroup);
             }
-            // Eşleşen grup tool'larını ÖNE al; limit (Groq=64) çekirdek tool'lar
-            // yüzünden kullanıcının asıl istediği domain tool'larını KIRPMASIN.
+            // Sıra: eşleşen grup tool'ları (kullanıcının asıl domain'i — TAM korunur,
+            // kırpılmaz) → ÖNCELİKLİ çekirdek (set_volume/fetch_url/remind_in/
+            // set_brightness — sadece 4 tool) → geri kalan CORE. priorityCore'u grup
+            // tool'larından HEMEN sonra koymak, bu 4 temel tool'un CORE'un ortasında
+            // kalıp 64-limitle kırpılmasını önler; yalnız 4 tool olduğu için büyük
+            // domain gruplarını (Spotify/Steam) da kuyruktan düşürmez.
+            // (Eval %100 + convo harness regresyonsuz ile dengelendi.)
             const groupTools: ChatCompletionTool[] = [];
             for (const group of matchedGroups) groupTools.push(...group.schemas());
-            selected = dedupeByName([...groupTools, ...CORE_SCHEMAS()]);
+            selected = dedupeByName([...groupTools, ...priorityCore(), ...CORE_SCHEMAS()]);
         }
     } else {
         // Bağlam yok (ör. ajan modu döngüsü) → hepsi. Bu liste extraSchemas

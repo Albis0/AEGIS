@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 396 test (27 dosya) ·
-Faz 1–54 + 62 tamamlandı; Faz 55–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
+**Özet (v1.8.0):** 330 tool · 8 AI provider · 16 skin · 5 dil · 411 test (28 dosya) ·
+Faz 1–55 + 62 tamamlandı; Faz 56–61 (Güvenilirlik Sürümü — gelecek hedef) planlı.
 
 ---
 
@@ -1367,7 +1367,7 @@ _Buraya kadar olan fazlar AEGIS'i "geniş" yaptı (330 tool). Aşağıdaki fazla
 AEGIS'i "derin" yapar: daha çok kullanılan değil, daha çok GÜVENİLEN bir asistan.
 Hedef "ikinci ben" hissi — takıldığında durur, tehlikeli işte sorar, doğruluğunu
 ölçer, görevi bitirir, seni hatırlar. **Durum:** Faz 53 (Loop Guard) + 54 (İzin
-Kapısı) tamamlandı; Faz 55–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
+Kapısı) + 55 (Eval Harness) tamamlandı; Faz 56–61 hâlâ gelecek plan (⬜). Detaylı analiz: `docs/AEGIS-2.0-roadmap-gaps.md`._
 
 **Eksik alan teşhisi:** Loop prevention 🔴 · Permission/Safety 🔴 · Recovery 🟡 ·
 Goal execution 🟡 · Adaptive memory 🔴 · Self-healing 🔴 · Long-running tasks 🔴 ·
@@ -1405,17 +1405,21 @@ argümanla geri dönülmez hasar verebilir. Güven = geri alınamaz eylemde duru
 - ✅ Doğrulama: electron+renderer tsc, trio 330/330, 396 test (27 dosya), vite build — hepsi yeşil
 - **OpenJarvis ilhamı:** `security/capabilities.py` risk-tier + always_approve/deny deseni sadeleştirilerek alındı (tam RBAC ALINMADI)
 
-## Faz 55 — Tool-Seçim Eval Harness'ı (Skorlu) 🎯 ⬜ [MUST HAVE]
+## Faz 55 — Tool-Seçim Eval Harness'ı (Skorlu) 🎯 ✅ [MUST HAVE]
 
 _"Bi çalışıyor bi çalışmıyor" sorunu şu an GÖRÜNMEZ — convo harness smoke düzeyinde,
 skor yok. Ölçemediğini düzeltemezsin. (Faz 50.3 "deterministik router"ın asıl işi budur.)_
 
-- **Amaç:** "Bu girdi için doğru tool seçildi mi?" sorusunu sayıyla ölçen, regresyon yakalayan değerlendirme.
-- **Kullanıcı etkisi:** Dolaylı ama en büyük — doğruluk yükselir, düşüşler yakalanır. Güvenin nicel temeli.
-- **Etki: 8 · Zorluk: 4 · Borç riski: 2**
-- **Dosyalar:** `tests/harness/scenarios.mjs` genişlet; yeni `tests/harness/tool-selection-eval.mjs`; CI raporu.
-- **Başarı kriteri:** ≥40 etiketli senaryo; her çalıştırmada tool-seçim doğruluk %'si; eşik altı CI uyarısı; resolver senaryoları dahil.
-- **OpenJarvis ilhamı:** `evals/core/agentic_runner.py` + `scorer.py` MİNİ çekirdeği (girdi→beklenen→skor). 37k satırlık framework + enerji/FLOP metrikleri ALINMAYACAK.
+- ✅ Yeni `tests/harness/eval-cases.mjs` — **40 etiketli vaka** (offer / resolver / negative); `tool-selection-eval.mjs` runner skorlar
+- ✅ Skor: her çalıştırmada **tool-seçim doğruluk %'si** + tür bazında kırılım; `EVAL_THRESHOLD` (varsayılan %90) altına düşerse **exit 1** (CI uyarısı); `eval-report.json` üretir
+- ✅ Üç vaka türü: `offer` (tool teklif edilmeli), `resolver` (deterministik resolver tam tool+args üretmeli), `negative` (saf sohbette tool seçilmemeli — yanlış-pozitif yakalar)
+- ✅ `npm run test:eval` script'i; mevcut convo harness (105 senaryo) regresyon kalkanı olarak korundu
+- ✅ **Eval gerçek açıkları yakaladı ve kapattım** (doğruluk %82.5 → **%100**):
+  - Eksik kökler eklendi: `system_report` ("cpu/ram/bellek/kullanım"), `weather_station` ("hava/sıcaklık/nem"), `email_send` ("posta/gmail")
+  - 64-limit kırpması düzeltildi: `priorityCore` (set_volume/set_brightness — temel tool'lar kırpılmaz) + `remind_in` scheduler grubuna, `fetch_url` knowledge grubuna eklendi (grup başında → kırpılmaz)
+- ✅ 8 birim testi (`tests/tools/tool-selection.test.ts` Faz 55 bloğu — açık düzeltmeleri kilitler, 64-limit + büyük domain korunur) + 7 vaka-bütünlük testi (`tests/harness/eval-cases.test.ts`)
+- ✅ Doğrulama: electron+renderer tsc, trio 330/330, 411 test (28 dosya), eval %100, convo 105/0, vite build — hepsi yeşil
+- **OpenJarvis ilhamı:** `agentic_runner.py` + `scorer.py` mini çekirdeği (girdi→beklenen→skor); 37k satırlık framework + enerji/FLOP metrikleri ALINMADI
 
 ## Faz 56 — Goal Executor: Plan → Adım → Doğrula → Toparla 🧩 ⬜ [SHOULD HAVE]
 
@@ -1592,7 +1596,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ──────────  GÜVENİLİRLİK SÜRÜMÜ — gelecek hedef (henüz başlanmadı)  ──────────
 ✅  Faz 53   Loop Guard & eylem bütçesi        ← MUST · etki 9/zorluk 3  ← TAMAMLANDI
 ✅  Faz 54   Yıkıcı eylem izin kapısı          ← MUST · etki 9/zorluk 5  ← TAMAMLANDI
-⬜  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4
+✅  Faz 55   Tool-seçim eval harness (skorlu)  ← MUST · etki 8/zorluk 4  ← TAMAMLANDI
 ⬜  Faz 56   Goal executor (plan/doğrula)      ← SHOULD · etki 8/zorluk 6
 ⬜  Faz 57   Adaptif hafıza (semantik)         ← SHOULD · etki 8/zorluk 6
 ⬜  Faz 58   Boundary guard (sızıntı koruması) ← SHOULD · etki 7/zorluk 4
