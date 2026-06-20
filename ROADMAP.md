@@ -2,8 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.8.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 497 test (36 dosya) ·
-**Faz 1–62 TAMAMLANDI** — Güvenilirlik Sürümü (Faz 53–61) dahil tüm roadmap bitti.
+**Özet (v1.9.0):** 331 tool · 8 AI provider · 16 skin · 5 dil · 497 test (36 dosya) ·
+**Faz 1–62 TAMAMLANDI** (Güvenilirlik Sürümü Faz 53–61 dahil) · Faz 63 (Domain UI bileşenleri) planlı.
 
 ---
 
@@ -1542,6 +1542,51 @@ akıllı bir katman: doğal dil hedefini cihazlara çözer, kritik cihazlarda on
 
 ---
 
+## Faz 63 — Domain UI Bileşenleri (Widget / Popup / Modal) 🎨🧩 ⬜ [PLANLI]
+
+_Bugün yalnız **Spotify**'ın sol panelde canlı, interaktif bir widget'ı var (`SpotifyWidget.tsx`:
+tool çıktısını parse edip kart + kaydırıcı + butona çevirir). Diğer onlarca tool grubu yalnız
+metin döndürüyor — görsel yüzü yok. Bu faz, durumu/etkileşimi görsel sunmaya DEĞEN domain'lere
+Spotify kalitesinde UI verir. Üç tip: **Widget** (sol panel, canlı poll), **Modal** (tıkla-aç,
+liste/grid), **Popup/Toast** (anlık, küçük)._
+
+**Tasarım ilkeleri:** her bileşen mevcut tool çıktısını parse eder (yeni IPC gerekmezse eklenmez),
+skin-agnostik (`var(--hud)`/`--accent` kullanır), SVG line-icon (emoji yok), 5 dilli. Bir bileşen
+bittiğinde dur–göster–onay. Sıra: önce yüksek-değer widget'lar.
+
+### 🥇 Yüksek değer — Canlı WIDGET (sol panel)
+
+- **63.1 Sistem Telemetri widget'ı** ⬜ — CPU/RAM/GPU/disk canlı bar + mini sparkline kart
+  (telemetri satırları var ama Spotify gibi şık değil; `system_report`/telemetri akışını kullanır)
+- **63.2 Steam / Now-Playing Oyun widget'ı** ⬜ — çalışan oyun, oynama süresi, kütüphane kısayolu
+  (Spotify'ın oyun karşılığı; `steam_game_running`/`steam_list`)
+- **63.3 Akıllı Ev widget'ı** ⬜ — oda bazlı ışık/priz/termostat anlık toggle'ları
+  (`smart_home_devices`/`smart_home_control`; kritik cihazda Faz 54 onayı)
+- **63.4 Zaman & Pomodoro widget'ı** ⬜ — aktif pomodoro geri sayımı + zaman-takibi sayacı (canlı)
+- **63.5 Görevler & Hatırlatıcılar widget'ı** ⬜ — yaklaşan zamanlanmış görevler + aktif watch koşulları
+
+### 🥈 Orta değer — POPUP / MODAL (tıkla-aç)
+
+- **63.6 Hafıza & Gerçekler modal'ı** ⬜ — kayıtlı gerçekler + alışkanlıklar + `search_memory` arama kutusu (Faz 57)
+- **63.7 Bilgi Tabanı / RAG modal'ı** ⬜ — indekslenmiş dosyalar + semantik arama sonuçları
+- **63.8 Öğrenme modal'ı** ⬜ — flashcard tekrar arayüzü + hedef progress bar'ları
+- **63.9 Plugin Marketplace modal'ı** ⬜ — yüklü/aranabilir pluginler, kur/kaldır
+- **63.10 Otomasyon / Makro / Routine modal'ı** ⬜ — kayıtlı kurallar/makrolar; aç-kapat-sil
+- **63.11 Persona hızlı seçici popup** ⬜ — default/coach/friendly/teacher tek tıkla geçiş
+
+### 🥉 İsteğe bağlı — küçük POPUP / inline
+
+- **63.12 Yıkıcı eylem onay toast'ı** ⬜ — Faz 54 native `dialog` yerine feed-içi şık onay kartı
+  ("İptal / İzin ver / Her zaman izin ver")
+- **63.13 Proaktif öneri kartı** ⬜ — Faz 61 sabah önerisi için "kabul et / kapat" inline kart
+- **63.14 Gerçek grafik modal'ı** ⬜ — `create_chart` ASCII yerine canvas tabanlı grafik
+
+**UI'ı mantıklı OLMAYANLAR (bilinçle dışarıda):** network (ping/ssh/docker), email, medya-dönüştürme,
+code-runner, computer-use, agent, sound, security-vault (zaten gizli kalmalı) — bunlar tek-atış komut,
+canlı durum/etkileşim yüzü gereksiz.
+
+---
+
 ## ⚠️ OpenJarvis'ten KOPYALANMAYACAKLAR (overengineered / ürün için anlamsız)
 
 LoRA/GRPO/SFT learning pipeline · 37k satır eval framework'ün tamamı · tam RBAC
@@ -1623,4 +1668,7 @@ ekleme" kuralıyla çelişir) · SSRF/taint/signing · çok-kanal bridge (whatsa
 ✅  Faz 59   Self-healing (hata örüntüsü)      ← NICE · etki 6/zorluk 5  ← TAMAMLANDI
 ✅  Faz 60   Computer use doğrulama döngüsü    ← NICE · etki 6/zorluk 7  ← TAMAMLANDI
 ✅  Faz 61   Proaktif örüntü öğrenme (opt-in)  ← NICE · etki 6/zorluk 6  ← TAMAMLANDI
+
+──────────  UI GENİŞLEME  ──────────
+⬜  Faz 63   Domain UI bileşenleri (widget/popup/modal)  ← PLANLI · 14 alt madde (önce 63.1–63.5 widget'lar)
 ```
