@@ -12,6 +12,62 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.9.0",
+        date: "2026-06-20",
+        notes: {
+            tr: [
+                "Güvenilirlik sürümü: AEGIS artık daha az takılıyor, tehlikeli işlerde soruyor ve hatalardan öğreniyor.",
+                "Döngü koruması: aynı işi boşuna tekrarlayıp takılmak yerine durup durumu net söyler.",
+                "Güvenlik onayı: dosya silme, süreç kapatma gibi geri alınamaz işlemlerde önce onay ister ('her zaman izin ver' ile öğretebilirsin).",
+                "Sızıntı koruması: bir .env/şifre dosyasını okuttuğunda API anahtarların ve parolaların yapay zekâya gitmeden otomatik maskelenir.",
+                "Daha akıllı hafıza: konuşmadan otomatik öğrenir ('adım X', 'Python kullanıyorum'), çelişki olursa eskiyi günceller; 'geçen ay ne demiştim' diye arayabilirsin.",
+                "Görevleri bitirme: çok adımlı işlerde plan yapar, her adımı doğrular, takılınca körlemesine tekrar yerine yön değiştirir.",
+                "Proaktif öneriler (opsiyonel, varsayılan kapalı): alışkanlıklarını fark edip otomatikleştirmeyi teklif eder — Ayarlar'dan açıp kapatabilirsin.",
+                "Tool seçim doğruluğu ölçülüp %100'e çıkarıldı (daha az 'bir çalışıyor bir çalışmıyor').",
+            ],
+            en: [
+                "Reliability release: AEGIS now gets stuck less, asks before risky actions, and learns from errors.",
+                "Loop guard: instead of pointlessly repeating the same action and freezing, it stops and tells you clearly.",
+                "Safety approval: irreversible actions (deleting files, killing processes) now ask for confirmation first ('always allow' to teach it).",
+                "Leak protection: when you have it read a .env/secrets file, your API keys and passwords are auto-masked before reaching the AI.",
+                "Smarter memory: it auto-learns from conversation ('my name is X', 'I use Python'), updates the old fact on conflict; you can ask 'what did I say last month'.",
+                "Finishing tasks: for multi-step jobs it plans, verifies each step, and changes strategy instead of blindly retrying when stuck.",
+                "Proactive suggestions (optional, off by default): notices your habits and offers to automate them — toggle in Settings.",
+                "Tool-selection accuracy measured and raised to 100% (fewer 'works sometimes' issues).",
+            ],
+            de: [
+                "Zuverlässigkeits-Release: AEGIS bleibt seltener hängen, fragt vor riskanten Aktionen und lernt aus Fehlern.",
+                "Schleifenschutz: Statt dieselbe Aktion sinnlos zu wiederholen und einzufrieren, hält es an und sagt es klar.",
+                "Sicherheitsbestätigung: Unwiderrufliche Aktionen (Dateien löschen, Prozesse beenden) fragen zuerst nach Bestätigung ('immer erlauben' zum Lernen).",
+                "Leck-Schutz: Wenn eine .env/Secrets-Datei gelesen wird, werden API-Schlüssel und Passwörter automatisch maskiert, bevor sie die KI erreichen.",
+                "Klügeres Gedächtnis: lernt automatisch aus Gesprächen ('mein Name ist X', 'ich nutze Python'), aktualisiert bei Konflikt; du kannst fragen 'was habe ich letzten Monat gesagt'.",
+                "Aufgaben abschließen: bei mehrstufigen Jobs plant es, prüft jeden Schritt und ändert die Strategie statt blind zu wiederholen.",
+                "Proaktive Vorschläge (optional, standardmäßig aus): erkennt Gewohnheiten und bietet Automatisierung an — in Einstellungen umschaltbar.",
+                "Tool-Auswahl-Genauigkeit gemessen und auf 100% erhöht (weniger 'funktioniert mal, mal nicht').",
+            ],
+            fr: [
+                "Version fiabilité : AEGIS se bloque moins, demande avant les actions risquées et apprend de ses erreurs.",
+                "Garde anti-boucle : au lieu de répéter inutilement la même action et de se figer, il s'arrête et le dit clairement.",
+                "Approbation de sécurité : les actions irréversibles (suppression de fichiers, arrêt de processus) demandent d'abord confirmation (« toujours autoriser » pour apprendre).",
+                "Protection contre les fuites : quand vous lui faites lire un .env/fichier de secrets, vos clés API et mots de passe sont masqués avant d'atteindre l'IA.",
+                "Mémoire plus intelligente : apprend automatiquement (« je m'appelle X », « j'utilise Python »), met à jour en cas de conflit ; vous pouvez demander « qu'ai-je dit le mois dernier ».",
+                "Terminer les tâches : pour les travaux en plusieurs étapes, il planifie, vérifie chaque étape et change de stratégie au lieu de réessayer aveuglément.",
+                "Suggestions proactives (optionnel, désactivé par défaut) : repère vos habitudes et propose de les automatiser — réglable dans Paramètres.",
+                "Précision de sélection d'outils mesurée et portée à 100% (moins de « ça marche une fois sur deux »).",
+            ],
+            es: [
+                "Versión de fiabilidad: AEGIS se bloquea menos, pregunta antes de acciones arriesgadas y aprende de los errores.",
+                "Protección de bucle: en vez de repetir la misma acción sin sentido y congelarse, se detiene y lo dice claramente.",
+                "Aprobación de seguridad: las acciones irreversibles (borrar archivos, terminar procesos) piden confirmación primero ('permitir siempre' para enseñarle).",
+                "Protección de fugas: cuando le haces leer un .env/archivo de secretos, tus claves API y contraseñas se enmascaran antes de llegar a la IA.",
+                "Memoria más inteligente: aprende de la conversación ('me llamo X', 'uso Python'), actualiza en conflicto; puedes preguntar 'qué dije el mes pasado'.",
+                "Terminar tareas: en trabajos de varios pasos planifica, verifica cada paso y cambia de estrategia en vez de reintentar a ciegas.",
+                "Sugerencias proactivas (opcional, desactivado por defecto): detecta tus hábitos y ofrece automatizarlos — ajustable en Configuración.",
+                "Precisión de selección de herramientas medida y elevada al 100% (menos 'a veces funciona').",
+            ],
+        },
+    },
+    {
         version: "1.8.0",
         date: "2026-06-18",
         notes: {
