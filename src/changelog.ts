@@ -12,6 +12,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.10.0",
+        date: "2026-06-20",
+        notes: {
+            tr: [
+                "Yeni görsel paneller: Spotify gibi diğer alanların da artık canlı arayüzü var.",
+                "Sol panele 3 yeni widget: çalışan Steam oyunu (kapatma butonuyla), pomodoro geri sayımı, akıllı ev (tümünü aç/kapat).",
+                "Hafıza penceresi: AEGIS'in senin hakkında öğrendiği her şeyi gör, içinde ara, sil — başlık çubuğundaki beyin simgesi.",
+                "Komut Merkezi (ızgara simgesi): tek pencerede görevler, bilgi tabanı, otomasyonlar, hedefler, kişilikler ve pluginler — sekmeler arası geçiş.",
+            ],
+            en: [
+                "New visual panels: other areas now have a live interface too, just like Spotify.",
+                "3 new left-panel widgets: running Steam game (with close button), pomodoro countdown, smart home (all on/off).",
+                "Memory window: see everything AEGIS has learned about you, search it, delete entries — brain icon in the title bar.",
+                "Command Center (grid icon): tasks, knowledge base, automations, goals, personas and plugins in one tabbed window.",
+            ],
+            de: [
+                "Neue visuelle Panels: Andere Bereiche haben jetzt auch eine Live-Oberfläche, genau wie Spotify.",
+                "3 neue Widgets im linken Panel: laufendes Steam-Spiel (mit Schließen-Button), Pomodoro-Countdown, Smart Home (alles an/aus).",
+                "Gedächtnis-Fenster: Sieh alles, was AEGIS über dich gelernt hat, durchsuche und lösche es — Gehirn-Symbol in der Titelleiste.",
+                "Kommandozentrale (Raster-Symbol): Aufgaben, Wissensbasis, Automatisierungen, Ziele, Personas und Plugins in einem Fenster mit Tabs.",
+            ],
+            fr: [
+                "Nouveaux panneaux visuels : d'autres domaines ont aussi une interface en direct, comme Spotify.",
+                "3 nouveaux widgets dans le panneau gauche : jeu Steam en cours (avec bouton fermer), minuteur pomodoro, maison connectée (tout allumer/éteindre).",
+                "Fenêtre Mémoire : voyez tout ce qu'AEGIS a appris sur vous, recherchez, supprimez — icône cerveau dans la barre de titre.",
+                "Centre de commande (icône grille) : tâches, base de connaissances, automatisations, objectifs, personas et plugins dans une fenêtre à onglets.",
+            ],
+            es: [
+                "Nuevos paneles visuales: otras áreas ahora también tienen interfaz en vivo, igual que Spotify.",
+                "3 nuevos widgets en el panel izquierdo: juego de Steam en ejecución (con botón cerrar), cuenta atrás pomodoro, hogar inteligente (todo encender/apagar).",
+                "Ventana de memoria: ve todo lo que AEGIS ha aprendido sobre ti, búscalo, elimínalo — icono de cerebro en la barra de título.",
+                "Centro de comandos (icono de cuadrícula): tareas, base de conocimiento, automatizaciones, objetivos, personas y plugins en una ventana con pestañas.",
+            ],
+        },
+    },
+    {
         version: "1.9.0",
         date: "2026-06-20",
         notes: {
