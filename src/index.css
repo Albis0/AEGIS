@@ -50,10 +50,13 @@ body {
     --status-pending: 245, 185, 60;
 }
 
+/* Error durumunda TÜM HUD'u kırmızıya boyamıyoruz (eski davranış göze çok
+   agresif geliyordu — özellikle ilk kurulumda API key oturmadan gelen ilk
+   hatada ekran kıpkırmızı oluyordu). Artık ortam (grid, paneller, metin) sakin
+   accent renginde kalır; yalnızca reaktör (ArcReactor err prop'u) ve hata kutusu
+   (FeedItem, sabit kırmızı) kırmızı vurgu verir. */
 .state-error {
-    --hud: 248, 80, 80;
-    --hud-deep: 160, 30, 30;
-    --hud-soft: 252, 140, 140;
+    /* --hud kasıtlı olarak override EDİLMİYOR */
 }
 
 .hud {

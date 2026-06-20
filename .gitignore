@@ -11,6 +11,9 @@ reference/
 
 # Build & cache
 *.tsbuildinfo
+
+# Üretilen rapor/screenshot çıktıları (GUI doğrulama)
+artifacts/
 .vite
 coverage/
 
@@ -65,3 +68,4 @@ scripts/.vite.log
 scripts/.electron.log
 tests/harness/*-report.json
 tests/harness/live-output.txt
+IdeasByAuthor.md

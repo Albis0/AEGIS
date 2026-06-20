@@ -1,4 +1,6 @@
+// AEGIS — Kurulum (API anahtarları) ekranı — Faz 64 yeni tasarım
 import {useState} from "react";
+import {Shell, Body, Heading, Field, PrimaryButton, ErrorBox, LinkButton, C, ac, muted} from "./onboarding/ui";
 
 interface Fields {
     groqApiKey: string;
@@ -8,18 +10,16 @@ interface Fields {
     serperApiKey: string;
 }
 
-const CYAN = "34,211,238";
-const ac = `rgb(${CYAN})`;
-const border = `rgba(${CYAN},0.15)`;
-
 interface SetupProps {
     // Onboarding akışından çağrıldığında: kaydet sonrası akışı devam ettirir.
     // Verilmezse eski davranış (setupSave + uygulama başlat) korunur.
     onComplete?: () => void;
     onBack?: () => void;
+    step?: number;
+    totalSteps?: number;
 }
 
-export default function SetupScreen({onComplete, onBack}: SetupProps = {}) {
+export default function SetupScreen({onComplete, onBack, step, totalSteps}: SetupProps = {}) {
     const [fields, setFields] = useState<Fields>({
         groqApiKey: "",
         supabaseUrl: "",
@@ -29,18 +29,17 @@ export default function SetupScreen({onComplete, onBack}: SetupProps = {}) {
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement>) =>
-        setFields((f) => ({...f, [k]: e.target.value}));
+    const set = (k: keyof Fields) => (v: string) => setFields((f) => ({...f, [k]: v}));
 
     async function handleSave() {
-        if (!fields.groqApiKey.trim()) { setError("Groq API key zorunlu."); return; }
-        // Supabase artık opsiyonel (Faz 30): girilirse session/mesaj geçmişi
-        // cloud'a kaydedilir; girilmezse uygulama yine çalışır.
+        if (!fields.groqApiKey.trim()) { setError("Groq API anahtarı zorunlu."); return; }
+        // Supabase opsiyonel (Faz 30): girilirse session/mesaj geçmişi cloud'a kaydedilir.
         const sbUrl = fields.supabaseUrl.trim();
         const sbKey = fields.supabaseServiceKey.trim();
         if ((sbUrl && !sbKey) || (!sbUrl && sbKey)) {
-            setError("Supabase için hem URL hem service_role key gerekli (ya ikisini de gir ya da ikisini de boş bırak).");
+            setError("Supabase için hem URL hem service_role key gerekli (ya ikisini de gir ya da boş bırak).");
             return;
         }
         setError("");
@@ -53,8 +52,6 @@ export default function SetupScreen({onComplete, onBack}: SetupProps = {}) {
                 tavilyApiKey: fields.tavilyApiKey.trim() || undefined,
                 serperApiKey: fields.serperApiKey.trim() || undefined,
             });
-            // Onboarding akışından çağrıldıysa devam ettir; değilse setup-save
-            // zaten uygulamayı başlatır (eski davranış).
             onComplete?.();
         } catch (e) {
             setError((e as Error).message ?? "Bilinmeyen hata.");
@@ -63,203 +60,92 @@ export default function SetupScreen({onComplete, onBack}: SetupProps = {}) {
     }
 
     return (
-        <div
-            className="h-screen w-screen flex flex-col"
-            style={{
-                background: "#03060c",
-                color: ac,
-                fontFamily: "'JetBrains Mono', monospace",
-                WebkitFontSmoothing: "antialiased",
-                MozOsxFontSmoothing: "grayscale",
-            } as React.CSSProperties}
-        >
-            {/* Drag bar */}
-            <div className="drag h-9 shrink-0 flex items-center justify-between px-5">
-                <span
-                    className="text-[11px] tracking-[0.45em]"
-                    style={{fontFamily: "Orbitron, sans-serif", color: ac, opacity: 0.6}}
-                >
-                    AEGIS · KURULUM
-                </span>
-                <button
-                    className="no-drag w-7 h-7 grid place-items-center opacity-40 hover:opacity-100 transition text-sm"
-                    style={{color: ac}}
-                    onClick={() => window.jarvis.close()}
-                >
-                    ✕
-                </button>
-            </div>
+        <Shell step={step} totalSteps={totalSteps}>
+            <Body>
+                <Heading
+                    title="Kurulum"
+                    subtitle="API anahtarlarını gir. Ayarlar cihazında ~/.aegis/config.json'a kaydedilir."
+                />
 
-            <div className="flex-1 overflow-y-auto px-7 py-4 flex flex-col gap-6">
+                {/* Zorunlu: Groq */}
+                <Field
+                    label="Groq API anahtarı"
+                    required
+                    type="password"
+                    value={fields.groqApiKey}
+                    onChange={set("groqApiKey")}
+                    placeholder="gsk_…"
+                    hint="console.groq.com → API Keys → Create (ücretsiz)"
+                />
 
-                {/* Title */}
-                <div>
-                    <div
-                        className="text-2xl"
-                        style={{fontFamily: "Orbitron, sans-serif", color: ac}}
-                    >
-                        İlk Kurulum
-                    </div>
-                    <p className="text-[12px] mt-1.5 leading-relaxed" style={{color: ac, opacity: 0.5}}>
-                        API key'leri gir — ayarlar <code style={{opacity: 0.8}}>~/.aegis/config.json</code>'a kaydedilir.
-                    </p>
-                </div>
-
-                {/* Zorunlu alanlar */}
-                <div className="space-y-5">
-                    <Field
-                        label="GROQ API KEY"
-                        required
-                        hint="console.groq.com → API Keys → Create (ücretsiz)"
-                        type="password"
-                        value={fields.groqApiKey}
-                        onChange={set("groqApiKey")}
-                        placeholder="gsk_..."
-                    />
-                    <Field
-                        label="SUPABASE URL"
-                        hint="Opsiyonel — konuşma geçmişini bulutta saklamak için. Boş bırakırsan uygulama yine çalışır."
-                        type="text"
-                        value={fields.supabaseUrl}
-                        onChange={set("supabaseUrl")}
-                        placeholder="https://xxxx.supabase.co"
-                    />
-                    <Field
-                        label="SUPABASE SERVICE_ROLE KEY"
-                        hint="Opsiyonel — Settings → API → service_role (anon key değil)"
-                        type="password"
-                        value={fields.supabaseServiceKey}
-                        onChange={set("supabaseServiceKey")}
-                        placeholder="eyJ..."
-                    />
-                </div>
-
-                {/* Opsiyonel */}
-                <div>
-                    <div
-                        className="text-[10px] tracking-[0.35em] mb-4 pb-2 border-b flex items-center gap-2"
-                        style={{color: `rgba(${CYAN},0.4)`, borderColor: `rgba(${CYAN},0.1)`}}
-                    >
-                        <span className="flex-1 border-t" style={{borderColor: `rgba(${CYAN},0.1)`}} />
-                        OPSİYONEL — WEB ARAMA
-                        <span className="flex-1 border-t" style={{borderColor: `rgba(${CYAN},0.1)`}} />
-                    </div>
-                    <div className="space-y-5">
-                        <Field
-                            label="TAVILY API KEY"
-                            hint="app.tavily.com → API Keys (ücretsiz tier)"
-                            type="password"
-                            value={fields.tavilyApiKey}
-                            onChange={set("tavilyApiKey")}
-                            placeholder="tvly-..."
-                        />
-                        <Field
-                            label="SERPER API KEY"
-                            hint="serper.dev → API Key (ücretsiz tier)"
-                            type="password"
-                            value={fields.serperApiKey}
-                            onChange={set("serperApiKey")}
-                            placeholder=""
-                        />
-                    </div>
-                </div>
-
-                {/* Supabase notu */}
-                <div
-                    className="text-[12px] rounded-lg px-4 py-3 leading-relaxed"
-                    style={{
-                        borderLeft: `2px solid rgba(${CYAN},0.4)`,
-                        background: `rgba(${CYAN},0.04)`,
-                        color: ac,
-                        opacity: 0.7,
-                    }}
-                >
-                    Supabase opsiyoneldir — yalnızca konuşma geçmişini bulutta saklamak istersen gir. Girersen <code style={{opacity: 0.85}}>supabase/schema.sql</code>'i SQL Editor'da çalıştırmayı unutma.
-                </div>
-
-                {/* Hata */}
-                {error && (
-                    <div
-                        className="text-[12px] px-4 py-2.5 rounded-lg"
-                        style={{
-                            color: "#f87171",
-                            background: "rgba(248,113,113,0.07)",
-                            border: "1px solid rgba(248,113,113,0.25)",
-                        }}
-                    >
-                        {error}
-                    </div>
-                )}
-
-                {/* Kaydet */}
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="w-full py-3 rounded-xl border text-[13px] tracking-[0.3em] disabled:opacity-40 transition hover:brightness-125"
-                    style={{
-                        fontFamily: "Orbitron, sans-serif",
-                        color: ac,
-                        borderColor: `rgba(${CYAN},0.4)`,
-                        background: `rgba(${CYAN},0.07)`,
-                    }}
-                >
-                    {saving ? "KAYDEDİLİYOR…" : "KAYDET VE BAŞLAT"}
-                </button>
-
-                {onBack && (
+                {/* Gelişmiş (Supabase + web arama) — varsayılan kapalı, akordeon */}
+                <div className="rounded-2xl border" style={{borderColor: `rgba(${C.line},0.14)`, background: "rgba(255,255,255,0.015)"}}>
                     <button
-                        onClick={onBack}
-                        className="text-[11px] opacity-40 hover:opacity-100 transition self-center"
-                        style={{color: ac}}
-                    >‹ Geri</button>
-                )}
+                        onClick={() => setShowAdvanced((v) => !v)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 transition hover:bg-white/[0.03] rounded-2xl"
+                    >
+                        <div className="text-left">
+                            <div className="text-[13.5px] font-medium" style={{color: ac}}>Gelişmiş (opsiyonel)</div>
+                            <div className="text-[11.5px]" style={{color: muted}}>Bulut senkronu ve web arama anahtarları</div>
+                        </div>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                            className="transition-transform duration-200 shrink-0" style={{color: muted, transform: showAdvanced ? "rotate(180deg)" : "none"}}>
+                            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </button>
 
-                <div className="pb-2" />
-            </div>
-        </div>
+                    {showAdvanced && (
+                        <div className="px-4 pb-4 pt-1 space-y-4 border-t" style={{borderColor: `rgba(${C.line},0.1)`}}>
+                            <SectionLabel>Bulut Senkronu — Supabase</SectionLabel>
+                            <Field
+                                label="Supabase URL" optional type="text"
+                                value={fields.supabaseUrl} onChange={set("supabaseUrl")}
+                                placeholder="https://xxxx.supabase.co"
+                                hint="Konuşma geçmişini bulutta saklamak için. Boş bırakırsan uygulama yine çalışır."
+                            />
+                            <Field
+                                label="Supabase service_role key" optional type="password"
+                                value={fields.supabaseServiceKey} onChange={set("supabaseServiceKey")}
+                                placeholder="eyJ…"
+                                hint="Settings → API → service_role (anon key değil). Girersen supabase/schema.sql'i çalıştırmayı unutma."
+                            />
+
+                            <SectionLabel>Web Arama</SectionLabel>
+                            <Field
+                                label="Tavily API anahtarı" optional type="password"
+                                value={fields.tavilyApiKey} onChange={set("tavilyApiKey")}
+                                placeholder="tvly-…" hint="app.tavily.com → API Keys (ücretsiz tier)"
+                            />
+                            <Field
+                                label="Serper API anahtarı" optional type="password"
+                                value={fields.serperApiKey} onChange={set("serperApiKey")}
+                                placeholder="" hint="serper.dev → API Key (ücretsiz tier)"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {error && <ErrorBox>{error}</ErrorBox>}
+
+                <div className="flex flex-col gap-3">
+                    <PrimaryButton onClick={handleSave} disabled={saving}>
+                        {saving ? "Kaydediliyor…" : "Kaydet ve devam et"}
+                    </PrimaryButton>
+                    {onBack && (
+                        <div className="flex justify-center">
+                            <LinkButton onClick={onBack}>‹ Geri</LinkButton>
+                        </div>
+                    )}
+                </div>
+            </Body>
+        </Shell>
     );
 }
 
-function Field({
-    label, required, hint, type, value, onChange, placeholder,
-}: {
-    label: string;
-    required?: boolean;
-    hint?: string;
-    type: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    placeholder: string;
-}) {
+function SectionLabel({children}: {children: React.ReactNode}) {
     return (
-        <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-                <span
-                    className="text-[11px] tracking-[0.25em]"
-                    style={{color: `rgba(${CYAN},0.6)`}}
-                >
-                    {label}
-                </span>
-                {required && (
-                    <span className="text-[11px]" style={{color: "#f87171"}}>*</span>
-                )}
-            </div>
-            <input
-                type={type}
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                className="w-full bg-transparent rounded-lg px-3 py-2.5 text-[13px] outline-none border transition"
-                style={{
-                    borderColor: value ? `rgba(${CYAN},0.4)` : border,
-                    color: ac,
-                }}
-            />
-            {hint && (
-                <p className="text-[11px] leading-relaxed" style={{color: `rgba(${CYAN},0.4)`}}>
-                    {hint}
-                </p>
-            )}
+        <div className="text-[10.5px] font-semibold tracking-[0.18em] uppercase pt-1" style={{color: `rgb(${C.accent})`, opacity: 0.8}}>
+            {children}
         </div>
     );
 }

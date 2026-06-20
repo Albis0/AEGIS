@@ -7,7 +7,11 @@ export function hslToRgbStr(h: number, s: number, l: number): string {
 }
 
 export function applyAccent(rgb: string): void {
-    const [r, g, b] = rgb.split(",").map((x) => parseInt(x.trim(), 10));
+    let [r, g, b] = (rgb ?? "").split(",").map((x) => parseInt(x.trim(), 10));
+    // Geçersiz/eksik accent (ilk açılışta settings henüz dönmemiş olabilir) →
+    // sessizce cyan'a düş. Aksi halde --hud "NaN,NaN,NaN" olur ve renkler bozulur.
+    if (![r, g, b].every((n) => Number.isFinite(n))) { r = 34; g = 211; b = 238; }
+    rgb = `${r}, ${g}, ${b}`;
     const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;
     const soft = `${Math.min(255, Math.round(r * 1.2))}, ${Math.min(255, Math.round(g * 1.1))}, ${Math.min(255, Math.round(b * 1.05))}`;
     document.documentElement.style.setProperty("--hud", rgb);

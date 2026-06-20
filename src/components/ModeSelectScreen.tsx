@@ -1,93 +1,98 @@
-// AEGIS — Mod Seçim Ekranı (Faz 30.4, 30.8 çok dilli)
+// AEGIS — Mod Seçim Ekranı (Faz 30.4, 30.8 çok dilli, Faz 64 yeni tasarım)
 
 import type {OnboardingStrings} from "../i18n";
-
-const CYAN = "34,211,238";
-const ac = `rgb(${CYAN})`;
+import {Shell, Body, Heading, C, ac, muted, LinkButton} from "./onboarding/ui";
 
 interface Props {
     t: OnboardingStrings;
+    step?: number;
+    totalSteps?: number;
     onSelect: (mode: "trial" | "own") => void;
     onBack?: () => void;
 }
 
-export default function ModeSelectScreen({t, onSelect, onBack}: Props) {
+export default function ModeSelectScreen({t, step, totalSteps, onSelect, onBack}: Props) {
     return (
-        <div
-            className="h-screen w-screen flex flex-col"
-            style={{
-                background: "#03060c",
-                color: ac,
-                fontFamily: "'JetBrains Mono', monospace",
-                WebkitFontSmoothing: "antialiased",
-            } as React.CSSProperties}
-        >
-            <div className="drag h-9 shrink-0 flex items-center justify-between px-5">
-                <span className="text-[11px] tracking-[0.45em]" style={{fontFamily: "Orbitron, sans-serif", color: ac, opacity: 0.6}}>
-                    AEGIS
-                </span>
-                <button
-                    className="no-drag w-7 h-7 grid place-items-center opacity-40 hover:opacity-100 transition text-sm"
-                    style={{color: ac}}
-                    onClick={() => window.jarvis.close()}
-                >✕</button>
-            </div>
+        <Shell step={step} totalSteps={totalSteps}>
+            <Body>
+                <Heading title={t.welcome} subtitle={t.welcomeSub} />
 
-            <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col">
-                <div className="mb-8">
-                    <div className="text-2xl" style={{fontFamily: "Orbitron, sans-serif", color: ac}}>
-                        {t.welcome}
-                    </div>
-                    <p className="text-[12.5px] mt-2 leading-relaxed" style={{color: ac, opacity: 0.5}}>
-                        {t.welcomeSub}
-                    </p>
-                </div>
-
-                <div className="flex flex-col gap-4 flex-1">
-                    {/* Hızlı Başlangıç */}
-                    <button
+                <div className="flex flex-col gap-3.5">
+                    {/* Hızlı Başlangıç — önerilen */}
+                    <ModeCard
+                        recommended={t.recommended}
+                        title={t.quickStart}
+                        desc={t.quickStartDesc}
                         onClick={() => onSelect("trial")}
-                        className="text-left rounded-2xl border p-5 transition hover:brightness-125 group"
-                        style={{borderColor: `rgba(${CYAN},0.35)`, background: `rgba(${CYAN},0.06)`}}
-                    >
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="text-xl">⚡</span>
-                            <span className="text-[15px] tracking-wide" style={{fontFamily: "Orbitron, sans-serif", color: ac}}>
-                                {t.quickStart}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full ml-auto" style={{background: `rgba(${CYAN},0.15)`, color: ac}}>
-                                {t.recommended}
-                            </span>
-                        </div>
-                        <p className="text-[12px] leading-relaxed" style={{color: ac, opacity: 0.65}}>
-                            {t.quickStartDesc}
-                        </p>
-                    </button>
-
+                        icon={
+                            <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" strokeLinecap="round" strokeLinejoin="round" />
+                        }
+                    />
                     {/* Gelişmiş Kurulum */}
-                    <button
+                    <ModeCard
+                        title={t.advanced}
+                        desc={t.advancedDesc}
                         onClick={() => onSelect("own")}
-                        className="text-left rounded-2xl border p-5 transition hover:brightness-125"
-                        style={{borderColor: `rgba(${CYAN},0.18)`, background: `rgba(${CYAN},0.02)`}}
-                    >
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="text-xl">🔑</span>
-                            <span className="text-[15px] tracking-wide" style={{fontFamily: "Orbitron, sans-serif", color: ac}}>
-                                {t.advanced}
-                            </span>
-                        </div>
-                        <p className="text-[12px] leading-relaxed" style={{color: ac, opacity: 0.65}}>
-                            {t.advancedDesc}
-                        </p>
-                    </button>
+                        icon={
+                            <>
+                                <circle cx="8" cy="15" r="4" />
+                                <path d="m10.85 12.15 8.15-8.15M18 5l2 2M15 8l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                            </>
+                        }
+                    />
+                </div>
 
-                    {onBack && (
-                        <button onClick={onBack} className="text-[11px] opacity-40 hover:opacity-100 transition self-center mt-2" style={{color: ac}}>
-                            {t.back}
-                        </button>
-                    )}
+                {onBack && (
+                    <div className="flex justify-center">
+                        <LinkButton onClick={onBack}>‹ {t.back}</LinkButton>
+                    </div>
+                )}
+            </Body>
+        </Shell>
+    );
+}
+
+function ModeCard({
+    title, desc, onClick, icon, recommended,
+}: {
+    title: string;
+    desc: string;
+    onClick: () => void;
+    icon: React.ReactNode;
+    recommended?: string;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className="group text-left rounded-2xl border p-4 transition-all duration-200 active:scale-[0.99] hover:bg-white/[0.04]"
+            style={{
+                borderColor: recommended ? `rgba(${C.accent},0.4)` : `rgba(${C.line},0.16)`,
+                background: recommended ? `rgba(${C.accent},0.05)` : "rgba(255,255,255,0.02)",
+            }}
+        >
+            <div className="flex items-start gap-3.5">
+                <div
+                    className="w-10 h-10 rounded-xl grid place-items-center shrink-0 transition"
+                    style={{
+                        background: recommended ? `linear-gradient(135deg, rgba(${C.accent},0.22), rgba(${C.accent2},0.22))` : "rgba(255,255,255,0.04)",
+                        border: `1px solid rgba(${C.line},0.14)`,
+                    }}
+                >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={`rgb(${C.accent})`} strokeWidth="1.7">{icon}</svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[15px] font-semibold" style={{color: ac}}>{title}</span>
+                        {recommended && (
+                            <span className="text-[9.5px] font-semibold tracking-wider px-2 py-0.5 rounded-full"
+                                style={{background: `linear-gradient(135deg, rgb(${C.accent}), rgb(${C.accent2}))`, color: "#0a0e17"}}>
+                                {recommended}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-[12.5px] leading-relaxed" style={{color: muted}}>{desc}</p>
                 </div>
             </div>
-        </div>
+        </button>
     );
 }

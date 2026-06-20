@@ -12,6 +12,37 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "1.11.0",
+        date: "2026-06-21",
+        notes: {
+            tr: [
+                "İlk kurulum ekranı baştan tasarlandı: temiz, modern, yumuşak arayüz — dil, mod, hesap ve API anahtarı adımları artık çok daha anlaşılır.",
+                "Kurulumda gelişmiş ayarlar (Supabase, web arama) artık katlanır bir bölümde gizli — yeni kullanıcı yalnızca tek zorunlu alanı görüyor.",
+                "Hata durumunda artık tüm ekran kıpkırmızı olmuyor: ortam sakin accent renginde kalır, yalnızca reaktör ve hata mesajı kırmızı vurgu verir.",
+            ],
+            en: [
+                "Redesigned first-run setup: a clean, modern, soft interface — language, mode, account and API-key steps are now much clearer.",
+                "Advanced setup options (Supabase, web search) now live in a collapsible section — new users only see the single required field.",
+                "Errors no longer paint the whole screen red: the environment stays in the calm accent color, only the reactor and error message turn red.",
+            ],
+            de: [
+                "Neu gestalteter Ersteinrichtungsbildschirm: eine saubere, moderne, sanfte Oberfläche — Sprache, Modus, Konto und API-Schlüssel sind jetzt viel klarer.",
+                "Erweiterte Optionen (Supabase, Websuche) liegen jetzt in einem aufklappbaren Bereich — neue Nutzer sehen nur das eine Pflichtfeld.",
+                "Fehler färben nicht mehr den ganzen Bildschirm rot: die Umgebung bleibt in der ruhigen Akzentfarbe, nur Reaktor und Fehlermeldung werden rot.",
+            ],
+            fr: [
+                "Écran de configuration initiale repensé : une interface épurée, moderne et douce — langue, mode, compte et clé API sont bien plus clairs.",
+                "Les options avancées (Supabase, recherche web) sont désormais dans une section repliable — le nouvel utilisateur ne voit que le seul champ requis.",
+                "Les erreurs ne colorent plus tout l'écran en rouge : l'environnement garde la couleur d'accent apaisée, seuls le réacteur et le message d'erreur passent au rouge.",
+            ],
+            es: [
+                "Pantalla de configuración inicial rediseñada: una interfaz limpia, moderna y suave — idioma, modo, cuenta y clave API ahora mucho más claros.",
+                "Las opciones avanzadas (Supabase, búsqueda web) ahora están en una sección plegable — el nuevo usuario solo ve el único campo obligatorio.",
+                "Los errores ya no tiñen toda la pantalla de rojo: el entorno mantiene el color de acento tranquilo, solo el reactor y el mensaje de error se vuelven rojos.",
+            ],
+        },
+    },
+    {
         version: "1.10.0",
         date: "2026-06-20",
         notes: {

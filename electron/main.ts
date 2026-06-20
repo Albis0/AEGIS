@@ -1603,12 +1603,12 @@ let onboardingWin: BrowserWindow | null = null;
 
 function createOnboardingWindow(): void {
     onboardingWin = new BrowserWindow({
-        width: 560,
-        height: 680,
+        width: 480,
+        height: 720,
         resizable: false,
         autoHideMenuBar: true,
         frame: false,
-        backgroundColor: "#04070d",
+        backgroundColor: "#0a0e17",
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
