@@ -15,22 +15,22 @@ function across(tool: string, hour: number, days: number): UsageRecord[] {
     return Array.from({length: days}, (_, i) => ({tool, hour, ts: base + i * DAY}));
 }
 
-describe("detectPatterns — gerçek alışkanlık", () => {
-    it("çok günde tekrarlanan kullanım → örüntü", () => {
+describe("detectPatterns — real habit", () => {
+    it("usage repeated across many days → pattern", () => {
         const recs = across("spotify_play", 9, 4); // 4 ayrı gün, sabah 9
         const p = detectPatterns(recs);
         expect(p.length).toBe(1);
         expect(p[0].tool).toBe("spotify_play");
         expect(p[0].days).toBe(4);
-        expect(p[0].suggestion).toMatch(/sabah/);
+        expect(p[0].suggestion).toMatch(/morning/);
     });
 
-    it("tek günde çok tekrar → örüntü DEĞİL (tesadüf elenir)", () => {
+    it("many repeats in a single day → NOT a pattern (coincidence filtered out)", () => {
         const recs = Array.from({length: 8}, () => ({tool: "x", hour: 9, ts: base}));
         expect(detectPatterns(recs)).toHaveLength(0); // days=1 < minDays
     });
 
-    it("az tekrar (eşik altı) → örüntü değil", () => {
+    it("too few repeats (below threshold) → not a pattern", () => {
         const recs = [
             {tool: "y", hour: 9, ts: base},
             {tool: "y", hour: 9, ts: base + DAY},
@@ -38,22 +38,22 @@ describe("detectPatterns — gerçek alışkanlık", () => {
         expect(detectPatterns(recs)).toHaveLength(0); // count=2 < minOccurrences=3
     });
 
-    it("farklı saat bandı → ayrı örüntü", () => {
+    it("different hour band → separate pattern", () => {
         const recs = [...across("a", 9, 3), ...across("a", 2, 3)];
         const p = detectPatterns(recs);
         expect(p.length).toBe(2);
         const labels = p.map((x) => x.suggestion);
-        expect(labels.some((l) => /sabah/.test(l))).toBe(true);
-        expect(labels.some((l) => /gece/.test(l))).toBe(true);
+        expect(labels.some((l) => /morning/.test(l))).toBe(true);
+        expect(labels.some((l) => /night/.test(l))).toBe(true);
     });
 
-    it("en güçlü örüntü (en çok gün) önce gelir", () => {
+    it("strongest pattern (most days) comes first", () => {
         const recs = [...across("weak", 9, 2), ...across("strong", 14, 5)];
         const p = detectPatterns(recs);
         expect(p[0].tool).toBe("strong");
     });
 
-    it("limit kadar öneri döner", () => {
+    it("returns as many suggestions as the limit", () => {
         const recs = [
             ...across("a", 9, 3), ...across("b", 12, 3),
             ...across("c", 15, 3), ...across("d", 18, 3),
@@ -65,17 +65,17 @@ describe("detectPatterns — gerçek alışkanlık", () => {
 describe("buildProactiveSuggestion — opt-in", () => {
     const recs = across("spotify_play", 9, 4);
 
-    it("KAPALI iken null döner (varsayılan davranış — spam yok)", () => {
+    it("returns null when OFF (default behavior — no spam)", () => {
         expect(buildProactiveSuggestion(recs, false)).toBeNull();
     });
 
-    it("AÇIK iken örüntü özeti döner", () => {
+    it("returns a pattern summary when ON", () => {
         const out = buildProactiveSuggestion(recs, true);
         expect(out).toBeTruthy();
         expect(out).toMatch(/spotify_play/);
     });
 
-    it("AÇIK ama örüntü yoksa null", () => {
+    it("returns null when ON but no pattern exists", () => {
         expect(buildProactiveSuggestion([], true)).toBeNull();
     });
 });

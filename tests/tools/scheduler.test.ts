@@ -29,7 +29,7 @@ describe("scheduler tool", () => {
     it("creates a task with valid schedule", () => {
         const result = toolScheduleTask("Test Görevi", "every 30 minutes", "hava durumu göster");
         expect(result).toContain("Test Görevi");
-        expect(result).toContain("oluşturuldu");
+        expect(result).toContain("created");
         const tasks = loadTasks();
         expect(tasks.length).toBe(1);
         expect(tasks[0].name).toBe("Test Görevi");
@@ -38,7 +38,7 @@ describe("scheduler tool", () => {
 
     it("returns error for invalid schedule", () => {
         const result = toolScheduleTask("Kötü Görev", "geçersiz zamanlama", "bir şeyler yap");
-        expect(result).toContain("HATA");
+        expect(result).toContain("ERROR");
         expect(loadTasks().length).toBe(0);
     });
 
@@ -53,13 +53,13 @@ describe("scheduler tool", () => {
     it("cancels a task by name", () => {
         toolScheduleTask("Silinecek", "every 2 hours", "test");
         const result = toolCancelScheduledTask("Silinecek");
-        expect(result).toContain("iptal edildi");
+        expect(result).toContain("cancelled");
         expect(loadTasks().length).toBe(0);
     });
 
     it("returns not-found for unknown task", () => {
         const result = toolCancelScheduledTask("yoktur");
-        expect(result).toContain("bulunamadı");
+        expect(result).toContain("No task found");
     });
 
     it("startScheduler is idempotent (double-start safe)", () => {

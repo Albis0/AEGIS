@@ -232,10 +232,10 @@ describe("friendlyHttpError", () => {
         text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
     } as Response);
 
-    it("401 → anahtar geçersiz mesajı", async () => {
+    it("401 → invalid key message", async () => {
         const msg = await friendlyHttpError("OpenAI", mkResp(401, {error: {message: "invalid key"}}));
         expect(msg).toContain("OpenAI");
-        expect(msg.toLowerCase()).toContain("anahtar");
+        expect(msg.toLowerCase()).toContain("api key");
     });
 
     it("400 + model bulunamadı → model mesajı", async () => {
@@ -336,10 +336,10 @@ describe("callAI provider dispatch", () => {
         ).rejects.toThrow(/key|anahtar/i);
     });
 
-    it("hata yanıtı (401) friendlyHttpError'dan geçer", async () => {
+    it("error response (401) passes through friendlyHttpError", async () => {
         mockFetch({error: {message: "invalid"}}, false, 401);
         await expect(
             callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "openai", providerKeys: {openai: "bad"}}), "gpt-4o", {} as any),
-        ).rejects.toThrow(/anahtar/i);
+        ).rejects.toThrow(/api key/i);
     });
 });

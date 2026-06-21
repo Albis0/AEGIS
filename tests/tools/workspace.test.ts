@@ -26,13 +26,13 @@ afterEach(() => {
 describe("workspace CRUD", () => {
     it("creates a workspace", () => {
         const result = workspaceCreate("crud-ws", "Test workspace");
-        expect(result).toContain("oluşturuldu");
+        expect(result).toContain("created");
     });
 
     it("prevents duplicate creation", () => {
         workspaceCreate("dup-ws", "First");
         const result = workspaceCreate("dup-ws", "Duplicate");
-        expect(result).toContain("HATA");
+        expect(result).toContain("ERROR");
     });
 
     it("lists workspaces", () => {
@@ -44,25 +44,25 @@ describe("workspace CRUD", () => {
     it("switches workspace", () => {
         workspaceCreate("switch-ws", "For switching");
         const {result} = workspaceSwitch("switch-ws");
-        expect(result).toContain("değiştirildi");
+        expect(result).toContain("switched");
     });
 
     it("returns error for unknown workspace", () => {
         const {result} = workspaceSwitch("yoktur-bilinmeyen");
-        expect(result).toContain("HATA");
+        expect(result).toContain("ERROR");
     });
 
     it("exports and imports workspace", () => {
         workspaceCreate("export-ws", "Export test");
         const exportResult = workspaceExport("export-ws");
-        expect(exportResult).toContain("dışa aktarıldı");
+        expect(exportResult).toContain("exported");
 
         const exportPath = path.join(os.homedir(), ".aegis", "workspace_export-ws_export.json");
         expect(fs.existsSync(exportPath)).toBe(true);
 
         workspaceDelete("export-ws");
         const importResult = workspaceImport(exportPath);
-        expect(importResult).toContain("içe aktarıldı");
+        expect(importResult).toContain("imported");
 
         const list = workspaceList();
         expect(list).toContain("export-ws");
@@ -71,6 +71,6 @@ describe("workspace CRUD", () => {
     it("deletes a workspace", () => {
         workspaceCreate("delete-me", "To be deleted");
         const result = workspaceDelete("delete-me");
-        expect(result).toContain("silindi");
+        expect(result).toContain("deleted");
     });
 });

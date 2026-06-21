@@ -27,29 +27,29 @@ beforeEach(() => { cleanup(); initVault(fakeSafeStorage); });
 afterEach(cleanup);
 
 describe("vaultStore / vaultGet round-trip", () => {
-    it("kaydedilen değer geri okunur", () => {
+    it("a stored value can be read back", () => {
         const msg = vaultStore("email_default_pass", "s3cret");
-        expect(msg).toContain("kaydedildi");
+        expect(msg).toContain("saved");
         expect(vaultGet("email_default_pass")).toBe("s3cret");
     });
 
-    it("değer dosyada DÜZ METİN olarak durmaz (şifreli)", () => {
+    it("the value is not stored as PLAIN TEXT in the file (encrypted)", () => {
         vaultStore("k", "PAROLA123");
         const raw = fs.readFileSync(VAULT_PATH, "utf-8");
-        expect(raw).not.toContain("PAROLA123"); // hex/şifreli olmalı
+        expect(raw).not.toContain("PAROLA123"); // must be hex/encrypted
     });
 
-    it("var olmayan anahtar null döner", () => {
+    it("a nonexistent key returns null", () => {
         expect(vaultGet("yok")).toBeNull();
     });
 });
 
 describe("vaultList", () => {
-    it("boş vault anlamlı mesaj verir", () => {
-        expect(vaultList().toLowerCase()).toContain("yok");
+    it("gives a meaningful message for an empty vault", () => {
+        expect(vaultList().toLowerCase()).toContain("no keys stored");
     });
 
-    it("kayıtlı anahtarları listeler", () => {
+    it("lists stored keys", () => {
         vaultStore("a", "1");
         vaultStore("b", "2");
         const list = vaultList();
@@ -59,27 +59,27 @@ describe("vaultList", () => {
 });
 
 describe("vaultDelete", () => {
-    it("kayıtlı anahtarı siler", () => {
+    it("deletes a stored key", () => {
         vaultStore("temp", "x");
-        expect(vaultDelete("temp")).toContain("silindi");
+        expect(vaultDelete("temp")).toContain("deleted");
         expect(vaultGet("temp")).toBeNull();
     });
 
-    it("olmayan anahtarda bulunamadı mesajı", () => {
-        expect(vaultDelete("yok")).toContain("bulunamadı");
+    it("not-found message for a nonexistent key", () => {
+        expect(vaultDelete("yok")).toContain("not found");
     });
 });
 
-describe("safeStorage kullanılamazsa", () => {
-    it("vaultStore güvenli hata döner (throw etmez)", () => {
+describe("when safeStorage is unavailable", () => {
+    it("vaultStore returns a safe error (does not throw)", () => {
         initVault({
             isEncryptionAvailable: () => false,
             encryptString: () => Buffer.from(""),
             decryptString: () => "",
         });
         const msg = vaultStore("k", "v");
-        expect(msg).toContain("HATA");
-        // tekrar gerçek sahteye dön
+        expect(msg).toContain("ERROR");
+        // switch back to the real fake
         initVault(fakeSafeStorage);
     });
 });

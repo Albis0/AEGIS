@@ -14,7 +14,7 @@ import {
 
 function clearFiles(): void {
     for (const p of [PERSONAS, ROLEPLAY]) {
-        try { fs.unlinkSync(p); } catch { /* yok */ }
+        try { fs.unlinkSync(p); } catch { /* none */ }
     }
 }
 
@@ -25,46 +25,46 @@ beforeEach(() => {
 afterEach(clearFiles);
 
 // ─── Built-in personas ───────────────────────────────────────────────────────
-describe("built-in kişilikler", () => {
-    it("dosya yokken bile 5 built-in mevcut", () => {
+describe("built-in personas", () => {
+    it("5 built-ins exist even without a file", () => {
         const out = listPersonas();
         for (const name of ["default", "formal", "friendly", "coach", "teacher"]) {
             expect(out).toContain(name);
         }
     });
 
-    it("varsayılan aktif kişilik default", () => {
+    it("default active persona is default", () => {
         expect(getActivePersona()).toContain("default");
     });
 });
 
 describe("setActivePersona", () => {
-    it("built-in kişiliği aktifleştirir", () => {
+    it("activates a built-in persona", () => {
         const msg = setActivePersona("coach");
         expect(msg).toContain("coach");
         expect(getActivePersona()).toContain("coach");
     });
 
-    it("olmayan kişilik reddedilir + mevcutları listeler", () => {
+    it("rejects a nonexistent persona + lists available ones", () => {
         const msg = setActivePersona("yok-xyz");
-        expect(msg).toContain("bulunamadı");
+        expect(msg).toContain("not found");
         expect(msg).toContain("default");
     });
 });
 
 describe("addPersona", () => {
-    it("özel kişilik ekler ve aktif edilebilir", () => {
+    it("adds a custom persona and it can be activated", () => {
         addPersona("korsan", "Korsan gibi konuşur", "Arr! Korsan dilinde yanıt ver.");
         expect(listPersonas()).toContain("korsan");
         setActivePersona("korsan");
         expect(getActivePersona()).toContain("Korsan dilinde");
     });
 
-    it("boş isim reddedilir", () => {
-        expect(addPersona("  ", "x", "y")).toContain("HATA");
+    it("rejects an empty name", () => {
+        expect(addPersona("  ", "x", "y")).toContain("ERROR");
     });
 
-    it("built-in'ler diske yazılmaz (sadece özel)", () => {
+    it("built-ins are not written to disk (custom only)", () => {
         addPersona("ozel", "açıklama", "yönerge");
         const raw = JSON.parse(fs.readFileSync(PERSONAS, "utf-8"));
         expect(Object.keys(raw.personas)).toEqual(["ozel"]);
@@ -74,47 +74,47 @@ describe("addPersona", () => {
 
 // ─── System prompt ───────────────────────────────────────────────────────────
 describe("getPersonaSystemPrompt", () => {
-    it("default kişilikte boş string (varsayılan davranış)", () => {
+    it("empty string for the default persona (default behavior)", () => {
         expect(getPersonaSystemPrompt()).toBe("");
     });
 
-    it("aktif kişilik prompt'u [KİŞİLİK: X] formatında döner", () => {
+    it("active persona prompt is returned in [PERSONA: X] format", () => {
         setActivePersona("formal");
         const p = getPersonaSystemPrompt();
-        expect(p).toContain("[KİŞİLİK: FORMAL]");
-        expect(p).toContain("kurumsal");
+        expect(p).toContain("[PERSONA: FORMAL]");
+        expect(p).toContain("corporate");
     });
 
-    it("roleplay aktifken persona'yı ezer", () => {
+    it("roleplay overrides the persona when active", () => {
         setActivePersona("formal");
         startRoleplay("Sherlock Holmes", "Bir cinayet vakası");
         const p = getPersonaSystemPrompt();
-        expect(p).toContain("ROL YAPMA MODU");
+        expect(p).toContain("ROLEPLAY MODE");
         expect(p).toContain("Sherlock Holmes");
-        expect(p).not.toContain("KİŞİLİK");
+        expect(p).not.toContain("PERSONA");
     });
 });
 
 // ─── Roleplay ────────────────────────────────────────────────────────────────
 describe("roleplay", () => {
-    it("başlat + durum yansır", () => {
+    it("start + state reflects it", () => {
         const msg = startRoleplay("Gandalf", "Orta Dünya");
         expect(msg).toContain("Gandalf");
         expect(getRoleplayPrompt()).toContain("Gandalf");
     });
 
-    it("boş karakter reddedilir", () => {
-        expect(startRoleplay("  ", "senaryo")).toContain("HATA");
+    it("rejects an empty character", () => {
+        expect(startRoleplay("  ", "senaryo")).toContain("ERROR");
     });
 
-    it("durdurunca normal moda döner", () => {
+    it("returns to normal mode when stopped", () => {
         startRoleplay("Karakter", "");
         const msg = stopRoleplay();
-        expect(msg).toContain("Normal moda");
+        expect(msg).toContain("Back to normal");
         expect(getRoleplayPrompt()).toBe("");
     });
 
-    it("aktif roleplay yokken durdurma mesajı", () => {
-        expect(stopRoleplay()).toContain("Aktif rol yapma modu yok");
+    it("stop message when no roleplay is active", () => {
+        expect(stopRoleplay()).toContain("No active roleplay mode");
     });
 });

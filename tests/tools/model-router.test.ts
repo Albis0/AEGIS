@@ -15,7 +15,7 @@ import {
 
 function clearFiles(): void {
     for (const p of [ROUTING, PIPELINES]) {
-        try { fs.unlinkSync(p); } catch { /* yok */ }
+        try { fs.unlinkSync(p); } catch { /* none */ }
     }
 }
 
@@ -25,20 +25,20 @@ beforeEach(() => {
 });
 afterEach(clearFiles);
 
-// ─── Routing kuralları ───────────────────────────────────────────────────────
+// ─── Routing rules ───────────────────────────────────────────────────────
 describe("model routing", () => {
-    it("kural ekler", () => {
-        const msg = setModelRoutingRule("code", "groq:qwen3-32b", "kod için");
+    it("adds a rule", () => {
+        const msg = setModelRoutingRule("code", "groq:qwen3-32b", "for code");
         expect(msg).toContain("code");
         expect(msg).toContain("groq:qwen3-32b");
     });
 
-    it("boş görev türü / model reddedilir", () => {
-        expect(setModelRoutingRule("", "model", "")).toContain("HATA");
-        expect(setModelRoutingRule("task", "", "")).toContain("HATA");
+    it("rejects empty task type / model", () => {
+        expect(setModelRoutingRule("", "model", "")).toContain("ERROR");
+        expect(setModelRoutingRule("task", "", "")).toContain("ERROR");
     });
 
-    it("aynı görev türü üzerine yazar", () => {
+    it("overwrites the same task type", () => {
         setModelRoutingRule("code", "model-a", "");
         setModelRoutingRule("code", "model-b", "");
         const rules = JSON.parse(fs.readFileSync(ROUTING, "utf-8"));
@@ -46,51 +46,51 @@ describe("model routing", () => {
         expect(rules.code.model).toBe("model-b");
     });
 
-    it("kural yokken örnek kullanım gösterir", () => {
-        expect(getModelRoutingRules()).toContain("yok");
+    it("shows example usage when no rules exist", () => {
+        expect(getModelRoutingRules()).toContain("No model routing rules");
     });
 
-    it("kuralları listeler", () => {
-        setModelRoutingRule("vision", "gpt-4o", "görüntü");
+    it("lists rules", () => {
+        setModelRoutingRule("vision", "gpt-4o", "image");
         expect(getModelRoutingRules()).toContain("vision → gpt-4o");
     });
 });
 
-// ─── Pipeline kayıt/liste ────────────────────────────────────────────────────
-describe("pipeline kayıt", () => {
-    it("geçerli adımlarla pipeline kaydeder", () => {
-        const steps = JSON.stringify([{prompt: "Özetle: {{input}}"}, {prompt: "Eleştir: {{input}}"}]);
-        const msg = savePipeline("analiz", steps, "iki adım");
-        expect(msg).toContain("2 adım");
+// ─── Pipeline save/list ────────────────────────────────────────────────────
+describe("pipeline save", () => {
+    it("saves a pipeline with valid steps", () => {
+        const steps = JSON.stringify([{prompt: "Summarize: {{input}}"}, {prompt: "Critique: {{input}}"}]);
+        const msg = savePipeline("analiz", steps, "two steps");
+        expect(msg).toContain("2 steps");
     });
 
-    it("boş ad reddedilir", () => {
-        expect(savePipeline("", "[]", "")).toContain("HATA");
+    it("rejects empty name", () => {
+        expect(savePipeline("", "[]", "")).toContain("ERROR");
     });
 
-    it("geçersiz JSON reddedilir", () => {
-        expect(savePipeline("x", "{bozuk", "")).toContain("HATA");
+    it("rejects invalid JSON", () => {
+        expect(savePipeline("x", "{bozuk", "")).toContain("ERROR");
     });
 
-    it("array olmayan steps reddedilir", () => {
+    it("rejects non-array steps", () => {
         expect(savePipeline("x", '{"prompt":"a"}', "")).toContain("array");
     });
 
-    it("pipeline yokken örnek gösterir", () => {
-        expect(listPipelines()).toContain("yok");
+    it("shows example when no pipelines exist", () => {
+        expect(listPipelines()).toContain("No pipelines");
     });
 });
 
-// ─── Pipeline çalıştırma (LLM callback mock) ─────────────────────────────────
+// ─── Pipeline run (LLM callback mock) ─────────────────────────────────
 describe("pipelineRun", () => {
-    it("LLM bağlı değilken hata", async () => {
+    it("errors when LLM is not connected", async () => {
         registerLLMCallback(null as never);
         savePipeline("p", JSON.stringify([{prompt: "x"}]), "");
         const out = await pipelineRun("p", "girdi");
-        expect(out).toContain("hazır değil");
+        expect(out).toContain("not ready");
     });
 
-    it("{{input}} her adımda önceki çıktıyla değişir (zincir)", async () => {
+    it("{{input}} changes with the previous output at each step (chain)", async () => {
         const seen: string[] = [];
         registerLLMCallback(async (prompt) => {
             seen.push(prompt);
@@ -101,53 +101,53 @@ describe("pipelineRun", () => {
             {prompt: "adım2: {{input}}"},
         ]), "");
         const out = await pipelineRun("zincir", "merhaba");
-        // 1. adım girdiyle, 2. adım 1. adımın UPPER çıktısıyla beslenir
+        // step 1 is fed the input, step 2 is fed step 1's UPPER output
         expect(seen[0]).toBe("adım1: merhaba");
         expect(seen[1]).toBe("adım2: ADIM1: MERHABA");
-        expect(out).toContain("tamamlandı");
+        expect(out).toContain("Pipeline complete");
     });
 
-    it("olmayan pipeline hata döner", async () => {
+    it("returns an error for a nonexistent pipeline", async () => {
         registerLLMCallback(async () => "x");
         const out = await pipelineRun("yok", "girdi");
-        expect(out).toContain("HATA");
+        expect(out).toContain("ERROR");
     });
 
-    it("adım hatası zinciri durdurur", async () => {
+    it("a step error stops the chain", async () => {
         registerLLMCallback(async (prompt) => {
             if (prompt.includes("patla")) throw new Error("boom");
             return "ok";
         });
         savePipeline("p", JSON.stringify([{prompt: "patla {{input}}"}, {prompt: "ikinci"}]), "");
         const out = await pipelineRun("p", "x");
-        expect(out).toContain("HATA");
+        expect(out).toContain("ERROR");
         expect(out).not.toContain("Adım 2");
     });
 });
 
 // ─── modelCompare ────────────────────────────────────────────────────────────
 describe("modelCompare", () => {
-    it("2'den az model reddedilir", async () => {
+    it("rejects fewer than 2 models", async () => {
         registerLLMCallback(async () => "x");
         const out = await modelCompare("soru", "groq:qwen3-32b");
-        expect(out).toContain("HATA");
-        expect(out).toContain("En az 2");
+        expect(out).toContain("ERROR");
+        expect(out).toContain("at least 2");
     });
 
-    it("birden fazla modelin yanıtını birleştirir", async () => {
+    it("combines responses from multiple models", async () => {
         registerLLMCallback(async (_p, model) => `cevap-${model}`);
         const out = await modelCompare("soru", "groq:a, groq:b");
         expect(out).toContain("cevap-groq:a");
         expect(out).toContain("cevap-groq:b");
     });
 
-    it("bir model patlasa diğeri çalışır", async () => {
+    it("if one model fails, the other still works", async () => {
         registerLLMCallback(async (_p, model) => {
             if (model === "groq:bad") throw new Error("fail");
             return "iyi";
         });
         const out = await modelCompare("soru", "groq:bad, groq:good");
-        expect(out).toContain("HATA: fail");
+        expect(out).toContain("ERROR: fail");
         expect(out).toContain("iyi");
     });
 });

@@ -30,29 +30,29 @@ afterEach(() => {
 
 // ─── Pomodoro ────────────────────────────────────────────────────────────────
 describe("pomodoroStart", () => {
-    it("yeni pomodoro başlatır", () => {
+    it("starts a new pomodoro", () => {
         const msg = pomodoroStart(25, 5);
-        expect(msg).toContain("Pomodoro başladı");
+        expect(msg).toContain("Pomodoro started");
         const state = JSON.parse(fs.readFileSync(POMODORO, "utf-8"));
         expect(state.active).toBe(true);
         expect(state.phase).toBe("work");
         expect(state.session).toBe(1);
     });
 
-    it("özel süreler kaydedilir", () => {
+    it("saves custom durations", () => {
         pomodoroStart(50, 10);
         const state = JSON.parse(fs.readFileSync(POMODORO, "utf-8"));
         expect(state.workMinutes).toBe(50);
         expect(state.breakMinutes).toBe(10);
     });
 
-    it("zaten çalışıyorsa ikinci start reddedilir", () => {
+    it("rejects a second start while already running", () => {
         pomodoroStart(25, 5);
         const msg = pomodoroStart(25, 5);
-        expect(msg).toContain("zaten çalışıyor");
+        expect(msg).toContain("already running");
     });
 
-    it("oturum sayacı durdurma sonrası artar", () => {
+    it("session counter increases after stopping", () => {
         pomodoroStart(25, 5);
         pomodoroStop();
         const msg = pomodoroStart(25, 5);
@@ -61,14 +61,14 @@ describe("pomodoroStart", () => {
 });
 
 describe("pomodoroStop", () => {
-    it("aktif pomodoro yokken mesaj", () => {
-        expect(pomodoroStop()).toContain("Aktif pomodoro yok");
+    it("message when no pomodoro is active", () => {
+        expect(pomodoroStop()).toContain("No active pomodoro");
     });
 
-    it("aktif pomodoro'yu durdurur", () => {
+    it("stops the active pomodoro", () => {
         pomodoroStart(25, 5);
         const msg = pomodoroStop();
-        expect(msg).toContain("durduruldu");
+        expect(msg).toContain("stopped");
         const state = JSON.parse(fs.readFileSync(POMODORO, "utf-8"));
         expect(state.active).toBe(false);
     });
@@ -76,22 +76,22 @@ describe("pomodoroStop", () => {
 
 // ─── Zaman Takibi ────────────────────────────────────────────────────────────
 describe("timeTrackStart", () => {
-    it("takip başlatır", () => {
+    it("starts tracking", () => {
         const msg = timeTrackStart("Kod yaz");
-        expect(msg).toContain("Zaman takibi başladı");
+        expect(msg).toContain("Time tracking started");
         const log = JSON.parse(fs.readFileSync(TIMELOG, "utf-8"));
         expect(log.length).toBe(1);
         expect(log[0].stoppedAt).toBeUndefined();
     });
 
-    it("boş görev adı reddedilir", () => {
-        expect(timeTrackStart("  ")).toContain("HATA");
+    it("rejects an empty task name", () => {
+        expect(timeTrackStart("  ")).toContain("ERROR");
     });
 
-    it("yeni takip başlayınca öncekini otomatik durdurur", () => {
+    it("automatically stops the previous track when a new one starts", () => {
         timeTrackStart("Görev A");
         const msg = timeTrackStart("Görev B");
-        expect(msg).toContain("durduruldu");
+        expect(msg).toContain("stopped");
         const log = JSON.parse(fs.readFileSync(TIMELOG, "utf-8"));
         expect(log[0].stoppedAt).toBeDefined();   // A durdu
         expect(log[1].stoppedAt).toBeUndefined();  // B aktif
@@ -99,26 +99,26 @@ describe("timeTrackStart", () => {
 });
 
 describe("timeTrackStop", () => {
-    it("aktif takip yokken mesaj", () => {
-        expect(timeTrackStop()).toContain("Aktif zaman takibi yok");
+    it("message when no tracking is active", () => {
+        expect(timeTrackStop()).toContain("No active time tracking");
     });
 
-    it("aktif takibi durdurur + süre raporlar", () => {
+    it("stops the active track + reports the duration", () => {
         timeTrackStart("İş");
         const msg = timeTrackStop();
         expect(msg).toContain("İş");
-        expect(msg).toMatch(/dk.*sn/);
+        expect(msg).toMatch(/min.*sec/);
         const log = JSON.parse(fs.readFileSync(TIMELOG, "utf-8"));
         expect(log[0].durationMs).toBeGreaterThanOrEqual(0);
     });
 });
 
 describe("timeTrackReport", () => {
-    it("kayıt yokken anlamlı mesaj", () => {
-        expect(timeTrackReport("today")).toContain("Bugün kayıtlı zaman yok");
+    it("meaningful message when no records exist", () => {
+        expect(timeTrackReport("today")).toContain("No recorded time today");
     });
 
-    it("tamamlanmış görevleri toplar ve raporlar", () => {
+    it("aggregates and reports completed tasks", () => {
         // Geçmiş tamamlanmış kayıt enjekte et
         const now = Date.now();
         const log = [
@@ -132,12 +132,12 @@ describe("timeTrackReport", () => {
         expect(out).toContain("Toplantı");
         // Tasarım: 900_000ms = 15dk, en üstte (azalan sıra)
         expect(out.indexOf("Tasarım")).toBeLessThan(out.indexOf("Toplantı"));
-        expect(out).toContain("Toplam");
+        expect(out).toContain("Total");
     });
 
-    it("aktif (bitmemiş) kayıt rapora dahil edilmez", () => {
+    it("an active (unfinished) record is not included in the report", () => {
         timeTrackStart("Devam eden");
         const out = timeTrackReport("today");
-        expect(out).toContain("Bugün kayıtlı zaman yok");
+        expect(out).toContain("No recorded time today");
     });
 });

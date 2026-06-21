@@ -88,10 +88,10 @@ describe("stmBuildPromptBlock", () => {
         expect(stmBuildPromptBlock()).toBe("");
     });
 
-    it("kayıt varsa SON İŞLEMLER bloğu üretir", () => {
-        stmRecord("spotify_play", '{"uri":"spotify:track:abc"}', "çalıyor", true);
+    it("produces a RECENT ACTIONS block when there is a record", () => {
+        stmRecord("spotify_play", '{"uri":"spotify:track:abc"}', "playing", true);
         const block = stmBuildPromptBlock();
-        expect(block).toContain("SON İŞLEMLER");
+        expect(block).toContain("RECENT ACTIONS");
         expect(block).toContain("spotify_play");
         expect(block).toContain("lastSpotifyTrack");
     });
