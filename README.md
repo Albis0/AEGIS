@@ -5,6 +5,9 @@
 > [!WARNING]
 > **AEGIS is under active development.** Not everything works perfectly yet — some tools and features may be unreliable, incomplete, or break in certain situations. Known issues are tracked and fixed incrementally with each version bump, so expect rough edges between releases. Use it as an early-stage project, not a finished product. Bug reports and PRs are very welcome.
 
+> [!NOTE]
+> **Built with AI ("vibe coded").** AEGIS was developed largely with the help of AI coding assistants. The architecture, tools, and UI were shaped through iterative prompting rather than written entirely by hand. This is shared openly for transparency — it also means some corners may be rougher than a hand-crafted codebase, which ties into the development-stage note above.
+
 **AEGIS** is a desktop AI assistant for Windows, combining speech recognition, LLM reasoning, and **332 tools**. It supports Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, and Ollama. Give it commands by voice or text to control your system, Spotify, Steam, smart home devices, web search, file management, screen vision, mouse/keyboard control, and much more.
 
 ---
