@@ -7,7 +7,7 @@ import * as steam from "../electron/steam";
 const KEY = process.env.STEAM_API_KEY;
 const ID = process.env.STEAM_ID64;
 
-describe("Steam Grup B (Web API) — kimlik yokken dürüst hata", () => {
+describe("Steam Group B (Web API) — honest error when no credentials", () => {
     beforeEach(() => {
         delete process.env.STEAM_API_KEY;
         delete process.env.STEAM_ID64;
@@ -17,40 +17,40 @@ describe("Steam Grup B (Web API) — kimlik yokken dürüst hata", () => {
         if (ID) process.env.STEAM_ID64 = ID;
     });
 
-    it("steam_owned_games: API key yoksa 'Steam API key ayarlı değil' der", async () => {
+    it("steam_owned_games: says 'is not set' when no API key", async () => {
         const r = await steam.steamGetOwnedGames();
-        expect(r).toMatch(/API key.*ayarlı değil|SteamID64.*ayarlı değil/i);
+        expect(r).toMatch(/API key.*is not set|SteamID64.*is not set/i);
     });
 
-    it("steam_friend_list: API key yoksa net hata", async () => {
+    it("steam_friend_list: clear error when no API key", async () => {
         const r = await steam.steamGetFriendList();
-        expect(r).toMatch(/API key.*ayarlı değil|SteamID64.*ayarlı değil/i);
+        expect(r).toMatch(/API key.*is not set|SteamID64.*is not set/i);
     });
 
-    it("steam_level: API key yoksa net hata", async () => {
+    it("steam_level: clear error when no API key", async () => {
         const r = await steam.steamGetLevel();
-        expect(r).toMatch(/ayarlı değil/i);
+        expect(r).toMatch(/is not set/i);
     });
 
-    it("steam_profile_summary: API key yoksa net hata", async () => {
+    it("steam_profile_summary: clear error when no API key", async () => {
         const r = await steam.steamGetProfileSummary();
-        expect(r).toMatch(/ayarlı değil/i);
+        expect(r).toMatch(/is not set/i);
     });
 
-    it("steam_total_playtime: API key yoksa net hata (silent crash değil)", async () => {
+    it("steam_total_playtime: clear error when no API key (not a silent crash)", async () => {
         const r = await steam.steamGetTotalPlaytime();
         expect(typeof r).toBe("string");
-        expect(r).toMatch(/ayarlı değil/i);
+        expect(r).toMatch(/is not set/i);
     });
 
-    it("steam_owned_games: SADECE SteamID varsa, API key hâlâ gerekli der", async () => {
+    it("steam_owned_games: when ONLY SteamID is set, still says API key is required", async () => {
         process.env.STEAM_ID64 = "76561197960287930";
         const r = await steam.steamGetOwnedGames();
-        expect(r).toMatch(/API key.*ayarlı değil/i);
+        expect(r).toMatch(/API key.*is not set/i);
     });
 });
 
-describe("Steam — boş/eksik girdi reddi (her grup)", () => {
+describe("Steam — rejects empty/missing input (every group)", () => {
     const emptyArgCases: [string, () => Promise<string>][] = [
         ["steam_launch", () => steam.steamLaunchGame("")],
         ["steam_search_store", () => steam.steamSearchStore("")],
@@ -63,26 +63,26 @@ describe("Steam — boş/eksik girdi reddi (her grup)", () => {
         ["steam_who_is_playing", () => steam.steamWhoIsPlaying("")],
     ];
     for (const [name, fn] of emptyArgCases) {
-        it(`${name}: boş girdi → HATA döner, patlamaz`, async () => {
+        it(`${name}: empty input → returns ERROR, doesn't throw`, async () => {
             const r = await fn();
             expect(typeof r).toBe("string");
-            expect(r).toMatch(/HATA|gerekli/i);
+            expect(r).toMatch(/ERROR|required/i);
         });
     }
 });
 
-describe("Steam — fonksiyonlar string döndürür (asla throw etmez)", () => {
-    // local/protokol işleri: ağ/Steam olmasa bile string ile dönmeli, exception fırlatmamalı
+describe("Steam — functions return strings (never throw)", () => {
+    // local/protocol work: should return a string even without network/Steam, never throw
     const safeCases: [string, () => Promise<string>][] = [
         ["steam_list", () => steam.steamListGames()],
         ["steam_list_running_games", () => steam.steamListRunningGames()],
         ["steam_game_running", () => steam.steamGameRunning()],
         ["steam_show_storage_usage", () => steam.steamShowStorageUsage()],
-        ["steam_locate_installation(yok)", () => steam.steamLocateInstallation("zzz-yok-oyun-zzz")],
-        ["steam_repeat_last_action(boş)", () => steam.steamRepeatLastAction()],
+        ["steam_locate_installation(missing)", () => steam.steamLocateInstallation("zzz-yok-oyun-zzz")],
+        ["steam_repeat_last_action(empty)", () => steam.steamRepeatLastAction()],
     ];
     for (const [name, fn] of safeCases) {
-        it(`${name}: throw etmez, string döner`, async () => {
+        it(`${name}: doesn't throw, returns a string`, async () => {
             await expect(fn()).resolves.toBeTypeOf("string");
         });
     }

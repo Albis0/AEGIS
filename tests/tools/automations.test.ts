@@ -11,7 +11,7 @@ import {
 } from "../../electron/automations";
 
 function clearAutos(): void {
-    try { fs.writeFileSync(AUTO_PATH, "[]", "utf-8"); } catch { /* yok */ }
+    try { fs.writeFileSync(AUTO_PATH, "[]", "utf-8"); } catch { /* none */ }
 }
 
 beforeEach(() => {
@@ -20,150 +20,150 @@ beforeEach(() => {
 });
 afterEach(clearAutos);
 
-// ─── Ekleme ────────────────────────────────────────────────────────────────
+// ─── Add ───────────────────────────────────────────────────────────────────
 describe("addAutomation", () => {
-    it("geçerli koşulla otomasyon ekler", () => {
-        const msg = addAutomation("cpu > 80", "işlemci uyarısı ver");
-        expect(msg).toContain("Otomasyon oluşturuldu");
+    it("adds an automation with a valid condition", () => {
+        const msg = addAutomation("cpu > 80", "give cpu warning");
+        expect(msg).toContain("Automation created");
         expect(msg).toContain("cpu > 80");
         expect(loadAutomations().length).toBe(1);
     });
 
-    it("geçersiz koşul hata döner", () => {
-        const msg = addAutomation("cpu yüksek", "uyar");
-        expect(msg).toContain("HATA");
+    it("returns an error for an invalid condition", () => {
+        const msg = addAutomation("cpu high", "warn");
+        expect(msg).toContain("ERROR");
         expect(loadAutomations().length).toBe(0);
     });
 
-    it("tüm operatörleri kabul eder", () => {
+    it("accepts all operators", () => {
         for (const op of [">", "<", ">=", "<=", "==", "!="]) {
             clearAutos();
-            const msg = addAutomation(`cpu ${op} 50`, "uyar");
-            expect(msg).not.toContain("HATA");
+            const msg = addAutomation(`cpu ${op} 50`, "warn");
+            expect(msg).not.toContain("ERROR");
         }
     });
 
-    it("float threshold kabul edilir", () => {
-        const msg = addAutomation("ram > 75.5", "uyar");
-        expect(msg).not.toContain("HATA");
+    it("accepts a float threshold", () => {
+        const msg = addAutomation("ram > 75.5", "warn");
+        expect(msg).not.toContain("ERROR");
     });
 
-    it("eklenen otomasyon enabled=true ile başlar", () => {
-        addAutomation("gpu > 90", "gpu uyarısı");
+    it("a newly added automation starts with enabled=true", () => {
+        addAutomation("gpu > 90", "gpu warning");
         const list = loadAutomations();
         expect(list[0].enabled).toBe(true);
     });
 });
 
-// ─── Listeleme ─────────────────────────────────────────────────────────────
+// ─── List ──────────────────────────────────────────────────────────────────
 describe("listAutomations", () => {
-    it("boşken mesaj döner", () => {
-        expect(listAutomations()).toContain("Tanımlı otomasyon yok");
+    it("returns a message when empty", () => {
+        expect(listAutomations()).toContain("No automations defined");
     });
 
-    it("otomasyon listeler", () => {
-        addAutomation("ram > 75", "ram temizle");
+    it("lists automations", () => {
+        addAutomation("ram > 75", "clear ram");
         const list = listAutomations();
         expect(list).toContain("ram > 75");
-        expect(list).toContain("ram temizle");
+        expect(list).toContain("clear ram");
     });
 });
 
-// ─── Silme ─────────────────────────────────────────────────────────────────
+// ─── Remove ────────────────────────────────────────────────────────────────
 describe("removeAutomation", () => {
-    it("ID ile siler", () => {
-        addAutomation("cpu > 90", "uyar");
+    it("removes by ID", () => {
+        addAutomation("cpu > 90", "warn");
         const id = loadAutomations()[0].id;
         const msg = removeAutomation(id);
-        expect(msg).toContain("silindi");
+        expect(msg).toContain("removed");
         expect(loadAutomations().length).toBe(0);
     });
 
-    it("koşul substring ile siler", () => {
-        addAutomation("hour == 23", "gece bildirimi");
+    it("removes by condition substring", () => {
+        addAutomation("hour == 23", "night notification");
         const msg = removeAutomation("hour");
-        expect(msg).toContain("silindi");
+        expect(msg).toContain("removed");
     });
 
-    it("olmayan otomasyon hata döner", () => {
-        expect(removeAutomation("yok-abc")).toContain("bulunamadı");
+    it("returns an error for a nonexistent automation", () => {
+        expect(removeAutomation("yok-abc")).toContain("No automation found");
     });
 });
 
 // ─── Toggle ────────────────────────────────────────────────────────────────
 describe("toggleAutomation", () => {
     it("enabled → disabled", () => {
-        addAutomation("cpu > 80", "uyar");
+        addAutomation("cpu > 80", "warn");
         const id = loadAutomations()[0].id;
         const msg = toggleAutomation(id);
-        expect(msg).toContain("devre dışı");
+        expect(msg).toContain("disabled");
         expect(loadAutomations()[0].enabled).toBe(false);
     });
 
     it("disabled → enabled", () => {
-        addAutomation("cpu > 80", "uyar");
+        addAutomation("cpu > 80", "warn");
         const id = loadAutomations()[0].id;
-        toggleAutomation(id);                // devre dışı
-        const msg = toggleAutomation(id);   // tekrar etkin
-        expect(msg).toContain("etkinleştirildi");
+        toggleAutomation(id);                // disabled
+        const msg = toggleAutomation(id);   // re-enabled
+        expect(msg).toContain("enabled");
         expect(loadAutomations()[0].enabled).toBe(true);
     });
 
-    it("olmayan otomasyon hata döner", () => {
-        expect(toggleAutomation("yok")).toContain("bulunamadı");
+    it("returns an error for a nonexistent automation", () => {
+        expect(toggleAutomation("yok")).toContain("No automation found");
     });
 });
 
 // ─── checkAutomations ──────────────────────────────────────────────────────
 describe("checkAutomations", () => {
-    it("eşik aşılınca onTrigger çağrılır", () => {
-        addAutomation("cpu > 80", "cpu yüksek uyarısı");
+    it("calls onTrigger when the threshold is exceeded", () => {
+        addAutomation("cpu > 80", "cpu high warning");
         const triggered: string[] = [];
         checkAutomations({cpu: 95}, (action) => triggered.push(action));
-        expect(triggered).toContain("cpu yüksek uyarısı");
+        expect(triggered).toContain("cpu high warning");
     });
 
-    it("eşik aşılmayınca tetiklenmez", () => {
-        addAutomation("cpu > 80", "uyar");
+    it("doesn't trigger when the threshold isn't exceeded", () => {
+        addAutomation("cpu > 80", "warn");
         const triggered: string[] = [];
         checkAutomations({cpu: 50}, (a) => triggered.push(a));
         expect(triggered).toHaveLength(0);
     });
 
-    it("devre dışı otomasyon tetiklenmez", () => {
-        addAutomation("ram > 75", "ram uyarısı");
+    it("doesn't trigger a disabled automation", () => {
+        addAutomation("ram > 75", "ram warning");
         const id = loadAutomations()[0].id;
-        toggleAutomation(id); // devre dışı
+        toggleAutomation(id); // disabled
         const triggered: string[] = [];
         checkAutomations({ram: 90}, (a) => triggered.push(a));
         expect(triggered).toHaveLength(0);
     });
 
-    it("metric yoksa tetiklenmez", () => {
-        addAutomation("gpu > 90", "gpu uyarısı");
+    it("doesn't trigger when the metric is missing", () => {
+        addAutomation("gpu > 90", "gpu warning");
         const triggered: string[] = [];
-        checkAutomations({cpu: 100}, (a) => triggered.push(a)); // gpu metriği yok
+        checkAutomations({cpu: 100}, (a) => triggered.push(a)); // no gpu metric
         expect(triggered).toHaveLength(0);
     });
 
-    it("<= operatörü çalışır", () => {
-        addAutomation("hour <= 6", "gece modu");
+    it("the <= operator works", () => {
+        addAutomation("hour <= 6", "night mode");
         const triggered: string[] = [];
         checkAutomations({hour: 3}, (a) => triggered.push(a));
-        expect(triggered).toContain("gece modu");
+        expect(triggered).toContain("night mode");
     });
 
-    it("== operatörü çalışır", () => {
-        addAutomation("hour == 9", "sabah bildirimi");
+    it("the == operator works", () => {
+        addAutomation("hour == 9", "morning notification");
         const triggered: string[] = [];
         checkAutomations({hour: 9}, (a) => triggered.push(a));
-        expect(triggered).toContain("sabah bildirimi");
+        expect(triggered).toContain("morning notification");
     });
 
-    it("!= operatörü çalışır", () => {
-        addAutomation("cpu != 0", "cpu aktif");
+    it("the != operator works", () => {
+        addAutomation("cpu != 0", "cpu active");
         const triggered: string[] = [];
         checkAutomations({cpu: 50}, (a) => triggered.push(a));
-        expect(triggered).toContain("cpu aktif");
+        expect(triggered).toContain("cpu active");
     });
 });

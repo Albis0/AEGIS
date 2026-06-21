@@ -23,14 +23,14 @@ const HOME: HAEntity[] = [
 ];
 
 describe("normalize", () => {
-    it("Türkçe ve aksanları ASCII'ye indirir, ayraçları boşluğa çevirir", () => {
+    it("lowercases Turkish/accented chars to ASCII, converts separators to spaces", () => {
         expect(normalize("Yatak_Odası-Lambası")).toBe("yatak odasi lambasi");
         expect(normalize("ÖN KAPI")).toBe("on kapi");
     });
 });
 
-describe("resolveEntities — doğal dil çözümleme", () => {
-    it("oda adı tek başına o odadaki tüm ışıkları kapsar", () => {
+describe("resolveEntities — natural language resolution", () => {
+    it("room name alone covers all lights in that room", () => {
         const {matches} = resolveEntities("salon", HOME);
         const ids = matches.map((m) => m.entity_id);
         expect(ids).toContain("light.salon_lamba");
@@ -39,68 +39,68 @@ describe("resolveEntities — doğal dil çözümleme", () => {
         expect(ids).not.toContain("switch.salon_isitici");
     });
 
-    it("'her şey' tüm güvenli cihazları kapsar, kritikleri dışlamaz değil — sadece safe domain", () => {
+    it("'everything' covers all safe devices, not exclude criticals — only safe domain", () => {
         const {matches, scope} = resolveEntities("her şeyi kapat", HOME);
-        expect(scope).toBe("tüm cihazlar");
+        expect(scope).toBe("all devices");
         // safe domain (light/switch) dahil, lock/cover/climate hariç
         expect(matches.some((m) => m.domain === "light")).toBe(true);
         expect(matches.some((m) => m.domain === "lock")).toBe(false);
         expect(matches.some((m) => m.domain === "climate")).toBe(false);
     });
 
-    it("'tüm ışıklar' yalnızca light domain'i döndürür", () => {
+    it("'all lights' returns only the light domain", () => {
         const {matches, scope} = resolveEntities("tüm ışıkları aç", HOME);
-        expect(scope).toBe("tüm ışıklar");
+        expect(scope).toBe("all lights");
         expect(matches.every((m) => m.domain === "light")).toBe(true);
         expect(matches.length).toBe(4);
     });
 
-    it("spesifik cihaz adı tek eşleşme verir", () => {
+    it("specific device name gives a single match", () => {
         const {matches} = resolveEntities("yatak odası lambası", HOME);
         expect(matches).toHaveLength(1);
         expect(matches[0].entity_id).toBe("light.yatak_odasi");
     });
 
-    it("tam entity_id ile doğrudan eşleşir", () => {
+    it("matches directly by exact entity_id", () => {
         const {matches} = resolveEntities("lock.on_kapi", HOME);
         expect(matches).toHaveLength(1);
         expect(matches[0].entity_id).toBe("lock.on_kapi");
     });
 
-    it("eşleşme yoksa boş döner", () => {
+    it("returns empty when there's no match", () => {
         const {matches} = resolveEntities("uzay gemisi", HOME);
         expect(matches).toHaveLength(0);
     });
 });
 
-describe("isCriticalEntity — onay kapısı sınıflandırması", () => {
-    it("kilit, garaj, termostat kritiktir", () => {
+describe("isCriticalEntity — confirmation gate classification", () => {
+    it("lock, garage door, thermostat are critical", () => {
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "lock.on_kapi")!)).toBe(true);
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "cover.garaj")!)).toBe(true);
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "climate.salon")!)).toBe(true);
     });
 
-    it("ısıtıcı prizi isim ipucuyla kritiktir", () => {
+    it("heater outlet is critical via name hint", () => {
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "switch.salon_isitici")!)).toBe(true);
     });
 
-    it("normal ışık ve priz kritik değildir", () => {
+    it("normal light and outlet are not critical", () => {
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "light.salon_lamba")!)).toBe(false);
         expect(isCriticalEntity(HOME.find((e) => e.entity_id === "switch.kahve_makinesi")!)).toBe(false);
     });
 });
 
-describe("describeState — insan-okur özet", () => {
-    it("açık ışıkta parlaklık yüzdesi gösterir", () => {
-        expect(describeState(HOME.find((e) => e.entity_id === "light.yatak_odasi")!)).toBe("Yatak Odası Lambası: açık (%50)");
+describe("describeState — human-readable summary", () => {
+    it("shows brightness percentage for an on light", () => {
+        expect(describeState(HOME.find((e) => e.entity_id === "light.yatak_odasi")!)).toBe("Yatak Odası Lambası: on (50%)");
     });
-    it("kapalı ışık", () => {
-        expect(describeState(HOME.find((e) => e.entity_id === "light.mutfak")!)).toBe("Mutfak Işığı: kapalı");
+    it("off light", () => {
+        expect(describeState(HOME.find((e) => e.entity_id === "light.mutfak")!)).toBe("Mutfak Işığı: off");
     });
-    it("termostat ortam ve hedef sıcaklığı gösterir", () => {
-        expect(describeState(HOME.find((e) => e.entity_id === "climate.salon")!)).toContain("hedef 23°C");
+    it("shows thermostat ambient and target temperature", () => {
+        expect(describeState(HOME.find((e) => e.entity_id === "climate.salon")!)).toContain("target 23°C");
     });
-    it("kilit durumu Türkçeleştirilir", () => {
-        expect(describeState(HOME.find((e) => e.entity_id === "lock.on_kapi")!)).toBe("Ön Kapı Kilidi: kilitli");
+    it("lock state is shown in English", () => {
+        expect(describeState(HOME.find((e) => e.entity_id === "lock.on_kapi")!)).toBe("Ön Kapı Kilidi: locked");
     });
 });

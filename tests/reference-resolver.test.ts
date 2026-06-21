@@ -135,6 +135,6 @@ describe("empty STM — recognized reference but nothing to point to", () => {
     it("asks for clarification (confidence < threshold)", () => {
         const c = asClarify(resolveReference("tekrar yap"));
         expect(c.confidence).toBeLessThan(CONFIDENCE_THRESHOLD);
-        expect(c.question).toMatch(/bilmiyorum|istersin/i);
+        expect(c.question).toMatch(/don't know|would you like/i);
     });
 });

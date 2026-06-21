@@ -37,7 +37,7 @@ import {needsApproval, grantAlways} from "./permissions";
 import {buildPlanPrompt, classifyError} from "./goal-executor";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
-// .env (dev ortamı) — varsa yükle, production'da dotenv yoktur
+// .env (dev environment) — load if present; dotenv isn't bundled in production
 try { require("dotenv").config({path: path.join(__dirname, "../.env")}); } catch { /* production build */ }
 
 // config.json varsa env'yi override et
@@ -50,12 +50,12 @@ let MODEL = currentSettings.model;
 setFullPcAccess(currentSettings.fullPcAccess ?? false);
 setDisabledTools(currentSettings.disabledTools ?? []);
 
-// Cloud sync debounce — ardışık ayar değişikliklerini tek push'ta topla (3sn).
+// Cloud sync debounce — batch consecutive settings changes into a single push (3s).
 let _cloudPushTimer: NodeJS.Timeout | null = null;
 function scheduleCloudPush(): void {
     if (_cloudPushTimer) clearTimeout(_cloudPushTimer);
     _cloudPushTimer = setTimeout(() => {
-        pushToCloud().catch((e) => console.error("[cloud-push]", e.message)); // giriş yoksa/sync kapalıysa no-op
+        pushToCloud().catch((e) => console.error("[cloud-push]", e.message)); // no-op if not signed in / sync disabled
     }, 3000);
 }
 
@@ -176,7 +176,7 @@ function getSystemPrompt(lang: string, fullPcAccess = false): string {
     const pad = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const datetimeNote = `\n\nŞu anki tarih ve saat (yerel): ${dateStr} ${timeStr}`;
+    const datetimeNote = `\n\nCurrent date and time (local): ${dateStr} ${timeStr}`;
     const base = (SYSTEM_PROMPTS[lang] ?? SYSTEM_PROMPTS.tr).replace(/Windows 11/g, _winLabel) + datetimeNote;
     if (!fullPcAccess) return base;
     const note: Record<string, string> = {
@@ -250,13 +250,13 @@ function createTray(): void {
     tray.setToolTip("AEGIS");
     const menu = Menu.buildFromTemplate([
         {
-            label: "Göster",
+            label: "Show",
             click: () => {
                 if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
             },
         },
         {
-            label: "Mikrofon Aç",
+            label: "Open Microphone",
             click: () => {
                 if (mainWindow) {
                     mainWindow.show(); mainWindow.focus();
@@ -266,7 +266,7 @@ function createTray(): void {
         },
         {type: "separator"},
         {
-            label: "Çıkış",
+            label: "Exit",
             click: () => { isQuitting = true; app.quit(); },
         },
     ]);
@@ -357,13 +357,13 @@ function refreshCoreUsages(): void {
     coreUsages = cores;
 }
 
-// CPU model adı — başlangıçta bir kez
+// CPU model name — once at startup
 let cpuModel = os.cpus()[0]?.model?.trim() ?? "CPU";
 // Truncate after @ (freq info) for display
 const atIdx = cpuModel.indexOf(" @");
 if (atIdx > 0) cpuModel = cpuModel.slice(0, atIdx).trim();
 
-// Disk — tüm sürücüler
+// Disk — all drives
 type DiskInfo = {drive: string; usedPct: number; usedGB: number; totalGB: number};
 let disks: DiskInfo[] = [];
 function refreshDisks(): void {
@@ -422,7 +422,7 @@ function refreshBattery(): void {
     );
 }
 
-// Network — adapter adı + up/down
+// Network — adapter name + up/down
 type NetInfo = {name: string; up: number; down: number};
 let netAdapters: NetInfo[] = [];
 let netUp = 0;
@@ -518,7 +518,7 @@ function refreshGpu(): void {
     );
 }
 
-// CPU sıcaklığı + frekans
+// CPU temperature + frequency
 let cpuTemp: number | null = null;
 let cpuFreqMHz: number | null = null;
 function refreshCpuTemp(): void {
@@ -539,7 +539,7 @@ function refreshCpuTemp(): void {
     );
 }
 
-// Fan hızları (rpm) — sadece MSAcpi_FanSpeed destekleniyorsa gelir
+// Fan speeds (rpm) — only available if MSAcpi_FanSpeed is supported
 let fanSpeeds: number[] = [];
 function refreshFans(): void {
     exec(
@@ -552,7 +552,7 @@ function refreshFans(): void {
     );
 }
 
-// Top 8 process — CPU% anlık + RAM MB + PID
+// Top 8 processes — instantaneous CPU% + RAM MB + PID
 type ProcInfo = {name: string; cpu: number; ram: number; pid: number};
 let topProcs: ProcInfo[] = [];
 function refreshTopProcs(): void {
@@ -574,7 +574,7 @@ function refreshTopProcs(): void {
     );
 }
 
-// Aktif pencere
+// Active window
 let activeWindow = "";
 function refreshActiveWindow(): void {
     exec(
@@ -587,7 +587,7 @@ function refreshActiveWindow(): void {
     );
 }
 
-// Sistem bilgisi — model, BIOS, board (başlangıçta bir kez)
+// System info — model, BIOS, board (once at startup)
 let sysModel = "";
 let sysBoard = "";
 function initSysInfo(): void {
@@ -675,7 +675,7 @@ function startTelemetry(): void {
             activeWindow,
         });
 
-        // Eşik uyarıları + koşullu otomasyon — her 1.5sn kontrol
+        // Threshold alerts + conditional automation — checked every 1.5s
         const ramPct = Math.round((usedMem / totalMem) * 100);
         const gpuLoad = gpuInfo[0]?.load ?? 0;
         const now = new Date();
@@ -690,7 +690,7 @@ function startTelemetry(): void {
                 (msg) => {
                     sendToRenderer("reminder-fired", {message: msg});
                     if (ElectronNotification.isSupported()) {
-                        new ElectronNotification({title: "AEGIS · Eşik Uyarısı", body: msg}).show();
+                        new ElectronNotification({title: "AEGIS · Threshold Alert", body: msg}).show();
                     }
                 },
             );
@@ -704,13 +704,13 @@ function startTelemetry(): void {
 
 // ---- Weather ----
 const WEATHER_CODES: Record<number, string> = {
-    0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
-    45: "sisli", 48: "sisli",
-    51: "çiseliyor", 53: "çiseliyor", 55: "çiseliyor",
-    61: "yağmurlu", 63: "yağmurlu", 65: "kuvvetli yağmur",
-    71: "karlı", 73: "karlı", 75: "yoğun kar",
-    80: "sağanak", 81: "sağanak", 82: "kuvvetli sağanak",
-    95: "gök gürültülü",
+    0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "cloudy",
+    45: "foggy", 48: "foggy",
+    51: "drizzle", 53: "drizzle", 55: "drizzle",
+    61: "rainy", 63: "rainy", 65: "heavy rain",
+    71: "snowy", 73: "snowy", 75: "heavy snow",
+    80: "showers", 81: "showers", 82: "heavy showers",
+    95: "thunderstorm",
 };
 
 async function getWeather(): Promise<object> {
@@ -724,7 +724,7 @@ async function getWeather(): Promise<object> {
                 `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(manualCity)}&count=1&language=tr&format=json`,
                 {}, 8_000
             )).json()) as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
-            if (!geo.results?.length) return {error: `"${manualCity}" bulunamadı`};
+            if (!geo.results?.length) return {error: `"${manualCity}" not found`};
             const r = geo.results[0];
             lat = r.latitude; lon = r.longitude;
             city = r.name; country = r.country;
@@ -758,10 +758,10 @@ let cachedProfile: Record<string, string> = {};
 let profileCachedAt = 0;
 
 // ---- Agentic streaming chat ----
-// Faz 54 — Yıkıcı eylem onay diyaloğu. Native modal (renderer'a bağımlı değil).
-// Dönüş: "allow" (bir kez), "always" (kalıcı izin), "deny" (iptal).
+// Phase 54 — Destructive action approval dialog. Native modal (not renderer-dependent).
+// Return: "allow" (once), "always" (permanent permission), "deny" (cancel).
 async function askDestructiveApproval(tool: string, argsJson: string): Promise<"allow" | "always" | "deny"> {
-    // Tam PC Erişimi açıksa kullanıcı zaten tam yetki vermiş — sormadan geç.
+    // If Full PC Access is on, the user already granted full authority — skip asking.
     if (currentSettings.fullPcAccess) return "allow";
     const lang = currentSettings.language ?? "tr";
     const detailArgs = argsJson && argsJson !== "{}" ? `\n\n${argsJson.slice(0, 300)}` : "";
@@ -774,7 +774,7 @@ async function askDestructiveApproval(tool: string, argsJson: string): Promise<"
             title: L.title,
             message: L.msg,
             buttons: L.buttons,
-            defaultId: 0,   // güvenli varsayılan: İptal
+            defaultId: 0,   // safe default: Cancel
             cancelId: 0,
             noLink: true,
         });
@@ -782,7 +782,7 @@ async function askDestructiveApproval(tool: string, argsJson: string): Promise<"
         if (response === 1) return "allow";
         return "deny";
     } catch {
-        // Diyalog açılamadıysa (ör. pencere yok) güvenli tarafta kal: reddet.
+        // If the dialog couldn't open (e.g. no window), stay on the safe side: deny.
         return "deny";
     }
 }
@@ -791,8 +791,8 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     // Only update sessionHistory for the main chat flow, not sub-agent calls (prevents race on parallel agents)
     if (!isSubAgent) {
         sessionHistory = history.map((m) => ({role: m.role, content: extractTextContent(m.content)}));
-        // Faz 57 — adaptif hafıza: son kullanıcı mesajından sessizce gerçek öğren
-        // ("adım X", "Python kullanıyorum", "kahveyi severim"). Çelişki-çözer (eskiyi günceller).
+        // Phase 57 — adaptive memory: silently learn facts from the last user message
+        // ("my name is X", "I use Python", "I like coffee"). Contradiction-resolver (updates the old fact).
         const lastUser = [...history].reverse().find((m) => m.role === "user");
         if (lastUser) {
             try { autoLearnFromMessage(extractTextContent(lastUser.content)); }
@@ -807,17 +807,17 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     }
     const profileNote =
         Object.keys(cachedProfile).length > 0 ?
-            `\nKullanıcı profili: ${Object.entries(cachedProfile)
+            `\nUser profile: ${Object.entries(cachedProfile)
                 .map(([k, v]) => `${k}=${v}`)
                 .join(", ")}`
         :   "";
     const routineNote = routineRecordingName()
-        ? `\n\nROUTINE KAYDI AKTİF: "${routineRecordingName()}". Kullanıcının komutlarını normal şekilde araçlarla uygula — yaptığın eylemler otomatik kaydediliyor. Kullanıcı "kayıt bitir/durdur" derse routine_record_stop çağır.`
+        ? `\n\nROUTINE RECORDING ACTIVE: "${routineRecordingName()}". Apply the user's commands with tools as normal — your actions are being recorded automatically. If the user says "stop/end recording", call routine_record_stop.`
         : "";
     const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock() + routineNote;
-    // Geçmiş kırpma artık callAI içinde MODELE GÖRE (bağlam penceresi token bütçesi +
-    // boundary düzeltme) yapılıyor. Burada yalnız belleğin sınırsız büyümesini önlemek
-    // için kaba bir üst sınır koyuyoruz; gerçek kırpmayı model yeteneği belirler.
+    // History trimming is now done INSIDE callAI based on the MODEL (context window
+    // token budget + boundary correction). Here we only set a coarse upper bound to
+    // prevent unbounded memory growth; the actual trimming is determined by model capability.
     const trimmedHistory = history.length > 60 ? history.slice(-60) : history;
     const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...trimmedHistory];
     const send = (channel: string, payload: object) => {
@@ -827,15 +827,15 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         else if (channel === "tool-event") broadcastFeedEvent("tool", payload);
     };
 
-    // Tool listesini döngü başlamadan bir kez hesapla — zincirde her adımda aynı
-    // liste gönderilsin. Groq "tool not in request.tools" hatasını bu önler.
+    // Compute the tool list once before the loop starts — the same list is sent at
+    // every step in the chain. This prevents Groq's "tool not in request.tools" error.
     const lastUserForTools = [...messages].reverse().find((m) => m.role === "user");
     const toolContextStr = lastUserForTools ? extractTextContent(lastUserForTools.content) : "";
 
     // ── Deterministic Reference Resolver ─────────────────────────────────────
-    // SADECE referans ifadeleri ("tekrar yap", "biraz azalt", "onu kapat",
-    // "son oynadığım"…) için devreye girer. Diğer her şeyde null döner ve
-    // mesaj normal LLM akışına dokunulmadan devam eder.
+    // ONLY kicks in for reference expressions ("do it again", "turn it down a bit",
+    // "turn it off", "the last one I played"…). Returns null for everything else and
+    // the message continues through the normal LLM flow untouched.
     if (!isSubAgent) {
         const resolved = resolveReference(toolContextStr);
         if (resolved) {
@@ -843,14 +843,14 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
 
             if (resolved.kind === "clarify" || resolved.confidence < CONFIDENCE_THRESHOLD) {
                 const q = resolved.kind === "clarify" ? resolved.question
-                    : "Tam emin olamadım — ne yapmamı istediğini biraz açar mısın?";
+                    : "I wasn't quite sure — could you clarify what you'd like me to do?";
                 send("chat-delta", {text: q});
                 await saveMessage("assistant", q).catch((e) => console.error("[saveMessage]", e.message));
                 send("chat-done", {});
                 return;
             }
 
-            // confidence ≥ eşik → tool'u deterministik çalıştır, LLM'i atla.
+            // confidence ≥ threshold → run the tool deterministically, skip the LLM.
             const argsJson = JSON.stringify(resolved.args);
             send("tool-event", {phase: "start", name: resolved.tool, args: argsJson});
             recordToolUsage(resolved.tool);
@@ -858,9 +858,9 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
             try {
                 result = String(await executeTool(resolved.tool, argsJson));
             } catch (e) {
-                result = `Araç hatası: ${(e as Error).message ?? String(e)}`;
+                result = `Tool error: ${(e as Error).message ?? String(e)}`;
             }
-            const ok = !/^HATA|^ENGELLENDI|Bu araç tanımlı/.test(result);
+            const ok = !/^ERROR|^HATA|^BLOCKED|^ENGELLENDI|Unknown tool|Bu araç tanımlı/.test(result);
             stmRecord(resolved.tool, argsJson, result, ok, "resolver");
             send("tool-event", {phase: "done", name: resolved.tool, result: result.slice(0, 400)});
             await saveMessage("tool", result.slice(0, 1000), resolved.tool).catch((e) => console.error("[saveMessage]", e.message));
@@ -875,10 +875,10 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
 
     const lockedTools = getAllToolSchemas(currentSettings.aiProvider, toolContextStr);
 
-    // Faz 53 — Loop Guard: degenerate tool-call döngülerini erken yakala.
-    // Her runAgent çağrısı kendi örneğini açar (paralel istek izolasyonu).
+    // Phase 53 — Loop Guard: catch degenerate tool-call loops early.
+    // Each runAgent call opens its own instance (parallel request isolation).
     const guard = new LoopGuard();
-    // Faz 59 — Self-Healing: tekrarlayan hata teşhisi en fazla bir kez enjekte edilir.
+    // Phase 59 — Self-Healing: a repeated-error diagnosis is injected at most once.
     let healInjected = false;
 
     for (let step = 0; step < 8; step++) {
@@ -889,7 +889,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         const content = msg?.content ?? "";
         const toolCalls = (msg?.tool_calls ?? []) as {id: string; type: "function"; function: {name: string; arguments: string}}[];
 
-        // callAI tüm providerlar için onDelta'yı çağırıyor — burada tekrar gönderme.
+        // callAI calls onDelta for all providers — don't send again here.
 
         if (toolCalls.length === 0) {
             if (content) await saveMessage("assistant", content).catch((e) => console.error("[saveMessage]", e.message));
@@ -899,8 +899,8 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
 
         messages.push({role: "assistant", content: content || null, tool_calls: toolCalls} as OAIMessage);
 
-        // Faz 53 — döngü tespiti: engellenen çağrılar executeTool'a HİÇ gitmez,
-        // model'e açıklayıcı bir sonuç döner (toparlanabilsin/durabilsin diye).
+        // Phase 53 — loop detection: blocked calls NEVER reach executeTool,
+        // an explanatory result is returned to the model (so it can recover/stop).
         let blockedCount = 0;
         // Run all tool calls in parallel — allSettled so one failure doesn't abort others
         const settled = await Promise.allSettled(
@@ -908,21 +908,21 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 const name = call.function.name;
                 const argsJson = call.function.arguments || "{}";
                 let parsedArgs: unknown = {};
-                try { parsedArgs = JSON.parse(argsJson); } catch { /* ham string ile devam */ parsedArgs = argsJson; }
+                try { parsedArgs = JSON.parse(argsJson); } catch { /* continue with raw string */ parsedArgs = argsJson; }
                 const verdict = guard.check(name, parsedArgs);
                 if (!verdict.ok) {
                     blockedCount++;
-                    const blockMsg = `ENGELLENDI (döngü koruması): ${verdict.reason}`;
+                    const blockMsg = `BLOCKED (loop guard): ${verdict.reason}`;
                     send("tool-event", {phase: "done", name, result: blockMsg});
                     stmRecord(name, argsJson, blockMsg, false, "llm");
                     return {id: call.id, content: blockMsg};
                 }
-                // Faz 54 — Yıkıcı eylem izin kapısı: riskli + kalıcı izin yoksa kullanıcıya sor.
+                // Phase 54 — Destructive action approval gate: ask the user if risky + no permanent permission.
                 const pArgs = (parsedArgs && typeof parsedArgs === "object") ? parsedArgs as Record<string, unknown> : {};
                 if (!isSubAgent && needsApproval(name, pArgs)) {
                     const decision = await askDestructiveApproval(name, argsJson);
                     if (decision === "deny") {
-                        const denyMsg = `ENGELLENDI (kullanıcı onayı reddedildi): "${name}" yıkıcı bir eylem ve kullanıcı izin vermedi.`;
+                        const denyMsg = `BLOCKED (user denied approval): "${name}" is a destructive action and the user did not allow it.`;
                         send("tool-event", {phase: "done", name, result: denyMsg});
                         stmRecord(name, argsJson, denyMsg, false, "llm");
                         return {id: call.id, content: denyMsg};
@@ -932,29 +932,29 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
-                // Faz 56 — sonucu hata taksonomisine ata: başarı/başarısızlığı doğru
-                // kaydet ve hata ise modele kör tekrarı önleyen kısa yönlendirme ekle.
+                // Phase 56 — classify the result into the error taxonomy: record success/
+                // failure correctly, and on error add a brief steer to the model to prevent blind retries.
                 const ev = classifyError(String(result));
                 stmRecord(name, argsJson, String(result), !ev.isError, "llm");
-                // Faz 52 — routine kaydı aktifse bu eylemi yakala (deterministik tekrar için)
-                try { routineCaptureStep(name, JSON.parse(argsJson || "{}")); } catch { /* parse fail → atla */ }
+                // Phase 52 — if routine recording is active, capture this action (for deterministic replay)
+                try { routineCaptureStep(name, JSON.parse(argsJson || "{}")); } catch { /* parse failed → skip */ }
                 send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
                 await saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
                 const forModel = String(result);
                 let clipped = forModel.length > 6000
-                    ? forModel.slice(0, 6000) + `\n\n[...kısaltıldı, toplam ${forModel.length} karakter]`
+                    ? forModel.slice(0, 6000) + `\n\n[...truncated, ${forModel.length} characters total]`
                     : forModel;
-                // Yeniden-denenmemesi gereken hatalarda (hedef yok / argüman hatası /
-                // yetki) modele net yönlendirme ekle — aynı çağrıyı tekrarlamasın.
+                // For non-retriable errors (target not found / argument error / permission),
+                // add a clear steer to the model — don't repeat the same call.
                 if (ev.isError && !ev.retriable && ev.kind !== "fatal") {
-                    clipped += `\n\n[YÖNLENDİRME: ${ev.advice}]`;
+                    clipped += `\n\n[GUIDANCE: ${ev.advice}]`;
                 }
                 return {id: call.id, content: clipped};
             })
         );
         const toolResults = settled.map((r, i) => {
             if (r.status === "fulfilled") return r.value;
-            const errMsg = `Araç hatası: ${(r.reason as Error).message ?? String(r.reason)}`;
+            const errMsg = `Tool error: ${(r.reason as Error).message ?? String(r.reason)}`;
             stmRecord(toolCalls[i].function.name, toolCalls[i].function.arguments || "{}", errMsg, false, "llm");
             return {id: toolCalls[i].id, content: errMsg};
         });
@@ -962,20 +962,20 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
             messages.push({role: "tool", tool_call_id: r.id, content: r.content});
         }
 
-        // Faz 59 — Self-Healing: STM geçmişinde tekrarlayan (tool-ailesi, hata-sınıfı)
-        // örüntüsü varsa (aynı domain 3+ kez aynı tür hatayla düşüyorsa) modele NET bir
-        // teşhis + strateji enjekte et — bir kez. Böylece kör tekrar yerine yön değişir.
+        // Phase 59 — Self-Healing: if there's a recurring (tool-family, error-class)
+        // pattern in STM history (same domain failing 3+ times with the same error type),
+        // inject a CLEAR diagnosis + strategy into the model — once. This redirects instead of blind repetition.
         if (!healInjected) {
             const diag = diagnose(stmGet().recentTools.map((e) => ({tool: e.tool, success: e.success, result: e.result})));
             if (diag.detected) {
                 healInjected = true;
-                messages.push({role: "system", content: `[ÖZ-İYİLEŞME TEŞHİSİ] ${diag.advice}`} as OAIMessage);
+                messages.push({role: "system", content: `[SELF-HEALING DIAGNOSIS] ${diag.advice}`} as OAIMessage);
             }
         }
 
-        // Faz 53 — bu turdaki tüm çağrılar döngü koruması tarafından engellendiyse
-        // model kısır döngüde demektir; bir tur daha LLM'e dönüp toparlanmasına izin
-        // verip sonra kesiyoruz (model engel sonucunu görüp düzgün bir kapanış yazar).
+        // Phase 53 — if all calls in this turn were blocked by loop guard, the model
+        // is in a vicious cycle; we give it one more turn with the LLM to recover and
+        // then cut it off (the model sees the block result and writes a proper closing).
         if (blockedCount === toolCalls.length) {
             const recovery = await callAI(messages, (text) => send("chat-delta", {text}), lockedTools, currentSettings, MODEL, groq);
             const rMsg = recovery.choices[0]?.message;
@@ -987,7 +987,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         }
     }
 
-    send("chat-delta", {text: "\n\n(İşlem araç döngüsü limitine ulaştı.)"});
+    send("chat-delta", {text: "\n\n(Tool loop limit reached.)"});
     send("chat-done", {});
 }
 
@@ -1005,18 +1005,18 @@ app.on("second-instance", () => {
 
 async function summarizeAndSave(): Promise<void> {
     if (sessionHistory.length < 2) return;
-    // Özet için yerel Groq anahtarı gerekir; yoksa (ör. trial modu — anahtar sunucuda)
-    // sessizce atla, 401 üretme.
+    // Summarization requires a local Groq key; if missing (e.g. trial mode — key lives
+    // on the server) skip silently, don't produce a 401.
     if (!(process.env.GROQ_API_KEY ?? "").trim()) return;
     try {
         const turns = sessionHistory
             .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) => `${m.role === "user" ? "Kullanıcı" : "AEGIS"}: ${m.content}`)
+            .map((m) => `${m.role === "user" ? "User" : "AEGIS"}: ${m.content}`)
             .join("\n");
         const res = await groq.chat.completions.create({
             model: MODEL,
             messages: [
-                {role: "system", content: "Aşağıdaki konuşmayı 3-5 cümleyle özetle. Türkçe. Sadece özeti yaz, başka bir şey ekleme."},
+                {role: "system", content: "Summarize the following conversation in 3-5 sentences. Write in Turkish. Write only the summary, nothing else."},
                 {role: "user", content: turns.slice(0, 6000)},
             ],
             stream: false,
@@ -1042,14 +1042,14 @@ function activatePlugins(): string {
     extraSchemas.push(...schemas);
     registerPluginExecutors(executors);
     setPluginList(plugins);
-    return `${plugins.length} plugin yüklendi.`;
+    return `${plugins.length} plugins loaded.`;
 }
 
 async function bootApp(): Promise<void> {
     const {safeStorage} = await import("electron");
     initVault(safeStorage);
 
-    // Cloud sync (Faz 30.7) — giriş + sync açıksa açılışta buluttan ayar/key çek.
+    // Cloud sync (Phase 30.7) — if signed in + sync enabled, pull settings/keys from the cloud on startup.
     try {
         const res = await pullFromCloud();
         if (res.applied) {
@@ -1058,7 +1058,7 @@ async function bootApp(): Promise<void> {
             setFullPcAccess(currentSettings.fullPcAccess ?? false);
             setDisabledTools(currentSettings.disabledTools ?? []);
         }
-    } catch { /* sync opsiyonel — başarısızlık uygulamayı durdurmaz */ }
+    } catch { /* sync is optional — failure doesn't stop the app */ }
 
     registerQuitCallback(() => app.quit());
 
@@ -1095,7 +1095,7 @@ async function bootApp(): Promise<void> {
             if (wasVisible) mainWindow!.show();
 
             const source = sources[0];
-            if (!source) return {error: "Ekran kaynağı bulunamadı."};
+            if (!source) return {error: "Screen source not found."};
             const base64 = source.thumbnail.toDataURL().replace(/^data:image\/png;base64,/, "");
             return {base64, width, height};
         } catch (e) {
@@ -1108,7 +1108,7 @@ async function bootApp(): Promise<void> {
         const key = getProviderKey(provider, currentSettings);
         const imgUrl = `data:image/png;base64,${base64}`;
 
-        // ── Deneme modu (proxy) — kendi Groq key'i yoksa senin proxy'inden ──
+        // ── Trial mode (proxy) — if there's no own Groq key, use your proxy ──
         const ownGroqKey = (currentSettings.providerKeys?.groq ?? "").trim();
         if (currentSettings.aiMode === "trial" && !ownGroqKey) {
             const completion = await callProxy(
@@ -1116,10 +1116,10 @@ async function bootApp(): Promise<void> {
                     {type: "image_url", image_url: {url: imgUrl}},
                     {type: "text", text: prompt},
                 ]} as OAIMessage],
-                [], // vision için tool yok
+                [], // no tools for vision
                 {model: "meta-llama/llama-4-scout-17b-16e-instruct", temperature: 0.7, max_tokens: 1024},
             );
-            return completion.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+            return completion.choices[0]?.message?.content ?? "(no response received)";
         }
 
         // ── Anthropic vision ──
@@ -1142,7 +1142,7 @@ async function bootApp(): Promise<void> {
             }, 60_000);
             if (!resp.ok) throw new Error(await friendlyHttpError("Anthropic vision", resp));
             const data = await resp.json() as {content: {type: string; text?: string}[]};
-            return data.content.find((b) => b.type === "text")?.text ?? "(yanıt alınamadı)";
+            return data.content.find((b) => b.type === "text")?.text ?? "(no response received)";
         }
 
         // ── Gemini vision ──
@@ -1161,7 +1161,7 @@ async function bootApp(): Promise<void> {
             );
             if (!resp.ok) throw new Error(await friendlyHttpError("Gemini vision", resp));
             const data = await resp.json() as {candidates: {content: {parts: {text?: string}[]}}[]};
-            return data.candidates[0]?.content?.parts?.find((p) => p.text)?.text ?? "(yanıt alınamadı)";
+            return data.candidates[0]?.content?.parts?.find((p) => p.text)?.text ?? "(no response received)";
         }
 
         // ── OpenAI / xAI / deepseek / mistral (OpenAI-compat vision) ──
@@ -1196,10 +1196,10 @@ async function bootApp(): Promise<void> {
             }, 60_000);
             if (!resp.ok) throw new Error(await friendlyHttpError(`${provider.toUpperCase()} vision`, resp));
             const data = await resp.json() as {choices: {message: {content: string}}[]};
-            return data.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+            return data.choices[0]?.message?.content ?? "(no response received)";
         }
 
-        // ── Groq (fallback + groq seçiliyken) ──
+        // ── Groq (fallback + when groq is selected) ──
         const groqKey = getProviderKey("groq", currentSettings) || process.env.GROQ_API_KEY || "";
         const visionGroq = new Groq({apiKey: groqKey});
         const resp = await visionGroq.chat.completions.create({
@@ -1214,7 +1214,7 @@ async function bootApp(): Promise<void> {
             stream: false,
             max_tokens: 1024,
         } as any);
-        return (resp as any).choices[0]?.message?.content ?? "(yanıt alınamadı)";
+        return (resp as any).choices[0]?.message?.content ?? "(no response received)";
     });
 
     registerSetLanguageCallback((lang) => {
@@ -1233,18 +1233,18 @@ async function bootApp(): Promise<void> {
                 const date = s.ended_at ? new Date(s.ended_at).toLocaleDateString("tr-TR") : "?";
                 return `- ${date}: ${s.summary}`;
             }).join("\n");
-            memorySummaries = `\n\nÖNCEKİ OTURUMLAR (hafıza):\n${lines}`;
+            memorySummaries = `\n\nPREVIOUS SESSIONS (memory):\n${lines}`;
         }
         const dueNotes = notes.filter((n) => n.remind_at && new Date(n.remind_at) <= new Date());
         if (dueNotes.length > 0) {
             const noteLines = dueNotes.map((n) => `- [${n.id.slice(0, 8)}] ${n.content}`).join("\n");
-            memorySummaries += `\n\nBEKLEYEN HATIRLATICILAR (kullanıcıya bildir):\n${noteLines}`;
+            memorySummaries += `\n\nPENDING REMINDERS (notify user):\n${noteLines}`;
         }
     } catch {}
 
     registerAgentCallback((goal, maxSteps) => {
         const reqId = `agent-${Date.now()}`;
-        // Faz 56 — plan-temelli ajan promptu (planla → yap → doğrula → takılınca dur).
+        // Phase 56 — plan-based agent prompt (plan → execute → verify → stop when stuck).
         const agentPrompt = buildPlanPrompt(goal, maxSteps);
         const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
         saveMessage("user", agentPrompt).catch(() => {});
@@ -1258,9 +1258,9 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    // pipeline_run / model_compare için tek-atışlık LLM çağrısı (tool'suz, stream'siz).
+    // Single-shot LLM call for pipeline_run / model_compare (no tools, no streaming).
     registerLLMCallback(async (prompt, model) => {
-        // "provider:modelId" → Groq modelleri için prefix'i sıyır; aksi halde aktif MODEL.
+        // "provider:modelId" → strip the prefix for Groq models; otherwise use the active MODEL.
         const modelId = model
             ? (model.startsWith("groq:") ? model.slice(5) : model.includes(":") ? model.split(":")[1] : model)
             : MODEL;
@@ -1286,26 +1286,26 @@ async function bootApp(): Promise<void> {
             if (isTimeoutError(e)) {
                 msg = TIMEOUT_MSG;
             } else if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
-                msg = "İnternet bağlantısı kurulamadı. Ağ bağlantını kontrol et ve tekrar dene.";
+                msg = "Could not establish an internet connection. Check your network and try again.";
             }
             sendToRenderer("chat-error", {reqId, message: msg});
         } finally {
-            // chat-done her zaman gönderilmeli — streaming state sıfırlanır
+            // chat-done must always be sent — resets the streaming state
             sendToRenderer("chat-done", {reqId});
         }
     });
 
     ipcMain.handle("weather", () => getWeather());
 
-    // Faz 63 — Genel tool çağrısı (UI widget/modal'ları için). Domain widget'ları
-    // canlı veriyi buradan çeker. Yıkıcı eylemler executeTool'un kendi ENGELLENDI
-    // mantığına takılır (delete_file vb. fullPcAccess kapalıyken durur); widget'lar
-    // zaten yalnız okuma/güvenli durum tool'ları çağırır.
+    // Phase 63 — Generic tool call (for UI widgets/modals). Domain widgets pull
+    // live data from here. Destructive actions still hit executeTool's own BLOCKED
+    // logic (delete_file etc. stop when fullPcAccess is off); widgets only ever call
+    // read-only/safe-state tools anyway.
     ipcMain.handle("run-tool", async (_e, {name, args}: {name: string; args?: Record<string, unknown>}) => {
         try {
             return await executeTool(name, JSON.stringify(args ?? {}));
         } catch (e) {
-            return `HATA: ${(e as Error).message ?? String(e)}`;
+            return `ERROR: ${(e as Error).message ?? String(e)}`;
         }
     });
 
@@ -1316,7 +1316,7 @@ async function bootApp(): Promise<void> {
         if (action === "next")   return spotifyNext();
         if (action === "prev")   return spotifyPrev();
         if (action === "volume") return spotifySetVolume(Number(value ?? 50));
-        return "Bilinmeyen aksiyon";
+        return "Unknown action";
     });
 
     ipcMain.handle("transcribe", async (_e, audioBuffer: ArrayBuffer) => {
@@ -1362,9 +1362,9 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    // Kokoro model ağırlıkları YAZILABILIR userData klasörüne iner (asar/node_modules
-    // salt-okunur). kokoro-js kütüphanesi build'e bundle edilir; runtime'da SADECE
-    // ~900MB ONNX ağırlıkları indirilir. cmd.exe/bun spawn YOK.
+    // Kokoro model weights land in the WRITABLE userData folder (asar/node_modules
+    // are read-only). The kokoro-js library is bundled into the build; at runtime ONLY
+    // the ~900MB ONNX weights are downloaded. NO cmd.exe/bun spawn.
     setKokoroModelDir(path.join(app.getPath("userData"), "kokoro-models"));
 
     ipcMain.handle("tts-kokoro-installed", () => isKokoroInstalled());
@@ -1373,9 +1373,9 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("kokoro-install", async () => {
         if (_kokoroInstalling) return;
         _kokoroInstalling = true;
-        sendToRenderer("kokoro-install-progress", {phase: "model", percent: 0, label: "Model indiriliyor…"});
+        sendToRenderer("kokoro-install-progress", {phase: "model", percent: 0, label: "Downloading model…"});
         try {
-            // Tek aşama: ONNX model ağırlıklarını from_pretrained ile indir (yazılabilir cacheDir'e).
+            // Single stage: download the ONNX model weights via from_pretrained (into a writable cacheDir).
             await loadKokoro((info) => {
                 if (info.status === "progress") {
                     sendToRenderer("kokoro-install-progress", {
@@ -1390,12 +1390,12 @@ async function bootApp(): Promise<void> {
                     sendToRenderer("kokoro-install-progress", {phase: "model", file: info.file ?? "", percent: 100, label: info.file ?? ""});
                 }
             });
-            // Gerçekten indi mi? Diskten doğrula — sahte "ready" gönderme.
-            if (!isKokoroInstalled()) throw new Error("Model dosyaları indirilemedi (disk doğrulaması başarısız).");
+            // Did it actually download? Verify on disk — don't send a fake "ready".
+            if (!isKokoroInstalled()) throw new Error("Model files could not be downloaded (disk verification failed).");
             sendToRenderer("kokoro-install-progress", {phase: "ready"});
         } catch (e) {
             const msg = (e as Error)?.message === "KOKORO_NOT_INSTALLED"
-                ? "kokoro-js kütüphanesi bu sürüme dahil edilmemiş. Lütfen uygulamayı güncelleyin."
+                ? "The kokoro-js library is not included in this version. Please update the app."
                 : String((e as Error)?.message ?? e);
             sendToRenderer("kokoro-install-progress", {phase: "error", label: msg});
         } finally {
@@ -1403,7 +1403,7 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    // Modeli sil — gerçek silme + diskten doğrulama; sahte UI değişimi YOK.
+    // Delete the model — actual deletion + disk verification; NO fake UI change.
     ipcMain.handle("kokoro-uninstall", async () => {
         const {deleted, freedBytes} = deleteKokoroModel();
         const stillInstalled = isKokoroInstalled();
@@ -1414,14 +1414,14 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("auth-current-user", () => getCurrentUser());
     ipcMain.handle("usage-get", () => getUsage());
 
-    // Canlı model listesi — provider'ın resmi endpoint'inden (uydurma ID sorununu çözer).
+    // Live model list — from the provider's official endpoint (fixes the made-up-ID problem).
     ipcMain.handle("models-list", async (_e, {provider, key}: {provider: string; key?: string}) => {
         const useKey = (key ?? "").trim() || getProviderKey(provider, currentSettings);
         return fetchModels(provider, useKey, currentSettings.ollamaUrl);
     });
 
-    // Seçili modelin yetenekleri (tool/vision/reasoning/limit) — Model sekmesinde
-    // rozet olarak gösterilir. Kullanıcı modelin ne yapıp yapamadığını net görür.
+    // Capabilities of the selected model (tool/vision/reasoning/limit) — shown as
+    // badges in the Model tab. The user sees clearly what the model can and can't do.
     ipcMain.handle("caps-get", (_e, {provider, model}: {provider: string; model: string}) => {
         return getModelCapabilities(provider, model, currentSettings.ollamaNumCtx ?? 4096);
     });
@@ -1480,12 +1480,12 @@ async function bootApp(): Promise<void> {
     // Mobil API — ask handler: single-turn LLM call (no streaming)
     registerAskHandler(async (question) => {
         const profile = Object.keys(cachedProfile).length > 0
-            ? `\nKullanıcı profili: ${Object.entries(cachedProfile).map(([k, v]) => `${k}=${v}`).join(", ")}`
+            ? `\nUser profile: ${Object.entries(cachedProfile).map(([k, v]) => `${k}=${v}`).join(", ")}`
             : "";
         const sysPrompt = getSystemPrompt(currentSettings.language, currentSettings.fullPcAccess ?? false) + profile + memorySummaries;
         const msgs = [{role: "system", content: sysPrompt}, {role: "user", content: question}];
         const result = await callAI(msgs as OAIMessage[], undefined, undefined, currentSettings, MODEL, groq);
-        return result.choices[0]?.message?.content ?? "(yanıt alınamadı)";
+        return result.choices[0]?.message?.content ?? "(no response received)";
     });
 
     registerTtsHandler(async (text) => {
@@ -1503,7 +1503,7 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("api-info", () => getApiInfo());
     ipcMain.handle("api-server-toggle", (_e, enable: boolean) => {
         if (enable) return startApiServer();
-        stopApiServer(); return "API sunucusu durduruldu.";
+        stopApiServer(); return "API server stopped.";
     });
 
     createWindow();
@@ -1517,22 +1517,22 @@ async function bootApp(): Promise<void> {
         markMorningSummaryShown();
         setTimeout(() => {
             let prompt = buildMorningSummaryPrompt();
-            // Faz 61 — opt-in proaktif öneri: kullanıcı açtıysa zamansal alışkanlık
-            // örüntülerini sabah özetine ekle (kapalıyken null → hiç eklenmez, spam yok).
+            // Phase 61 — opt-in proactive suggestion: if the user enabled it, add detected
+            // temporal habit patterns to the morning summary (off → null → never added, no spam).
             const proactive = getProactiveSuggestion(currentSettings.proactiveSuggestions ?? false);
             if (proactive) {
-                prompt += `\n\nAyrıca kullanıcının şu alışkanlık örüntülerini fark ettim; doğal bir dille bahset ve otomatikleştirmek isteyip istemediğini SOR (zorlama):\n${proactive}`;
+                prompt += `\n\nI also noticed these habit patterns of the user; mention them naturally and ASK whether they'd like to automate them (don't push):\n${proactive}`;
             }
             const msgs = [...sessionHistory, {role: "user", content: prompt}];
             saveMessage("user", prompt).catch(() => {});
             runAgent(msgs, `morning-${Date.now()}`, true).catch(() => {});
-        }, 4000); // pencere yüklendikten 4sn sonra
+        }, 4000); // 4s after the window loads
     }
 
     registerSchedulerCallback((task) => {
         sendToRenderer("chat-stream-inject", {command: task.command});
         if (ElectronNotification.isSupported()) {
-            new ElectronNotification({title: "AEGIS · Zamanlanmış Görev", body: task.name}).show();
+            new ElectronNotification({title: "AEGIS · Scheduled Task", body: task.name}).show();
         }
     });
     startScheduler();
@@ -1546,13 +1546,13 @@ async function bootApp(): Promise<void> {
             private: true,
             token: AEGIS_GITHUB_TOKEN,
         });
-        // İNDİRME TAMAMEN MANUEL. Otomatik kontrol SADECE "yeni sürüm var" bildirimi verir;
-        // indirme YALNIZCA kullanıcı İNDİR'e basınca (update-download IPC) başlar.
-        autoUpdater.autoDownload = false;          // checkForUpdates indirmeyi tetiklemesin
-        autoUpdater.autoInstallOnAppQuit = false;  // çıkışta sessizce kurma — kullanıcı karar versin
+        // DOWNLOAD IS FULLY MANUAL. Automatic check ONLY gives a "new version available"
+        // notification; download ONLY starts when the user clicks DOWNLOAD (update-download IPC).
+        autoUpdater.autoDownload = false;          // checkForUpdates shouldn't trigger a download
+        autoUpdater.autoInstallOnAppQuit = false;  // don't install silently on quit — let the user decide
 
         autoUpdater.on("update-available", (info) => {
-            // Sadece bildirim. Burada downloadUpdate() ÇAĞIRMA.
+            // Notification only. Do NOT call downloadUpdate() here.
             sendToRenderer("update-available", {version: info.version});
         });
 
@@ -1570,8 +1570,8 @@ async function bootApp(): Promise<void> {
             sendToRenderer("update-downloaded", {version: info?.version});
         });
 
-        // KRİTİK: hata event'i olmadan indirme sessizce takılıp "indiriliyor…" sonsuza
-        // kadar kalıyordu. Artık her hata renderer'a iletilir + log'lanır.
+        // CRITICAL: without an error event, the download would silently hang and
+        // "downloading…" would stay forever. Now every error is forwarded to the renderer + logged.
         autoUpdater.on("error", (err) => {
             const msg = (err as Error)?.message ?? String(err);
             console.error("[updater] error:", msg);
@@ -1580,17 +1580,17 @@ async function bootApp(): Promise<void> {
         autoUpdater.on("checking-for-update", () => console.log("[updater] checking…"));
         autoUpdater.on("update-not-available", () => console.log("[updater] up to date"));
 
-        // Bildirim amaçlı kontrol — autoDownload=false olduğu için indirme yapmaz.
+        // Check for notification purposes only — autoDownload=false so it won't download.
         autoUpdater.checkForUpdates().catch((e) => { console.error("[updater] check:", e.message); sendToRenderer("update-error", {message: e.message}); });
         setInterval(() => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message)), 4 * 60 * 60 * 1000);
     }
 
     ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
-    // SADECE buradan indirme başlar — kullanıcı İNDİR'e bastığında. Hata olursa
-    // renderer'a iletilir ki "indiriliyor…" sonsuza kalmasın.
-    // SADECE buradan indirme başlar. İndirmeden ÖNCE updater'ın kendi check'i çalışır —
-    // yoksa downloadUpdate() "Please check update first" atıyordu (manuel buton ham GitHub
-    // fetch yapıp updater state'ini beslemediği için). Mantık: electron/updater-logic.ts.
+    // Download ONLY starts from here — when the user clicks DOWNLOAD. If there's an
+    // error it's forwarded to the renderer so "downloading…" doesn't hang forever.
+    // Download ONLY starts from here. BEFORE downloading, the updater's own check runs —
+    // otherwise downloadUpdate() would throw "Please check update first" (since the manual
+    // button did a raw GitHub fetch without feeding the updater's state). Logic: electron/updater-logic.ts.
     ipcMain.handle("update-download", () =>
         performDownload(autoUpdater, app.getVersion(), (msg) => sendToRenderer("update-error", {message: msg})));
     ipcMain.handle("check-for-updates", async () => {
@@ -1620,8 +1620,8 @@ function createOnboardingWindow(): void {
     if (isDev) {
         onboardingWin.loadURL("http://127.0.0.1:5173?setup=1");
     } else {
-        // loadFile query'si bazı Electron sürümlerinde location.search'e güvenilir geçmiyor;
-        // hash kullan — renderer hem ?setup hem #setup'ı kontrol eder.
+        // loadFile's query string doesn't reliably reach location.search on some Electron
+        // versions; use a hash instead — the renderer checks both ?setup and #setup.
         onboardingWin.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
     }
 
@@ -1629,7 +1629,7 @@ function createOnboardingWindow(): void {
     ipcMain.on("win-minimize", () => onboardingWin?.minimize());
 }
 
-// Onboarding penceresini kapatıp asıl uygulamayı başlatır.
+// Closes the onboarding window and starts the actual app.
 async function startMainAppFromOnboarding(): Promise<void> {
     if (onboardingWin && !onboardingWin.isDestroyed()) onboardingWin.close();
     onboardingWin = null;
@@ -1640,23 +1640,23 @@ async function startMainAppFromOnboarding(): Promise<void> {
     });
 }
 
-// Gelişmiş kurulum — kendi anahtarlarını kaydet (Supabase opsiyonel).
+// Advanced setup — save own keys (Supabase optional).
 ipcMain.handle("setup-save", (_e, config: AegisConfig) => {
     saveConfig(config);
     applyConfig(config);
     groq = new Groq({apiKey: config.groqApiKey});
-    // Not: uygulamayı burada başlatmıyoruz — onboarding akışı opsiyonel auth
-    // adımına geçip sonra onboarding-complete çağırır.
+    // Note: we don't start the app here — the onboarding flow moves on to the
+    // optional auth step and then calls onboarding-complete.
 });
 
-// Onboarding tamamlandı (trial veya own) → uygulamayı başlat.
+// Onboarding complete (trial or own) → start the app.
 ipcMain.handle("onboarding-complete", async (_e, mode: "trial" | "own") => {
     currentSettings = {...currentSettings, aiMode: mode};
     saveSettings(currentSettings);
     await startMainAppFromOnboarding();
 });
 
-// Ana uygulamadan onboarding'i yeniden başlat (Ayarlar → Hesap).
+// Restart onboarding from the main app (Settings → Account).
 ipcMain.handle("restart-onboarding", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.close();
@@ -1665,7 +1665,7 @@ ipcMain.handle("restart-onboarding", () => {
     createOnboardingWindow();
 });
 
-// Deneme modu kullanıma hazır mı? (aiMode=trial + geçerli oturum)
+// Is trial mode ready to use? (aiMode=trial + valid session)
 async function trialReady(): Promise<boolean> {
     if (currentSettings.aiMode !== "trial") return false;
     try {
@@ -1678,16 +1678,16 @@ async function trialReady(): Promise<boolean> {
 
 ipcMain.handle("get-app-version", () => app.getVersion());
 
-// ── Auth & Spotify IPC — onboarding sırasında da gerekli ────────────────────
-// trial-auth adımı sign-in/sign-up, spotify-connect adımı spotify-authorize çağırır;
-// o sırada bootApp henüz çalışmamıştır.
+// ── Auth & Spotify IPC — also needed during onboarding ──────────────────────
+// the trial-auth step calls sign-in/sign-up, the spotify-connect step calls spotify-authorize;
+// bootApp hasn't run yet at that point.
 ipcMain.handle("auth-sign-up", (_e, {email, password}: {email: string; password: string}) => signUp(email, password));
 ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
 ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
 
-// ── Settings IPC — onboarding öncesinde de erişilebilir olmalı ──────────────
-// Bu handler'lar bootApp() içinde değil burada; onboarding akışı dil seçer ve
-// settingsSet çağırır, o sırada bootApp henüz çalışmamıştır.
+// ── Settings IPC — must also be accessible before onboarding ────────────────
+// These handlers live here, not inside bootApp(); the onboarding flow picks a
+// language and calls settingsSet, and bootApp hasn't run yet at that point.
 ipcMain.handle("settings-get", () => currentSettings);
 ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
     const langChanged = patch.language && patch.language !== currentSettings.language;
@@ -1733,7 +1733,7 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
     return currentSettings;
 });
 
-// ── Global hata yakalayıcılar — sessiz crash'leri logla ─────────────────────
+// ── Global error handlers — log silent crashes ───────────────────────────────
 process.on("unhandledRejection", (reason) => {
     console.error("[AEGIS] Unhandled rejection:", reason);
 });
@@ -1742,14 +1742,14 @@ process.on("uncaughtException", (err) => {
 });
 
 app.whenReady().then(async () => {
-    // Geliştirici kolaylığı: AEGIS_FORCE_ONBOARDING=1 ile onboarding akışını
-    // koşulsuz aç (config/trial token olsa bile). Yalnızca tasarım/UX testi için.
+    // Developer convenience: AEGIS_FORCE_ONBOARDING=1 forces the onboarding flow
+    // open unconditionally (even with a config/trial token). For design/UX testing only.
     if (process.env.AEGIS_FORCE_ONBOARDING === "1") {
         createOnboardingWindow();
         return;
     }
 
-    // Gelişmiş mod hazır mı? (kendi Groq key'i config'te veya env'de)
+    // Is advanced mode ready? (own Groq key in config or env)
     const ownReady =
         currentSettings.aiMode === "own" &&
         ((loadConfig()?.groqApiKey ?? "").trim() !== "" || !!process.env.GROQ_API_KEY);

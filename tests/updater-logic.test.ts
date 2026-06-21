@@ -21,36 +21,36 @@ function makeUpdater(over: Partial<UpdaterLike> & {latest?: string | null; downl
     };
 }
 
-describe("performDownload — indirmeden ÖNCE check yapar (bug kökü)", () => {
-    it("KRİTİK: download'dan ÖNCE checkForUpdates çağrılır", async () => {
+describe("performDownload — checks BEFORE downloading (bug root cause)", () => {
+    it("CRITICAL: checkForUpdates is called BEFORE download", async () => {
         const u = makeUpdater({latest: "1.5.1"});
         await performDownload(u, "1.5.0", () => {});
-        expect(u.calls).toEqual(["check", "download"]); // sıra: önce check, sonra download
+        expect(u.calls).toEqual(["check", "download"]); // order: check first, then download
     });
 
-    it("yeni sürüm varsa indirir, ok:true döner", async () => {
+    it("downloads when a new version exists, returns ok:true", async () => {
         const u = makeUpdater({latest: "1.5.1"});
         const r = await performDownload(u, "1.5.0", () => {});
         expect(r.ok).toBe(true);
     });
 
-    it("güncel sürümdeyse İNDİRMEZ, net hata verir (download çağrılmaz)", async () => {
+    it("does NOT download when already on latest version, gives a clear error (download not called)", async () => {
         const u = makeUpdater({latest: "1.5.0"});
         let errMsg = "";
         const r = await performDownload(u, "1.5.0", (m) => (errMsg = m));
         expect(r.ok).toBe(false);
-        expect(u.calls).toEqual(["check"]);            // download HİÇ çağrılmadı
-        expect(errMsg).toMatch(/Güncel sürümdesin|bulunamadı/i);
+        expect(u.calls).toEqual(["check"]);            // download was NEVER called
+        expect(errMsg).toMatch(/latest version|not found/i);
     });
 
-    it("updateInfo null gelirse İNDİRMEZ, hata verir", async () => {
+    it("does NOT download when updateInfo is null, returns an error", async () => {
         const u = makeUpdater({latest: null});
         const r = await performDownload(u, "1.5.0", () => {});
         expect(r.ok).toBe(false);
         expect(u.calls).toEqual(["check"]);
     });
 
-    it("check throw ederse hata renderer'a iletilir (sessiz takılma yok)", async () => {
+    it("if check throws, the error is forwarded to the renderer (no silent hang)", async () => {
         const u = makeUpdater({checkThrows: "net::ERR_CONNECTION_RESET", latest: "1.5.1"});
         let errMsg = "";
         const r = await performDownload(u, "1.5.0", (m) => (errMsg = m));
@@ -58,7 +58,7 @@ describe("performDownload — indirmeden ÖNCE check yapar (bug kökü)", () => 
         expect(errMsg).toBe("net::ERR_CONNECTION_RESET");
     });
 
-    it("download throw ederse ('Please check…') yakalanır ve iletilir", async () => {
+    it("if download throws ('Please check…') it is caught and forwarded", async () => {
         const u = makeUpdater({latest: "1.5.1", downloadThrows: true});
         let errMsg = "";
         const r = await performDownload(u, "1.5.0", (m) => (errMsg = m));
@@ -67,15 +67,15 @@ describe("performDownload — indirmeden ÖNCE check yapar (bug kökü)", () => 
     });
 });
 
-describe("performCheck — gerçek updater'ı kullanır (state'i besler)", () => {
-    it("yeni sürüm varsa hasUpdate:true + latest döner", async () => {
+describe("performCheck — uses the real updater (feeds state)", () => {
+    it("returns hasUpdate:true + latest when a new version exists", async () => {
         const u = makeUpdater({latest: "1.5.1"});
         const r = await performCheck(u, "1.5.0");
         expect(r).toMatchObject({current: "1.5.0", latest: "1.5.1", hasUpdate: true});
         expect(u.calls).toContain("check");
     });
 
-    it("aynı sürümse hasUpdate:false", async () => {
+    it("hasUpdate:false when same version", async () => {
         const u = makeUpdater({latest: "1.5.0"});
         const r = await performCheck(u, "1.5.0");
         expect(r.hasUpdate).toBe(false);
@@ -87,7 +87,7 @@ describe("performCheck — gerçek updater'ı kullanır (state'i besler)", () =>
         expect(r).toMatchObject({hasUpdate: false, latest: "1.5.0"});
     });
 
-    it("check throw ederse error alanı dolar, patlamaz", async () => {
+    it("if check throws, the error field is populated, doesn't crash", async () => {
         const u = makeUpdater({checkThrows: "GitHub 403", latest: "1.5.1"});
         const r = await performCheck(u, "1.5.0");
         expect(r.error).toBe("GitHub 403");

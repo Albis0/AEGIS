@@ -34,19 +34,21 @@ export interface ErrorVerdict {
     advice: string;
 }
 
-// Patterns searched in the result text (executeTool/tool results are a mix of Turkish + English).
+// Patterns searched in the result text. Tool results are now English (BLOCKED:/ERROR:),
+// but the legacy Turkish prefixes (ENGELLENDI/HATA) are matched too for backward compatibility
+// with older saved data and any not-yet-migrated tool output.
 const PATTERNS: {kind: ErrorKind; re: RegExp; retriable: boolean; advice: string}[] = [
-    {kind: "blocked", re: /^ENGELLENDI|loop koruması|döngü koruması|kullanıcı onayı reddedildi|devre dışı/i,
+    {kind: "blocked", re: /^BLOCKED|^ENGELLENDI|loop guard|loop koruması|döngü koruması|user denied approval|kullanıcı onayı reddedildi|disabled|devre dışı/i,
         retriable: false, advice: "Action blocked (loop/permission/disabled). Don't retry; explain the situation to the user."},
-    {kind: "permission", re: /\b(401|403|unauthorized|forbidden|yetki|izin yok|permission denied|access denied|premium gerek)/i,
+    {kind: "permission", re: /\b(401|403|unauthorized|forbidden|yetki|izin yok|permission denied|access denied|premium required|premium gerek)/i,
         retriable: false, advice: "Auth/permission issue. Don't retry; ask the user for the required access/key."},
-    {kind: "not_found", re: /\b(404|not found|bulunamadı|yok\b|mevcut değil|no such|tanımlı değil|geçersiz oyun|cihaz yok)/i,
+    {kind: "not_found", re: /\b(404|not found|unknown tool|bulunamadı|yok\b|mevcut değil|no such|not defined|tanımlı değil|invalid game|geçersiz oyun|no device|cihaz yok)/i,
         retriable: false, advice: "Target not found. Don't repeat with the same argument; fix the name/path/target or try an alternative."},
-    {kind: "invalid_args", re: /\b(geçersiz|invalid|bad request|400|422|eksik (parametre|argüman)|yanlış format|parse)/i,
+    {kind: "invalid_args", re: /\b(invalid|geçersiz|bad request|400|422|missing (parameter|argument)|eksik (parametre|argüman)|wrong format|yanlış format|parse)/i,
         retriable: false, advice: "Argument/schema error. Don't send the same arguments; fix them and retry."},
-    {kind: "transient", re: /\b(zaman aşımı|timeout|econn|etimedout|503|502|429|rate limit|geçici|temporarily|meşgul|busy|try again)/i,
+    {kind: "transient", re: /\b(timed out|zaman aşımı|timeout|econn|etimedout|503|502|429|rate limit|temporarily|geçici|busy|meşgul|try again)/i,
         retriable: true, advice: "Transient error. Waiting briefly and trying ONE more time makes sense."},
-    {kind: "fatal", re: /^HATA|^Araç hatası|çalışırken hata|crash|fatal|exception/i,
+    {kind: "fatal", re: /^ERROR|^HATA|^Tool error|^Araç hatası|crash|fatal|exception/i,
         retriable: false, advice: "Unrecoverable error. Stop the task and provide a clear diagnosis."},
 ];
 

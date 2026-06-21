@@ -2,20 +2,23 @@ import {describe, it, expect} from "vitest";
 import {classifyError, verifyStep, buildPlanPrompt} from "../../electron/goal-executor";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 56 — Goal Executor. Çok-adımlı görevde "kör tekrar yerine strateji değiştir":
-// bir tool sonucu hata taksonomisine atanır, doğrulama adımı ilerleme/tıkanma/dur
-// kararı verir. Yanlış sınıflandırma = ya sonsuz tekrar ya erken pes; kilitliyoruz.
+// Phase 56 — Goal Executor. "Change strategy instead of blind retry" for multi-step
+// tasks: a tool result is assigned to an error taxonomy, and a verification step
+// decides progress/stuck/stop. Misclassification = either infinite retry or giving
+// up too early; we lock this down.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("classifyError taksonomisi", () => {
-    it("başarı sonucu → ok (hata değil)", () => {
-        const v = classifyError("Spotify açıldı, çalmaya başladı.");
+describe("classifyError taxonomy", () => {
+    it("success result → ok (not an error)", () => {
+        const v = classifyError("Spotify opened and started playing.");
         expect(v.kind).toBe("ok");
         expect(v.isError).toBe(false);
     });
 
-    it("engellenen eylem → blocked (tekrar etme)", () => {
+    it("blocked action → blocked (don't retry)", () => {
         for (const r of [
+            "BLOCKED (loop guard): repeated identical action",
+            "BLOCKED (user denied approval): delete_file",
             "ENGELLENDI (döngü koruması): aynı işlem tekrarı",
             "ENGELLENDI (kullanıcı onayı reddedildi): delete_file",
         ]) {
@@ -25,70 +28,70 @@ describe("classifyError taksonomisi", () => {
         }
     });
 
-    it("yetki/izin → permission (yeniden deneme anlamsız)", () => {
-        for (const r of ["401 Unauthorized", "403 Forbidden", "Spotify Premium gerekiyor", "izin yok"]) {
+    it("auth/permission → permission (retrying is pointless)", () => {
+        for (const r of ["401 Unauthorized", "403 Forbidden", "Spotify Premium required", "izin yok"]) {
             const v = classifyError(r);
             expect(v.kind).toBe("permission");
             expect(v.retriable).toBe(false);
         }
     });
 
-    it("hedef yok → not_found (argümanı değiştir)", () => {
-        for (const r of ["Dosya bulunamadı", "404 Not Found", "Bu araç tanımlı değil: x", "geçersiz oyun adı"]) {
+    it("target missing → not_found (change the argument)", () => {
+        for (const r of ["File not found", "404 Not Found", "Unknown tool: x", "invalid game name"]) {
             const v = classifyError(r);
             expect(v.kind).toBe("not_found");
             expect(v.retriable).toBe(false);
         }
     });
 
-    it("geçici hata → transient (bir kez daha dene)", () => {
-        for (const r of ["zaman aşımı", "ETIMEDOUT", "503 Service Unavailable", "429 rate limit", "sunucu meşgul"]) {
+    it("transient error → transient (try once more)", () => {
+        for (const r of ["timed out", "ETIMEDOUT", "503 Service Unavailable", "429 rate limit", "server busy"]) {
             const v = classifyError(r);
             expect(v.kind).toBe("transient");
             expect(v.retriable).toBe(true);
         }
     });
 
-    it("argüman hatası → invalid_args (düzelt, aynısıyla tekrar etme)", () => {
-        const v = classifyError("Araç argümanları geçersiz format içeriyor");
+    it("argument error → invalid_args (fix it, don't repeat as-is)", () => {
+        const v = classifyError("Tool arguments have an invalid format");
         expect(v.kind).toBe("invalid_args");
         expect(v.retriable).toBe(false);
     });
 
-    it("toparlanamaz → fatal", () => {
-        const v = classifyError("HATA: beklenmeyen exception oluştu");
+    it("unrecoverable → fatal", () => {
+        const v = classifyError("ERROR: an unexpected exception occurred");
         expect(v.kind).toBe("fatal");
         expect(v.retriable).toBe(false);
     });
 
-    it("blocked, permission'dan önce gelir (öncelik sırası)", () => {
-        // hem ENGELLENDI hem izin geçen bir metin → blocked kazanmalı
-        expect(classifyError("ENGELLENDI: yetki yok").kind).toBe("blocked");
+    it("blocked takes priority over permission (match order)", () => {
+        // text containing both BLOCKED and a permission keyword → blocked must win
+        expect(classifyError("BLOCKED: izin yok").kind).toBe("blocked");
     });
 });
 
-describe("verifyStep kararları", () => {
-    it("başarı → progress", () => {
-        expect(verifyStep("işlem tamam").status).toBe("progress");
+describe("verifyStep decisions", () => {
+    it("success → progress", () => {
+        expect(verifyStep("action complete").status).toBe("progress");
     });
-    it("geçici hata → retry", () => {
-        expect(verifyStep("zaman aşımı oldu").status).toBe("retry");
+    it("transient error → retry", () => {
+        expect(verifyStep("timed out").status).toBe("retry");
     });
-    it("hedef yok → stuck (strateji değiştir)", () => {
-        expect(verifyStep("dosya bulunamadı").status).toBe("stuck");
+    it("target missing → stuck (change strategy)", () => {
+        expect(verifyStep("file not found").status).toBe("stuck");
     });
-    it("fatal/blocked → fail (dur)", () => {
-        expect(verifyStep("HATA: çöktü").status).toBe("fail");
-        expect(verifyStep("ENGELLENDI (döngü koruması): x").status).toBe("fail");
+    it("fatal/blocked → fail (stop)", () => {
+        expect(verifyStep("ERROR: crashed").status).toBe("fail");
+        expect(verifyStep("BLOCKED (loop guard): x").status).toBe("fail");
     });
 });
 
 describe("buildPlanPrompt", () => {
-    it("hedefi ve adım limitini içerir + plan/doğrula direktifi taşır", () => {
-        const p = buildPlanPrompt("masaüstünü temizle", 6);
-        expect(p).toContain("masaüstünü temizle");
-        expect(p).toContain("maks 6 adım");
-        expect(p).toMatch(/planı yaz|adıma böl/);
-        expect(p).toMatch(/KONTROL|doğrula|DUR/i);
+    it("includes the goal and step limit + carries the plan/verify directive", () => {
+        const p = buildPlanPrompt("clean up the desktop", 6);
+        expect(p).toContain("clean up the desktop");
+        expect(p).toContain("max 6 steps");
+        expect(p).toMatch(/break the goal|concrete steps/);
+        expect(p).toMatch(/CHECK|verify|STOP/i);
     });
 });

@@ -16,7 +16,7 @@ import {
 
 function clearFiles(): void {
     for (const p of [FLASHCARDS, READING, GOALS]) {
-        try { fs.unlinkSync(p); } catch { /* yok */ }
+        try { fs.unlinkSync(p); } catch { /* none */ }
     }
 }
 
@@ -28,47 +28,47 @@ afterEach(clearFiles);
 
 // ─── Flashcards ──────────────────────────────────────────────────────────────
 describe("addFlashcard", () => {
-    it("kart ekler", () => {
+    it("adds a card", () => {
         const msg = addFlashcard("Başkent neresi?", "Ankara", ["coğrafya"]);
-        expect(msg).toContain("Flashcard eklendi");
+        expect(msg).toContain("Flashcard added");
         const cards = JSON.parse(fs.readFileSync(FLASHCARDS, "utf-8"));
         expect(cards.length).toBe(1);
         expect(cards[0].interval).toBe(1);
         expect(cards[0].easeFactor).toBe(2.5);
     });
 
-    it("boş ön/arka yüz reddedilir", () => {
-        expect(addFlashcard("", "cevap", [])).toContain("HATA");
-        expect(addFlashcard("soru", "  ", [])).toContain("HATA");
+    it("rejects an empty front/back", () => {
+        expect(addFlashcard("", "cevap", [])).toContain("ERROR");
+        expect(addFlashcard("soru", "  ", [])).toContain("ERROR");
     });
 });
 
 describe("reviewFlashcard", () => {
-    it("kart yokken anlamlı mesaj", () => {
-        expect(reviewFlashcard("", 5)).toContain("Hiç flashcard eklenmemiş");
+    it("meaningful message when there are no cards", () => {
+        expect(reviewFlashcard("", 5)).toContain("No flashcards have been added");
     });
 
-    it("vadesi gelen kart gösterilir + interval büyür (SM-2)", () => {
+    it("shows a due card + interval grows (SM-2)", () => {
         addFlashcard("S1", "C1", ["test"]);
         const out = reviewFlashcard("test", 5);
         expect(out).toContain("S1");
         expect(out).toContain("C1");
-        // İlk tekrardan sonra interval 1 * 2.5 = 3 (yuvarlanmış), nextReview ileriye atılır
+        // After the first review interval is 1 * 2.5 = 3 (rounded), nextReview is pushed forward
         const cards = JSON.parse(fs.readFileSync(FLASHCARDS, "utf-8"));
         expect(cards[0].reviewCount).toBe(1);
         expect(cards[0].interval).toBe(3); // round(1 * 2.5)
         expect(cards[0].nextReview).toBeGreaterThan(Date.now());
     });
 
-    it("tekrar gözden geçirilince vadesi geçmemiş kart 'sonraki' bilgisi döner", () => {
+    it("when reviewed again, a not-yet-due card returns 'next' info", () => {
         addFlashcard("S1", "C1", ["test"]);
-        reviewFlashcard("test", 5); // nextReview'ı ileri atar
+        reviewFlashcard("test", 5); // pushes nextReview forward
         const out = reviewFlashcard("test", 5);
-        expect(out).toContain("Tekrar edilecek kart yok");
-        expect(out).toMatch(/dakika|saat/);
+        expect(out).toContain("No cards due for review");
+        expect(out).toMatch(/minute|hour/);
     });
 
-    it("etiket filtresi çalışır", () => {
+    it("tag filter works", () => {
         addFlashcard("Mat", "1", ["matematik"]);
         addFlashcard("Tar", "2", ["tarih"]);
         const out = reviewFlashcard("matematik", 5);
@@ -79,99 +79,99 @@ describe("reviewFlashcard", () => {
 
 // ─── Reading List ────────────────────────────────────────────────────────────
 describe("addReadingItem & getReadingList", () => {
-    it("URL öğesi ekler ve url alanı dolar", () => {
+    it("adds a URL item and fills in the url field", () => {
         addReadingItem("https://example.com", "okunacak", 4);
         const items = JSON.parse(fs.readFileSync(READING, "utf-8"));
         expect(items[0].url).toBe("https://example.com");
         expect(items[0].status).toBe("pending");
     });
 
-    it("URL olmayan başlıkta url undefined", () => {
+    it("url is undefined for a title without a URL", () => {
         addReadingItem("Sapiens kitabı", "", 2);
         const items = JSON.parse(fs.readFileSync(READING, "utf-8"));
         expect(items[0].url).toBeUndefined();
     });
 
-    it("boş liste mesajı", () => {
-        expect(getReadingList("all")).toContain("Okuma listesi boş");
+    it("empty list message", () => {
+        expect(getReadingList("all")).toContain("Reading list is empty");
     });
 
-    it("önceliğe göre azalan sıralanır", () => {
+    it("sorts descending by priority", () => {
         addReadingItem("Düşük", "", 1);
         addReadingItem("Yüksek", "", 5);
         const out = getReadingList("pending");
         expect(out.indexOf("Yüksek")).toBeLessThan(out.indexOf("Düşük"));
     });
 
-    it("status filtresi pending/done ayırır", () => {
+    it("status filter separates pending/done", () => {
         addReadingItem("Bekleyen", "", 3);
         const out = getReadingList("done");
-        expect(out).toContain("boş");
+        expect(out).toContain("empty");
     });
 });
 
 // ─── Goals ───────────────────────────────────────────────────────────────────
 describe("setGoal", () => {
-    it("hedef oluşturur progress=0", () => {
+    it("creates a goal with progress=0", () => {
         const msg = setGoal("Kitap bitir", "2026-12-31", ["1. bölüm", "2. bölüm"]);
-        expect(msg).toContain("Hedef oluşturuldu");
+        expect(msg).toContain("Goal created");
         const goals = JSON.parse(fs.readFileSync(GOALS, "utf-8"));
         expect(goals[0].progress).toBe(0);
         expect(goals[0].status).toBe("active");
     });
 
-    it("boş başlık reddedilir", () => {
-        expect(setGoal("  ", "", [])).toContain("HATA");
+    it("rejects an empty title", () => {
+        expect(setGoal("  ", "", [])).toContain("ERROR");
     });
 });
 
 describe("checkInGoal", () => {
-    it("ilerleme günceller + ASCII bar", () => {
+    it("updates progress + ASCII bar", () => {
         setGoal("Spor", "", []);
         const msg = checkInGoal("Spor", 50, "yarısı bitti");
-        expect(msg).toContain("%50");
+        expect(msg).toContain("50%");
         expect(msg).toContain("█");
         expect(msg).toContain("yarısı bitti");
     });
 
-    it("progress 0-100 arası clamp'lenir", () => {
+    it("progress is clamped to 0-100", () => {
         setGoal("Test", "", []);
         checkInGoal("Test", 150, "");
         const goals = JSON.parse(fs.readFileSync(GOALS, "utf-8"));
         expect(goals[0].progress).toBe(100);
     });
 
-    it("negatif progress 0'a clamp'lenir", () => {
+    it("negative progress is clamped to 0", () => {
         setGoal("Test", "", []);
         checkInGoal("Test", -20, "");
         const goals = JSON.parse(fs.readFileSync(GOALS, "utf-8"));
         expect(goals[0].progress).toBe(0);
     });
 
-    it("%100'de otomatik tamamlandı", () => {
+    it("automatically completes at 100%", () => {
         setGoal("Bitir", "", []);
         const msg = checkInGoal("Bitir", 100, "");
-        expect(msg).toContain("TAMAMLANDI");
+        expect(msg).toContain("COMPLETED");
         const goals = JSON.parse(fs.readFileSync(GOALS, "utf-8"));
         expect(goals[0].status).toBe("done");
     });
 
-    it("olmayan hedef bulunamadı", () => {
-        expect(checkInGoal("yok-xyz", 50, "")).toContain("bulunamadı");
+    it("returns not-found for a nonexistent goal", () => {
+        expect(checkInGoal("yok-xyz", 50, "")).toContain("not found");
     });
 
-    it("başlık substring (case-insensitive) ile bulur", () => {
+    it("finds by title substring (case-insensitive)", () => {
         setGoal("Python Öğren", "", []);
-        expect(checkInGoal("python", 30, "")).toContain("%30");
+        expect(checkInGoal("python", 30, "")).toContain("30%");
     });
 });
 
 describe("listGoals", () => {
-    it("hedef yokken mesaj", () => {
-        expect(listGoals("active")).toContain("Hedef yok");
+    it("message when there are no goals", () => {
+        expect(listGoals("active")).toContain("No goals");
     });
 
-    it("aktif hedefleri listeler, tamamlananı filtreler", () => {
+    it("lists active goals, filters out completed ones", () => {
         setGoal("Aktif İş", "", []);
         setGoal("Biten İş", "", []);
         checkInGoal("Biten İş", 100, "");
@@ -180,7 +180,7 @@ describe("listGoals", () => {
         expect(out).not.toContain("Biten İş");
     });
 
-    it("all hepsini gösterir", () => {
+    it("'all' shows everything", () => {
         setGoal("A", "", []);
         setGoal("B", "", []);
         checkInGoal("B", 100, "");

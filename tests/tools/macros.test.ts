@@ -11,68 +11,73 @@ import {
 } from "../../electron/macros";
 
 function clearMacros(): void {
-    try { fs.writeFileSync(MACROS_PATH, "[]", "utf-8"); } catch { /* yok */ }
+    try { fs.writeFileSync(MACROS_PATH, "[]", "utf-8"); } catch { /* none */ }
 }
 
-// recording durumu modül-düzeyinde; her test için sıfırla
+// recording state is module-level; reset before each test. stopMacroRecording()
+// leaves `recording` set when there are no steps yet, so loop until it's clear.
 function resetRecording(): void {
-    if (isRecording()) stopMacroRecording();
+    let guard = 0;
+    while (isRecording() && guard++ < 5) {
+        addMacroStep("__reset__");
+        stopMacroRecording();
+    }
 }
 
 beforeEach(() => {
     fs.mkdirSync(path.dirname(MACROS_PATH), {recursive: true});
-    clearMacros();
     resetRecording();
+    clearMacros();
 });
 afterEach(() => {
     resetRecording();
     clearMacros();
 });
 
-// ─── Kayıt başlatma ────────────────────────────────────────────────────────
+// ─── Start recording ───────────────────────────────────────────────────────
 describe("startMacroRecording", () => {
-    it("kayıt başlatır", () => {
+    it("starts a recording", () => {
         const msg = startMacroRecording("Oyun Modu");
         expect(isRecording()).toBe(true);
         expect(msg).toContain("Oyun Modu");
     });
 
-    it("ikinci eşzamanlı kayıt reddedilir", () => {
+    it("rejects a second concurrent recording", () => {
         startMacroRecording("A");
         const msg = startMacroRecording("B");
-        expect(msg).toContain("Zaten");
-        expect(msg).toContain("Oyun Modu");
+        expect(msg).toContain("already being recorded");
+        expect(msg).toContain("A");
     });
 });
 
-// ─── Kayıt durdurma ────────────────────────────────────────────────────────
+// ─── Stop recording ────────────────────────────────────────────────────────
 describe("stopMacroRecording", () => {
-    it("adımsız makro kaydedilmez", () => {
+    it("a macro with no steps is not saved", () => {
         startMacroRecording("Boş Makro");
         const msg = stopMacroRecording();
-        expect(msg).toContain("adım eklenmedi");
+        expect(msg).toContain("No steps were added");
         const macros = JSON.parse(fs.readFileSync(MACROS_PATH, "utf-8"));
         expect(macros.length).toBe(0);
     });
 
-    it("adımlı makro kaydedilir", () => {
+    it("a macro with steps is saved", () => {
         startMacroRecording("İş Modu");
         addMacroStep("VS Code aç");
         addMacroStep("Müziği aç");
         const msg = stopMacroRecording();
-        expect(msg).toContain("2 adım");
+        expect(msg).toContain("2 steps");
         expect(isRecording()).toBe(false);
     });
 
-    it("aktif kayıt yokken durdurma hata verir", () => {
+    it("stopping with no active recording returns an error", () => {
         const msg = stopMacroRecording();
-        expect(msg).toContain("Aktif makro kaydı yok");
+        expect(msg).toContain("No active macro recording");
     });
 });
 
-// ─── Adım ekleme ───────────────────────────────────────────────────────────
+// ─── Adding steps ──────────────────────────────────────────────────────────
 describe("addMacroStep", () => {
-    it("adımlar sıralı eklenir", () => {
+    it("steps are added in order", () => {
         startMacroRecording("Sıra Testi");
         addMacroStep("Adım 1");
         addMacroStep("Adım 2");
@@ -82,15 +87,15 @@ describe("addMacroStep", () => {
         expect(steps).toEqual(["Adım 1", "Adım 2", "Adım 3"]);
     });
 
-    it("kayıt yokken addMacroStep sessizce geçilir", () => {
-        // recording=null; exception olmamalı
+    it("addMacroStep is silently skipped when not recording", () => {
+        // recording=null; should not throw
         expect(() => addMacroStep("fantasma")).not.toThrow();
     });
 });
 
-// ─── Aynı adda üzerine yazma ───────────────────────────────────────────────
+// ─── Overwriting by same name ──────────────────────────────────────────────
 describe("overwrite existing macro", () => {
-    it("aynı adlı makro güncellenir", () => {
+    it("a macro with the same name is updated", () => {
         startMacroRecording("Oyun");
         addMacroStep("Steam aç");
         stopMacroRecording();
@@ -103,17 +108,17 @@ describe("overwrite existing macro", () => {
         const steps = getMacroSteps("Oyun");
         expect(steps?.length).toBe(2);
         const macros = JSON.parse(fs.readFileSync(MACROS_PATH, "utf-8"));
-        expect(macros.length).toBe(1); // tekrar eklenmedi
+        expect(macros.length).toBe(1); // not added again
     });
 });
 
-// ─── Listeleme ─────────────────────────────────────────────────────────────
+// ─── Listing ────────────────────────────────────────────────────────────────
 describe("listMacros", () => {
-    it("makro yokken mesaj döner", () => {
-        expect(listMacros()).toContain("Kayıtlı makro yok");
+    it("returns a message when there are no macros", () => {
+        expect(listMacros()).toContain("No saved macros");
     });
 
-    it("makroları listeler", () => {
+    it("lists macros", () => {
         startMacroRecording("Çalışma");
         addMacroStep("VS Code aç");
         stopMacroRecording();
@@ -121,34 +126,34 @@ describe("listMacros", () => {
     });
 });
 
-// ─── Silme ─────────────────────────────────────────────────────────────────
+// ─── Deleting ───────────────────────────────────────────────────────────────
 describe("deleteMacro", () => {
-    it("isim ile siler", () => {
+    it("deletes by name", () => {
         startMacroRecording("Silinecek");
         addMacroStep("adım");
         stopMacroRecording();
         const msg = deleteMacro("Silinecek");
-        expect(msg).toContain("silindi");
-        expect(listMacros()).toContain("Kayıtlı makro yok");
+        expect(msg).toContain("was deleted");
+        expect(listMacros()).toContain("No saved macros");
     });
 
-    it("ID ile siler", () => {
+    it("deletes by ID", () => {
         startMacroRecording("ID Testi");
         addMacroStep("adım");
         stopMacroRecording();
         const macros = JSON.parse(fs.readFileSync(MACROS_PATH, "utf-8"));
         const id = macros[0].id;
-        expect(deleteMacro(id)).toContain("silindi");
+        expect(deleteMacro(id)).toContain("was deleted");
     });
 
-    it("olmayan makro için hata döner", () => {
-        expect(deleteMacro("yok-abc")).toContain("bulunamadı");
+    it("returns an error for a nonexistent macro", () => {
+        expect(deleteMacro("yok-abc")).toContain("No macro found");
     });
 });
 
 // ─── getMacroSteps ─────────────────────────────────────────────────────────
 describe("getMacroSteps", () => {
-    it("doğru adımları döner", () => {
+    it("returns the correct steps", () => {
         startMacroRecording("Müzik");
         addMacroStep("Spotify aç");
         addMacroStep("Sesi 70 yap");
@@ -158,11 +163,11 @@ describe("getMacroSteps", () => {
         expect(steps?.[0]).toBe("Spotify aç");
     });
 
-    it("olmayan makro null döner", () => {
+    it("returns null for a nonexistent macro", () => {
         expect(getMacroSteps("yok")).toBeNull();
     });
 
-    it("substring ile bulur", () => {
+    it("finds by substring", () => {
         startMacroRecording("Uzun Makro Adı");
         addMacroStep("test");
         stopMacroRecording();

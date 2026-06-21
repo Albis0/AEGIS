@@ -160,19 +160,19 @@ describe("parseSsdpResponse", () => {
 });
 
 describe("formatDevices", () => {
-    it("boş listede anlamlı mesaj verir", () => {
+    it("gives a meaningful message for an empty list", () => {
         const txt = formatDevices([], {interfaces: [], primary: "192.168.1.5"});
         expect(txt).toContain("192.168.1.5");
-        expect(txt.toLowerCase()).toContain("bulunamadı");
+        expect(txt.toLowerCase()).toContain("no devices");
     });
 
-    it("cihazları türe göre gruplar", () => {
+    it("groups devices by kind", () => {
         const devs: DiscoveredDevice[] = [
             {name: "Salon TV", address: "192.168.1.10", kind: "tv", protocol: "ssdp"},
             {name: "Mutfak", address: "192.168.1.11", kind: "chromecast", protocol: "mdns"},
         ];
         const txt = formatDevices(devs, {interfaces: [], primary: "192.168.1.5"});
-        expect(txt).toContain("2 cihaz bulundu");
+        expect(txt).toContain("2 devices found");
         expect(txt).toContain("Salon TV");
         expect(txt).toContain("tv:");
         expect(txt).toContain("chromecast:");

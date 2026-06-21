@@ -29,24 +29,24 @@ afterAll(() => {
 describe("knowledge index + search", () => {
     it("indexes a text file", () => {
         const result = indexFile(SAMPLE_FILE);
-        expect(result).toContain("indekslendi");
+        expect(result).toContain("indexed");
         expect(result).toContain("chunk");
     });
 
     it("does not reindex unchanged file", () => {
         const result = indexFile(SAMPLE_FILE);
-        expect(result).toContain("yeniden indekslemeye gerek yok");
+        expect(result).toContain("already up to date");
     });
 
     it("finds relevant chunks", () => {
         const result = searchKnowledge("AEGIS AI asistan");
         expect(result).toContain("AEGIS");
-        expect(result).not.toContain("eşleşme bulunamadı");
+        expect(result).not.toContain("No match found");
     });
 
     it("returns not-found for unrelated query", () => {
         const result = searchKnowledge("xyz123abc456");
-        expect(result).toContain("eşleşme bulunamadı");
+        expect(result).toContain("No match found");
     });
 
     it("lists indexed files", () => {
@@ -56,13 +56,13 @@ describe("knowledge index + search", () => {
 
     it("removes a file from index", () => {
         const result = removeFromIndex(SAMPLE_FILE);
-        expect(result).toContain("kaldırıldı");
+        expect(result).toContain("removed from the index");
         const list = listIndexedFiles();
         expect(list).not.toContain("sample.txt");
     });
 
     it("handles missing file gracefully", () => {
         const result = indexFile("/nonexistent/path/file.txt");
-        expect(result).toContain("HATA");
+        expect(result).toContain("ERROR");
     });
 });
