@@ -18,18 +18,9 @@ export default function ModeSelectScreen({t, step, totalSteps, onSelect, onBack}
                 <Heading title={t.welcome} subtitle={t.welcomeSub} />
 
                 <div className="flex flex-col gap-3.5">
-                    {/* Hızlı Başlangıç — önerilen */}
+                    {/* Gelişmiş Kurulum — önerilen (kendi API key'in, sınırsız) */}
                     <ModeCard
                         recommended={t.recommended}
-                        title={t.quickStart}
-                        desc={t.quickStartDesc}
-                        onClick={() => onSelect("trial")}
-                        icon={
-                            <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" strokeLinecap="round" strokeLinejoin="round" />
-                        }
-                    />
-                    {/* Gelişmiş Kurulum */}
-                    <ModeCard
                         title={t.advanced}
                         desc={t.advancedDesc}
                         onClick={() => onSelect("own")}
@@ -38,6 +29,15 @@ export default function ModeSelectScreen({t, step, totalSteps, onSelect, onBack}
                                 <circle cx="8" cy="15" r="4" />
                                 <path d="m10.85 12.15 8.15-8.15M18 5l2 2M15 8l2 2" strokeLinecap="round" strokeLinejoin="round" />
                             </>
+                        }
+                    />
+                    {/* Hızlı Başlangıç */}
+                    <ModeCard
+                        title={t.quickStart}
+                        desc={t.quickStartDesc}
+                        onClick={() => onSelect("trial")}
+                        icon={
+                            <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" strokeLinecap="round" strokeLinejoin="round" />
                         }
                     />
                 </div>
