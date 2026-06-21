@@ -1,8 +1,8 @@
-﻿// AEGIS — "Retro" skin ailesi (4 ferdi: CRT / Boot / Panel / Wave)
+﻿// AEGIS — "Retro" skin family (4 variants: CRT / Boot / Panel / Wave)
 // =============================================================================
-// Tasarım dili: vintage bilgisayar / CRT. Çentikli (beveled) kutular, scanline
-// kaplama, blok BÜYÜK HARF mono, sıcak fosfor hissi. Diğer üç aileden (neon HUD,
-// yumuşak Nebula, düz Codex) bilinçli olarak tamamen farklı.
+// Design language: vintage computer / CRT. Beveled boxes, scanline overlay,
+// blocky UPPERCASE mono, warm phosphor feel. Deliberately entirely different
+// from the other three families (neon HUD, soft Nebula, flat Codex).
 
 import React from "react";
 import {useClock} from "../../hooks/useClock";
@@ -18,9 +18,9 @@ const retroBg: React.CSSProperties = {
     color: "rgb(var(--hud))",
     fontFamily: "var(--ui-font)",
     WebkitFontSmoothing: "antialiased",
-    textShadow: "0 0 3px rgba(var(--hud),0.4)", // fosfor parıltısı
+    textShadow: "0 0 3px rgba(var(--hud),0.4)", // phosphor glow
 };
-// Çentikli (beveled) kutu stili
+// Beveled box style
 const bevel: React.CSSProperties = {
     border: "1px solid rgba(var(--hud),0.4)",
     boxShadow: "inset 1px 1px 0 rgba(var(--hud-soft),0.25), inset -1px -1px 0 rgba(0,0,0,0.5)",
@@ -30,7 +30,7 @@ const bevel: React.CSSProperties = {
 const stWord = (state: string, t: SkinProps["t"]) =>
     state === "thinking" ? t.stProc : state === "speaking" ? t.stResp : state === "listening" ? t.stListen : state === "error" ? t.stErr : t.stReady;
 
-// Scanline + vignette kaplama (tüm ailenin imzası)
+// Scanline + vignette overlay (signature of the whole family)
 function Scanlines() {
     return (
         <div className="absolute inset-0 pointer-events-none z-50" style={{
@@ -203,12 +203,12 @@ export function RetroPanel(p: SkinProps) {
 }
 
 // ───────────────────────────── 4) Retro · Wave ──────────────────────────────
-// Synthwave ızgara ufuk + üstünde feed.
+// Synthwave grid horizon + feed on top.
 export function RetroWave(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col relative overflow-hidden" style={retroBg as React.CSSProperties}>
             <Scanlines />
-            {/* Perspektif ızgara ufuk */}
+            {/* Perspective grid horizon */}
             <div className="absolute bottom-0 left-0 right-0 h-1/3 pointer-events-none" style={{
                 backgroundImage: "repeating-linear-gradient(90deg, rgba(var(--hud),0.25) 0 1px, transparent 1px 40px), repeating-linear-gradient(0deg, rgba(var(--hud),0.25) 0 1px, transparent 1px 28px)",
                 transform: "perspective(220px) rotateX(60deg)", transformOrigin: "bottom", opacity: 0.5,

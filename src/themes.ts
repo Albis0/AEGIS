@@ -1,23 +1,23 @@
-// AEGIS — UI Aileleri (tema)
+// AEGIS — UI Families (theme)
 // =============================================================================
-// Bir "aile" = bütün tasarım dili: arka plan (--bg/--bg-deep) + vurgu rengi
-// (accent → --hud türevleri) + font. Her ailenin altında mevcut 4 "skin"
-// (hologram/minimal/terminal/dashboard) o ailenin tarzında yeniden boyanır.
-// Böylece 5 aile × 4 skin = 20 görsel kombinasyon — hepsi "aynı mavi" değil.
+// A "family" = the entire design language: background (--bg/--bg-deep) + accent
+// color (accent → --hud derivatives) + font. Under each family, the existing 4
+// "skins" (hologram/minimal/terminal/dashboard) get repainted in that family's
+// style. So 5 families × 4 skins = 20 visual combinations — not all "the same blue."
 //
-// Aile seçilince: bg/bg-deep CSS değişkenleri + accent + font hep birlikte
-// uygulanır (tam preset). Kullanıcı sonra accent/font'u ailenin içinde
-// ince ayar yapabilir.
+// When a family is selected: bg/bg-deep CSS variables + accent + font are all
+// applied together (full preset). The user can then fine-tune accent/font within
+// the family afterward.
 
 export interface UiFamily {
     id: string;
     label: string;
     sub: string;
-    accent: string;   // "r,g,b" — applyAccent ile --hud türevlerine yayılır
-    font: string;     // FONT_FAMILIES anahtarı
-    bg: string;       // ana arka plan (CSS rengi)
-    bgDeep: string;   // daha koyu varyant (terminal/derin paneller)
-    swatch: string;   // önizleme çipi (hex)
+    accent: string;   // "r,g,b" — spread to --hud derivatives via applyAccent
+    font: string;     // FONT_FAMILIES key
+    bg: string;       // main background (CSS color)
+    bgDeep: string;   // darker variant (terminal/deep panels)
+    swatch: string;   // preview chip (hex)
 }
 
 export const UI_FAMILIES: UiFamily[] = [

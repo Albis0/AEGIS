@@ -5,28 +5,29 @@ import {parseHome} from "../../src/components/SmartHomeWidget";
 import {parsePomo, fmt} from "../../src/components/PomodoroWidget";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 63 — Domain UI widget/modal'larının parse mantığı. Widget'lar mevcut tool
-// çıktısını (metin) parse edip görsel sunar; parse kırılırsa UI boş/yanlış görünür.
-// Saf parse fonksiyonlarını kilitliyoruz (render'sız — hızlı, jsdom gerekmez).
+// Phase 63 — Parse logic for the domain UI widgets/modals. Widgets parse the
+// existing tool output (text) and present it visually; if parsing breaks, the
+// UI renders empty/incorrect. We lock down the pure parse functions here
+// (no render — fast, no jsdom needed).
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("SteamWidget.parseRunning", () => {
-    it("çalışan oyunları ayrıştırır", () => {
-        expect(parseRunning("Çalışan oyun(lar): hl2.exe, dota2")).toEqual(["hl2.exe", "dota2"]);
+    it("parses running games", () => {
+        expect(parseRunning("Running game(s): hl2.exe, dota2")).toEqual(["hl2.exe", "dota2"]);
     });
-    it("oyun yokken boş döner", () => {
-        expect(parseRunning("Şu an çalışan Steam oyunu yok.")).toEqual([]);
+    it("returns empty when no game is running", () => {
+        expect(parseRunning("No Steam game is currently running.")).toEqual([]);
     });
-    it("HATA/bağlantı sorununda boş döner", () => {
-        expect(parseRunning("HATA: Steam kurulu değil.")).toEqual([]);
+    it("returns empty on ERROR/connection issue", () => {
+        expect(parseRunning("ERROR: Steam is not installed.")).toEqual([]);
     });
-    it("tek oyun", () => {
-        expect(parseRunning("Çalışan oyun(lar): cs2.exe")).toEqual(["cs2.exe"]);
+    it("single game", () => {
+        expect(parseRunning("Running game(s): cs2.exe")).toEqual(["cs2.exe"]);
     });
 });
 
 describe("SteamWidget.prettyName", () => {
-    it("uzantı ve alt çizgi temizler, baş harf büyütür", () => {
+    it("strips extension/underscores and capitalizes", () => {
         expect(prettyName("hl2.exe")).toBe("Hl2");
         expect(prettyName("dead_by_daylight")).toBe("Dead By Daylight");
         expect(prettyName("cs2")).toBe("Cs2");
@@ -34,37 +35,37 @@ describe("SteamWidget.prettyName", () => {
 });
 
 describe("MemoryModal.parseFacts", () => {
-    it("id + içerik + etiketleri ayrıştırır", () => {
-        const raw = "• [abc] Kullanıcının adı Ahmet. (profil, isim)\n• [def] Python kullanıyor.";
+    it("parses id + content + tags", () => {
+        const raw = "• [abc] User's name is Ahmet. (profile, name)\n• [def] Uses Python.";
         const facts = parseFacts(raw);
         expect(facts).toHaveLength(2);
-        expect(facts[0]).toEqual({id: "abc", content: "Kullanıcının adı Ahmet.", tags: ["profil", "isim"]});
-        expect(facts[1]).toEqual({id: "def", content: "Python kullanıyor.", tags: []});
+        expect(facts[0]).toEqual({id: "abc", content: "User's name is Ahmet.", tags: ["profile", "name"]});
+        expect(facts[1]).toEqual({id: "def", content: "Uses Python.", tags: []});
     });
-    it("gerçek yokken boş döner", () => {
-        expect(parseFacts("Kayıtlı gerçek yok. 'Bunu bil: …' ile ekleyebilirsin.")).toEqual([]);
+    it("returns empty when there are no facts", () => {
+        expect(parseFacts("No saved facts. You can add one with 'remember this: …'.")).toEqual([]);
     });
-    it("biçimsiz satırları atlar", () => {
-        expect(parseFacts("rastgele metin\n• [x] geçerli")).toEqual([{id: "x", content: "geçerli", tags: []}]);
+    it("skips malformed lines", () => {
+        expect(parseFacts("random text\n• [x] valid")).toEqual([{id: "x", content: "valid", tags: []}]);
     });
 });
 
 describe("SmartHomeWidget.parseHome", () => {
-    it("cihaz sayısı + açık ışıkları sayar", () => {
-        const raw = "Akıllı ev cihazları (5):\n📍 Salon:\n  • Lamba: açık (%70)\n  • Priz: kapalı\n📍 Yatak:\n  • Tavan: açık";
+    it("counts devices + lights on", () => {
+        const raw = "Smart home devices (5):\n📍 Living Room:\n  • Lamp: on (70%)\n  • Outlet: off\n📍 Bedroom:\n  • Ceiling: on";
         expect(parseHome(raw)).toEqual({deviceCount: 5, lightsOn: 2});
     });
-    it("HA yapılandırılmamışsa null", () => {
-        expect(parseHome("HATA: Home Assistant yapılandırılmamış.")).toBeNull();
-        expect(parseHome("Akıllı ev cihazları alınamadı: timeout")).toBeNull();
+    it("returns null when HA is not configured", () => {
+        expect(parseHome("ERROR: Home Assistant is not configured.")).toBeNull();
+        expect(parseHome("Failed to fetch smart home devices: timeout")).toBeNull();
     });
-    it("cihaz yoksa null (sayı eşleşmez)", () => {
-        expect(parseHome("Home Assistant'a bağlanıldı ama kontrol edilebilir cihaz bulunamadı.")).toBeNull();
+    it("returns null when there are no devices (count doesn't match)", () => {
+        expect(parseHome("Connected to Home Assistant but no controllable device was found.")).toBeNull();
     });
 });
 
 describe("PomodoroWidget.parsePomo + fmt", () => {
-    it("aktif durumu ayrıştırır", () => {
+    it("parses active state", () => {
         expect(parsePomo("WORK|1320|3")).toEqual({phase: "WORK", remaining: 1320, session: 3});
         expect(parsePomo("BREAK|240|3")).toEqual({phase: "BREAK", remaining: 240, session: 3});
     });
@@ -72,7 +73,7 @@ describe("PomodoroWidget.parsePomo + fmt", () => {
         expect(parsePomo("INACTIVE")).toBeNull();
         expect(parsePomo("")).toBeNull();
     });
-    it("fmt saniyeyi M:SS biçimler", () => {
+    it("fmt formats seconds as M:SS", () => {
         expect(fmt(1320)).toBe("22:00");
         expect(fmt(65)).toBe("1:05");
         expect(fmt(9)).toBe("0:09");

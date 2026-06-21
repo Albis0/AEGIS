@@ -41,7 +41,7 @@ function applyCustomCss(css: string) {
     el.textContent = css;
 }
 
-// UI ailesi → arka plan değişkenleri (accent/font ayrı uygulanır)
+// UI family → background variables (accent/font applied separately)
 function applyFamilyBg(familyId: string) {
     const f = getFamily(familyId);
     document.documentElement.style.setProperty("--bg", f.bg);
@@ -116,16 +116,16 @@ export default function App() {
         });
     }, []);
 
-    // Terminal tarzı input geçmişi — ArrowUp/Down ile gezme
+    // Terminal-style input history — navigate with ArrowUp/Down
     const inputHistoryRef = useRef<string[]>([]);
     const inputHistoryIdxRef = useRef(-1);
-    const inputDraftRef = useRef(""); // gezinirken orijinal draft'ı koru
+    const inputDraftRef = useRef(""); // preserve original draft while navigating
     const navigateInputHistory = useCallback((dir: "up" | "down") => {
         const hist = inputHistoryRef.current;
         if (hist.length === 0) return;
         const cur = inputHistoryIdxRef.current;
         if (dir === "up") {
-            if (cur === -1) inputDraftRef.current = input; // draft kaydet
+            if (cur === -1) inputDraftRef.current = input; // save draft
             const next = cur === -1 ? hist.length - 1 : Math.max(0, cur - 1);
             inputHistoryIdxRef.current = next;
             setInput(hist[next]);
@@ -262,8 +262,8 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        // Tek durum makinesi (update-state.ts) — toast App-seviyesinde, tab/ayar
-        // değişiminde unmount olmaz; bu yüzden indirme durumu KORUNUR.
+        // Single state machine (update-state.ts) — toast lives at App level, doesn't
+        // unmount on tab/setting changes; download state is therefore PRESERVED.
         const dispatch = (ev: UpdateEvent) => setUpdateInfo((prev) => updateReducer(prev, ev));
         const unsubAvail = window.jarvis.on("update-available", (info: {version: string}) => dispatch({type: "available", version: info.version}));
         const unsubProg  = window.jarvis.on("update-progress", (p: {percent: number}) => dispatch({type: "progress", percent: p?.percent ?? 0}));
@@ -343,7 +343,7 @@ export default function App() {
                 setState("error");
                 const aId = activeIdRef.current;
                 setFeed((prev) => {
-                    // Boş kalan assistant balonunu çıkar, yerine belirgin error öğesi koy.
+                    // Remove the now-empty assistant bubble, replace with a distinct error item.
                     const cleaned = prev.filter((it) => !(it.id === aId && it.kind === "assistant" && !it.text));
                     return [...cleaned, {id: uid(), kind: "error", text: message || "Bir hata oluştu."}];
                 });

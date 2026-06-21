@@ -1,8 +1,8 @@
-﻿// AEGIS — "Claymorphism" skin ailesi (4 ferdi: Orb / Pillow / Pebble / Tiles)
+﻿// AEGIS — "Claymorphism" skin family (4 variants: Orb / Pillow / Pebble / Tiles)
 // =============================================================================
-// Tasarım dili: Pastel KOYU. Derin mor-lacivert zemin (#1a1530), soft pastel
-// vurgu (lila/mint/şeftali), çok yuvarlak (rounded-3xl/full), çift gölge
-// (dış yumuşak drop + iç highlight), kabarık/samimi yüzeyler. Poppins font.
+// Design language: Pastel DARK. Deep purple-navy background (#1a1530), soft pastel
+// accent (lilac/mint/peach), very rounded (rounded-3xl/full), double shadow
+// (soft outer drop + inner highlight), puffy/cozy surfaces. Poppins font.
 
 import React, {useState, useEffect} from "react";
 import {useClock} from "../../hooks/useClock";
@@ -10,21 +10,21 @@ import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
 
-// ─── Aile renk sabitleri ──────────────────────────────────────────────────────
+// ─── Family color constants ──────────────────────────────────────────────────────
 const CL = {
-    bg:        "#14112a",   // derin mor-lacivert
-    bgPanel:   "#1e1a38",   // panel zemini
-    bgCard:    "#252040",   // kart zemini
-    bgInput:   "#1a1630",   // input çukuru
-    lila:      "#c4b5fd",   // soft lila (ana vurgu)
-    mint:      "#86efac",   // mint yeşil (ikincil)
-    peach:     "#fda4af",   // şeftali pembe (üçüncül)
-    sky:       "#7dd3fc",   // gökyüzü mavi
-    lilaDark:  "#7c3aed",   // koyu lila
-    text:      "#e2ddf7",   // açık metin
-    textDim:   "#8b80b8",   // soluk metin
-    danger:    "#fb7185",   // soft kırmızı
-    // Kabarık "clay" gölge: dış yumuşak drop + iç highlight
+    bg:        "#14112a",   // deep purple-navy
+    bgPanel:   "#1e1a38",   // panel background
+    bgCard:    "#252040",   // card background
+    bgInput:   "#1a1630",   // input recess
+    lila:      "#c4b5fd",   // soft lilac (main accent)
+    mint:      "#86efac",   // mint green (secondary)
+    peach:     "#fda4af",   // peach pink (tertiary)
+    sky:       "#7dd3fc",   // sky blue
+    lilaDark:  "#7c3aed",   // dark lilac
+    text:      "#e2ddf7",   // light text
+    textDim:   "#8b80b8",   // dim text
+    danger:    "#fb7185",   // soft red
+    // Puffy "clay" shadow: soft outer drop + inner highlight
     clayShadow: (color: string) =>
         `0 8px 24px ${color}30, 0 2px 8px ${color}20, inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -2px 4px rgba(0,0,0,0.3)`,
     clayShadowSm: (color: string) =>
@@ -38,7 +38,7 @@ const clRoot: React.CSSProperties = {
     WebkitFontSmoothing: "antialiased",
 };
 
-// Kabarık kart
+// Puffy card
 const clay = (color: string, extra?: React.CSSProperties): React.CSSProperties => ({
     background: CL.bgCard,
     boxShadow: CL.clayShadow(color),
@@ -60,7 +60,7 @@ const stWord = (state: string, t: SkinProps["t"]) =>
     : state === "error" ? t.stErr
     : t.stReady;
 
-// ─── Ortak: feed ─────────────────────────────────────────────────────────────
+// ─── Shared: feed ─────────────────────────────────────────────────────────────
 function ClFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"streaming"|"t"|"feedRef"> & {compact?: boolean}) {
     const gap = compact ? "gap-2" : "gap-3";
     const py  = compact ? "py-2 px-3" : "py-3 px-4";
@@ -105,7 +105,7 @@ function ClFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
     );
 }
 
-// ─── Ortak: input ─────────────────────────────────────────────────────────────
+// ─── Shared: input ─────────────────────────────────────────────────────────────
 function ClInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
     "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
@@ -167,7 +167,7 @@ function ClInput({input, setInput, attachments, setAttachments, state, streaming
     );
 }
 
-// ─── Ortak: üst çubuk ─────────────────────────────────────────────────────────
+// ─── Shared: top bar ─────────────────────────────────────────────────────────
 function ClBar({label, t, state, onSettingsOpen, onHistoryOpen, accent = CL.lila}: {
     label: string; t: SkinProps["t"]; state: string; accent?: string;
     onSettingsOpen: () => void; onHistoryOpen?: () => void;
@@ -203,8 +203,8 @@ function ClBar({label, t, state, onSettingsOpen, onHistoryOpen, accent = CL.lila
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 1) Claymorphism · ORB (İmza / Hero)
-// Dev nefes alan kil küre ortada, etrafında pastel sohbet hapları.
+// 1) Claymorphism · ORB (Signature / Hero)
+// Giant breathing clay orb in the center, pastel chat pills around it.
 // ══════════════════════════════════════════════════════════════════════════════
 export function ClOrb(p: SkinProps) {
     const [pulse, setPulse] = useState(false);
@@ -220,7 +220,7 @@ export function ClOrb(p: SkinProps) {
 
     return (
         <div className="h-screen w-screen flex flex-col" style={clRoot}>
-            {/* Üst çubuk */}
+            {/* Top bar */}
             <div className="drag shrink-0 flex items-center justify-between px-4 h-11">
                 <span className="text-[13px] font-semibold" style={{color: CL.lila}}>AEGIS · ORB</span>
                 <div className="flex items-center gap-1.5">
@@ -234,9 +234,9 @@ export function ClOrb(p: SkinProps) {
                 </div>
             </div>
 
-            {/* Orta alan: Küre + son mesaj */}
+            {/* Middle area: Orb + last message */}
             <div className="shrink-0 flex items-center gap-4 px-4 py-2">
-                {/* Kabarık küre */}
+                {/* Puffy orb */}
                 <div className="shrink-0 w-20 h-20 rounded-full grid place-items-center" style={{
                     background: `radial-gradient(circle at 35% 30%, ${orbColor}55, ${orbColor}18)`,
                     boxShadow: `0 0 0 2px ${orbColor}30, 0 8px 32px ${orbColor}40, inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -3px 8px rgba(0,0,0,0.4)`,
@@ -248,7 +248,7 @@ export function ClOrb(p: SkinProps) {
                         boxShadow: `0 0 12px ${orbColor}60`,
                     }} />
                 </div>
-                {/* Son mesaj özeti */}
+                {/* Last message summary */}
                 <div className="flex-1 min-w-0">
                     {p.feed.length > 0 ? (() => {
                         const last = p.feed[p.feed.length - 1];
@@ -266,7 +266,7 @@ export function ClOrb(p: SkinProps) {
                 </div>
             </div>
 
-            {/* Sohbet akışı */}
+            {/* Chat feed */}
             {p.feed.length > 1
                 ? <ClFeed feed={p.feed.slice(0, -1)} streaming={false} t={p.t} feedRef={p.feedRef} />
                 : <div className="flex-1" />
@@ -278,8 +278,8 @@ export function ClOrb(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2) Claymorphism · PILLOW (Sohbet / Chat-first)
-// Kabarık yastık kartlar, çok yuvarlak, soft gölge, renkli kullanıcı/asistan.
+// 2) Claymorphism · PILLOW (Chat / Chat-first)
+// Puffy pillow cards, very rounded, soft shadow, colored user/assistant.
 // ══════════════════════════════════════════════════════════════════════════════
 export function ClPillow(p: SkinProps) {
     return (
@@ -297,21 +297,21 @@ export function ClPillow(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 3) Claymorphism · PEBBLE (Kompakt / Mini)
-// Minimal: solda çakıl-oval nav, sağda sıkıştırılmış sohbet.
+// 3) Claymorphism · PEBBLE (Compact / Mini)
+// Minimal: pebble-oval nav on the left, compressed chat on the right.
 // ══════════════════════════════════════════════════════════════════════════════
 export function ClPebble(p: SkinProps) {
     const {tel} = p;
     return (
         <div className="h-screen w-screen flex" style={clRoot}>
-            {/* Sol pebble nav */}
+            {/* Left pebble nav */}
             <aside className="shrink-0 w-16 flex flex-col items-center py-3 gap-3"
                 style={{background: CL.bgPanel, borderRight: `1px solid rgba(196,181,253,0.08)`}}>
                 {/* Logo pebble */}
                 <div className="w-10 h-10 rounded-full grid place-items-center text-[10px] font-bold drag"
                     style={clay(CL.lila, {background: "#2d2050", color: CL.lila})}>AI</div>
 
-                {/* Telemetri pebble'lar */}
+                {/* Telemetry pebbles */}
                 <div className="flex flex-col gap-2 flex-1 items-center justify-center">
                     <div className="flex flex-col items-center gap-0.5">
                         <div className="w-8 h-8 rounded-full grid place-items-center text-[10px] font-bold tabular-nums"
@@ -325,7 +325,7 @@ export function ClPebble(p: SkinProps) {
                     </div>
                 </div>
 
-                {/* Alt butonlar */}
+                {/* Bottom buttons */}
                 <div className="no-drag flex flex-col gap-1.5">
                     {p.onHistoryOpen && (
                         <button onClick={p.onHistoryOpen} className="w-8 h-8 rounded-full grid place-items-center text-[10px] font-semibold"
@@ -340,7 +340,7 @@ export function ClPebble(p: SkinProps) {
                 </div>
             </aside>
 
-            {/* Sağ: sohbet + input */}
+            {/* Right: chat + input */}
             <div className="flex-1 min-w-0 flex flex-col">
                 {p.feed.length === 0
                     ? <div className="flex-1 flex items-center justify-center">
@@ -355,8 +355,8 @@ export function ClPebble(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4) Claymorphism · TILES (Pano / Dashboard)
-// Kabarık kil fayanslar: telemetri kartları üstte, sohbet altta.
+// 4) Claymorphism · TILES (Panel / Dashboard)
+// Puffy clay tiles: telemetry cards on top, chat below.
 // ══════════════════════════════════════════════════════════════════════════════
 export function ClTiles(p: SkinProps) {
     const {tel, weather} = p;
@@ -375,7 +375,7 @@ export function ClTiles(p: SkinProps) {
         <div className="h-screen w-screen flex flex-col" style={clRoot}>
             <ClBar label="TILES · PANO" t={p.t} state={p.state} onSettingsOpen={p.onSettingsOpen} onHistoryOpen={p.onHistoryOpen} accent={CL.peach} />
 
-            {/* Fayans ızgarası */}
+            {/* Tile grid */}
             <div className="shrink-0 grid grid-cols-4 gap-2.5 px-3 py-2">
                 {tiles.map((tile) => (
                     <div key={tile.label} className="flex flex-col items-center justify-center py-3"
@@ -386,7 +386,7 @@ export function ClTiles(p: SkinProps) {
                 ))}
             </div>
 
-            {/* Sohbet */}
+            {/* Chat */}
             {p.feed.length === 0
                 ? <div className="flex-1 flex items-center justify-center">
                     <div className="px-5 py-3 text-[12px] font-medium opacity-25" style={clay(CL.lila)}>{p.t.emptyDash}</div>

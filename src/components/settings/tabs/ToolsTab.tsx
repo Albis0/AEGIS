@@ -80,7 +80,7 @@ export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
                 Tehlikeli araçlar kırmızı ile işaretlenmiştir. Toggle ile her aracı ayrı ayrı açıp kapatabilirsin.
             </p>
 
-            {/* ── Güvenlik bölümü ── */}
+            {/* ── Security section ── */}
             <div>
                 <SectionLabel label="GÜVENLİK" accent={accent} />
                 <div className="rounded-xl overflow-hidden"
@@ -152,7 +152,7 @@ export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
                 </div>
             </div>
 
-            {/* ── Araç listesi ── */}
+            {/* ── Tool list ── */}
             {CATEGORIES.map((cat) => (
                 <div key={cat}>
                     <SectionLabel label={cat.toUpperCase()} accent={accent} />

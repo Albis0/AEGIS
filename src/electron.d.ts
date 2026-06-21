@@ -6,7 +6,7 @@ export interface GpuInfo {
     temp: number | null;
 }
 
-// Seçili modelin yetenekleri (electron/model-capabilities.ts ile aynı şekil).
+// Capabilities of the selected model (same shape as electron/model-capabilities.ts).
 export interface ModelCaps {
     supportsTools: boolean;
     supportsTemperature: boolean;

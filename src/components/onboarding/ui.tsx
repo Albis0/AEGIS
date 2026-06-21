@@ -1,24 +1,24 @@
-// AEGIS — Onboarding tasarım sistemi (Faz 64)
-// Yumuşak, modern, sıcak koyu tema. Tek düze "mavi" yerine derin slate zemin +
-// cyan aksan + ince mor parıltı. Tüm onboarding ekranları buradan beslenir.
+// AEGIS — Onboarding design system (Phase 64)
+// Soft, modern, warm dark theme. Deep slate base instead of flat "blue" +
+// cyan accent + subtle purple glow. All onboarding screens are powered from here.
 
 import {useEffect, useState, type ReactNode} from "react";
 
-// ── Palet ────────────────────────────────────────────────────────────────────
+// ── Palette ──────────────────────────────────────────────────────────────────
 export const C = {
-    accent: "56, 189, 248",   // sky-400 — yumuşak cyan
-    accent2: "129, 140, 248", // indigo-400 — ikinci aksan (gradient için)
-    bg: "#0a0e17",            // derin slate (saf siyah değil → daha sıcak)
+    accent: "56, 189, 248",   // sky-400 — soft cyan
+    accent2: "129, 140, 248", // indigo-400 — secondary accent (for gradient)
+    bg: "#0a0e17",            // deep slate (not pure black → warmer)
     text: "248, 250, 252",    // slate-50
     muted: "148, 163, 184",   // slate-400
-    line: "148, 163, 184",    // border'lar için (düşük alpha)
+    line: "148, 163, 184",    // for borders (low alpha)
 };
 
 export const ac = `rgb(${C.text})`;
 export const muted = `rgb(${C.muted})`;
 
-// ── Shell — her ekranın dış çerçevesi ────────────────────────────────────────
-// Arka plan gradient + drag bar + marka + opsiyonel adım göstergesi.
+// ── Shell — outer frame for every screen ─────────────────────────────────────
+// Background gradient + drag bar + brand + optional step indicator.
 export function Shell({
     children, step, totalSteps, onClose,
 }: {
@@ -41,7 +41,7 @@ export function Shell({
                 MozOsxFontSmoothing: "grayscale",
             } as React.CSSProperties}
         >
-            {/* Atmosferik arka plan — yumuşak iki parıltı, statik (göz yormaz) */}
+            {/* Atmospheric background — two soft glows, static (easy on the eyes) */}
             <div
                 className="pointer-events-none absolute inset-0"
                 style={{
@@ -50,7 +50,7 @@ export function Shell({
                         radial-gradient(120% 90% at 100% 100%, rgba(${C.accent},0.14), transparent 55%)`,
                 }}
             />
-            {/* İnce grid dokusu — çok hafif, derinlik için */}
+            {/* Thin grid texture — very subtle, for depth */}
             <div
                 className="pointer-events-none absolute inset-0 opacity-[0.5]"
                 style={{
@@ -80,7 +80,7 @@ export function Shell({
                 </button>
             </div>
 
-            {/* İçerik — yumuşak fade+rise giriş */}
+            {/* Content — soft fade+rise entrance */}
             <div
                 className="flex-1 min-h-0 relative z-10 flex flex-col transition-all duration-500 ease-out"
                 style={{opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(8px)"}}
@@ -88,7 +88,7 @@ export function Shell({
                 {children}
             </div>
 
-            {/* Adım göstergesi */}
+            {/* Step indicator */}
             {step != null && totalSteps != null && (
                 <div className="shrink-0 flex items-center justify-center gap-2 pb-5 relative z-10">
                     {Array.from({length: totalSteps}).map((_, i) => (
@@ -108,7 +108,7 @@ export function Shell({
     );
 }
 
-// ── Marka logosu — basit, currentColor ile cyan ──────────────────────────────
+// ── Brand logo — simple, cyan via currentColor ───────────────────────────────
 function Logo() {
     return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -125,7 +125,7 @@ function Logo() {
     );
 }
 
-// ── Başlık bloğu ─────────────────────────────────────────────────────────────
+// ── Heading block ─────────────────────────────────────────────────────────────
 export function Heading({title, subtitle}: {title: string; subtitle?: string}) {
     return (
         <div className="space-y-2">
@@ -135,7 +135,7 @@ export function Heading({title, subtitle}: {title: string; subtitle?: string}) {
     );
 }
 
-// ── Birincil buton — gradient dolgulu, yumuşak ───────────────────────────────
+// ── Primary button — gradient filled, soft ───────────────────────────────────
 export function PrimaryButton({
     children, onClick, disabled, type = "button",
 }: {children: ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit"}) {
@@ -156,7 +156,7 @@ export function PrimaryButton({
     );
 }
 
-// ── İkincil / hayalet buton ──────────────────────────────────────────────────
+// ── Secondary / ghost button ──────────────────────────────────────────────────
 export function GhostButton({
     children, onClick, disabled, active,
 }: {children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean}) {
@@ -176,7 +176,7 @@ export function GhostButton({
     );
 }
 
-// ── Metin bağlantısı (alt aksiyonlar) ────────────────────────────────────────
+// ── Text link (secondary actions) ────────────────────────────────────────────
 export function LinkButton({children, onClick}: {children: ReactNode; onClick?: () => void}) {
     return (
         <button
@@ -189,7 +189,7 @@ export function LinkButton({children, onClick}: {children: ReactNode; onClick?: 
     );
 }
 
-// ── Giriş alanı ──────────────────────────────────────────────────────────────
+// ── Input field ───────────────────────────────────────────────────────────────
 export function Field({
     label, type = "text", value, onChange, placeholder, hint, required, optional, onEnter,
 }: {
@@ -232,7 +232,7 @@ export function Field({
     );
 }
 
-// ── Hata kutusu ──────────────────────────────────────────────────────────────
+// ── Error box ─────────────────────────────────────────────────────────────────
 export function ErrorBox({children}: {children: ReactNode}) {
     return (
         <div
@@ -247,7 +247,7 @@ export function ErrorBox({children}: {children: ReactNode}) {
     );
 }
 
-// ── İçerik kolonu — ortalı, makul genişlik, kaydırılabilir ───────────────────
+// ── Content column — centered, reasonable width, scrollable ─────────────────
 export function Body({children}: {children: ReactNode}) {
     return (
         <div className="flex-1 min-h-0 overflow-y-auto">

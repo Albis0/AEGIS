@@ -1,13 +1,13 @@
 import {useState, useEffect, useCallback, useRef} from "react";
 
-// Faz 63.4 — Pomodoro widget'ı.
-// pomodoro_status "PHASE|kalanSaniye|oturum" döndürür; widget her saniye yerel
-// geri sayım yapar, periyodik olarak (15sn) sunucu durumuyla senkronlar. Aktif
-// pomodoro yoksa render etmez.
+// Phase 63.4 — Pomodoro widget.
+// pomodoro_status returns "PHASE|remainingSeconds|session"; the widget counts down
+// locally every second and periodically (15s) syncs with the server state. Renders
+// nothing if there's no active pomodoro.
 
 interface Pomo {
     phase: "WORK" | "BREAK";
-    remaining: number; // saniye
+    remaining: number; // seconds
     session: number;
 }
 
@@ -42,7 +42,7 @@ export default function PomodoroWidget() {
         }
     }, []);
 
-    // Sunucu senkronu (15sn) + mount
+    // Server sync (15s) + mount
     useEffect(() => {
         mounted.current = true;
         sync();
@@ -50,7 +50,7 @@ export default function PomodoroWidget() {
         return () => { mounted.current = false; clearInterval(id); };
     }, [sync]);
 
-    // Yerel saniye geri sayımı
+    // Local per-second countdown
     useEffect(() => {
         if (!pomo) return;
         const id = setInterval(() => {

@@ -1,6 +1,6 @@
-// AEGIS — Skin registry: skin'ler AİLELERE gruplanır.
-// Her aile = bir tasarım dili; altında 4 "ferdi" (skin/layout).
-// App render'ı ve Ayarlar seçici buradan beslenir.
+// AEGIS — Skin registry: skins are grouped into FAMILIES.
+// Each family = one design language; under it, 4 "members" (skin/layout).
+// The App render and Settings selector are powered from here.
 
 import type React from "react";
 import type {SkinProps} from "./HologramSkin";

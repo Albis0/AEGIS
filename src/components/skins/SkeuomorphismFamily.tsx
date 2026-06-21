@@ -1,8 +1,8 @@
-﻿// AEGIS — "Skeuomorphism" skin ailesi (4 ferdi: Desk / Journal / Walkman / Cockpit)
+﻿// AEGIS — "Skeuomorphism" skin family (4 variants: Desk / Journal / Walkman / Cockpit)
 // =============================================================================
-// Tasarım dili: Gerçek nesne & doku. Sıcak koyu ceviz/deri zemin (~#1c1209),
-// pirinç/amber vurgu, içe gömülü bevel (inset gölge), fiziksel düğme hissi,
-// kâğıt-deri-metal doku katmanları. Oxanium / Rajdhani font.
+// Design language: Real object & texture. Warm dark walnut/leather background (~#1c1209),
+// brass/amber accent, inset bevel (embedded shadow), physical button feel,
+// paper-leather-metal texture layers. Oxanium / Rajdhani font.
 
 import React, {useState} from "react";
 import {useClock} from "../../hooks/useClock";
@@ -10,25 +10,25 @@ import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
 
-// ─── Aile renk sabitleri ──────────────────────────────────────────────────────
+// ─── Family color constants ──────────────────────────────────────────────────────
 const SK = {
-    bg:        "#1c1209",   // koyu ceviz
-    bgPanel:   "#231710",   // panel zemini
-    bgCard:    "#2a1d10",   // kart/girinti zemini
-    bgInput:   "#160e06",   // input çukuru (daha koyu)
-    brass:     "#c8922a",   // pirinç (ana vurgu)
-    brassLight:"#e8b84b",   // parlak pirinç
-    brassDark: "#7a5518",   // koyu pirinç
-    leather:   "#3d2410",   // deri tonu
-    cream:     "#f5e6c8",   // krem metin
-    creamDim:  "#b89a6a",   // soluk metin
-    danger:    "#c0392b",   // koyu kırmızı
-    ok:        "#2d7a3a",   // koyu yeşil
-    // Bevel: üst-sol parlak, alt-sağ koyu (fiziksel çıkıntı hissi)
+    bg:        "#1c1209",   // dark walnut
+    bgPanel:   "#231710",   // panel background
+    bgCard:    "#2a1d10",   // card/recess background
+    bgInput:   "#160e06",   // input recess (darker)
+    brass:     "#c8922a",   // brass (main accent)
+    brassLight:"#e8b84b",   // bright brass
+    brassDark: "#7a5518",   // dark brass
+    leather:   "#3d2410",   // leather tone
+    cream:     "#f5e6c8",   // cream text
+    creamDim:  "#b89a6a",   // dim text
+    danger:    "#c0392b",   // dark red
+    ok:        "#2d7a3a",   // dark green
+    // Bevel: bright top-left, dark bottom-right (physical protrusion feel)
     bevelOut:  "inset 1px 1px 0 rgba(232,184,75,0.35), inset -1px -1px 0 rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.6)",
-    // Basık (pressed) buton
+    // Pressed button
     bevelIn:   "inset 2px 2px 4px rgba(0,0,0,0.8), inset -1px -1px 0 rgba(232,184,75,0.15)",
-    // Çerçeve çizgisi
+    // Border line
     borderBrass: "1px solid #7a5518",
     borderBrassGlow: "1px solid rgba(200,146,42,0.5)",
 };
@@ -40,7 +40,7 @@ const skRoot: React.CSSProperties = {
     WebkitFontSmoothing: "antialiased",
 };
 
-// Kabartmalı panel (fiziksel çıkıntı)
+// Raised panel (physical protrusion)
 const panel = (extra?: React.CSSProperties): React.CSSProperties => ({
     background: SK.bgPanel,
     boxShadow: SK.bevelOut,
@@ -48,7 +48,7 @@ const panel = (extra?: React.CSSProperties): React.CSSProperties => ({
     ...extra,
 });
 
-// Gömülü alan (basık/çukur)
+// Embedded area (pressed/recessed)
 const inset = (extra?: React.CSSProperties): React.CSSProperties => ({
     background: SK.bgInput,
     boxShadow: SK.bevelIn,
@@ -56,7 +56,7 @@ const inset = (extra?: React.CSSProperties): React.CSSProperties => ({
     ...extra,
 });
 
-// Fiziksel düğme
+// Physical button
 const btn = (extra?: React.CSSProperties): React.CSSProperties => ({
     background: `linear-gradient(145deg, ${SK.bgCard} 0%, ${SK.leather} 100%)`,
     boxShadow: SK.bevelOut,
@@ -73,7 +73,7 @@ const stWord = (state: string, t: SkinProps["t"]) =>
     : state === "error" ? t.stErr
     : t.stReady;
 
-// ─── Ortak: feed ─────────────────────────────────────────────────────────────
+// ─── Shared: feed ─────────────────────────────────────────────────────────────
 function SkFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"streaming"|"t"|"feedRef"> & {compact?: boolean}) {
     const py = compact ? "py-1.5" : "py-2.5";
     return (
@@ -116,7 +116,7 @@ function SkFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
     );
 }
 
-// ─── Ortak: input ─────────────────────────────────────────────────────────────
+// ─── Shared: input ─────────────────────────────────────────────────────────────
 function SkInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
     "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
@@ -170,7 +170,7 @@ function SkInput({input, setInput, attachments, setAttachments, state, streaming
     );
 }
 
-// ─── Ortak: üst çubuk ─────────────────────────────────────────────────────────
+// ─── Shared: top bar ─────────────────────────────────────────────────────────
 function SkBar({label, t, state, onSettingsOpen, onHistoryOpen}: {
     label: string; t: SkinProps["t"]; state: string;
     onSettingsOpen: () => void; onHistoryOpen?: () => void;
@@ -178,7 +178,7 @@ function SkBar({label, t, state, onSettingsOpen, onHistoryOpen}: {
     return (
         <div className="drag shrink-0 h-10 flex items-center justify-between px-3 mx-3 mt-3 mb-1" style={panel()}>
             <div className="flex items-center gap-2">
-                {/* Pirinç cıvata dekor */}
+                {/* Brass bolt decoration */}
                 <div className="w-3 h-3 rounded-full" style={{background: `radial-gradient(circle at 35% 35%, ${SK.brassLight}, ${SK.brassDark})`, boxShadow: "0 1px 2px rgba(0,0,0,0.8)"}} />
                 <span className="text-[11px] font-semibold tracking-[0.25em] uppercase" style={{color: SK.brassLight}}>{label}</span>
             </div>
@@ -199,18 +199,18 @@ function SkBar({label, t, state, onSettingsOpen, onHistoryOpen}: {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 1) Skeuomorphism · DESK (İmza / Hero)
-// Ahşap masa hissi: üstte pirinç çıtalı panel, sohbet kâğıt notepad'de,
-// köşelerde vida dekor, zemin yatay-ahşap desen.
+// 1) Skeuomorphism · DESK (Signature / Hero)
+// Wooden desk feel: brass-trimmed panel on top, chat in a paper notepad,
+// screw decorations in the corners, horizontal wood-grain background pattern.
 // ══════════════════════════════════════════════════════════════════════════════
 export function SkDesk(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={{
             ...skRoot,
-            // Yatay tahta desen (repeating-linear gradient)
+            // Horizontal wood-plank pattern (repeating-linear gradient)
             backgroundImage: "repeating-linear-gradient(180deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 28px)",
         }}>
-            {/* Üst pirinç başlık bandı */}
+            {/* Top brass header band */}
             <div className="drag shrink-0 flex items-center justify-between px-4 py-2"
                 style={{
                     background: `linear-gradient(180deg, #2e1e0a 0%, #1c1209 100%)`,
@@ -230,7 +230,7 @@ export function SkDesk(p: SkinProps) {
                         style={btn({background: SK.danger, borderColor: SK.danger, color: "#fff"})}>✕</button>
                 </div>
             </div>
-            {/* Vida dekor köşeleri */}
+            {/* Screw decoration corners */}
             <div className="relative flex-1 min-h-0 m-3 flex flex-col" style={panel()}>
                 <div className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full"
                     style={{background: `radial-gradient(circle at 35% 35%, ${SK.brassLight}, ${SK.brassDark})`, boxShadow: "0 1px 2px rgba(0,0,0,0.9)"}} />
@@ -240,9 +240,9 @@ export function SkDesk(p: SkinProps) {
                     style={{background: `radial-gradient(circle at 35% 35%, ${SK.brassLight}, ${SK.brassDark})`, boxShadow: "0 1px 2px rgba(0,0,0,0.9)"}} />
                 <div className="absolute bottom-2 right-2 w-2.5 h-2.5 rounded-full"
                     style={{background: `radial-gradient(circle at 35% 35%, ${SK.brassLight}, ${SK.brassDark})`, boxShadow: "0 1px 2px rgba(0,0,0,0.9)"}} />
-                {/* İçerik */}
+                {/* Content */}
                 <div className="flex-1 min-h-0 mx-5 mt-5 mb-2 flex flex-col" style={inset()}>
-                    {/* Notepad çizgileri */}
+                    {/* Notepad lines */}
                     <div className="absolute inset-0 pointer-events-none" style={{
                         backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(200,146,42,0.08) 23px, rgba(200,146,42,0.08) 24px)",
                         marginTop: 4,
@@ -262,13 +262,13 @@ export function SkDesk(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2) Skeuomorphism · JOURNAL (Sohbet / Chat-first)
-// Deri ciltli defter: sol dikiş şeridi, sağda sayfa, mesajlar kâğıt satırlarında.
+// 2) Skeuomorphism · JOURNAL (Chat / Chat-first)
+// Leather-bound notebook: stitching strip on the left, page on the right, messages on paper lines.
 // ══════════════════════════════════════════════════════════════════════════════
 export function SkJournal(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={skRoot}>
-            {/* Deri üst kapak */}
+            {/* Leather top cover */}
             <div className="drag shrink-0 flex items-center justify-between px-4 h-10"
                 style={{
                     background: `linear-gradient(180deg, #3d2a14 0%, #2a1d10 100%)`,
@@ -276,7 +276,7 @@ export function SkJournal(p: SkinProps) {
                     boxShadow: "0 2px 6px rgba(0,0,0,0.6)",
                 }}>
                 <div className="flex items-center gap-2">
-                    {/* Spiralli defter halkası */}
+                    {/* Spiral notebook rings */}
                     <div className="flex gap-0.5">
                         {[...Array(5)].map((_,i) => (
                             <div key={i} className="w-1.5 h-4 rounded-full"
@@ -294,9 +294,9 @@ export function SkJournal(p: SkinProps) {
                         style={btn({background: SK.danger, borderColor: SK.danger, color: "#fff"})}>✕</button>
                 </div>
             </div>
-            {/* Sayfa gövdesi */}
+            {/* Page body */}
             <div className="flex-1 min-h-0 flex">
-                {/* Dikiş şeridi */}
+                {/* Stitching strip */}
                 <div className="shrink-0 w-6 flex flex-col items-center pt-2 gap-1.5"
                     style={{background: SK.leather, borderRight: `1px solid ${SK.brassDark}`}}>
                     {[...Array(18)].map((_,i) => (
@@ -304,7 +304,7 @@ export function SkJournal(p: SkinProps) {
                             style={{background: SK.brassDark, boxShadow: "inset 0 1px 0 rgba(0,0,0,0.5)"}} />
                     ))}
                 </div>
-                {/* Sayfa içeriği */}
+                {/* Page content */}
                 <div className="flex-1 min-w-0 flex flex-col"
                     style={{
                         background: SK.bgCard,
@@ -324,8 +324,8 @@ export function SkJournal(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 3) Skeuomorphism · WALKMAN (Kompakt / Mini)
-// Retro cihaz: üstte plastik LCD ekran, altında döner düğme + butonlar.
+// 3) Skeuomorphism · WALKMAN (Compact / Mini)
+// Retro device: plastic LCD screen on top, dial knob + buttons below.
 // ══════════════════════════════════════════════════════════════════════════════
 export function SkWalkman(p: SkinProps) {
     const {tel} = p;
@@ -334,7 +334,7 @@ export function SkWalkman(p: SkinProps) {
             ...skRoot,
             background: `linear-gradient(160deg, #231710 0%, #1c1209 60%, #120d05 100%)`,
         }}>
-            {/* Cihaz kabuk çerçevesi */}
+            {/* Device shell frame */}
             <div className="drag shrink-0 flex items-center justify-between px-3 h-9"
                 style={{
                     background: `linear-gradient(180deg, #2e1e0a 0%, #1c1209 100%)`,
@@ -353,20 +353,20 @@ export function SkWalkman(p: SkinProps) {
                         style={btn({background: SK.danger, borderColor: SK.danger, color: "#fff"})}>✕</button>
                 </div>
             </div>
-            {/* LCD ekran */}
+            {/* LCD screen */}
             <div className="flex-1 min-h-0 mx-3 my-2 flex flex-col" style={{
                 background: "#0e1a0e",
                 border: `2px solid ${SK.brassDark}`,
                 boxShadow: "inset 0 2px 8px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,146,42,0.15)",
             }}>
-                {/* LCD üst status bar */}
+                {/* LCD top status bar */}
                 <div className="shrink-0 flex items-center justify-between px-2 py-1 text-[9px]"
                     style={{borderBottom: "1px solid rgba(100,200,100,0.15)", color: "#4a9a4a"}}>
                     <span>AEGIS OS</span>
                     <span>{tel?.cpu ?? 0}% CPU · {tel?.ram ?? 0}% RAM</span>
                     <span className="uppercase">{stWord(p.state, p.t)}</span>
                 </div>
-                {/* LCD sohbet alanı */}
+                {/* LCD chat area */}
                 {p.feed.length === 0
                     ? <div className="flex-1 flex items-center justify-center">
                         <span className="text-[11px] opacity-40" style={{color: "#4a9a4a"}}>{p.t.empty3}</span>
@@ -389,10 +389,10 @@ export function SkWalkman(p: SkinProps) {
                       </div>
                 }
             </div>
-            {/* Alt kontroller: döner düğme + butonlar */}
+            {/* Bottom controls: dial knob + buttons */}
             <div className="shrink-0 px-3 pb-3">
                 <div className="flex gap-2 items-center">
-                    {/* Döner kadran dekor */}
+                    {/* Dial decoration */}
                     <div className="shrink-0 w-10 h-10 rounded-full grid place-items-center" style={{
                         background: `radial-gradient(circle at 35% 30%, #3d2a14, #1c1209)`,
                         boxShadow: SK.bevelOut,
@@ -419,32 +419,32 @@ export function SkWalkman(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4) Skeuomorphism · COCKPIT (Pano / Dashboard)
-// Metal kontrol paneli: analog ibreli kadranlar (CPU/RAM), vidalı panel,
-// cam ekran sohbet alanı, pirinç etiketler.
+// 4) Skeuomorphism · COCKPIT (Panel / Dashboard)
+// Metal control panel: analog needle gauges (CPU/RAM), screwed panel,
+// glass screen chat area, brass labels.
 // ══════════════════════════════════════════════════════════════════════════════
 
 function Gauge({label, value, max = 100, color = SK.brass}: {label: string; value: number; max?: number; color?: string}) {
     const pct = Math.min(value / max, 1);
-    // 0% = -135deg, 100% = +135deg (270deg toplam açı)
+    // 0% = -135deg, 100% = +135deg (270deg total angle)
     const deg = -135 + pct * 270;
     return (
         <div className="flex flex-col items-center gap-1">
             <div className="relative w-14 h-14">
-                {/* Kadran arka plan */}
+                {/* Gauge background */}
                 <div className="absolute inset-0 rounded-full" style={{
                     background: `radial-gradient(circle at 40% 35%, #2e1e0a, #0e0906)`,
                     border: `2px solid ${SK.brassDark}`,
                     boxShadow: "inset 0 2px 6px rgba(0,0,0,0.8), 0 1px 0 rgba(232,184,75,0.2)",
                 }} />
-                {/* Derecelendirme yayı */}
+                {/* Rating arc */}
                 <svg className="absolute inset-0" width="56" height="56" viewBox="0 0 56 56">
                     <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(200,146,42,0.15)" strokeWidth="3" strokeDasharray="103 138" strokeDashoffset="-17" strokeLinecap="round" />
                     <circle cx="28" cy="28" r="22" fill="none" stroke={color} strokeWidth="3"
                         strokeDasharray={`${pct*103} 138`} strokeDashoffset="-17" strokeLinecap="round"
                         style={{transition: "stroke-dasharray 0.6s ease"}} opacity="0.8" />
                 </svg>
-                {/* İbre */}
+                {/* Needle */}
                 <div className="absolute inset-0 flex items-center justify-center" style={{transform: `rotate(${deg}deg)`}}>
                     <div style={{
                         width: 2, height: 18, marginBottom: 18,
@@ -454,7 +454,7 @@ function Gauge({label, value, max = 100, color = SK.brass}: {label: string; valu
                         boxShadow: `0 0 4px ${color}40`,
                     }} />
                 </div>
-                {/* Merkez vida */}
+                {/* Center screw */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full" style={{background: `radial-gradient(circle at 35% 35%, ${SK.brassLight}, ${SK.brassDark})`, boxShadow: "0 1px 2px rgba(0,0,0,0.8)"}} />
                 </div>
@@ -476,9 +476,9 @@ export function SkCockpit(p: SkinProps) {
         }}>
             <SkBar label="COCKPIT" t={p.t} state={p.state} onSettingsOpen={p.onSettingsOpen} onHistoryOpen={p.onHistoryOpen} />
 
-            {/* Kadranlar paneli */}
+            {/* Gauges panel */}
             <div className="shrink-0 mx-3 mb-2" style={{...panel(), padding: "10px 16px"}}>
-                {/* Vida delikleri üst köşe */}
+                {/* Screw holes top corner */}
                 <div className="flex items-center justify-between">
                     <div className="flex gap-6 items-end">
                         <Gauge label="CPU" value={tel?.cpu ?? 0} color={SK.brass} />
@@ -488,7 +488,7 @@ export function SkCockpit(p: SkinProps) {
                             : <Gauge label="DSK" value={tel?.disk ?? 0} color="#7ae8a0" />
                         }
                     </div>
-                    {/* Sağ: saat + hava + sıcaklık */}
+                    {/* Right: clock + weather + temperature */}
                     <div className="flex flex-col items-end gap-1.5 text-right">
                         <div className="text-[20px] font-semibold tabular-nums" style={{color: SK.brassLight, fontFamily: "Oxanium, monospace"}}>
                             {clock.toLocaleTimeString(p.t.locale, {hour:"2-digit", minute:"2-digit"})}
@@ -503,7 +503,7 @@ export function SkCockpit(p: SkinProps) {
                 </div>
             </div>
 
-            {/* Cam ekran — sohbet */}
+            {/* Glass screen — chat */}
             <div className="flex-1 min-h-0 mx-3 mb-1 flex flex-col" style={{
                 background: "#0a120a",
                 border: `1px solid ${SK.brassDark}`,

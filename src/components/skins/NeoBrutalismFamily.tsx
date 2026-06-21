@@ -1,8 +1,8 @@
-﻿// AEGIS — "Neo-brutalism" skin ailesi (4 ferdi: Poster / Stack / Switch / Grid)
+﻿// AEGIS — "Neo-brutalism" skin family (4 variants: Poster / Stack / Switch / Grid)
 // =============================================================================
-// Tasarım dili: KOYU TEMA. Siyah zemin (#0d0d0d), beyaz kalın çerçeve,
-// elektrik vurgu rengi, sert ofset drop-shadow (4px 4px 0 #fff / renkli),
-// düz renk (gradyan yok), dev/kalın tipografi. Syne / Space Grotesk.
+// Design language: DARK THEME. Black background (#0d0d0d), thick white border,
+// electric accent color, hard offset drop-shadow (4px 4px 0 #fff / colored),
+// flat color (no gradients), huge/bold typography. Syne / Space Grotesk.
 
 import React, {useState} from "react";
 import {useClock} from "../../hooks/useClock";
@@ -10,14 +10,14 @@ import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
 
-// ─── Aile renk sabitleri (kullanıcı accent'inden bağımsız) ───────────────────
+// ─── Family color constants (independent of user accent) ───────────────────
 const NB = {
-    bg:       "#0d0d0d",   // neredeyse siyah
-    bgCard:   "#181818",   // kart zemini
-    ink:      "#f0ede6",   // krem beyaz metin
-    border:   "#f0ede6",   // beyaz çerçeve
-    accent:   "#3b82f6",   // elektrik mavi
-    accentAlt:"#f59e0b",   // sarı vurgu (ikincil)
+    bg:       "#0d0d0d",   // near black
+    bgCard:   "#181818",   // card background
+    ink:      "#f0ede6",   // cream white text
+    border:   "#f0ede6",   // white border
+    accent:   "#3b82f6",   // electric blue
+    accentAlt:"#f59e0b",   // yellow accent (secondary)
     shadow:   "4px 4px 0 #f0ede6",
     shadowSm: "2px 2px 0 #f0ede6",
     danger:   "#ef4444",
@@ -30,7 +30,7 @@ const nbRoot: React.CSSProperties = {
     WebkitFontSmoothing: "antialiased",
 };
 
-// Kalın ofset kart stili
+// Thick offset card style
 const card = (extra?: React.CSSProperties): React.CSSProperties => ({
     border: `2px solid ${NB.border}`,
     boxShadow: NB.shadow,
@@ -52,7 +52,7 @@ const stWord = (state: string, t: SkinProps["t"]) =>
     : state === "error" ? t.stErr
     : t.stReady;
 
-// ─── Ortak: feed ─────────────────────────────────────────────────────────────
+// ─── Shared: feed ─────────────────────────────────────────────────────────────
 function NbFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps, "feed"|"streaming"|"t"|"feedRef"> & {compact?: boolean}) {
     const gap = compact ? "gap-2" : "gap-3";
     const px  = compact ? "px-3 py-2" : "px-4 py-3";
@@ -95,7 +95,7 @@ function NbFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps, "feed"|"
     );
 }
 
-// ─── Ortak: input ─────────────────────────────────────────────────────────────
+// ─── Shared: input ─────────────────────────────────────────────────────────────
 function NbInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
     "input"|"setInput"|"attachments"|"setAttachments"|"state"|"streaming"|"placeholder"|"onSend"|"onStop"|"onNavigateHistory"|"mode"|"setMode"|"listening"|"activated"|"t">) {
     return (
@@ -152,7 +152,7 @@ function NbInput({input, setInput, attachments, setAttachments, state, streaming
     );
 }
 
-// ─── Ortak: başlık çubuğu ─────────────────────────────────────────────────────
+// ─── Shared: title bar ─────────────────────────────────────────────────────────
 function NbBar({label, sub, t, state, onSettingsOpen, onHistoryOpen}: {
     label: string; sub?: string; t: SkinProps["t"]; state: string;
     onSettingsOpen: () => void; onHistoryOpen?: () => void;
@@ -189,13 +189,13 @@ function NbBar({label, sub, t, state, onSettingsOpen, onHistoryOpen}: {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 1) Neo-brutalism · POSTER (İmza / Hero)
-// Dev tipografik afiş üstte, sohbet aşağıda kalın kartlarla.
+// 1) Neo-brutalism · POSTER (Signature / Hero)
+// Giant typographic poster on top, chat below with thick cards.
 // ══════════════════════════════════════════════════════════════════════════════
 export function NbPoster(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={nbRoot}>
-            {/* Drag başlık + büyük durum şeridi */}
+            {/* Drag header + large status strip */}
             <div className="drag shrink-0" style={{borderBottom: `3px solid ${NB.border}`}}>
                 <div className="flex items-center justify-between px-4 pt-3 pb-1">
                     <div>
@@ -212,7 +212,7 @@ export function NbPoster(p: SkinProps) {
                             style={cardSm({background: NB.danger, color: "#fff", borderColor: NB.danger, boxShadow: "2px 2px 0 #000"})}>✕</button>
                     </div>
                 </div>
-                {/* Durum şeridi — renk şeridi */}
+                {/* Status strip — color strip */}
                 <div className="px-4 pb-3 flex items-center gap-3">
                     <div className="h-6 w-2" style={{background: NB.accent, border: `1.5px solid ${NB.border}`}} />
                     <span className="text-[28px] font-black uppercase leading-none tracking-tighter"
@@ -235,8 +235,8 @@ export function NbPoster(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2) Neo-brutalism · STACK (Sohbet / Chat-first)
-// Her mesaj ofset-gölgeli sticker kart; kullanıcı mavi, asistan krem.
+// 2) Neo-brutalism · STACK (Chat / Chat-first)
+// Each message is an offset-shadowed sticker card; user blue, assistant cream.
 // ══════════════════════════════════════════════════════════════════════════════
 export function NbStack(p: SkinProps) {
     return (
@@ -254,14 +254,14 @@ export function NbStack(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 3) Neo-brutalism · SWITCH (Kompakt / Mini)
-// Ham kontrol paneli: solda durum çubuk, sağda sıkıştırılmış sohbet + input.
+// 3) Neo-brutalism · SWITCH (Compact / Mini)
+// Raw control panel: status strip on the left, compressed chat + input on the right.
 // ══════════════════════════════════════════════════════════════════════════════
 export function NbSwitch(p: SkinProps) {
     const {tel} = p;
     return (
         <div className="h-screen w-screen flex" style={nbRoot}>
-            {/* Sol sidebar — durum + telemetri */}
+            {/* Left sidebar — status + telemetry */}
             <aside className="shrink-0 w-20 flex flex-col" style={{borderRight: `2px solid ${NB.border}`, background: "#1a1a1a", color: NB.ink}}>
                 <div className="drag h-10 flex items-center justify-center" style={{borderBottom: `2px solid ${NB.border}`}}>
                     <span className="text-[11px] font-black uppercase tracking-widest" style={{writingMode: "vertical-rl", transform: "rotate(180deg)"}}>AEGIS</span>
@@ -299,7 +299,7 @@ export function NbSwitch(p: SkinProps) {
                         style={{border: `2px solid ${NB.danger}`, background: NB.danger, color: "#fff", boxShadow: "2px 2px 0 #000"}}>✕</button>
                 </div>
             </aside>
-            {/* Sağ: sohbet + input */}
+            {/* Right: chat + input */}
             <div className="flex-1 min-w-0 flex flex-col">
                 {p.feed.length === 0
                     ? <div className="flex-1 flex items-center justify-center">
@@ -314,8 +314,8 @@ export function NbSwitch(p: SkinProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4) Neo-brutalism · GRID (Pano / Dashboard)
-// Üstte telemetri ızgarası (hücreler farklı vurgu rengi), altta sohbet + input.
+// 4) Neo-brutalism · GRID (Panel / Dashboard)
+// Telemetry grid on top (cells with different accent colors), chat + input below.
 // ══════════════════════════════════════════════════════════════════════════════
 export function NbGrid(p: SkinProps) {
     const {tel, weather} = p;
@@ -333,7 +333,7 @@ export function NbGrid(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={nbRoot}>
             <NbBar label="GRID" sub="PANO" t={p.t} state={p.state} onSettingsOpen={p.onSettingsOpen} onHistoryOpen={p.onHistoryOpen} />
-            {/* Telemetri ızgarası */}
+            {/* Telemetry grid */}
             <div className="shrink-0 grid grid-cols-4 gap-0" style={{borderBottom: `2px solid ${NB.border}`}}>
                 {cells.map((c) => (
                     <div key={c.k} className="px-3 py-2.5" style={{
@@ -345,7 +345,7 @@ export function NbGrid(p: SkinProps) {
                     </div>
                 ))}
             </div>
-            {/* Sohbet */}
+            {/* Chat */}
             {p.feed.length === 0
                 ? <div className="flex-1 flex items-center justify-center">
                     <div className="text-[11px] font-bold uppercase opacity-30">{p.t.emptyDash}</div>

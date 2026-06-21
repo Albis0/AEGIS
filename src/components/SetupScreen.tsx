@@ -1,4 +1,4 @@
-// AEGIS — Kurulum (API anahtarları) ekranı — Faz 64 yeni tasarım
+// AEGIS — Setup (API keys) screen — Phase 64 new design
 import {useState} from "react";
 import {Shell, Body, Heading, Field, PrimaryButton, ErrorBox, LinkButton, C, ac, muted} from "./onboarding/ui";
 
@@ -11,8 +11,8 @@ interface Fields {
 }
 
 interface SetupProps {
-    // Onboarding akışından çağrıldığında: kaydet sonrası akışı devam ettirir.
-    // Verilmezse eski davranış (setupSave + uygulama başlat) korunur.
+    // When called from the onboarding flow: continues the flow after saving.
+    // If not provided, the old behavior (setupSave + start app) is preserved.
     onComplete?: () => void;
     onBack?: () => void;
     step?: number;
@@ -35,7 +35,7 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
 
     async function handleSave() {
         if (!fields.groqApiKey.trim()) { setError("Groq API anahtarı zorunlu."); return; }
-        // Supabase opsiyonel (Faz 30): girilirse session/mesaj geçmişi cloud'a kaydedilir.
+        // Supabase optional (Phase 30): if provided, session/message history is saved to the cloud.
         const sbUrl = fields.supabaseUrl.trim();
         const sbKey = fields.supabaseServiceKey.trim();
         if ((sbUrl && !sbKey) || (!sbUrl && sbKey)) {
@@ -67,7 +67,7 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
                     subtitle="API anahtarlarını gir. Ayarlar cihazında ~/.aegis/config.json'a kaydedilir."
                 />
 
-                {/* Zorunlu: Groq */}
+                {/* Required: Groq */}
                 <Field
                     label="Groq API anahtarı"
                     required
@@ -78,7 +78,7 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
                     hint="console.groq.com → API Keys → Create (ücretsiz)"
                 />
 
-                {/* Gelişmiş (Supabase + web arama) — varsayılan kapalı, akordeon */}
+                {/* Advanced (Supabase + web search) — collapsed by default, accordion */}
                 <div className="rounded-2xl border" style={{borderColor: `rgba(${C.line},0.14)`, background: "rgba(255,255,255,0.015)"}}>
                     <button
                         onClick={() => setShowAdvanced((v) => !v)}

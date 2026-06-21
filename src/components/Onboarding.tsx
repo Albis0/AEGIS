@@ -1,7 +1,7 @@
-// AEGIS — Onboarding akışı (Faz 30.4 + 30.8 çok dilli, Faz 64 yeni tasarım)
-// İlk açılış state machine'i:
-//   lang-select → mode-select → (trial: auth zorunlu) | (own: setup + opsiyonel auth) → spotify-connect
-// Bitince main process'e "onboarding tamam" bildirir ve uygulama başlar.
+// AEGIS — Onboarding flow (Phase 30.4 + 30.8 multilingual, Phase 64 new design)
+// First-launch state machine:
+//   lang-select → mode-select → (trial: auth required) | (own: setup + optional auth) → spotify-connect
+// On completion, notifies the main process that "onboarding is done" and the app starts.
 
 import {useState} from "react";
 import ModeSelectScreen from "./ModeSelectScreen";
@@ -14,13 +14,13 @@ type Step = "lang" | "mode" | "trial-auth" | "own-setup" | "own-auth" | "spotify
 
 const LANGS: Lang[] = ["tr", "en", "de", "fr", "es"];
 
-// Adım göstergesi için 0-indexli konum (akışa göre yaklaşık konum)
+// 0-indexed position for the step indicator (approximate position based on flow)
 const STEP_INDEX: Record<Step, number> = {
     lang: 0, mode: 1, "trial-auth": 2, "own-setup": 2, "own-auth": 3, "spotify-connect": 3,
 };
 const TOTAL_STEPS = 4;
 
-// Her dil için bayrak emoji + yerel ad
+// Flag emoji + native name for each language
 const LANG_FLAG: Record<Lang, string> = {tr: "🇹🇷", en: "🇬🇧", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸"};
 
 export default function Onboarding() {
@@ -95,7 +95,7 @@ export default function Onboarding() {
     return <SpotifyConnectScreen lang={lang} step={STEP_INDEX["spotify-connect"]} totalSteps={TOTAL_STEPS} onDone={finishOnboarding} />;
 }
 
-// ── Dil seçimi ───────────────────────────────────────────────────────────────
+// ── Language selection ────────────────────────────────────────────────────────
 function LangSelect({lang, onHover, onSelect}: {lang: Lang; onHover: (l: Lang) => void; onSelect: (l: Lang) => void}) {
     return (
         <Shell step={0} totalSteps={TOTAL_STEPS}>
@@ -127,7 +127,7 @@ function LangSelect({lang, onHover, onSelect}: {lang: Lang; onHover: (l: Lang) =
     );
 }
 
-// ── Spotify bağlama ──────────────────────────────────────────────────────────
+// ── Spotify connect ───────────────────────────────────────────────────────────
 const SPOTIFY_LABELS: Record<Lang, {title: string; desc: string; connect: string; skip: string; connecting: string; done: string; note: string}> = {
     tr: {title: "Spotify Bağla", desc: "Müzik kontrolü için Spotify hesabını bağlayabilirsin. İstersen şimdi atla, ayarlardan sonra da bağlayabilirsin.", connect: "Spotify'ı Bağla", skip: "Şimdilik atla", connecting: "Tarayıcı açılıyor…", done: "Bağlandı — Devam et", note: "Bağlantı için tarayıcı açılacak, giriş yaptıktan sonra buraya dön."},
     en: {title: "Connect Spotify", desc: "Connect your Spotify account for music control. You can skip now and connect later in settings.", connect: "Connect Spotify", skip: "Skip for now", connecting: "Opening browser…", done: "Connected — Continue", note: "A browser will open for authorization. Return here after signing in."},
@@ -154,7 +154,7 @@ function SpotifyConnectScreen({lang, step, totalSteps, onDone}: {lang: Lang; ste
         <Shell step={step} totalSteps={totalSteps}>
             <Body>
                 <div className="flex flex-col items-center text-center gap-5">
-                    {/* Spotify ikonu — yumuşak yeşil halka */}
+                    {/* Spotify icon — soft green ring */}
                     <div
                         className="w-16 h-16 rounded-2xl grid place-items-center transition-all duration-300"
                         style={{
@@ -162,7 +162,7 @@ function SpotifyConnectScreen({lang, step, totalSteps, onDone}: {lang: Lang; ste
                             border: `1px solid ${status === "done" ? "rgba(34,197,94,0.4)" : `rgba(${C.line},0.16)`}`,
                         }}
                     >
-                        {/* Resmi Spotify logosu — dolu yeşil daire + 3 dalga (simetrik, ortalı) */}
+                        {/* Official Spotify logo — solid green circle + 3 waves (symmetric, centered) */}
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="rgb(34,197,94)" aria-hidden>
                             <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.871 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.224-2.723a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.232 1.329a.78.78 0 0 1 .257 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.618-1.156a.935.935 0 1 1-.542-1.79c3.532-1.072 9.404-.865 13.115 1.337a.936.936 0 0 1-.955 1.609Z" />
                         </svg>

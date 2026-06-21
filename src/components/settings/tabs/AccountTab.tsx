@@ -53,12 +53,12 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
                     value={loading ? "…" : user?.email ?? s.accSignInHint} />
             </div>
 
-            {/* ── Giriş yapılmamışsa inline auth formu ── */}
+            {/* ── Inline auth form if not signed in ── */}
             {!loading && !user && (
                 <InlineAuth accent={accent} ac={ac} s={s} onAuthed={handleAuthed} />
             )}
 
-            {/* ── Kota (trial + giriş yapılmışsa) ── */}
+            {/* ── Quota (trial + signed in) ── */}
             {isTrial && (
                 <>
                     <SectionLabel label={s.accQuota} accent={accent} />
@@ -76,7 +76,7 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
                 </>
             )}
 
-            {/* ── Cloud sync (giriş yapılmışsa) ── */}
+            {/* ── Cloud sync (signed in) ── */}
             {user && (
                 <>
                     <SectionLabel label={s.accSync} accent={accent} />
@@ -103,7 +103,7 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
                 </>
             )}
 
-            {/* ── Çıkış yap ── */}
+            {/* ── Sign out ── */}
             {user && (
                 <button
                     onClick={handleSignOut}
@@ -114,7 +114,7 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
                 </button>
             )}
 
-            {/* ── Onboarding yeniden başlat ── */}
+            {/* ── Restart onboarding ── */}
             <div>
                 <SectionLabel label={s.accRestartOnboarding.toUpperCase()} accent={accent} />
                 <div className="rounded-xl p-4 space-y-3" style={card}>

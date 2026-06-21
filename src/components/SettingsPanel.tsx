@@ -86,9 +86,9 @@ export default function SettingsPanel({
 
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center">
-            {/* Bulanık zemin AYRI katman — panel içeriğinin atası DEĞİL. backdrop-filter
-               uygulanan elemanın içindeki yazı subpixel-AA'i kaybedip bulanıklaşır; bu yüzden
-               blur'u sadece bu arka katmana koyuyoruz, metin net kalsın. */}
+            {/* Blurred backdrop is a SEPARATE layer — NOT an ancestor of the panel content.
+               Text inside an element with backdrop-filter applied loses subpixel-AA and
+               blurs; so we only put the blur on this background layer, keeping text crisp. */}
             <div className="absolute inset-0" onClick={onClose}
                 style={{background: "rgba(2,4,10,0.88)", backdropFilter: "blur(12px) saturate(0.7)"}} />
             <div

@@ -60,7 +60,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
             setExportDone(true);
             setTimeout(() => setExportDone(false), 2000);
         } catch {
-            // telemetryGet henüz yoksa sessizce geç
+            // silently skip if telemetryGet doesn't exist yet
         }
     }
 

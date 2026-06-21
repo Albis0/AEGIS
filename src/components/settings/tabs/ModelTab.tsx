@@ -23,13 +23,13 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
     const needsKey = provider !== "groq" && provider !== "ollama";
     const currentKey = settings.providerKeys?.[provider] ?? "";
 
-    // Canlı model listesi — provider'ın resmi endpoint'inden. Boş/hata olursa
-    // hardcoded liste fallback (uydurma ID sorununu çözer, liste eskimsez).
+    // Live model list — from the provider's official endpoint. On empty/error,
+    // falls back to the hardcoded list (solves the made-up ID problem, list won't go stale).
     const fallback = PROVIDER_MODELS[provider] ?? [];
     const [liveModels, setLiveModels] = useState<DisplayModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
 
-    // Seçili modelin yetenekleri — backend'deki tek doğruluk kaynağından (model-capabilities).
+    // Selected model's capabilities — from the single source of truth in the backend (model-capabilities).
     const [caps, setCaps] = useState<ModelCaps | null>(null);
     useEffect(() => {
         let cancelled = false;
@@ -50,7 +50,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                 if (cancelled) return;
                 const models = list.map((m) => ({id: m.id, label: m.label ?? m.id}));
                 setLiveModels(models);
-                // Seçili model canlı listede yoksa (uydurma/ölü ID) → listenin ilkine geç.
+                // If the selected model isn't in the live list (made-up/dead ID) → switch to the first one in the list.
                 if (models.length > 0 && !models.some((m) => m.id === settings.model)) {
                     onApply({model: models[0].id});
                 }
@@ -61,7 +61,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [provider, currentKey]);
 
-    // Canlı liste varsa onu, yoksa hardcoded fallback'i göster.
+    // Show the live list if available, otherwise the hardcoded fallback.
     const modelList: DisplayModel[] = liveModels.length > 0
         ? liveModels
         : fallback.map((m) => ({id: m.id, label: m.label, tag: m.tag, ctx: m.ctx, note: m.note}));
@@ -208,7 +208,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                 </div>
             )}
 
-            {/* Model yetenekleri — seçili model ne yapabilir? */}
+            {/* Model capabilities — what can the selected model do? */}
             {caps && (
                 <div>
                     <SectionLabel label={s.mdCaps} accent={accent} />
@@ -343,9 +343,9 @@ function fmtTok(n: number): string {
     return `${n}`;
 }
 
-// Seçili modelin yeteneklerini rozet olarak gösterir. Yeşil = destekliyor,
-// soluk/kırmızı = desteklemiyor. Kullanıcı modelin sınırlarını net görür.
-// Çizgi (stroke) ikonlar — currentColor ile rozetin rengini alır. Emoji yok.
+// Shows the selected model's capabilities as badges. Green = supported,
+// dim/red = not supported. The user clearly sees the model's limits.
+// Stroke (line) icons — they take the badge's color via currentColor. No emoji.
 const svgProps = {width: 16, height: 16, viewBox: "0 0 24 24", fill: "none",
     stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
     shapeRendering: "geometricPrecision" as const, style: {display: "block"} as const};
@@ -358,7 +358,7 @@ const IconCross = () => (<svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" 
 function CapsBadges({caps, accent, ac, s}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
     const yes = "74,222,128", no = "248,113,113", purp = "192,132,252";
 
-    // Destekleniyor/desteklenmiyor büyük rozet
+    // Large supported/not-supported badge
     const Cap = ({on, label, icon}: {on: boolean; label: string; icon: React.ReactNode}) => {
         const col = on ? `rgb(${yes})` : `rgb(${no})`;
         return (
@@ -374,7 +374,7 @@ function CapsBadges({caps, accent, ac, s}: {caps: ModelCaps; accent: string; ac:
         );
     };
 
-    // Sayısal istatistik kutusu (bağlam / çıktı)
+    // Numeric stat box (context / output)
     const Stat = ({label, value, sub}: {label: string; value: string; sub: string}) => (
         <div className="flex flex-col gap-0.5 px-3.5 py-2.5 rounded-xl"
             style={{background: `rgba(${accent},0.07)`, border: `1px solid rgba(${accent},0.16)`}}>

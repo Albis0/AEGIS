@@ -1,5 +1,5 @@
-// AEGIS — Kimlik Ekranı (Faz 30.4, 30.8 çok dilli, Faz 64 yeni tasarım)
-// Email/şifre ile kayıt + giriş. Deneme modunda zorunlu, gelişmiş modda "Atla" var.
+// AEGIS — Auth Screen (Phase 30.4, 30.8 multilingual, Phase 64 new design)
+// Email/password sign-up + sign-in. Mandatory in trial mode, "Skip" available in advanced mode.
 
 import {useState} from "react";
 import type {OnboardingStrings} from "../i18n";
@@ -9,7 +9,7 @@ interface Props {
     t: OnboardingStrings;
     step?: number;
     totalSteps?: number;
-    // optional: gelişmiş modda "Atla" gösterilir; zorunlu (deneme) modda gizli
+    // optional: "Skip" is shown in advanced mode; hidden in mandatory (trial) mode
     onAuthed: () => void;
     onSkip?: () => void;
     onBack?: () => void;

@@ -1,4 +1,4 @@
-// AEGIS — Mod Seçim Ekranı (Faz 30.4, 30.8 çok dilli, Faz 64 yeni tasarım)
+// AEGIS — Mode Selection Screen (Phase 30.4, 30.8 multilingual, Phase 64 new design)
 
 import type {OnboardingStrings} from "../i18n";
 import {Shell, Body, Heading, C, ac, muted, LinkButton} from "./onboarding/ui";
@@ -18,7 +18,7 @@ export default function ModeSelectScreen({t, step, totalSteps, onSelect, onBack}
                 <Heading title={t.welcome} subtitle={t.welcomeSub} />
 
                 <div className="flex flex-col gap-3.5">
-                    {/* Gelişmiş Kurulum — önerilen (kendi API key'in, sınırsız) */}
+                    {/* Advanced Setup — recommended (your own API key, unlimited) */}
                     <ModeCard
                         recommended={t.recommended}
                         title={t.advanced}
@@ -31,7 +31,7 @@ export default function ModeSelectScreen({t, step, totalSteps, onSelect, onBack}
                             </>
                         }
                     />
-                    {/* Hızlı Başlangıç */}
+                    {/* Quick Start */}
                     <ModeCard
                         title={t.quickStart}
                         desc={t.quickStartDesc}

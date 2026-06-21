@@ -1,9 +1,9 @@
 import {useState, useEffect, useCallback, useRef} from "react";
 
-// Faz 63.3 — Akıllı Ev widget'ı.
-// smart_home_devices çıktısını parse edip cihaz sayısı + açık ışık sayısını gösterir,
-// hızlı "tümünü aç / kapat" butonları sunar. Home Assistant yapılandırılmamışsa
-// (HA_NOT_CONFIGURED / hata) hiç render etmez — boşluk yapmaz.
+// Phase 63.3 — Smart Home widget.
+// Parses the smart_home_devices output and shows device count + lights-on count,
+// offers quick "turn all on / off" buttons. If Home Assistant is not configured
+// (HA_NOT_CONFIGURED / error), it renders nothing at all — no empty space.
 
 interface HomeState {
     deviceCount: number;
@@ -11,13 +11,13 @@ interface HomeState {
 }
 
 export function parseHome(raw: string): HomeState | null {
-    if (!raw || raw.startsWith("HATA") || raw.includes("yapılandır") ||
-        raw.includes("bağlanılamadı") || raw.includes("kurulu değil") || raw.includes("alınamadı")) return null;
-    const countMatch = raw.match(/cihazları?\s*\((\d+)\)/);
+    if (!raw || raw.startsWith("ERROR") || raw.startsWith("HATA") || raw.includes("not configured") ||
+        raw.includes("yapılandır") || raw.includes("bağlanılamadı") || raw.includes("kurulu değil") || raw.includes("alınamadı")) return null;
+    const countMatch = raw.match(/devices?\s*\((\d+)\)/);
     if (!countMatch) return null;
     const deviceCount = parseInt(countMatch[1]);
-    // "• ad: açık" / "açık (%70)" satırlarını say
-    const lightsOn = (raw.match(/:\s*açık/g) ?? []).length;
+    // Count "• name: on" / "on (70%)" lines
+    const lightsOn = (raw.match(/:\s*on(?:\s|$)/g) ?? []).length;
     return {deviceCount, lightsOn};
 }
 

@@ -19,7 +19,7 @@ function formatSpeed(bps: number) {
     return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
 }
 
-// Module-level: tab unmount olsa bile güncelleme durumu korunur
+// Module-level: update status is preserved even if the tab unmounts
 type UpdateStatus = "idle" | "checking" | "uptodate" | "available" | "downloading" | "ready" | "error";
 type UpdateProgress = {percent: number; transferred: number; total: number; bytesPerSecond: number};
 let _gStatus: UpdateStatus = "idle";
@@ -33,9 +33,10 @@ function ensureGlobalListeners() {
     _gListening = true;
     window.jarvis.on("update-progress", (p: UpdateProgress) => { _gStatus = "downloading"; _gProgress = p; });
     window.jarvis.on("update-downloaded",               ()              => { _gStatus = "ready"; _gProgress = null; });
-    // İndirme sürerken (veya bittikten sonra) gelen "update-available"i yoksay: performDownload
-    // indirmeden önce tekrar checkForUpdates yapıyor, bu da bu event'i yeniden tetikleyip
-    // durumu "downloading"den "available"a geri çeviriyordu (indir butonu geri geliyordu).
+    // Ignore "update-available" events that arrive while downloading (or after it finishes):
+    // performDownload calls checkForUpdates again before downloading, which re-triggers this
+    // event and was flipping the status from "downloading" back to "available" (download
+    // button reappearing).
     window.jarvis.on("update-available",  (info: {version: string})    => { _gLatest = info.version; if (_gStatus !== "downloading" && _gStatus !== "ready") _gStatus = "available"; });
     window.jarvis.on("update-error",      (e: {message: string})       => { _gStatus = "error"; _gError = e?.message ?? "Güncelleme hatası"; _gProgress = null; });
 }
@@ -61,7 +62,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
         });
         const offAvail = window.jarvis.on("update-available", (info: {version: string}) => {
             setLatestVersion(info.version);
-            // İndirme/kurulum sürerken gelen re-check event'i durumu geri çevirmesin.
+            // Don't let a re-check event during download/install flip the status back.
             setStatus((prev) => (prev === "downloading" || prev === "ready" ? prev : "available"));
         });
         const offErr = window.jarvis.on("update-error", (e: {message: string}) => {
@@ -100,7 +101,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
 
     return (
         <div className="space-y-6 max-w-md">
-            {/* Sürüm bilgisi */}
+            {/* Version info */}
             <div className="rounded-xl p-5 space-y-0"
                 style={{background: `rgba(${a},0.04)`, border: `1px solid rgba(${a},0.1)`}}>
                 <div className={row}>
@@ -117,7 +118,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                 </div>
             </div>
 
-            {/* Güncelleme */}
+            {/* Update */}
             <div className="space-y-3">
                 <button
                     onClick={checkUpdates}
@@ -141,7 +142,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                 {(status === "available" || status === "downloading") && latestVersion && (
                     <div className="rounded-xl overflow-hidden"
                         style={{background: `rgba(${a},0.06)`, border: `1px solid rgba(${a},0.2)`}}>
-                        {/* Başlık */}
+                        {/* Title */}
                         <div className="flex items-center justify-between px-4 py-2.5 text-[12px]" style={{color: ac}}>
                             <span>v{latestVersion} mevcut{status === "downloading" ? " — indiriliyor…" : ""}</span>
                             {status === "available" && (
@@ -203,7 +204,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                 )}
             </div>
 
-            {/* Yama notları / Patch notes — aktif dile göre */}
+            {/* Patch notes — based on the active language */}
             <div className="space-y-3">
                 <div className="text-[11px] tracking-widest uppercase" style={{color: `rgba(${a},0.45)`}}>
                     {s.aboutChangelog}

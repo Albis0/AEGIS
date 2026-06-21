@@ -8,10 +8,11 @@ interface TrackInfo {
     volume: number;   // 0-100, -1 = unknown
 }
 
-// "Oynuyor: Title — Artist (Album) [0:32/3:21] {vol:72}" formatını parse et
+// Parse the "Playing: Title — Artist (Album) [0:32/3:21] {vol:72}" format
 function parseTrack(raw: string): TrackInfo | null {
-    if (!raw || raw.includes("hiçbir şey çalmıyor") || raw.includes("bağlı değil")) return null;
-    const isPlaying = raw.startsWith("Oynuyor");
+    if (!raw || raw.includes("Nothing is playing") || raw.includes("not connected") ||
+        raw.includes("hiçbir şey çalmıyor") || raw.includes("bağlı değil")) return null;
+    const isPlaying = raw.startsWith("Playing") || raw.startsWith("Oynuyor");
     const colonIdx = raw.indexOf(": ");
     if (colonIdx === -1) return null;
     const rest = raw.slice(colonIdx + 2);

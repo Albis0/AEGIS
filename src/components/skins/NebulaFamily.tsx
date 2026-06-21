@@ -1,8 +1,9 @@
-﻿// AEGIS — "Nebula" skin ailesi (4 ferdi: Aura / Chat / Board / Zen)
+﻿// AEGIS — "Nebula" skin family (4 members: Aura / Chat / Board / Zen)
 // =============================================================================
-// Cyber/HUD ailesinden bambaşka bir tasarım dili: yumuşak, yuvarlak (rounded-3xl),
-// gradient-glow, bubble-sohbet, köşesiz. Aynı SkinProps'u tüketir. 4 skin ortak
-// NebFeed + NebInput parçalarını paylaşır, sadece DIŞ layout/chrome farklıdır.
+// A design language entirely different from the Cyber/HUD family: soft, rounded
+// (rounded-3xl), gradient-glow, chat bubbles, no sharp corners. Consumes the same
+// SkinProps. All 4 skins share the common NebFeed + NebInput parts, only the
+// OUTER layout/chrome differs.
 
 import React, {useState, useEffect} from "react";
 import type {SkinProps} from "./HologramSkin";
@@ -12,7 +13,7 @@ import VoiceModeToggle from "../VoiceModeToggle";
 import {toolLabel as TOOL_VERB_fn} from "./toolLabels";
 const TOOL_VERB = (name: string, t: SkinProps["t"]) => TOOL_VERB_fn(name, t);
 
-// Yumuşak gradient zemin — ailenin imzası.
+// Soft gradient background — the family's signature.
 const nebulaBg: React.CSSProperties = {
     background:
         "radial-gradient(120% 80% at 50% -10%, rgba(var(--hud),0.10), transparent 60%)," +
@@ -23,7 +24,7 @@ const nebulaBg: React.CSSProperties = {
     WebkitFontSmoothing: "antialiased",
 };
 
-// ───────── Ortak: bubble feed ─────────
+// ───────── Shared: bubble feed ─────────
 function NebFeed({feed, streaming, t, feedRef, center}: Pick<SkinProps, "feed" | "streaming" | "t" | "feedRef"> & {center?: boolean}) {
     return (
         <div ref={feedRef} className={`flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 ${center ? "max-w-2xl w-full mx-auto" : ""}`}>
@@ -75,7 +76,7 @@ function NebFeed({feed, streaming, t, feedRef, center}: Pick<SkinProps, "feed" |
     );
 }
 
-// ───────── Ortak: yuvarlak input dock ─────────
+// ───────── Shared: rounded input dock ─────────
 function NebInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t, glass}: Pick<SkinProps,
     "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "onNavigateHistory" | "mode" | "setMode" | "listening" | "activated" | "t"> & {glass?: boolean}) {
     return (
@@ -130,7 +131,7 @@ function NebInput({input, setInput, attachments, setAttachments, state, streamin
     );
 }
 
-// Üst bar (ortak)
+// Top bar (shared)
 function NebBar({label, t, onSettingsOpen, onHistoryOpen, status}: {label: string; t: SkinProps["t"]; onSettingsOpen: () => void; onHistoryOpen?: () => void; status?: string}) {
     return (
         <div className="drag shrink-0 h-12 flex items-center justify-between px-5">
@@ -152,7 +153,7 @@ const stWord = (state: string, t: SkinProps["t"]) =>
     state === "thinking" ? t.stProc : state === "speaking" ? t.stResp : state === "listening" ? t.stListen : state === "error" ? t.stErr : t.stReady;
 
 // ───────────────────────────── 1) Nebula · Aura ─────────────────────────────
-// Ortada nefes alan gradient küre + altında yüzen sohbet kartı.
+// A breathing gradient orb in the center + a floating chat card below.
 export function NebulaAura(p: SkinProps) {
     const pulsing = p.state !== "idle";
     return (
@@ -175,7 +176,7 @@ export function NebulaAura(p: SkinProps) {
 }
 
 // ───────────────────────────── 2) Nebula · Chat ─────────────────────────────
-// Tam ekran modern mesajlaşma görünümü.
+// A full-screen modern messaging view.
 export function NebulaChat(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={nebulaBg as React.CSSProperties}>
@@ -189,7 +190,7 @@ export function NebulaChat(p: SkinProps) {
 }
 
 // ───────────────────────────── 3) Nebula · Board ────────────────────────────
-// Üstte yuvarlak istatistik kartları + altında sohbet.
+// Rounded stat cards on top + chat below.
 export function NebulaBoard(p: SkinProps) {
     const {tel, weather} = p;
     const Card = ({label, value, sub}: {label: string; value: React.ReactNode; sub?: string}) => (
@@ -219,7 +220,7 @@ export function NebulaBoard(p: SkinProps) {
 }
 
 // ───────────────────────────── 4) Nebula · Zen ──────────────────────────────
-// Ultra-minimal: bol boşluk, sadece son mesajlar + büyük input.
+// Ultra-minimal: plenty of whitespace, just the latest messages + a large input.
 export function NebulaZen(p: SkinProps) {
     return (
         <div className="h-screen w-screen flex flex-col" style={nebulaBg as React.CSSProperties}>

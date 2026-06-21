@@ -1,9 +1,9 @@
 import {useState, useEffect, useCallback} from "react";
 
-// Faz 63.6 — Hafıza & Gerçekler modal'ı.
-// AEGIS'in öğrendiği kalıcı gerçekleri (Faz 16 + 57) görsel olarak gösterir:
-// listeleme (list_facts), anlamca arama (search_memory), silme (forget_fact).
-// Tüm veri mevcut tool'lardan runTool ile gelir — yeni IPC/şema yok.
+// Phase 63.6 — Memory & Facts modal.
+// Visually displays the persistent facts AEGIS has learned (Phase 16 + 57):
+// listing (list_facts), semantic search (search_memory), deletion (forget_fact).
+// All data comes from existing tools via runTool — no new IPC/schema.
 
 export interface Fact {
     id: string;
@@ -11,9 +11,9 @@ export interface Fact {
     tags: string[];
 }
 
-// "• [abc] içerik (tag1, tag2)" satırlarını parse et.
+// Parse lines like "• [abc] content (tag1, tag2)".
 export function parseFacts(raw: string): Fact[] {
-    if (!raw || raw.includes("Kayıtlı gerçek yok")) return [];
+    if (!raw || raw.includes("No saved facts") || raw.includes("Kayıtlı gerçek yok")) return [];
     return raw.split("\n").map((line) => {
         const m = line.match(/^•\s*\[([^\]]+)\]\s*(.+?)(?:\s*\(([^)]*)\))?\s*$/);
         if (!m) return null;
@@ -39,7 +39,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
 
     useEffect(() => { if (open) { load(); setQuery(""); setSearchResult(null); } }, [open, load]);
 
-    // Esc ile kapat
+    // Close with Esc
     useEffect(() => {
         if (!open) return;
         const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -72,7 +72,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
                 style={{background: "var(--bg-deep, #060a12)", border: `1px solid rgba(${accent},0.3)`, boxShadow: `0 0 40px rgba(${accent},0.15)`}}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Başlık */}
+                {/* Header */}
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{borderBottom: `1px solid rgba(${accent},0.15)`}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3v1a3 3 0 0 0 6 0v-1a3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3V5a3 3 0 0 0-3-3Z"/>
@@ -83,7 +83,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
                     </button>
                 </div>
 
-                {/* Arama */}
+                {/* Search */}
                 <div className="px-5 pt-3.5 pb-2">
                     <div className="flex gap-2">
                         <input
@@ -108,7 +108,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
                     )}
                 </div>
 
-                {/* Liste */}
+                {/* List */}
                 <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-1.5">
                     <div className="text-[9px] tracking-[0.2em] py-1 sticky top-0" style={{color: `rgba(${accent},0.45)`, background: "var(--bg-deep, #060a12)"}}>
                         TÜM GERÇEKLER · {facts.length}

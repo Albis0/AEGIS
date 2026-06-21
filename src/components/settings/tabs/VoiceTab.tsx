@@ -74,7 +74,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
         setKokoroRemoving(true);
         try {
             const res = await window.jarvis.kokoroUninstall();
-            // Sahte değişiklik yapma — main process'in DİSKTEN doğruladığı gerçek durumu yansıt.
+            // Don't fake the change — reflect the real state the main process verified FROM DISK.
             const stillInstalled = res?.installed === true;
             setKokoroInstalled(stillInstalled);
             if (stillInstalled) {
@@ -84,7 +84,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
             }
         } catch (e) {
             setKokoroProg({phase: "error", percent: 0, label: "Silme hatası: " + String(e)});
-            // gerçek durumu yeniden sorgula
+            // re-query the real state
             window.jarvis.ttsKokoroInstalled().then(setKokoroInstalled).catch(() => {});
         }
         finally { setKokoroRemoving(false); }
@@ -191,7 +191,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                 </div>
             </div>
 
-            {/* Kokoro kurulu — bilgi + sil */}
+            {/* Kokoro installed — info + delete */}
             {settings.ttsProvider === "kokoro" && kokoroInstalled === true && (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl border"
                     style={{borderColor: `rgba(${accent},0.2)`, background: `rgba(${accent},0.04)`}}>
@@ -217,12 +217,12 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                 </div>
             )}
 
-            {/* Kokoro kurulu değil — indirme paneli */}
+            {/* Kokoro not installed — download panel */}
             {settings.ttsProvider === "kokoro" && kokoroInstalled === false && (
                 <div className="rounded-xl border overflow-hidden"
                     style={{borderColor: `rgba(${accent},0.25)`, background: `rgba(${accent},0.05)`}}>
 
-                    {/* Başlık satırı */}
+                    {/* Title row */}
                     <div className="flex items-center gap-3 px-4 py-3">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={ac} strokeWidth="2"
                             strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -251,7 +251,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         )}
                     </div>
 
-                    {/* Progress bar — kurulum/indirme sırasında */}
+                    {/* Progress bar — during install/download */}
                     {(kokoroProg.phase === "pkg" || kokoroProg.phase === "model") && (
                         <div className="px-4 pb-3 space-y-1.5">
                             <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         </div>
                     )}
 
-                    {/* Hata mesajı */}
+                    {/* Error message */}
                     {kokoroProg.phase === "error" && (
                         <div className="px-4 pb-3 text-[10px]" style={{color: "rgba(239,68,68,0.8)"}}>
                             {kokoroProg.label}

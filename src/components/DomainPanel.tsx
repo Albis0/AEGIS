@@ -1,14 +1,14 @@
 import {useState, useEffect, useCallback, type ReactNode} from "react";
 
-// Faz 63 — Sekmeli Domain Paneli (Komut Merkezi).
-// Tek modal altında, görsel yüzü olmayan domain'leri toplar. Her sekme mevcut
-// list-tool'unu runTool ile çağırır, çıktıyı okunur şekilde gösterir + ilgili
-// satır aksiyonu (sil/aç-kapat). Çoğu tool zaten okunur metin döndürdüğü için
-// kırılgan parse yerine "ham bloklar" gösterilir (parse hatası riski yok).
+// Phase 63 — Tabbed Domain Panel (Command Center).
+// Gathers domains without a visual surface under a single modal. Each tab calls
+// the relevant list-tool via runTool, shows the output in readable form + a
+// row-level action (delete/toggle). Since most tools already return readable
+// text, "raw blocks" are shown instead of fragile parsing (no parse-error risk).
 //
-// Kapsadığı ROADMAP maddeleri:
-//   63.5 Görevler & Hatırlatıcılar   63.7 Bilgi Tabanı / RAG   63.8 Öğrenme
-//   63.9 Plugin Marketplace          63.10 Otomasyon/Makro/Routine  63.11 Persona
+// ROADMAP items covered:
+//   63.5 Tasks & Reminders   63.7 Knowledge Base / RAG   63.8 Learning
+//   63.9 Plugin Marketplace  63.10 Automation/Macro/Routine  63.11 Persona
 
 type TabId = "tasks" | "knowledge" | "automation" | "learning" | "persona" | "plugins";
 
@@ -16,13 +16,13 @@ interface TabDef {
     id: TabId;
     label: string;
     icon: ReactNode;
-    // çıktıyı çeken tool(lar) — birden fazlaysa başlıklı bloklar
+    // tool(s) that fetch the output — titled blocks if more than one
     sources: {title?: string; tool: string; args?: Record<string, unknown>}[];
-    // boş durum mesajı
+    // empty state message
     empty: string;
-    // opsiyonel: bir satırdan silinecek/aksiyon alınacak öğeyi tanı (regex grup 1 = anahtar)
+    // optional: identify the item to delete/act on from a row (regex group 1 = key)
     action?: {label: string; tool: string; argKey: string; match: RegExp; danger?: boolean};
-    // opsiyonel arama tool'u
+    // optional search tool
     search?: {tool: string; placeholder: string};
 }
 
@@ -129,11 +129,11 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
     if (!open) return null;
     const ac = `rgb(${accent})`;
 
-    // Bir blok metnini satırlara böl; boş ve ayraç satırlarını ele.
+    // Split a block of text into lines; handle empty and separator lines.
     const renderBlock = (text: string, withAction: boolean) => {
-        const empty = !text || /yok\.|bulunamadı|Henüz/i.test(text) && text.length < 60;
+        const empty = !text || /^no |not found|yok\.|bulunamadı|Henüz/i.test(text) && text.length < 60;
         if (empty) return <div className="text-[11px] py-2" style={{color: `rgba(${accent},0.4)`}}>{text || def.empty}</div>;
-        // Çok-satırlı bloklar (görev kayıtları boş satırla ayrılır)
+        // Multi-line blocks (task records are separated by a blank line)
         const items = text.split(/\n\s*\n/).filter((s) => s.trim());
         return (
             <div className="space-y-1.5">
@@ -160,7 +160,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
             <div className="w-full max-w-2xl h-[80vh] rounded-2xl flex flex-col overflow-hidden"
                 style={{background: "var(--bg-deep, #060a12)", border: `1px solid rgba(${accent},0.3)`, boxShadow: `0 0 40px rgba(${accent},0.15)`}}
                 onClick={(e) => e.stopPropagation()}>
-                {/* Başlık */}
+                {/* Title */}
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{borderBottom: `1px solid rgba(${accent},0.15)`}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
                     <span className="text-[13px] font-semibold tracking-wide" style={{color: ac}}>KOMUT MERKEZİ</span>
@@ -168,7 +168,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>
                     </button>
                 </div>
-                {/* Sekmeler */}
+                {/* Tabs */}
                 <div className="flex gap-1 px-3 py-2 overflow-x-auto" style={{borderBottom: `1px solid rgba(${accent},0.1)`}}>
                     {TABS.map((tb) => (
                         <button key={tb.id} onClick={() => setTab(tb.id)}
@@ -182,7 +182,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
                         </button>
                     ))}
                 </div>
-                {/* Arama (varsa) */}
+                {/* Search (if present) */}
                 {def.search && (
                     <div className="px-5 pt-3 pb-1">
                         <div className="flex gap-2">
@@ -200,7 +200,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
                         )}
                     </div>
                 )}
-                {/* İçerik */}
+                {/* Content */}
                 <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
                     {loading ? (
                         <div className="text-[11px] py-6 text-center" style={{color: `rgba(${accent},0.4)`}}>Yükleniyor…</div>

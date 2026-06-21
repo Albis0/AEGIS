@@ -1,17 +1,18 @@
 import {useState, useEffect, useCallback, useRef} from "react";
 
-// Faz 63.2 — Steam / çalışan oyun widget'ı.
-// "Çalışan oyun(lar): X, Y" çıktısını parse edip canlı bir kart gösterir.
-// Hiç oyun çalışmıyorsa render etmez (Spotify widget'ı gibi — boşluk yapmaz).
+// Phase 63.2 — Steam / running game widget.
+// Parses the "Running game(s): X, Y" output and shows a live card.
+// Renders nothing if no game is running (like the Spotify widget — no empty space).
 
 export function parseRunning(raw: string): string[] {
-    if (!raw || raw.includes("çalışan Steam oyunu yok") || raw.startsWith("HATA")) return [];
+    if (!raw || raw.includes("No Steam game is currently running") || raw.includes("çalışan Steam oyunu yok") ||
+        raw.startsWith("ERROR") || raw.startsWith("HATA")) return [];
     const idx = raw.indexOf(": ");
     if (idx === -1) return [];
     return raw.slice(idx + 2).split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-// "ProcessName.exe" / "hl2" → okunur ada çevir (uzantı/alt çizgi temizle, baş harf büyüt).
+// "ProcessName.exe" / "hl2" → convert to a readable name (strip extension/underscores, capitalize).
 export function prettyName(proc: string): string {
     const base = proc.replace(/\.exe$/i, "").replace(/[_-]+/g, " ").trim();
     return base.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -34,7 +35,7 @@ export default function SteamWidget() {
     useEffect(() => {
         mounted.current = true;
         refresh();
-        const id = setInterval(refresh, 8000); // oyun durumu yavaş değişir
+        const id = setInterval(refresh, 8000); // game status changes slowly
         return () => { mounted.current = false; clearInterval(id); };
     }, [refresh]);
 
@@ -57,7 +58,7 @@ export default function SteamWidget() {
             style={{border: "1px solid rgba(var(--hud),0.2)", background: "rgba(var(--hud),0.07)"}}
         >
             <div className="flex items-center gap-1.5 mb-1.5">
-                {/* Steam logosu yerine generic oyun-pad SVG (line-icon, currentColor) */}
+                {/* Generic game-pad SVG instead of the Steam logo (line-icon, currentColor) */}
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{color: "rgb(var(--hud))", flexShrink: 0}}>
                     <path d="M7 6h10a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4 3 3 0 0 1-2.4-1.2L13 19h-2l-1.6-2.2A3 3 0 0 1 7 18a4 4 0 0 1-4-4v-4a4 4 0 0 1 4-4Zm1 4H6.5v1.5H5V13h1.5v1.5H8V13h1.5v-1.5H8V10Zm8.5 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-2 2.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/>
                 </svg>

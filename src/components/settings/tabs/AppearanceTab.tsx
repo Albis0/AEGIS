@@ -65,18 +65,18 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
         onFontChange(fam.font as AppSettings["font"]);
     }
 
-    // Seçili skin hangi aileye ait?
+    // Which family does the selected skin belong to?
     const activeFamilyId = SKIN_FAMILIES.find((f) => f.skins.some((sk) => sk.id === settings.skin))?.id ?? "aegis";
     const [expandedFamily, setExpandedFamily] = useState<string>(activeFamilyId);
 
     return (
         <div className="space-y-6">
 
-            {/* ── 1. AİLE + FERDİ: Tek seçim akışı ── */}
+            {/* ── 1. FAMILY + VARIANT: Single selection flow ── */}
             <div>
                 <SectionLabel label={s.apSkin} accent={accent} />
 
-                {/* Aile listesi — yatay chip'ler */}
+                {/* Family list — horizontal chips */}
                 <div className="flex flex-wrap gap-2 mb-3">
                     {SKIN_FAMILIES.map((fam) => {
                         const isExpanded = expandedFamily === fam.id;
@@ -104,7 +104,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                     })}
                 </div>
 
-                {/* Seçili ailenin 4 ferdini göster */}
+                {/* Show the 4 variants of the selected family */}
                 {SKIN_FAMILIES.filter((f) => f.id === expandedFamily).map((fam) => (
                     <div key={fam.id} className="rounded-2xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.12)`, background: `rgba(${accent},0.02)`}}>
                         <div className="px-4 py-2.5 border-b" style={{borderColor: `rgba(${accent},0.08)`}}>
@@ -135,7 +135,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 ))}
             </div>
 
-            {/* ── 2. REAKTÖR TİPİ (sadece Hologram skin'de görünür) ── */}
+            {/* ── 2. REACTOR TYPE (only visible in the Hologram skin) ── */}
             {settings.skin === "hologram" && (
                 <div>
                     <SectionLabel label="Reaktör Tipi" accent={accent} />
@@ -160,7 +160,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             )}
 
-            {/* ── 4. LAYOUT yoğunluk ── */}
+            {/* ── 4. LAYOUT density ── */}
             <div>
                 <SectionLabel label={s.apDensity} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
@@ -181,7 +181,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* ── 5. İNCE AYAR (gizlenebilir) — renk, palet preset, font ── */}
+            {/* ── 5. FINE TUNING (collapsible) — color, palette preset, font ── */}
             <div className="rounded-xl overflow-hidden" style={{border: `1px solid rgba(${accent},0.08)`}}>
                 <button
                     onClick={() => setFineOpen((o) => !o)}
@@ -195,7 +195,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 {fineOpen && (
                     <div className="px-4 pb-4 space-y-5" style={{borderTop: `1px solid rgba(${accent},0.08)`}}>
 
-                        {/* Tema rengi */}
+                        {/* Theme color */}
                         <div className="pt-4">
                             <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>{s.apAccent}</span>
                             <div className="grid grid-cols-6 gap-2.5">
@@ -215,7 +215,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                             </div>
                         </div>
 
-                        {/* Hızlı palet preset */}
+                        {/* Quick palette preset */}
                         <div>
                             <span className="text-[10px] tracking-[0.25em] opacity-40 block mb-2" style={{color: ac}}>{s.apPalette}</span>
                             <div className="grid grid-cols-2 gap-2">
@@ -265,7 +265,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 )}
             </div>
 
-            {/* ── 4. UYGULAMA toggle'ları ── */}
+            {/* ── 4. APPLICATION toggles ── */}
             <div>
                 <SectionLabel label={s.apApp} accent={accent} />
                 <div className="space-y-2">
@@ -294,7 +294,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* ── 5. ÖZEL CSS ── */}
+            {/* ── 5. CUSTOM CSS ── */}
             <div>
                 <SectionLabel label={s.apCustomCss} accent={accent} />
                 <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} />

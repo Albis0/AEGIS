@@ -8,8 +8,8 @@ export function hslToRgbStr(h: number, s: number, l: number): string {
 
 export function applyAccent(rgb: string): void {
     let [r, g, b] = (rgb ?? "").split(",").map((x) => parseInt(x.trim(), 10));
-    // Geçersiz/eksik accent (ilk açılışta settings henüz dönmemiş olabilir) →
-    // sessizce cyan'a düş. Aksi halde --hud "NaN,NaN,NaN" olur ve renkler bozulur.
+    // Invalid/missing accent (settings may not have returned yet on first launch) →
+    // silently fall back to cyan. Otherwise --hud becomes "NaN,NaN,NaN" and colors break.
     if (![r, g, b].every((n) => Number.isFinite(n))) { r = 34; g = 211; b = 238; }
     rgb = `${r}, ${g}, ${b}`;
     const deep = `${Math.round(r * 0.35)}, ${Math.round(g * 0.35)}, ${Math.round(b * 0.35)}`;

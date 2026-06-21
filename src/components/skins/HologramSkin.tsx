@@ -60,8 +60,8 @@ export default function HologramSkin({
     const show = (w: TelemetryWidget) => widgets.includes(w);
 
     const clock = useClock();
-    const [memOpen, setMemOpen] = useState(false);    // Faz 63.6 — hafıza modal'ı
-    const [panelOpen, setPanelOpen] = useState(false); // Faz 63 — komut merkezi paneli
+    const [memOpen, setMemOpen] = useState(false);    // Phase 63.6 — memory modal
+    const [panelOpen, setPanelOpen] = useState(false); // Phase 63 — command center panel
 
     return (
         <div className={`hud backdrop state-${state} relative h-screen w-screen overflow-hidden flex flex-col${compact ? " compact" : ""}`}>
@@ -334,7 +334,7 @@ export default function HologramSkin({
                 </div>
             </div>
 
-            {/* Faz 63 — Hafıza modal'ı + Komut Merkezi paneli (HUD rengiyle çalışır) */}
+            {/* Phase 63 — Memory modal + Command Center panel (works with HUD color) */}
             <MemoryModal open={memOpen} onClose={() => setMemOpen(false)} accent="var(--hud)" />
             <DomainPanel open={panelOpen} onClose={() => setPanelOpen(false)} accent="var(--hud)" />
         </div>

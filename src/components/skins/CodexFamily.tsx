@@ -1,9 +1,9 @@
-﻿// AEGIS — "Codex" skin ailesi (4 ferdi: Doc / Split / Grid / Log)
+﻿// AEGIS — "Codex" skin family (4 variants: Doc / Split / Grid / Log)
 // =============================================================================
-// Tasarım dili: DÜZ / editöryel / brutalist mono. Glow yok, yuvarlaklık yok;
-// keskin dikdörtgenler, görünür çerçeveler, BÜYÜK HARF mini etiketler, monospace,
-// yüksek kontrast — bir kod editörü / teknik döküman havası. HUD (neon) ve Nebula
-// (yumuşak bubble) ailelerinden bilinçli olarak tamamen farklı.
+// Design language: FLAT / editorial / brutalist mono. No glow, no rounding;
+// sharp rectangles, visible borders, UPPERCASE mini labels, monospace,
+// high contrast — a code editor / technical document feel. Deliberately
+// entirely different from the HUD (neon) and Nebula (soft bubble) families.
 
 import React, {useState} from "react";
 import {useClock} from "../../hooks/useClock";
@@ -26,7 +26,7 @@ const lineSoft = "rgba(var(--hud),0.14)";
 const stWord = (state: string, t: SkinProps["t"]) =>
     state === "thinking" ? t.stProc : state === "speaking" ? t.stResp : state === "listening" ? t.stListen : state === "error" ? t.stErr : t.stReady;
 
-// ───────── Ortak: düz/bordürlü feed ─────────
+// ───────── Shared: flat/bordered feed ─────────
 function CdxFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "streaming" | "t" | "feedRef">) {
     return (
         <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2.5 text-[13px]">
@@ -68,7 +68,7 @@ function CdxFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "stream
     );
 }
 
-// ───────── Ortak: düz bordürlü input ─────────
+// ───────── Shared: flat bordered input ─────────
 function CdxInput({input, setInput, attachments, setAttachments, state, streaming, placeholder, onSend, onStop, onNavigateHistory, mode, setMode, listening, activated, t}: Pick<SkinProps,
     "input" | "setInput" | "attachments" | "setAttachments" | "state" | "streaming" | "placeholder" | "onSend" | "onStop" | "onNavigateHistory" | "mode" | "setMode" | "listening" | "activated" | "t">) {
     return (
