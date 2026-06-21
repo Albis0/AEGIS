@@ -51,7 +51,7 @@ import {stmGet} from "./short-term-memory";
 import * as smartHome from "./smart-home";
 import type {HAConfig, Action as SmartHomeAction} from "./smart-home";
 import {discoverAll, getNetworkInfo, formatDevices} from "./local-devices";
-// Tool şemaları (saf veri) ayrı dosyada — burada yalnız import + executor mantığı.
+// Tool schemas (pure data) live in a separate file — only import + executor logic here.
 import {
     toolSchemas, extraSchemas,
     schedulerSchemas, marketplaceSchemas, securitySchemas, memoryPlusSchemas,
@@ -61,14 +61,14 @@ import {
     iotSchemas, smartHomeSchemas, multiModelSchemas, spotifySchemas, steamSchemas,
     computerUseSchemas,
 } from "./tools/schemas";
-// main.ts toolSchemas/extraSchemas'ı "./tools"ten import ediyor → geriye uyumlu re-export.
+// main.ts imports toolSchemas/extraSchemas from "./tools" → re-exported for backward compatibility.
 export {toolSchemas, extraSchemas};
 
 type ToolResult = string;
 
 function resolvePath(p: string): string {
     if (!p) return os.homedir();
-    // Model bazen şema "string" demesine rağmen sayı/obje gönderebilir — stringe zorla.
+    // Model sometimes sends a number/object even though the schema says "string" — coerce to string.
     if (typeof p !== "string") p = String(p);
     if (p === "~" || p.startsWith("~/") || p.startsWith("~\\")) {
         return path.join(os.homedir(), p.slice(1));
@@ -82,23 +82,23 @@ function run(cmd: string, timeoutMs = 30000): Promise<ToolResult> {
             const out = (stdout ?? "").trim();
             const errOut = (stderr ?? "").trim();
             if (err && !out) {
-                resolve(`HATA: ${err.message}${errOut ? "\n" + errOut : ""}`);
+                resolve(`ERROR: ${err.message}${errOut ? "\n" + errOut : ""}`);
             } else {
-                resolve(out || errOut || "(çıktı yok, komut çalıştı)");
+                resolve(out || errOut || "(no output, command ran)");
             }
         });
     });
 }
 
-// Sadece geri alınamaz sistem yıkımı — process öldürme, uygulama kapatma SERBEST
+// Only irreversible system destruction — killing processes / closing apps is FREE
 const SYSTEM_DESTROY_PATTERNS: {pattern: RegExp; reason: string}[] = [
-    {pattern: /Format-Volume/i,         reason: "Disk formatlamak geri alınamaz."},
-    {pattern: /Clear-Disk/i,            reason: "Disk silmek geri alınamaz."},
-    {pattern: /Initialize-Disk/i,       reason: "Disk başlatmak geri alınamaz."},
-    {pattern: /shutdown\s+\/[sr]/i,     reason: "Sistemi kapatmak/yeniden başlatmak."},
-    {pattern: /Restart-Computer/i,      reason: "Sistemi yeniden başlatmak."},
-    {pattern: /Stop-Computer/i,         reason: "Sistemi kapatmak."},
-    {pattern: /Remove-Item.*-Recurse.*[A-Za-z]:\\/i, reason: "Toplu dosya/klasör silmek geri alınamaz."},
+    {pattern: /Format-Volume/i,         reason: "Formatting a disk is irreversible."},
+    {pattern: /Clear-Disk/i,            reason: "Wiping a disk is irreversible."},
+    {pattern: /Initialize-Disk/i,       reason: "Initializing a disk is irreversible."},
+    {pattern: /shutdown\s+\/[sr]/i,     reason: "Shutting down/restarting the system."},
+    {pattern: /Restart-Computer/i,      reason: "Restarting the system."},
+    {pattern: /Stop-Computer/i,         reason: "Shutting down the system."},
+    {pattern: /Remove-Item.*-Recurse.*[A-Za-z]:\\/i, reason: "Bulk file/folder deletion is irreversible."},
 ];
 
 let _quitCallback: (() => void) | null = null;
@@ -145,18 +145,18 @@ const PROVIDER_TOOL_LIMITS: Record<string, number> = {
     ollama:     64,
 };
 
-// Çekirdek tool'lar — yalnızca bir AKSİYON niyeti olduğunda gönderilir.
-// NOT: spotifySchemas burada YOK — TOOL_GROUPS üzerinden gelir. İkiye çıkmasın.
+// Core tools — sent only when there is an ACTION intent.
+// NOTE: spotifySchemas is NOT here — it comes via TOOL_GROUPS. Don't duplicate it.
 const CORE_SCHEMAS = () => [...toolSchemas, ...extraSchemas];
 
-// Faz 55 — Öncelikli çekirdek tool'lar. Bunlar sık kullanılan temel sistem
-// işleridir ve bir domain grubu (ör. Spotify) öne geçip 64-tool limitini
-// doldurduğunda CORE'un kuyruğunda kalıp KIRPILMAMALARI gerekir. getAllToolSchemas
-// bunları grup tool'larından hemen sonra, geri kalan CORE'dan önce yerleştirir.
-// (Eval harness ile bulundu: "sistem sesini 30 yap" → set_volume teklif edilmiyordu.)
-// MİNİMAL tutulur: her ek tool, büyük domain gruplarının (Spotify ~50, Steam ~40)
-// 64-limit içindeki payını kısar → domain tool'u kırpılır. Yalnızca domain'siz
-// günlük mesajlarda kırpıldığı eval ile KANITLANAN temel tool'lar burada.
+// Phase 55 — Priority core tools. These are frequently used basic system
+// jobs and must NOT get TRIMMED when a domain group (e.g. Spotify) jumps ahead
+// and fills the 64-tool limit while staying at the tail of CORE. getAllToolSchemas
+// places these right after the group tools, before the rest of CORE.
+// (Found via eval harness: "set system volume to 30" → set_volume wasn't offered.)
+// Kept MINIMAL: every extra tool here cuts into the share large domain groups
+// (Spotify ~50, Steam ~40) get within the 64-limit → domain tool gets trimmed. Only
+// basic tools PROVEN by eval to get trimmed in domain-less everyday messages are here.
 const PRIORITY_CORE_NAMES = new Set<string>([
     "set_volume", "set_brightness", "remind_in", "fetch_url",
 ]);
@@ -164,18 +164,18 @@ function priorityCore(): ChatCompletionTool[] {
     return CORE_SCHEMAS().filter((t) => PRIORITY_CORE_NAMES.has(t.function?.name ?? ""));
 }
 
-// Bir CORE tool'unu adıyla al — bir domain grubunun başına eklemek için (ör.
-// remind_in → scheduler grubu, fetch_url → knowledge grubu). Böylece domain'le
-// mantıksal olarak aynı olan temel tool, grubun başında gelir ve 64-limitte kırpılmaz.
+// Get a CORE tool by name — to prepend to a domain group (e.g.
+// remind_in → scheduler group, fetch_url → knowledge group). This way a basic
+// tool that's logically the same domain comes first in the group and isn't trimmed at the 64-limit.
 function coreByName(name: string): ChatCompletionTool[] {
     const t = toolSchemas.find((s) => s.function?.name === name);
     return t ? [t] : [];
 }
 
-// Aksiyon fiil/isim KÖKLERİ — hepsi NORMALIZE (ASCII, ç→c ş→s ı→i ö→o ü→u ğ→g).
-// Eşleştirme normalize edilmiş kelimeler üzerinde startsWith ile yapılır; Türkçe
-// ekler sona geldiğinden kök yeter (ac→aciyor, gonder→gonderdim). Kelime-içi
-// false-positive (nasilsin→sil) yaşanmaz çünkü kelimenin BAŞINA bakılır.
+// Action verb/noun ROOTS — all NORMALIZED (ASCII, c->c s->s i->i o->o u->u g->g equivalents).
+// Matching is done with startsWith on normalized words; since Turkish suffixes
+// come at the end, the root is enough (ac->aciyor, gonder->gonderdim). No word-internal
+// false-positive (nasilsin->sil) occurs because we look at the START of the word.
 const ACTION_ROOTS = [
     "ac", "kapat", "calis", "baslat", "durdur", "yaz", "oku", "sil", "tasi", "kopyala",
     "indir", "kur", "yukle", "ara", "bul", "getir", "goster", "listele", "olustur",
@@ -185,50 +185,50 @@ const ACTION_ROOTS = [
     "open", "close", "start", "stop", "write", "read", "delete", "move", "copy", "download",
     "install", "search", "find", "create", "send", "remind", "schedule", "update", "check",
     "scan", "connect", "play", "print", "launch", "run", "file", "folder", "screen",
-    // Referans/devam & eksik aksiyon kökleri (harness ile bulundu):
+    // Reference/continuation & missing action roots (found via harness):
     "azalt", "artir", "art", "kis", "yuksel", "dusur", "arttir", "yarila", "biraz",
     "parlak", "brightness", "tekrar", "yine", "aktar", "transfer", "temizle", "optimize",
     "bas", "tikla", "biliyor", "hakk", "tani", "bil", "pomodoro", "indeks", "rapor", "report",
-    // ── Çok dilli aksiyon kökleri (DE/FR/ES) — lang-scan ile bulundu ──
-    // Almanca
+    // ── Multilingual action roots (DE/FR/ES) — found via lang-scan ──
+    // German
     "offne", "schliess", "starte", "stoppe", "spiel", "abspiel", "lies", "schreib", "loschen",
     "such", "erstell", "sende", "zeig", "liste", "einstell", "andere", "erhoh", "verring",
     "helligkeit", "lautstark", "screenshot", "bildschirm", "datei", "ordner", "pinge", "starten",
-    // Fransızca
+    // French
     "ouvre", "ferme", "lance", "demarre", "arrete", "joue", "lis", "ecris", "supprim",
     "cherche", "trouve", "cree", "envoie", "montre", "affiche", "regle", "change", "augment",
     "baisse", "diminue", "luminosite", "volume", "capture", "fichier", "dossier", "ecran",
-    // İspanyolca
+    // Spanish
     "abre", "cierra", "inicia", "lanza", "detén", "deten", "reproduce", "lee", "escribe",
     "elimina", "borra", "busca", "encuentra", "crea", "envia", "muestra", "lista",
     "ajusta", "cambia", "aumenta", "sube", "baja", "reduce", "brillo", "captura", "archivo",
     "carpeta", "pantalla", "haz", "pon",
-    // Ortak EN eksikleri
+    // Common EN gaps
     "set", "increase", "decrease", "turn", "make", "show", "list", "take",
-    // Akıllı ev aksiyon kökleri (Faz 62)
+    // Smart home action roots (Phase 62)
     "karart", "aydinlat", "kilitle", "kilid", "dim", "lock", "unlock",
 ];
 
-// Türkçe karakterleri ASCII'ye indir — kullanıcı "dönüştür" veya "donustur"
-// yazsa da aynı eşleşsin. Eşleştirme hep normalize edilmiş metin üzerinde yapılır.
+// Lower Turkish characters to ASCII — so the match works the same whether the user
+// types "dönüştür" or "donustur". Matching is always done on normalized text.
 function normalizeTr(s: string): string {
     return s.toLowerCase()
-        // Türkçe
+        // Turkish
         .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
         .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
         .replace(/î/g, "i").replace(/â/g, "a")
-        // Almanca / Fransızca / İspanyolca aksanları — kökler ASCII tutulduğu için
-        // ("ecran", "espanol", "anadir") aksanlı girdiyi de ASCII'ye indir.
+        // German / French / Spanish accents — since roots are kept ASCII
+        // ("ecran", "espanol", "anadir"), lower accented input to ASCII too.
         .replace(/[äàáâ]/g, "a").replace(/[éèêë]/g, "e").replace(/[íìï]/g, "i")
         .replace(/[óòô]/g, "o").replace(/[úùû]/g, "u").replace(/ñ/g, "n").replace(/ß/g, "ss");
 }
 
-// Kelimelere böl (normalize sonrası ASCII).
+// Split into words (ASCII after normalization).
 function tokenize(text: string): string[] {
     return normalizeTr(text).split(/[^a-z0-9]+/).filter(Boolean);
 }
 
-// Bir kelime, köklerden biriyle BAŞLIYOR mu? (Türkçe ekler sona gelir: ac→aciyor)
+// Does a word START WITH one of the roots? (Turkish suffixes come at the end: ac->aciyor)
 function matchesRoots(words: string[], roots: string[]): boolean {
     return words.some((w) => roots.some((r) => w.startsWith(r)));
 }
@@ -237,19 +237,19 @@ function hasActionSignal(words: string[]): boolean {
     return matchesRoots(words, ACTION_ROOTS);
 }
 
-// Bağlama göre eklenen tool grupları. Kök listesi NORMALIZE edilmiş (ASCII) —
-// "resim/resmi", "donustur/dönüştür" gibi varyantları yakalamak için kök tutulur.
-// Yanlış tarafa düşmektense (false-negative = tool gelmez, AI yapamaz) FAZLA tool
-// göndermek (false-positive = sadece token) tercih edilir.
+// Tool groups added based on context. Root lists are NORMALIZED (ASCII) —
+// roots are kept to catch variants like "resim/resmi", "donustur/dönüştür".
+// Erring on FALSE-POSITIVE (sending too many tools = just extra tokens) is preferred
+// over FALSE-NEGATIVE (tool doesn't get sent, AI can't act).
 const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => memoryPlusSchemas,  roots: ["hatirla", "hafiza", "profil", "not", "tani", "tercih", "memory", "remember", "hakk", "biliyor", "bil", "alis", "habit", "fact"]},
-    // schedulerSchemas + remind_in (CORE'da ama aynı domain — "10 dk sonra hatırlat"
-    // doğru tool remind_in'dir; grup başına alınır ki 64-limitte kırpılmasın).
+    // schedulerSchemas + remind_in (it's in CORE but same domain — for "remind me in 10 min"
+    // the correct tool is remind_in; it's prepended to the group so it doesn't get trimmed at the 64-limit).
     {schemas: () => [...coreByName("remind_in"), ...schedulerSchemas], roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm", "sonra", "dakika"]},
     {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace"]},
     {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
-    // knowledgeSchemas + fetch_url (CORE'da — "şu siteyi özetle <url>" doğru tool
-    // fetch_url'dür; grup başına alınır ki büyük gruplar 64-limitte kırpmasın).
+    // knowledgeSchemas + fetch_url (in CORE — for "summarize this site <url>" the correct
+    // tool is fetch_url; it's prepended to the group so large groups don't trim it at the 64-limit).
     {schemas: () => [...coreByName("fetch_url"), ...knowledgeSchemas], roots: ["bilgi", "knowledge", "rag", "belge", "dokuman", "index", "indeks", "site", "url", "link", "sayfa", "ozetle", "ozet", "fetch"]},
     {schemas: () => automationSchemas,  roots: ["otomasyon", "automation", "tetikle", "trigger", "workflow"]},
     {schemas: () => macroSchemas,       roots: ["makro", "macro"]},
@@ -263,12 +263,12 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
     {schemas: () => networkSchemas,     roots: ["ping", "ssh", "docker", "sunucu", "server", "network", "port"]},
     {schemas: () => vizSchemas,         roots: ["grafik", "chart", "gorsellestir", "rapor", "report", "tablo", "istatistik", "graph",
-        // Sistem sağlık raporu (system_report) — "cpu kullanımı", "ram durumu", "bellek" (eval ile bulundu)
+        // System health report (system_report) — "cpu kullanımı", "ram durumu", "bellek" (found via eval)
         "cpu", "ram", "bellek", "memory", "disk", "kullanim", "islemci", "donanim", "hardware", "saglik"]},
     {schemas: () => emailSchemas,       roots: ["eposta", "email", "mail", "smtp", "imap", "taslak", "inbox", "posta", "gmail", "outlook"]},
     {schemas: () => learningSchemas,    roots: ["flashcard", "kart", "okuma", "hedef", "goal"]},
     {schemas: () => iotSchemas,         roots: ["bluetooth", "usb", "yazici", "cihaz", "device", "iot", "printer",
-        // Hava durumu istasyonu (weather_station) — "hava nasıl", "sıcaklık", "nem" (eval ile bulundu)
+        // Weather station (weather_station) — "hava nasıl", "sıcaklık", "nem" (found via eval)
         "hava", "weather", "sicaklik", "nem", "ruzgar", "yagmur", "meteo"]},
     {schemas: () => smartHomeSchemas,   roots: [
         // TR
@@ -286,13 +286,13 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
         "licht", "lampe", "lumiere", "luz", "luces", "schloss", "serrure", "cerradura",
         "thermostat", "heizung", "chauffage", "calefaccion", "wohnzimmer", "schlafzimmer",
         "salon", "chambre", "cocina", "dormitorio", "rollladen", "volet", "persiana",
-        // Yerel ağ keşfi (local_devices_scan) — HA gerekmeyen tarama
+        // Local network discovery (local_devices_scan) — scanning that doesn't need HA
         "ag", "network", "agda", "tara", "tarat", "kesfet", "kesfi", "bul", "scan",
         "discover", "chromecast", "tv", "airplay", "upnp", "dlna", "yayin", "yerel", "lan", "wifi",
     ]},
-    // NOT: multiModelSchemas Faz 32-44'ü kapsayan büyük bir dizi — multi-model,
-    // çeviri, dosya/içerik/uygulama arama, sistem optimizasyonu, workspace ve
-    // raporlar hep burada. Kökler bu içeriğin TAMAMINI yakalamalı (harness'la bulundu).
+    // NOTE: multiModelSchemas is a big array covering Phase 32-44 — multi-model,
+    // translation, file/content/app search, system optimization, workspace and
+    // reports all live here. Roots must catch ALL of this content (found via harness).
     {schemas: () => multiModelSchemas,  roots: [
         "pipeline", "karsilastir", "compare", "model",
         "cevir", "translate", "ceviri", "altyazi", "subtitle",
@@ -302,19 +302,19 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
         "rapor", "report", "verimlilik", "productivity", "analiz", "ozet",
     ]},
     {schemas: () => spotifySchemas,     roots: ["spotify", "muzik", "muzigi", "sarki", "cal", "calar", "ses", "sarkilar", "album", "sanatci", "playlist", "next", "skip", "pause", "resume", "begeni", "like", "siray", "queue", "karistir", "shuffle", "tekrar", "repeat", "cihaz", "device", "transfer", "aktar", "bagla", "yetki", "oneri", "recommend", "takip", "follow", "top", "yeni", "release", "kategori", "podcast", "bolum", "episode", "sesli", "audiobook", "kuyrug", "recently", "dinlenen", "dinle", "dinledik", "profil", "ozellik", "feature", "ilgili", "related", "tempo", "enerji", "bpm", "valence", "akustik",
-        // Çok dilli müzik/ses (DE/FR/ES + EN): music/musique/música, play/spielen/jouer/reproducir, volume/lautstärke/son, next/nächste/suivant/siguiente
+        // Multilingual music/audio (DE/FR/ES + EN): music/musique/música, play/spielen/jouer/reproducir, volume/lautstärke/son, next/nächste/suivant/siguiente
         "music", "musik", "musique", "musica", "song", "lied", "chanson", "cancion",
         "play", "spiel", "abspiel", "joue", "jouer", "reproduce", "reproduz",
         "volume", "lautstark", "lauter", "leiser", "son", "vol", "louder", "quieter",
         "nachste", "suivant", "siguiente", "vorher", "precedent", "anterior", "previous"]},
     {schemas: () => steamSchemas,       roots: ["steam", "oyun", "oyunu", "oyuna", "oyunlar", "game", "launch", "dbd", "cs2", "csgo", "dota", "pubg", "valorant", "minecraft", "gta", "roblox", "fortnite", "basarim", "achievement", "arkadas", "friend", "kutuphane", "library", "magaza", "store", "fiyat", "price", "indirim", "discount", "workshop", "yedek", "backup", "wishlist", "istek", "seviye", "level", "profil", "kur", "install", "dogrula", "validate", "playtime"]},
     {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use", "bas", "ctrl", "alt", "enter", "kisayol",
-        // Çok dilli ekran/fare/klavye: screen/Bildschirm/écran/pantalla, capture, klick, souris/ratón, clavier/teclado
+        // Multilingual screen/mouse/keyboard: screen/Bildschirm/écran/pantalla, capture, klick, souris/ratón, clavier/teclado
         "bildschirm", "ecran", "pantalla", "capture", "captura", "klick", "souris", "raton", "clavier", "teclado", "taste", "touche", "tecla"]},
 ];
 
-// Bir tool adının hangi TOOL_GROUP'a ait olduğunu bul (sticky context için).
-// İlk çağrıda hesaplanır, sonra cache'lenir.
+// Find which TOOL_GROUP a tool name belongs to (for sticky context).
+// Computed on first call, then cached.
 let _toolGroupIndex: Map<string, typeof TOOL_GROUPS[number]> | null = null;
 function groupForTool(toolName: string): typeof TOOL_GROUPS[number] | null {
     if (!_toolGroupIndex) {
@@ -329,8 +329,8 @@ function groupForTool(toolName: string): typeof TOOL_GROUPS[number] | null {
     return _toolGroupIndex.get(toolName) ?? null;
 }
 
-// "Tüm şemalar" listesinin memoize hali (ajan modu sıcak yolu). extraSchemas
-// (plugin) uzunluğu değişince geçersizleşir → plugin reload sonrası taze kurulur.
+// Memoized version of the "all schemas" list (agent mode hot path). Invalidated
+// when extraSchemas (plugin) length changes → rebuilt fresh after a plugin reload.
 let _allSchemasCache: ChatCompletionTool[] | null = null;
 let _allSchemasExtraLen = -1;
 function getAllSchemasMemo(): ChatCompletionTool[] {
@@ -349,7 +349,7 @@ function getAllSchemasMemo(): ChatCompletionTool[] {
     return _allSchemasCache;
 }
 
-// İsme göre tekille (aynı tool birden fazla gruptan gelebilir).
+// Dedupe by name (the same tool can come from multiple groups).
 function dedupeByName(tools: ChatCompletionTool[]): ChatCompletionTool[] {
     const seen = new Set<string>();
     const out: ChatCompletionTool[] = [];
@@ -362,7 +362,7 @@ function dedupeByName(tools: ChatCompletionTool[]): ChatCompletionTool[] {
     return out;
 }
 
-// context = son kullanıcı mesajı (düz metin). Verilirse bağlama göre tool seçilir.
+// context = the last user message (plain text). If given, tool selection is context-aware.
 export function getAllToolSchemas(provider?: string, context?: string): ChatCompletionTool[] {
     const limit = PROVIDER_TOOL_LIMITS[provider ?? "groq"] ?? 64;
 
@@ -372,12 +372,12 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
         const matchedGroups = TOOL_GROUPS.filter((g) => matchesRoots(words, g.roots));
         const actionSignal = hasActionSignal(words);
 
-        // STICKY ESCAPE: aksiyon kökü ve domain kelimesi YOK ama bir önceki tool
-        // bir domain grubuna aitse ("change it to X", "make it Y" gibi İngilizce
-        // devam mesajları hiçbir köke uymuyor) → o grubu yine de teklif et.
-        // Türkçede "değiştir/azalt" kökü olduğu için bu yola düşmez; sorun yalnız
-        // kök taşımayan (çoğu İngilizce) devam mesajlarında. Sohbet kapanışlarını
-        // (teşekkürler/tamam/ok…) dışarıda tutmak için kısa+selam kontrolü var.
+        // STICKY ESCAPE: there's NO action root and NO domain word, but the previous tool
+        // belonged to a domain group (English continuation messages like "change it to X",
+        // "make it Y" don't match any root) → offer that group anyway.
+        // Turkish doesn't fall into this path because it has the "değiştir/azalt" root; the
+        // problem is only with continuation messages (mostly English) carrying no root. There's
+        // a short+greeting check to keep chat closers (thanks/ok/okay...) out of this path.
         const CHATTER = new Set([
             "tesekkurler", "tesekkur", "sagol", "tamam", "ok", "okey", "tamamdir",
             "thanks", "thank", "thx", "cool", "nice", "great", "super", "harika",
@@ -388,33 +388,33 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
         const stickyEscape = !actionSignal && matchedGroups.length === 0 &&
             !isChatter && words.length >= 2 && !!lastToolEarly && !!groupForTool(lastToolEarly);
 
-        // Sohbet/selam/saçma metin (aksiyon sinyali yok, grup eşleşmesi yok) → HİÇ tool yok.
+        // Chat/greeting/nonsense text (no action signal, no group match) → NO tools at all.
         if (!actionSignal && matchedGroups.length === 0 && !stickyEscape) {
             selected = [];
         } else {
-            // STICKY CONTEXT: aksiyon var ama domain kelimesi yoksa ("biraz azalt",
-            // "telefona aktar", "tekrar yap") bir önceki tool'un grubunu da dahil et —
-            // referans çözümleme tool'u kaybolmasın. Yalnızca komut turnlerinde uygulanır.
+            // STICKY CONTEXT: there's an action but no domain word ("biraz azalt",
+            // "telefona aktar", "tekrar yap") → also include the previous tool's group —
+            // so the reference-resolution tool isn't lost. Applied only on command turns.
             const lastTool = stmGet().lastTool;
             if (lastTool) {
                 const stickyGroup = groupForTool(lastTool);
                 if (stickyGroup && !matchedGroups.includes(stickyGroup)) matchedGroups.push(stickyGroup);
             }
-            // Sıra: eşleşen grup tool'ları (kullanıcının asıl domain'i — TAM korunur,
-            // kırpılmaz) → ÖNCELİKLİ çekirdek (set_volume/fetch_url/remind_in/
-            // set_brightness — sadece 4 tool) → geri kalan CORE. priorityCore'u grup
-            // tool'larından HEMEN sonra koymak, bu 4 temel tool'un CORE'un ortasında
-            // kalıp 64-limitle kırpılmasını önler; yalnız 4 tool olduğu için büyük
-            // domain gruplarını (Spotify/Steam) da kuyruktan düşürmez.
-            // (Eval %100 + convo harness regresyonsuz ile dengelendi.)
+            // Order: matched group tools (the user's actual domain — FULLY preserved,
+            // never trimmed) → PRIORITY core (set_volume/fetch_url/remind_in/
+            // set_brightness — only 4 tools) → the rest of CORE. Placing priorityCore
+            // right after the group tools prevents these 4 basic tools from sitting in
+            // the middle of CORE and getting trimmed at the 64-limit; since it's only 4 tools
+            // it doesn't push large domain groups (Spotify/Steam) out of the tail either.
+            // (Balanced via 100% eval + convo harness with no regressions.)
             const groupTools: ChatCompletionTool[] = [];
             for (const group of matchedGroups) groupTools.push(...group.schemas());
             selected = dedupeByName([...groupTools, ...priorityCore(), ...CORE_SCHEMAS()]);
         }
     } else {
-        // Bağlam yok (ör. ajan modu döngüsü) → hepsi. Bu liste extraSchemas
-        // (plugin) dışında sabit; her döngü adımında 25 array spread etmemek için
-        // memoize ediyoruz, yalnız plugin sayısı değişince yeniden kuruyoruz.
+        // No context (e.g. agent mode loop) → everything. This list is fixed aside
+        // from extraSchemas (plugin); to avoid spreading 25 arrays on every loop step
+        // we memoize it, only rebuilding when the plugin count changes.
         selected = getAllSchemasMemo();
     }
 
@@ -440,7 +440,7 @@ type MacroRunCallback = (steps: string[]) => void;
 let _macroRunCallback: MacroRunCallback | null = null;
 export function registerMacroRunCallback(cb: MacroRunCallback): void { _macroRunCallback = cb; }
 
-// ---- Watch conditions (eşik uyarıları) ----
+// ---- Watch conditions (threshold alerts) ----
 interface WatchCondition {threshold: number; direction: "above" | "below"}
 export const _watchConditions = new Map<string, WatchCondition>();
 const _alertCooldowns = new Map<string, number>(); // metric → last alert timestamp
@@ -455,9 +455,9 @@ export function checkWatchConditions(
         const triggered = cond.direction === "above" ? val >= cond.threshold : val <= cond.threshold;
         if (!triggered) continue;
         const lastAlert = _alertCooldowns.get(metric) ?? 0;
-        if (now - lastAlert < 60_000) continue; // 1 dakika cooldown
+        if (now - lastAlert < 60_000) continue; // 1 minute cooldown
         _alertCooldowns.set(metric, now);
-        onAlert(`UYARI: ${metric.toUpperCase()} ${cond.direction === "above" ? ">" : "<"} %${cond.threshold} (şu an %${Math.round(val)})`);
+        onAlert(`WARNING: ${metric.toUpperCase()} ${cond.direction === "above" ? ">" : "<"} %${cond.threshold} (currently %${Math.round(val)})`);
     }
 }
 
@@ -472,8 +472,8 @@ function runScript(content: string, timeoutMs = 15000): Promise<ToolResult> {
                 try { fs.unlinkSync(tmpPath); } catch {}
                 const out = (stdout ?? "").trim();
                 const errOut = (stderr ?? "").trim();
-                if (err && !out) resolve(`HATA: ${err.message}${errOut ? "\n" + errOut : ""}`);
-                else resolve(out || errOut || "(çıktı yok, komut çalıştı)");
+                if (err && !out) resolve(`ERROR: ${err.message}${errOut ? "\n" + errOut : ""}`);
+                else resolve(out || errOut || "(no output, command ran)");
             }
         );
     });
@@ -489,68 +489,68 @@ function isDangerous(command: string): string | null {
 const executors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {
     async quit_self() {
         setTimeout(() => _quitCallback?.(), 500);
-        return "Uygulama kapatılıyor…";
+        return "Application is shutting down…";
     },
     async run_command({command}) {
         if (!_fullPcAccess) {
             const danger = isDangerous(command);
-            if (danger) return `ENGELLENDI: ${danger}`;
+            if (danger) return `BLOCKED: ${danger}`;
         }
-        // Script dosyasına yaz → PowerShell'e -File ile çalıştır (injection-proof)
+        // Write to a script file → run via PowerShell -File (injection-proof)
         return runScript(command);
     },
     async read_file({path: p}) {
         try {
             const full = path.resolve(resolvePath(p));
-            // Tam PC erişimi yoksa yalnızca ev dizinine izin ver
+            // If full PC access is off, only allow the home directory
             if (!_fullPcAccess && !full.startsWith(path.resolve(os.homedir()))) {
-                return `ENGELLENDI: Tam PC erişimi kapalıyken sadece ev dizinindeki dosyalar okunabilir (${os.homedir()}).`;
+                return `BLOCKED: Only files in the home directory can be read while Full PC Access is off (${os.homedir()}).`;
             }
             const data = fs.readFileSync(full, "utf-8");
-            return data.length > 8000 ? data.slice(0, 8000) + "\n...(kısaltıldı)" : data;
+            return data.length > 8000 ? data.slice(0, 8000) + "\n...(truncated)" : data;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async write_file({path: p, content}) {
         try {
             const full = resolvePath(p);
             if (!_fullPcAccess && !full.startsWith(os.homedir())) {
-                return `ENGELLENDI: Tam PC erişimi kapalıyken sadece ev dizinine yazabilirsin (${os.homedir()}).`;
+                return `BLOCKED: You can only write to the home directory while Full PC Access is off (${os.homedir()}).`;
             }
             fs.mkdirSync(path.dirname(full), {recursive: true});
             fs.writeFileSync(full, content, "utf-8");
-            return `Yazıldı: ${full} (${content.length} karakter)`;
+            return `Written: ${full} (${content.length} characters)`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async delete_file(args: Record<string, string>) {
         const p = args.path;
         const recursive = args.recursive;
-        if (!_fullPcAccess) return `ENGELLENDI: delete_file sadece Tam PC Erişimi açıkken kullanılabilir.`;
+        if (!_fullPcAccess) return `BLOCKED: delete_file is only available while Full PC Access is on.`;
         try {
             const full = resolvePath(p);
-            if (!fs.existsSync(full)) return `HATA: Bulunamadı: ${full}`;
+            if (!fs.existsSync(full)) return `ERROR: Not found: ${full}`;
             if (fs.statSync(full).isDirectory()) {
                 fs.rmSync(full, {recursive: recursive !== "false", force: true});
-                return `Silindi (klasör): ${full}`;
+                return `Deleted (folder): ${full}`;
             } else {
                 fs.unlinkSync(full);
-                return `Silindi: ${full}`;
+                return `Deleted: ${full}`;
             }
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async move_file(args: Record<string, string>) {
         const source = args.source;
         const destination = args.destination;
-        if (!_fullPcAccess) return `ENGELLENDI: move_file sadece Tam PC Erişimi açıkken kullanılabilir.`;
+        if (!_fullPcAccess) return `BLOCKED: move_file is only available while Full PC Access is on.`;
         try {
             const src = resolvePath(source);
             const dst = resolvePath(destination);
-            if (!fs.existsSync(src)) return `HATA: Kaynak bulunamadı: ${src}`;
+            if (!fs.existsSync(src)) return `ERROR: Source not found: ${src}`;
             fs.mkdirSync(path.dirname(dst), {recursive: true});
             try {
                 fs.renameSync(src, dst);
@@ -560,43 +560,43 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
                     fs.unlinkSync(src);
                 } else throw e;
             }
-            return `Taşındı: ${src} → ${dst}`;
+            return `Moved: ${src} → ${dst}`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async list_directory({path: p}) {
         try {
             const full = resolvePath(p ?? "");
             const items = fs.readdirSync(full, {withFileTypes: true});
-            if (items.length === 0) return "(boş klasör)";
+            if (items.length === 0) return "(empty folder)";
             return items.map((d: fs.Dirent) => (d.isDirectory() ? `📁 ${d.name}` : `📄 ${d.name}`)).join("\n");
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async set_profile({key, value}) {
         await setUserProfile(key, value);
-        return `Kaydedildi: ${key} = ${value}`;
+        return `Saved: ${key} = ${value}`;
     },
     async get_profile() {
         const profile = await getUserProfile();
-        if (Object.keys(profile).length === 0) return "Henüz kayıtlı bilgi yok.";
+        if (Object.keys(profile).length === 0) return "No saved info yet.";
         return Object.entries(profile).map(([k, v]) => `${k}: ${v}`).join("\n");
     },
     async save_note({content, remind_at}) {
         const remindDate = remind_at ? new Date(remind_at) : undefined;
         await saveNote(content, remindDate);
-        return remind_at ? `Not kaydedildi. Hatırlatma: ${remind_at}` : `Not kaydedildi.`;
+        return remind_at ? `Note saved. Reminder: ${remind_at}` : `Note saved.`;
     },
     async list_notes() {
         const notes = await getPendingNotes();
-        if (notes.length === 0) return "Bekleyen not yok.";
+        if (notes.length === 0) return "No pending notes.";
         return notes.map((n) => `[${n.id.slice(0, 8)}] ${n.content}${n.remind_at ? ` (${n.remind_at})` : ""}`).join("\n");
     },
     async done_note({id}) {
         await markNoteDone(id);
-        return `Not tamamlandı: ${id}`;
+        return `Note completed: ${id}`;
     },
     async read_clipboard() {
         return run(`powershell -NoProfile -Command "Get-Clipboard"`, 5000);
@@ -606,8 +606,8 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         fs.writeFileSync(tmpPath, text, "utf-8");
         const result = await run(`powershell -NoProfile -Command "Get-Content '${tmpPath}' -Raw | Set-Clipboard"`, 5000);
         try { fs.unlinkSync(tmpPath); } catch {}
-        if (result.startsWith("HATA")) return result;
-        return `Panoya kopyalandı (${text.length} karakter)`;
+        if (result.startsWith("ERROR")) return result;
+        return `Copied to clipboard (${text.length} characters)`;
     },
     async list_windows() {
         return run(
@@ -619,7 +619,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return runScript(
             `$wsh = New-Object -ComObject WScript.Shell\n` +
             `$result = $wsh.AppActivate('${title.replace(/'/g, "''")}')\n` +
-            `if ($result) { Write-Output "Pencere odaklandı: ${title}" } else { Write-Output "Pencere bulunamadı: ${title}" }`,
+            `if ($result) { Write-Output "Window focused: ${title}" } else { Write-Output "Window not found: ${title}" }`,
             5000,
         );
     },
@@ -629,7 +629,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             `Add-Type -TypeDefinition @"\nusing System.Runtime.InteropServices;\npublic class WinVol {\n    [DllImport("winmm.dll")]\n    public static extern int waveOutSetVolume(System.IntPtr h, uint v);\n}\n"@ -ErrorAction SilentlyContinue\n` +
             `$v = [uint32][Math]::Round(${vol} / 100.0 * 65535)\n` +
             `[WinVol]::waveOutSetVolume([System.IntPtr]::Zero, ($v -bor ($v -shl 16))) | Out-Null\n` +
-            `Write-Output "Ses seviyesi ${vol}% olarak ayarlandı"`,
+            `Write-Output "Volume set to ${vol}%"`,
             10000,
         );
     },
@@ -637,18 +637,18 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const br = Math.max(0, Math.min(100, Math.round(parseFloat(String(level)))));
         return runScript(
             `$m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue\n` +
-            `if ($m) { $m.WmiSetBrightness(1, ${br}); Write-Output "Parlaklık ${br}% olarak ayarlandı" }\n` +
-            `else { Write-Output "Dahili ekran bulunamadı (harici monitörde desteklenmez)" }`,
+            `if ($m) { $m.WmiSetBrightness(1, ${br}); Write-Output "Brightness set to ${br}%" }\n` +
+            `else { Write-Output "No internal display found (not supported on external monitors)" }`,
             8000,
         );
     },
     async remind_in({message, minutes}) {
-        if (!_remindCallback) return "HATA: Hatırlatıcı callback kayıtlı değil.";
+        if (!_remindCallback) return "ERROR: Reminder callback is not registered.";
         const ms = parseFloat(String(minutes)) * 60 * 1000;
-        if (isNaN(ms) || ms <= 0) return "HATA: Geçersiz süre.";
+        if (isNaN(ms) || ms <= 0) return "ERROR: Invalid duration.";
         setTimeout(() => _remindCallback!(message), ms);
-        const label = ms < 60000 ? `${Math.round(ms / 1000)} saniye` : `${minutes} dakika`;
-        return `Hatırlatıcı ayarlandı: ${label} sonra "${message}"`;
+        const label = ms < 60000 ? `${Math.round(ms / 1000)} seconds` : `${minutes} minutes`;
+        return `Reminder set: "${message}" in ${label}`;
     },
     async save_app_profile({name, commands}) {
         const profilePath = path.join(os.homedir(), ".aegis", "app-profiles.json");
@@ -660,19 +660,19 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         profiles[name] = cmds;
         fs.mkdirSync(path.dirname(profilePath), {recursive: true});
         fs.writeFileSync(profilePath, JSON.stringify(profiles, null, 2), "utf-8");
-        return `Profil kaydedildi: "${name}" (${cmds.length} komut)`;
+        return `Profile saved: "${name}" (${cmds.length} commands)`;
     },
     async run_app_profile({name}) {
         const profilePath = path.join(os.homedir(), ".aegis", "app-profiles.json");
         try {
             const profiles: Record<string, string[]> = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
             const cmds = profiles[name];
-            if (!cmds || cmds.length === 0) return `Profil bulunamadı: "${name}"`;
+            if (!cmds || cmds.length === 0) return `Profile not found: "${name}"`;
             const script = cmds.join("\n");
             const result = await runScript(script, 30000);
-            return `Profil çalıştırıldı: "${name}"\n${result}`;
+            return `Profile run: "${name}"\n${result}`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async list_app_profiles() {
@@ -680,17 +680,17 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         try {
             const profiles: Record<string, string[]> = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
             const keys = Object.keys(profiles);
-            if (keys.length === 0) return "Kayıtlı profil yok.";
-            return keys.map((k) => `• ${k} (${profiles[k].length} komut)`).join("\n");
+            if (keys.length === 0) return "No saved profiles.";
+            return keys.map((k) => `• ${k} (${profiles[k].length} commands)`).join("\n");
         } catch {
-            return "Kayıtlı profil yok.";
+            return "No saved profiles.";
         }
     },
     async screenshot({question}) {
-        if (!_screenshotCallback) return "HATA: Screenshot callback kayıtlı değil.";
-        if (!_analyzeScreenCallback) return "HATA: Vision callback kayıtlı değil.";
+        if (!_screenshotCallback) return "ERROR: Screenshot callback is not registered.";
+        if (!_analyzeScreenCallback) return "ERROR: Vision callback is not registered.";
         const result = await _screenshotCallback();
-        if ("error" in result) return `HATA: ${result.error}`;
+        if ("error" in result) return `ERROR: ${result.error}`;
         return await _analyzeScreenCallback(result.base64, question);
     },
     async set_language({language}) {
@@ -698,7 +698,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return `Language switched to ${language}.`;
     },
     async fetch_url({url}) {
-        try { new URL(url); } catch { return "HATA: Geçersiz URL."; }
+        try { new URL(url); } catch { return "ERROR: Invalid URL."; }
         try {
             const ac = new AbortController();
             const tid = setTimeout(() => ac.abort(), 12000);
@@ -707,7 +707,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
                 signal: ac.signal,
                 redirect: "follow",
             } as RequestInit & {redirect: string}).finally(() => clearTimeout(tid));
-            if (!resp.ok) return `HATA: HTTP ${resp.status} — ${url}`;
+            if (!resp.ok) return `ERROR: HTTP ${resp.status} — ${url}`;
             const html = await resp.text();
             const text = html
                 .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -717,31 +717,31 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
                 .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
                 .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
                 .replace(/\s+/g, " ").trim();
-            return text.slice(0, 6000) + (text.length > 6000 ? "\n…(kısaltıldı, ilk 6000 karakter)" : "");
+            return text.slice(0, 6000) + (text.length > 6000 ? "\n…(truncated, first 6000 characters)" : "");
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async show_notification({title, body}) {
-        if (!_notificationCallback) return "HATA: Bildirim callback kayıtlı değil.";
+        if (!_notificationCallback) return "ERROR: Notification callback is not registered.";
         _notificationCallback(title || "AEGIS", body || "");
-        return `Bildirim gösterildi: "${title}"`;
+        return `Notification shown: "${title}"`;
     },
     async list_plugins() {
-        if (_pluginList.length === 0) return "Yüklü plugin yok. ~/.aegis/plugins/ klasörüne ekleyebilirsiniz.";
+        if (_pluginList.length === 0) return "No plugins installed. You can add them to the ~/.aegis/plugins/ folder.";
         return _pluginList.map((p) => `• ${p.name}: ${p.tools.join(", ")}`).join("\n");
     },
     async reload_plugins() {
-        if (!_reloadPluginsCallback) return "HATA: Plugin reload callback kayıtlı değil.";
+        if (!_reloadPluginsCallback) return "ERROR: Plugin reload callback is not registered.";
         return await _reloadPluginsCallback();
     },
     async web_search({query}) {
-        // Fallback zinciri: Tavily → Serper → DuckDuckGo
+        // Fallback chain: Tavily → Serper → DuckDuckGo
         const formatResults = (source: string, results: {title: string; url: string; content?: string}[], answer?: string) => {
             let out = `[${source}]\n`;
-            out += answer ? `Özet: ${answer}\n\n` : "";
+            out += answer ? `Summary: ${answer}\n\n` : "";
             out += results.map((r) => `• ${r.title}\n  ${r.url}\n  ${(r.content ?? "").slice(0, 200)}`).join("\n\n");
-            return out || "(sonuç bulunamadı)";
+            return out || "(no results found)";
         };
 
         const fetchWithTimeout = (url: string, init: RequestInit, ms = 8000): Promise<Response> => {
@@ -783,7 +783,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             } catch {}
         }
 
-        // 3. DuckDuckGo Instant Answer (key gerektirmiyor, sınırlı)
+        // 3. DuckDuckGo Instant Answer (no key required, limited)
         try {
             const res = await fetchWithTimeout(
                 `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`,
@@ -792,7 +792,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             if (res.ok) {
                 const data = (await res.json()) as {AbstractText?: string; AbstractURL?: string; RelatedTopics?: {Text?: string; FirstURL?: string}[]};
                 const results: {title: string; url: string; content?: string}[] = [];
-                if (data.AbstractText) results.push({title: "Özet", url: data.AbstractURL ?? "", content: data.AbstractText});
+                if (data.AbstractText) results.push({title: "Summary", url: data.AbstractURL ?? "", content: data.AbstractText});
                 for (const t of (data.RelatedTopics ?? []).slice(0, 4)) {
                     if (t.Text && t.FirstURL) results.push({title: t.Text.slice(0, 60), url: t.FirstURL, content: t.Text});
                 }
@@ -800,7 +800,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             }
         } catch {}
 
-        return "HATA: Tüm arama servisleri başarısız.";
+        return "ERROR: All search services failed.";
     },
 
     async schedule_task({name, schedule, command}) {
@@ -821,15 +821,15 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const pct = parseInt(String(threshold ?? "90"), 10);
         const dir = (direction ?? "above").toLowerCase() === "below" ? "below" : "above";
         if (!["cpu", "ram", "gpu", "disk"].includes(m)) {
-            return "HATA: Geçersiz metrik. Desteklenenler: cpu, ram, gpu, disk";
+            return "ERROR: Invalid metric. Supported: cpu, ram, gpu, disk";
         }
-        if (isNaN(pct) || pct < 1 || pct > 100) return "HATA: Eşik 1-100 arasında olmalı.";
+        if (isNaN(pct) || pct < 1 || pct > 100) return "ERROR: Threshold must be between 1-100.";
         _watchConditions.set(m, {threshold: pct, direction: dir});
-        return `${m.toUpperCase()} ${dir === "above" ? ">" : "<"} %${pct} eşiği izleniyor. Tetiklenince bildirim gelir.`;
+        return `Watching ${m.toUpperCase()} ${dir === "above" ? ">" : "<"} %${pct} threshold. You'll get a notification when triggered.`;
     },
 
     async list_watch_conditions() {
-        if (_watchConditions.size === 0) return "Aktif izleme koşulu yok.";
+        if (_watchConditions.size === 0) return "No active watch conditions.";
         return [..._watchConditions.entries()].map(([m, c]) =>
             `${m.toUpperCase()} ${c.direction === "above" ? ">" : "<"} %${c.threshold}`
         ).join("\n");
@@ -837,28 +837,28 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
 
     async remove_watch_condition({metric}) {
         const m = (metric ?? "").toLowerCase();
-        if (_watchConditions.delete(m)) return `${m.toUpperCase()} izlemesi kaldırıldı.`;
-        return `${m.toUpperCase()} için aktif izleme yok.`;
+        if (_watchConditions.delete(m)) return `${m.toUpperCase()} watch removed.`;
+        return `No active watch for ${m.toUpperCase()}.`;
     },
 
     async agent_run({goal, max_steps}) {
         const steps = Math.max(1, Math.min(20, parseInt(String(max_steps ?? "10"), 10)));
         _agentCallback?.(goal ?? "", steps);
-        return `Ajan modu başlatıldı. Hedef: "${goal}". Maksimum ${steps} adım. Adımlar feed'e düşecek.`;
+        return `Agent mode started. Goal: "${goal}". Max ${steps} steps. Steps will appear in the feed.`;
     },
 
     async start_macro({name}) {
-        return startMacroRecording(name ?? "isimsiz");
+        return startMacroRecording(name ?? "unnamed");
     },
     async stop_macro() {
         return stopMacroRecording();
     },
     async run_macro({name}) {
         const steps = getMacroSteps(name ?? "");
-        if (!steps) return `"${name}" adında makro bulunamadı. Mevcut makrolar: ${listMacros()}`;
-        if (steps.length === 0) return `"${name}" makrosu boş.`;
+        if (!steps) return `No macro found named "${name}". Available macros: ${listMacros()}`;
+        if (steps.length === 0) return `Macro "${name}" is empty.`;
         _macroRunCallback?.(steps);
-        return `"${name}" makrosu çalıştırılıyor (${steps.length} adım)…`;
+        return `Running macro "${name}" (${steps.length} steps)…`;
     },
     async list_macros() {
         return listMacros();
@@ -867,7 +867,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return deleteMacro(name ?? "");
     },
 
-    // ---- Routines (Faz 52) ----
+    // ---- Routines (Phase 52) ----
     async routine_record_start({name}) {
         return routines.startRecording(name ?? "");
     },
@@ -879,15 +879,15 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async routine_run({name}) {
         const r = routines.getRoutine(name ?? "");
-        if (!r) return `"${name}" adında routine bulunamadı. Mevcut: ${routines.listRoutines()}`;
-        if (r.steps.length === 0) return `"${r.name}" routine'i boş.`;
+        if (!r) return `No routine found named "${name}". Available: ${routines.listRoutines()}`;
+        if (r.steps.length === 0) return `Routine "${r.name}" is empty.`;
         const log: string[] = [];
         for (let i = 0; i < r.steps.length; i++) {
             const {tool, args} = r.steps[i];
             const res = await executeTool(tool, JSON.stringify(args ?? {}));
             log.push(`  ${i + 1}. ${tool} → ${String(res).slice(0, 100)}`);
         }
-        return `"${r.name}" routine'i çalıştırıldı (${r.steps.length} adım):\n${log.join("\n")}`;
+        return `Routine "${r.name}" executed (${r.steps.length} steps):\n${log.join("\n")}`;
     },
     async routine_list() {
         return routines.listRoutines();
@@ -903,7 +903,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async routine_delete_step({name, step}) {
         const n = parseInt(String(step ?? ""), 10);
-        if (!Number.isFinite(n)) return "Adım numarası geçersiz.";
+        if (!Number.isFinite(n)) return "Invalid step number.";
         return routines.deleteRoutineStep(name ?? "", n);
     },
 
@@ -932,8 +932,8 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async chat_with_file({file_path}) {
         const content = readFileForChat(file_path ?? "");
-        if (content.startsWith("HATA:")) return content;
-        return `Dosya içeriği (${file_path}):\n\n${content}\n\n[Yukarıdaki içeriği bağlam olarak kullanarak soruları yanıtla.]`;
+        if (content.startsWith("ERROR:")) return content;
+        return `File content (${file_path}):\n\n${content}\n\n[Use the above content as context to answer questions.]`;
     },
     async list_indexed_files() {
         return listIndexedFiles();
@@ -943,8 +943,8 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
 
     async remember_fact({content, tags}) {
-        // Faz 57 — çelişki-çözer ekleme: aynı özneli eski gerçek varsa güncellenir.
-        // (Etiket verildiyse eski düz ekleme yolunu kullan; aksi halde reconcile.)
+        // Phase 57 — contradiction-resolving add: if an older fact with the same subject exists, it gets updated.
+        // (If tags were provided, use the old plain-add path; otherwise reconcile.)
         const tagList = tags ? String(tags).split(",").map((t) => t.trim()).filter(Boolean) : [];
         if (tagList.length) return addFact(content ?? "", "manual", tagList);
         return addFactReconciled(content ?? "", "manual");
@@ -953,7 +953,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return listFacts(filter ?? "");
     },
     async search_memory({query}) {
-        // Faz 57 — "geçen ay X hakkında ne demiştim?" — anlamca en yakın gerçekler.
+        // Phase 57 — "what did I say about X last month?" — semantically closest facts.
         return searchMemory(String(query ?? ""));
     },
     async forget_fact({id_or_content}) {
@@ -990,7 +990,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return pluginRemove(name ?? "");
     },
 
-    // ── Faz 19: Ses & Müzik ──────────────────────────────────────────────────
+    // ── Phase 19: Audio & Music ───────────────────────────────────────────────
     async play_sound({file_path, volume}) {
         return playSound(file_path ?? "", volume ? Number(volume) : 50);
     },
@@ -1004,11 +1004,11 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         return listSounds();
     },
 
-    // ── Faz 20: Kod Asistanı ─────────────────────────────────────────────────
+    // ── Phase 20: Code Assistant ──────────────────────────────────────────────
     async git_status({repo_path}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
         const out = await run(`git -C "${cwd}" status -sb`);
-        return out || "(clean — değişiklik yok)";
+        return out || "(clean — no changes)";
     },
     async git_log({repo_path, count, graph}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
@@ -1023,21 +1023,21 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const flag = String(staged) === "true" ? "--cached" : "";
         const filePart = file ? `-- "${path.resolve(resolvePath(file))}"` : "";
         const out = await run(`git -C "${cwd}" diff ${flag} --stat ${filePart}`);
-        return out || "(değişiklik yok)";
+        return out || "(no changes)";
     },
     async git_add({repo_path, files}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
-        if (!files) return "HATA: files parametresi gerekli ('.' = hepsi)";
+        if (!files) return "ERROR: files parameter is required ('.' = all)";
         const target = files.trim() === "." ? "." : `"${path.resolve(resolvePath(files))}"`;
         return run(`git -C "${cwd}" add ${target}`);
     },
     async git_commit({repo_path, message, add_all}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
-        if (!message) return "HATA: commit mesajı gerekli";
+        if (!message) return "ERROR: commit message is required";
         if (String(add_all) === "true") {
             await run(`git -C "${cwd}" add .`);
         }
-        // Mesajı stdin değil temp dosya üzerinden geç — injection yok
+        // Pass the message via a temp file, not stdin — no injection risk
         const tmpMsg = path.join(os.tmpdir(), `aegis-commit-${Date.now()}.txt`);
         fs.writeFileSync(tmpMsg, message, "utf-8");
         const out = await run(`git -C "${cwd}" commit -F "${tmpMsg}"`);
@@ -1062,11 +1062,11 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         if (action === "list") return run(`git -C "${cwd}" branch -avv`);
         if (action === "graph") return run(`git -C "${cwd}" log --oneline --graph --decorate --all -20`);
         const safe = branch_name ? (branch_name as string).replace(/[^a-zA-Z0-9._/-]/g, "") : "";
-        if (!safe) return "HATA: branch_name gerekli";
+        if (!safe) return "ERROR: branch_name is required";
         if (action === "create") return run(`git -C "${cwd}" checkout -b "${safe}"`);
         if (action === "switch") return run(`git -C "${cwd}" checkout "${safe}"`);
         if (action === "delete") return run(`git -C "${cwd}" branch -d "${safe}"`);
-        return "HATA: action = list | create | switch | delete | graph";
+        return "ERROR: action = list | create | switch | delete | graph";
     },
     async git_stash({repo_path, action, message, index}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
@@ -1083,11 +1083,11 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
             try { fs.unlinkSync(tmpMsg); } catch {}
             return out;
         }
-        return "HATA: action = save | pop | list | drop | apply";
+        return "ERROR: action = save | pop | list | drop | apply";
     },
     async git_merge({repo_path, branch, no_ff}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
-        if (!branch) return "HATA: branch adı gerekli";
+        if (!branch) return "ERROR: branch name is required";
         const safe = (branch as string).replace(/[^a-zA-Z0-9._/-]/g, "");
         const flag = String(no_ff) === "true" ? "--no-ff" : "";
         return run(`git -C "${cwd}" merge ${flag} "${safe}"`.trim());
@@ -1104,7 +1104,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         if (m === "hard") {
             const confirm = await run(`git -C "${cwd}" status --short`);
             if (confirm.trim()) {
-                return `UYARI: --hard reset tüm değişiklikleri siler.\nMevcut değişiklikler:\n${confirm}\n\nEmin misin? Onaylamak için git_reset mode=hard commits=${n} şeklinde tekrar çağır.`;
+                return `WARNING: --hard reset will delete all changes.\nCurrent changes:\n${confirm}\n\nAre you sure? To confirm, call git_reset again with mode=hard commits=${n}.`;
             }
         }
         return run(`git -C "${cwd}" reset --${m} HEAD~${n}`);
@@ -1115,11 +1115,11 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const safeName = (name || "origin").replace(/[^a-zA-Z0-9._-]/g, "");
         if (action === "add" && url) return run(`git -C "${cwd}" remote add "${safeName}" "${(url as string).replace(/"/g, '\\"')}"`);
         if (action === "set-url" && url) return run(`git -C "${cwd}" remote set-url "${safeName}" "${(url as string).replace(/"/g, '\\"')}"`);
-        return "HATA: action = list | add | set-url";
+        return "ERROR: action = list | add | set-url";
     },
     async run_and_analyze({command, context}) {
         const output = await runScript(command ?? "", 30000);
-        return `Komut çıktısı:\n${output}\n\nBağlam: ${context || "yok"}\n\n[Yukarıdaki çıktıyı analiz et, hata varsa açıkla ve çözüm öner.]`;
+        return `Command output:\n${output}\n\nContext: ${context || "none"}\n\n[Analyze the above output, explain any errors, and suggest a fix.]`;
     },
     async scaffold_project({template, target_path}) {
         const templates: Record<string, {dirs: string[]; files: Record<string, string>}> = {
@@ -1168,7 +1168,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         };
         const tpl = templates[template ?? ""];
         if (!tpl) {
-            return `Bilinmeyen şablon: ${template}\nMevcut şablonlar: ${Object.keys(templates).join(", ")}`;
+            return `Unknown template: ${template}\nAvailable templates: ${Object.keys(templates).join(", ")}`;
         }
         const desktop = path.join(os.homedir(), "Desktop");
         const basePath = target_path ? resolvePath(target_path) : path.join(desktop, template ?? "project");
@@ -1181,16 +1181,16 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
                 fs.mkdirSync(path.dirname(fp), {recursive: true});
                 fs.writeFileSync(fp, content, "utf-8");
             }
-            return `"${template}" şablonu oluşturuldu: ${basePath}\nDosyalar: ${Object.keys(tpl.files).join(", ")}`;
+            return `Template "${template}" created: ${basePath}\nFiles: ${Object.keys(tpl.files).join(", ")}`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async list_templates() {
-        return "Mevcut şablonlar:\n• python-fastapi — FastAPI + uvicorn\n• react-tailwind — React + Vite + Tailwind\n• node-express — Node.js + Express API\n• electron-app — Temel Electron uygulaması\n• next-ts — Next.js 14 + TypeScript";
+        return "Available templates:\n• python-fastapi — FastAPI + uvicorn\n• react-tailwind — React + Vite + Tailwind\n• node-express — Node.js + Express API\n• electron-app — Basic Electron app\n• next-ts — Next.js 14 + TypeScript";
     },
 
-    // ── Faz 21: Takvim & Zaman ───────────────────────────────────────────────
+    // ── Phase 21: Calendar & Time ─────────────────────────────────────────────
     async pomodoro_start({work_minutes, break_minutes}) {
         return pomodoroStart(work_minutes ? Number(work_minutes) : 25, break_minutes ? Number(break_minutes) : 5);
     },
@@ -1217,13 +1217,13 @@ $start = [datetime]::Parse("${d}")
 $end = $start.AddDays(${ahead})
 $cal = [Windows.ApplicationModel.Appointments.AppointmentManager,Windows.ApplicationModel.Appointments,ContentType=WindowsRuntime]::RequestStoreAsync([Windows.ApplicationModel.Appointments.AppointmentStoreAccessType]::AllCalendarsReadOnly).GetAwaiter().GetResult()
 $appts = $cal.FindAppointmentsAsync($start,$end-$start).GetAwaiter().GetResult()
-if($appts.Count -eq 0){"Etkinlik yok."}
-else{$appts|ForEach-Object{"• $($_.StartTime.LocalDateTime.ToString('HH:mm')) - $($_.Subject) ($($_.Duration.TotalMinutes)dk)"}|Out-String}
+if($appts.Count -eq 0){"No events."}
+else{$appts|ForEach-Object{"• $($_.StartTime.LocalDateTime.ToString('HH:mm')) - $($_.Subject) ($($_.Duration.TotalMinutes)min)"}|Out-String}
 `.trim();
         const out = await runScript(ps, 15000);
-        if (out.includes("HATA") || out.includes("hata") || !out.trim()) {
+        if (out.includes("ERROR") || out.includes("error") || !out.trim()) {
             // Fallback: use PowerShell Get-Date based simple approach
-            return `Takvim API'ye erişim için UWP izni gerekli. Alternatif: 'Görevler' veya 'Notlar' özelliklerini kullanabilirsin.`;
+            return `UWP permission is required to access the Calendar API. Alternative: you can use the 'Tasks' or 'Notes' features.`;
         }
         return out;
     },
@@ -1239,18 +1239,18 @@ try {
   $appt.Duration = ${dur}
   $appt.Body = "${(notes ?? "").replace(/"/g, "'")}"
   $appt.Save()
-  "Etkinlik eklendi: ${title}"
+  "Event added: ${title}"
 } catch {
-  "Outlook bulunamadı. Etkinlik manuel eklenmeli: ${title} - ${start_time}"
+  "Outlook not found. Event must be added manually: ${title} - ${start_time}"
 }
 `.trim();
         return runScript(ps, 10000);
     },
 
-    // ── Faz 22: Dosya & Medya ────────────────────────────────────────────────
+    // ── Phase 22: Files & Media ───────────────────────────────────────────────
     async organize_folder({folder_path, by}) {
         const target = resolvePath(folder_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Klasör bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: Folder not found: ${target}`;
         const groupBy = (by === "date") ? "date" : "extension";
         const files = fs.readdirSync(target).filter((f) => {
             try { return fs.statSync(path.join(target, f)).isFile(); } catch { return false; }
@@ -1277,11 +1277,11 @@ try {
                 skipped.push(file);
             }
         }
-        return `${moved} dosya taşındı (grupla: ${groupBy}). ${skipped.length > 0 ? "Atlanan: " + skipped.join(", ") : ""}`.trim();
+        return `${moved} files moved (grouped by: ${groupBy}). ${skipped.length > 0 ? "Skipped: " + skipped.join(", ") : ""}`.trim();
     },
     async find_duplicates({folder_path, recursive}) {
         const target = resolvePath(folder_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Klasör bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: Folder not found: ${target}`;
         const isRecursive = String(recursive) !== "false";
         const {createHash} = await import("crypto");
         function getFiles(dir: string): string[] {
@@ -1298,7 +1298,7 @@ try {
         }
         const files = getFiles(target);
         const hashMap = new Map<string, string[]>();
-        const SIZE_LIMIT = 50 * 1024 * 1024; // 50 MB — büyük dosyaları atla
+        const SIZE_LIMIT = 50 * 1024 * 1024; // 50 MB — skip large files
         for (const f of files) {
             try {
                 const stat = fs.statSync(f);
@@ -1311,18 +1311,18 @@ try {
             } catch {}
         }
         const dupes = [...hashMap.values()].filter((arr) => arr.length > 1);
-        if (dupes.length === 0) return "Yinelenen dosya bulunamadı.";
-        return `${dupes.length} yinelenen grup bulundu:\n${dupes.map((g, i) => `${i + 1}. (${g.length} dosya)\n   ${g.join("\n   ")}`).join("\n\n")}`;
+        if (dupes.length === 0) return "No duplicate files found.";
+        return `${dupes.length} duplicate group(s) found:\n${dupes.map((g, i) => `${i + 1}. (${g.length} files)\n   ${g.join("\n   ")}`).join("\n\n")}`;
     },
     async bulk_rename({folder_path, pattern, replacement, extension}) {
         const target = resolvePath(folder_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Klasör bulunamadı: ${target}`;
-        if (!pattern) return "HATA: Regex pattern gerekli.";
+        if (!fs.existsSync(target)) return `ERROR: Folder not found: ${target}`;
+        if (!pattern) return "ERROR: Regex pattern is required.";
         let regex: RegExp;
         try {
             regex = new RegExp(pattern, "g");
         } catch {
-            return `HATA: Geçersiz regex pattern: ${pattern}`;
+            return `ERROR: Invalid regex pattern: ${pattern}`;
         }
         let files = fs.readdirSync(target).filter((f) => {
             try { return fs.statSync(path.join(target, f)).isFile(); } catch { return false; }
@@ -1340,25 +1340,25 @@ try {
                 } catch {}
             }
         });
-        return `${renamed} dosya yeniden adlandırıldı.`;
+        return `${renamed} file(s) renamed.`;
     },
     async analyze_image({image_path, question}) {
         const target = resolvePath(image_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Görüntü bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: Image not found: ${target}`;
         try {
             const buf = fs.readFileSync(target);
             const base64 = buf.toString("base64");
             const ext = path.extname(target).slice(1).toLowerCase();
             const mimeMap: Record<string, string> = {jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif", webp:"image/webp"};
             const mime = mimeMap[ext] ?? "image/png";
-            return `[GÖRÜNTÜ ANALİZİ]\nDosya: ${path.basename(target)}\nBoyut: ${(buf.length / 1024).toFixed(1)} KB\nSoru: ${question || "Bu görüntüde ne var?"}\nNot: Görüntü analizi için vision destekli model (gpt-4o-mini veya llama-3.2-vision) gerekiyor. Mevcut Groq modeli metin tabanlı. Görüntüyü base64 olarak hazırladım (${mime}, ${base64.length} karakter). Vision özelliği için ayarlardan OpenAI API key ekle.`;
+            return `[IMAGE ANALYSIS]\nFile: ${path.basename(target)}\nSize: ${(buf.length / 1024).toFixed(1)} KB\nQuestion: ${question || "What's in this image?"}\nNote: Image analysis requires a vision-capable model (gpt-4o-mini or llama-3.2-vision). The current Groq model is text-based. I've prepared the image as base64 (${mime}, ${base64.length} characters). Add an OpenAI API key in settings to enable the vision feature.`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
     async resize_image({image_path, width, height, output_path}) {
         const target = resolvePath(image_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Görüntü bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: Image not found: ${target}`;
         const w = Number(width);
         const h = height ? Number(height) : 0;
         const ext = path.extname(target);
@@ -1373,13 +1373,13 @@ $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQuality
 $g.DrawImage($img,0,0,$w,$h)
 $bmp.Save("${outPath.replace(/\\/g, "\\\\")}")
 $g.Dispose(); $bmp.Dispose(); $img.Dispose()
-"Yeniden boyutlandırıldı: ${outPath} (${w}x" + $h + "px)"
+"Resized: ${outPath} (${w}x" + $h + "px)"
 `.trim();
         return runScript(ps, 15000);
     },
     async convert_image({image_path, output_format, output_path}) {
         const target = resolvePath(image_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Görüntü bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: Image not found: ${target}`;
         const fmt = (output_format ?? "png").toLowerCase();
         const fmtMap: Record<string, string> = {jpg:"Jpeg", jpeg:"Jpeg", png:"Png", bmp:"Bmp", gif:"Gif"};
         const dotNetFmt = fmtMap[fmt] ?? "Png";
@@ -1390,13 +1390,13 @@ Add-Type -AssemblyName System.Drawing
 $img = [System.Drawing.Image]::FromFile("${target.replace(/\\/g, "\\\\")}")
 $img.Save("${outPath.replace(/\\/g, "\\\\")}",  [System.Drawing.Imaging.ImageFormat]::${dotNetFmt})
 $img.Dispose()
-"Dönüştürüldü: ${outPath}"
+"Converted: ${outPath}"
 `.trim();
         return runScript(ps, 15000);
     },
     async pdf_to_text({pdf_path, max_chars}) {
         const target = resolvePath(pdf_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: PDF bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: PDF not found: ${target}`;
         const maxC = max_chars ? Number(max_chars) : 10000;
         const ps = `
 Add-Type -AssemblyName Microsoft.Office.Interop.Word -ErrorAction SilentlyContinue
@@ -1407,15 +1407,15 @@ try {
   $text = $doc.Content.Text
   $doc.Close([ref]$false)
   $word.Quit()
-  if($text.Length -gt ${maxC}){$text.Substring(0,${maxC})+"...(kısaltıldı)"}else{$text}
+  if($text.Length -gt ${maxC}){$text.Substring(0,${maxC})+"...(truncated)"}else{$text}
 } catch {
-  "Word COM nesnesi bulunamadı. Alternatif: PDF okuma için 'pdftotext' aracı kur veya dosyayı bilgi tabanına indeksle (index_file)."
+  "Word COM object not found. Alternative: install the 'pdftotext' tool to read PDFs, or index the file into the knowledge base (index_file)."
 }
 `.trim();
         return runScript(ps, 20000);
     },
 
-    // ── Faz 23: Kişilik & Rol ────────────────────────────────────────────────
+    // ── Phase 23: Personas & Roles ────────────────────────────────────────────
     async set_persona({name}) {
         return setActivePersona(name ?? "default");
     },
@@ -1435,7 +1435,7 @@ try {
         return stopRoleplay();
     },
 
-    // ── Faz 24: Ağ & Sunucu ──────────────────────────────────────────────────
+    // ── Phase 24: Network & Server ───────────────────────────────────────────
     async ping_host({host, count}) {
         const n = count ? Number(count) : 4;
         return run(`powershell -NoProfile -Command "Test-Connection -ComputerName '${host}' -Count ${n} | Select-Object -Property Address,ResponseTime,StatusCode | ConvertTo-Json -Compress"`, 15000);
@@ -1449,12 +1449,12 @@ try {
         const ps = portList.map((p) => {
             const [start, end] = p.includes("-") ? p.split("-").map(Number) : [Number(p), Number(p)];
             if (end > start) {
-                return `${start}..${end} | ForEach-Object { $tcp = New-Object System.Net.Sockets.TcpClient; $conn = $tcp.BeginConnect('${host}',$_,$null,$null); $wait = $conn.AsyncWaitHandle.WaitOne(500); if($wait -and -not $tcp.Connected){}; if($tcp.Connected){"Port $_ ACIK"}; $tcp.Close() }`;
+                return `${start}..${end} | ForEach-Object { $tcp = New-Object System.Net.Sockets.TcpClient; $conn = $tcp.BeginConnect('${host}',$_,$null,$null); $wait = $conn.AsyncWaitHandle.WaitOne(500); if($wait -and -not $tcp.Connected){}; if($tcp.Connected){"Port $_ OPEN"}; $tcp.Close() }`;
             }
-            return `$tcp = New-Object System.Net.Sockets.TcpClient; $conn = $tcp.BeginConnect('${host}',${start},$null,$null); if($conn.AsyncWaitHandle.WaitOne(500) -and $tcp.Connected){"Port ${start}: ACIK"}else{"Port ${start}: KAPALI"}; $tcp.Close()`;
+            return `$tcp = New-Object System.Net.Sockets.TcpClient; $conn = $tcp.BeginConnect('${host}',${start},$null,$null); if($conn.AsyncWaitHandle.WaitOne(500) -and $tcp.Connected){"Port ${start}: OPEN"}else{"Port ${start}: CLOSED"}; $tcp.Close()`;
         }).join("; ");
         const result = await runScript(ps, 30000);
-        return result || "Tüm portlar kapalı veya erişilemiyor.";
+        return result || "All ports are closed or unreachable.";
     },
     async dns_lookup({domain, type}) {
         const recType = (type ?? "A").toUpperCase();
@@ -1462,10 +1462,10 @@ try {
     },
     async ssh_run({host_alias, command}) {
         const hostsPath = path.join(os.homedir(), ".aegis", "ssh-hosts.json");
-        if (!fs.existsSync(hostsPath)) return "HATA: SSH profili bulunamadı. Önce 'ssh_add_host' ile profil ekle.";
+        if (!fs.existsSync(hostsPath)) return "ERROR: No SSH profile found. Add one first with 'ssh_add_host'.";
         const hosts = JSON.parse(fs.readFileSync(hostsPath, "utf-8"));
         const profile = hosts[host_alias ?? ""];
-        if (!profile) return `HATA: "${host_alias}" profili bulunamadı. Mevcut: ${Object.keys(hosts).join(", ")}`;
+        if (!profile) return `ERROR: Profile "${host_alias}" not found. Available: ${Object.keys(hosts).join(", ")}`;
         const {hostname, username, port = 22, key_path} = profile;
         const keyFlag = key_path ? `-i "${key_path}"` : "";
         const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${port} ${keyFlag} ${username}@${hostname} "${(command ?? "").replace(/"/g, '\\"')}"`;
@@ -1476,7 +1476,7 @@ try {
         const hosts = fs.existsSync(hostsPath) ? JSON.parse(fs.readFileSync(hostsPath, "utf-8")) : {};
         hosts[alias ?? ""] = {hostname, username, port: port ? Number(port) : 22, ...(key_path ? {key_path} : {})};
         fs.writeFileSync(hostsPath, JSON.stringify(hosts, null, 2));
-        return `SSH profili kaydedildi: ${alias} → ${username}@${hostname}:${port ?? 22}`;
+        return `SSH profile saved: ${alias} → ${username}@${hostname}:${port ?? 22}`;
     },
     async docker_ps({all}) {
         const flag = String(all) === "true" ? "-a" : "";
@@ -1493,7 +1493,7 @@ try {
         return run(`docker logs --tail ${n} ${container ?? ""}`, 10000);
     },
 
-    // ── Faz 25: Görselleştirme ───────────────────────────────────────────────
+    // ── Phase 25: Visualization ───────────────────────────────────────────────
     async create_chart({type, data, title}) {
         try {
             const parsed: {labels?: string[]; values?: number[]} | [string, number][] = JSON.parse(data ?? "{}");
@@ -1506,7 +1506,7 @@ try {
                 labels = parsed.labels ?? [];
                 values = (parsed.values ?? []).map(Number);
             }
-            if (labels.length === 0 || values.length === 0) return "HATA: Veri eksik. Format: {labels:[...], values:[...]} veya [[label,val],...]";
+            if (labels.length === 0 || values.length === 0) return "ERROR: Missing data. Format: {labels:[...], values:[...]} or [[label,val],...]";
             const chartType = (type ?? "bar").toLowerCase();
             const maxVal = Math.max(...values);
             const chartWidth = 40;
@@ -1526,10 +1526,10 @@ try {
                     const barLen = Math.round(Number(pct) / 100 * chartWidth);
                     return `${l.padEnd(12).slice(0, 12)} │${"█".repeat(barLen)}│ ${pct}%`;
                 });
-                return `${t}${rows.join("\n")}\nToplam: ${total}`;
+                return `${t}${rows.join("\n")}\nTotal: ${total}`;
             }
             if (chartType === "line") {
-                if (maxVal === 0) return `${t}(tüm değerler sıfır — grafik çizilemez)`;
+                if (maxVal === 0) return `${t}(all values are zero — chart cannot be drawn)`;
                 const height = 10;
                 const grid: string[][] = Array.from({length: height}, () => Array(values.length).fill(" "));
                 values.forEach((v, i) => {
@@ -1542,9 +1542,9 @@ try {
                 });
                 return `${t}${rows.join("\n")}\n       └${"─".repeat(values.length * 2)}\n        ${labels.map((l) => l.slice(0, 2)).join(" ")}`;
             }
-            return "HATA: Desteklenmeyen grafik tipi. Kullan: bar, pie, line";
+            return "ERROR: Unsupported chart type. Use: bar, pie, line";
         } catch (e) {
-            return `HATA: Veri ayrıştırılamadı — ${(e as Error).message}`;
+            return `ERROR: Could not parse data — ${(e as Error).message}`;
         }
     },
     async system_report() {
@@ -1565,24 +1565,24 @@ try {
             }).join(", ");
         } catch {}
         const report = [
-            `AEGIS Sistem Sağlık Raporu — ${new Date().toLocaleString("tr-TR")}`,
+            `AEGIS System Health Report — ${new Date().toLocaleString("en-US")}`,
             `═══════════════════════════════════════════`,
             `CPU     : ${cpus[0].model.split(" @")[0].trim()}`,
-            `CPU     : ${cpus.length} çekirdek`,
-            `RAM     : %${ramUsedPct} kullanımda (${((totalMem - freeMem) / 1e9).toFixed(1)}GB / ${(totalMem / 1e9).toFixed(1)}GB)`,
+            `CPU     : ${cpus.length} cores`,
+            `RAM     : ${ramUsedPct}% used (${((totalMem - freeMem) / 1e9).toFixed(1)}GB / ${(totalMem / 1e9).toFixed(1)}GB)`,
             `Disk    : ${diskSummary}`,
-            `Uptime  : ${uptime} saat`,
+            `Uptime  : ${uptime} hours`,
             `Platform: ${os.version()}`,
         ].join("\n");
         return report;
     },
 
-    // ── Faz 26: E-posta ──────────────────────────────────────────────────────
+    // ── Phase 26: Email ───────────────────────────────────────────────────────
     async email_draft({intent, recipient, tone, language}) {
         const lang = language ?? "tr";
         const t = tone ?? "formal";
-        const toneDesc = t === "friendly" ? "samimi ve sıcak" : t === "assertive" ? "net ve kararlı" : "profesyonel ve resmi";
-        return `E-posta taslağı hazırlanıyor (${lang === "tr" ? "Türkçe" : "İngilizce"}, ${toneDesc} ton):\n\n---\nKonu: [Konuyu buraya yaz]\n\nSayın ${recipient ?? "[Alıcı]"},\n\n${intent}\n\nSaygılarımla,\n[İmza]\n---\n\nNot: SMTP ile göndermek için önce 'email_setup_smtp' ile profil kur.`;
+        const toneDesc = t === "friendly" ? "warm and friendly" : t === "assertive" ? "clear and assertive" : "professional and formal";
+        return `Drafting email (${lang === "tr" ? "Turkish" : "English"}, ${toneDesc} tone):\n\n---\nSubject: [Write the subject here]\n\nDear ${recipient ?? "[Recipient]"},\n\n${intent}\n\nBest regards,\n[Signature]\n---\n\nNote: To send via SMTP, set up a profile first with 'email_setup_smtp'.`;
     },
     async email_setup_smtp({alias, smtp_host, smtp_port, imap_host, imap_port, username, password}) {
         const profilesPath = path.join(os.homedir(), ".aegis", "email-profiles.json");
@@ -1592,41 +1592,41 @@ try {
             smtp: {host: smtp_host, port: smtp_port ?? 587},
             imap: imap_host ? {host: imap_host, port: imap_port ?? 993} : null,
             username,
-            password_hint: "[vault'ta şifreli]",
+            password_hint: "[encrypted in vault]",
         };
         fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
-        // Şifreyi düz metin olarak profil dosyasına YAZMA — şifreli vault'a koy.
+        // Do NOT write the password as plaintext to the profile file — store it in the encrypted vault.
         let vaultNote = "";
         if (password) {
             try {
                 vaultStore(`email_${aliasKey}_pass`, password);
-                vaultNote = " Şifre vault'a şifreli olarak kaydedildi.";
+                vaultNote = " Password saved encrypted in the vault.";
             } catch (e) {
-                vaultNote = ` (Şifre vault'a kaydedilemedi: ${(e as Error).message})`;
+                vaultNote = ` (Password could not be saved to the vault: ${(e as Error).message})`;
             }
         }
-        return `E-posta profili kaydedildi: ${aliasKey}.${vaultNote}`;
+        return `Email profile saved: ${aliasKey}.${vaultNote}`;
     },
     async email_send({to, subject, body, from_alias}) {
         const profilesPath = path.join(os.homedir(), ".aegis", "email-profiles.json");
         if (!fs.existsSync(profilesPath)) {
-            return "HATA: E-posta profili yok. Önce 'email_setup_smtp' ile profil kur.";
+            return "ERROR: No email profile exists. Set one up first with 'email_setup_smtp'.";
         }
         const profiles = JSON.parse(fs.readFileSync(profilesPath, "utf-8"));
         const profile = profiles[from_alias ?? "default"];
-        if (!profile) return `HATA: "${from_alias}" profili bulunamadı.`;
+        if (!profile) return `ERROR: Profile "${from_alias}" not found.`;
         const {smtp, username} = profile;
         const ps = `
 Send-MailMessage -To "${to}" -From "${username}" -Subject "${(subject ?? "").replace(/"/g, "'")}" -Body "${(body ?? "").replace(/"/g, "'")}" -SmtpServer "${smtp.host}" -Port ${smtp.port ?? 587} -UseSsl -Credential (New-Object PSCredential("${username}", (ConvertTo-SecureString "[VAULT_PASS]" -AsPlainText -Force))) -ErrorAction Stop
-"E-posta gönderildi: ${to}"
+"Email sent: ${to}"
 `.trim();
-        return `E-posta gönderiliyor...\nNot: Vault'tan şifreyi al ve PowerShell'de gönder:\n${ps}`;
+        return `Sending email...\nNote: Retrieve the password from the vault and send via PowerShell:\n${ps}`;
     },
     async email_fetch({count, folder}) {
-        return `IMAP okuma için şu an doğrudan PowerShell desteği sınırlı. Alternatif: Outlook COM nesnesi kullanılabilir.\nProfil: ${folder ?? "INBOX"}, Son: ${count ?? 10} e-posta\nNot: Outlook kuruluysa 'run_command' ile Outlook COM ile e-posta okuyabilirsin.`;
+        return `Direct PowerShell support for IMAP reading is currently limited. Alternative: the Outlook COM object can be used.\nProfile: ${folder ?? "INBOX"}, Latest: ${count ?? 10} emails\nNote: If Outlook is installed, you can read email via 'run_command' using the Outlook COM object.`;
     },
 
-    // ── Faz 27: Öğrenme & Kişisel Gelişim ───────────────────────────────────
+    // ── Phase 27: Learning & Personal Development ────────────────────────────
     async card_add({front, back, tags}) {
         const tagList = tags ? String(tags).split(",").map((t) => t.trim()) : [];
         return addFlashcard(front ?? "", back ?? "", tagList);
@@ -1654,27 +1654,27 @@ Send-MailMessage -To "${to}" -From "${username}" -Subject "${(subject ?? "").rep
         return listGoals(status ?? "active");
     },
 
-    // ── Faz 28: IoT & Fiziksel ───────────────────────────────────────────────
+    // ── Phase 28: IoT & Physical ──────────────────────────────────────────────
     async list_bluetooth() {
         return runScript(`Get-PnpDevice -Class Bluetooth -ErrorAction SilentlyContinue | Select-Object FriendlyName,Status,InstanceId | ConvertTo-Json -Compress`, 10000);
     },
     async connect_bluetooth({device_name}) {
         const ps = `
 $dev = Get-PnpDevice -Class Bluetooth | Where-Object {$_.FriendlyName -like "*${device_name}*"} | Select-Object -First 1
-if(-not $dev){"HATA: '${ device_name}' bulunamadı"}
+if(-not $dev){"ERROR: '${ device_name}' not found"}
 else{
   $null = Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-  "Bağlanıldı: $($dev.FriendlyName)"
+  "Connected: $($dev.FriendlyName)"
 }`.trim();
         return runScript(ps, 15000);
     },
     async disconnect_bluetooth({device_name}) {
         const ps = `
 $dev = Get-PnpDevice -Class Bluetooth | Where-Object {$_.FriendlyName -like "*${device_name}*"} | Select-Object -First 1
-if(-not $dev){"HATA: '${device_name}' bulunamadı"}
+if(-not $dev){"ERROR: '${device_name}' not found"}
 else{
   Disable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-  "Bağlantı kesildi: $($dev.FriendlyName)"
+  "Disconnected: $($dev.FriendlyName)"
 }`.trim();
         return runScript(ps, 15000);
     },
@@ -1686,7 +1686,7 @@ else{
     },
     async print_file({file_path, printer_name}) {
         const target = resolvePath(file_path ?? "");
-        if (!fs.existsSync(target)) return `HATA: Dosya bulunamadı: ${target}`;
+        if (!fs.existsSync(target)) return `ERROR: File not found: ${target}`;
         const printerArg = printer_name ? `-PrinterName "${printer_name}"` : "";
         return runScript(`Start-Process -FilePath "${target.replace(/\\/g, "\\\\")}" -Verb Print ${printerArg} -Wait`, 30000);
     },
@@ -1696,22 +1696,22 @@ else{
     },
     async weather_station({location}) {
         const WEATHER_CODES: Record<number, string> = {
-            0: "açık", 1: "az bulutlu", 2: "parçalı bulutlu", 3: "bulutlu",
-            45: "sisli", 48: "sisli",
-            51: "çiseliyor", 53: "çiseliyor", 55: "çiseliyor",
-            61: "yağmurlu", 63: "yağmurlu", 65: "kuvvetli yağmur",
-            71: "karlı", 73: "karlı", 75: "yoğun kar",
-            80: "sağanak", 81: "sağanak", 82: "kuvvetli sağanak",
-            95: "gök gürültülü",
+            0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "cloudy",
+            45: "foggy", 48: "foggy",
+            51: "drizzling", 53: "drizzling", 55: "drizzling",
+            61: "rainy", 63: "rainy", 65: "heavy rain",
+            71: "snowy", 73: "snowy", 75: "heavy snow",
+            80: "showers", 81: "showers", 82: "heavy showers",
+            95: "thundery",
         };
         try {
             let lat: number, lon: number, city: string, country: string;
             if (location && location.trim()) {
                 const geo = await (await fetchWithTimeout(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.trim())}&count=1&language=tr&format=json`,
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.trim())}&count=1&language=en&format=json`,
                     {}, 8_000
                 )).json() as {results?: {latitude: number; longitude: number; name: string; country: string}[]};
-                if (!geo.results?.length) return `"${location}" konumu bulunamadı.`;
+                if (!geo.results?.length) return `Location "${location}" not found.`;
                 const r = geo.results[0];
                 lat = r.latitude; lon = r.longitude; city = r.name; country = r.country;
             } else {
@@ -1723,13 +1723,13 @@ else{
                 {}, 8_000
             )).json() as {current: {temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; weather_code: number; wind_speed_10m: number; surface_pressure: number}};
             const c = w.current;
-            return `${city}, ${country} Hava Durumu:\nSıcaklık: ${Math.round(c.temperature_2m)}°C (hissedilen ${Math.round(c.apparent_temperature)}°C)\nNem: %${c.relative_humidity_2m}\nBasınç: ${Math.round(c.surface_pressure)} hPa\nRüzgar: ${c.wind_speed_10m} km/s\nDurum: ${WEATHER_CODES[c.weather_code] ?? "—"}`;
+            return `${city}, ${country} Weather:\nTemperature: ${Math.round(c.temperature_2m)}°C (feels like ${Math.round(c.apparent_temperature)}°C)\nHumidity: ${c.relative_humidity_2m}%\nPressure: ${Math.round(c.surface_pressure)} hPa\nWind: ${c.wind_speed_10m} km/h\nCondition: ${WEATHER_CODES[c.weather_code] ?? "—"}`;
         } catch (e) {
-            return `HATA: ${(e as Error).message}`;
+            return `ERROR: ${(e as Error).message}`;
         }
     },
 
-    // ── Faz 29: Çoklu Model ──────────────────────────────────────────────────
+    // ── Phase 29: Multi-Model ──────────────────────────────────────────────────
     async model_compare({prompt, models}) {
         return modelCompare(prompt ?? "", models ?? "groq:qwen3-32b,groq:llama-3.3-70b");
     },
@@ -1749,7 +1749,7 @@ else{
         return getModelRoutingRules();
     },
 
-    // ── Faz 35: Sesli Çeviri ─────────────────────────────────────────────────
+    // ── Phase 35: Voice Translation ──────────────────────────────────────────
     async translation_start({source_lang, target_lang}) {
         return translationStart(source_lang ?? "tr", target_lang ?? "en");
     },
@@ -1767,7 +1767,7 @@ else{
         return subtitleToggle(!!enable);
     },
 
-    // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
+    // ── Phase 36: Notification Monitor ───────────────────────────────────────
     async notification_recent({count}) {
         return getRecentNotifications(Number(count ?? 20));
     },
@@ -1785,7 +1785,7 @@ else{
         return dndSet(Number(minutes ?? 30));
     },
 
-    // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
+    // ── Phase 37: Code Builder & Test Runner ─────────────────────────────────
     async project_detect({dir}) {
         return getProjectInfo(dir ?? ".");
     },
@@ -1828,7 +1828,7 @@ else{
         return priceAlertSet(symbol ?? "", (type as "crypto" | "stock" | "fx") ?? "crypto", above != null ? Number(above) : undefined, below != null ? Number(below) : undefined);
     },
 
-    // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
+    // ── Phase 39: Voice Meeting Assistant ────────────────────────────────────
     async meeting_start() {
         return meetingStart();
     },
@@ -1848,7 +1848,7 @@ else{
         return meetingActionItems(id ?? "");
     },
 
-    // ── Faz 40: Bağlam-Duyarlı Eylemler ─────────────────────────────────────
+    // ── Phase 40: Context-Aware Actions ───────────────────────────────────────
     async get_active_context() {
         return getActiveContext();
     },
@@ -1868,7 +1868,7 @@ else{
         return clipboardSearch(query ?? "");
     },
 
-    // ── Faz 41: Güçlü Yerel Arama ──────────────────────────────────────────
+    // ── Phase 41: Powerful Local Search ───────────────────────────────────────
     async file_search({query, dir}) {
         return fileSearch(query ?? "", dir);
     },
@@ -2083,25 +2083,25 @@ else{
     async steam_who_is_playing({game}: {game?: unknown}) { return steamWhoIsPlaying(String(game ?? "")); },
     // Grup D — deneysel
     async steam_wishlist_add({game}: {game?: unknown}) {
-        // 1) Mağaza sayfasını aç (AppID çözülür). Steam 3rd-party'ye sessiz wishlist
-        //    yazma API'si vermez; sayfa açıldıktan sonra computer-use ile '+ İstek
-        //    Listesine Ekle' butonuna tıklamayı DENERİZ.
+        // 1) Open the store page (AppID gets resolved). Steam doesn't give 3rd parties a
+        //    silent wishlist-write API; once the page opens we TRY clicking the
+        //    '+ Add to your wishlist' button via computer-use.
         const opened = await steamWishlistAdd(String(game ?? ""), true);
-        if (/^HATA|bulunamadı/.test(opened)) return opened;
+        if (/^ERROR|not found/.test(opened)) return opened;
 
-        // Vision döngüsü kullanılamıyorsa (callback yok) sayfa açık kalır — kullanıcı elle ekler.
+        // If the vision loop is unavailable (no callback) the page stays open — user adds it manually.
         if (!_screenshotCallback || !_analyzeScreenCallback) {
-            return `${opened}\n(Otomatik tıklama için vision modeli gerekli — sayfadan elle ekleyebilirsin.)`;
+            return `${opened}\n(Automatic clicking requires a vision model — you can add it manually from the page.)`;
         }
 
-        // 2) Sayfanın yüklenmesini bekle, sonra butona otomatik tıkla.
+        // 2) Wait for the page to load, then auto-click the button.
         await new Promise((r) => setTimeout(r, 3500));
-        const goal = "Açık olan Steam mağaza sayfasında '+ İstek Listesine Ekle' " +
-            "(veya İngilizce 'Add to your wishlist') butonunu bul ve TIKLA. " +
-            "Buton zaten 'İstek Listesinde' yazıyorsa zaten ekli demektir, done döndür. " +
-            "Tıkladıktan sonra done döndür.";
+        const goal = "Find and CLICK the '+ Add to your wishlist' button " +
+            "on the open Steam store page. " +
+            "If the button already says 'In Wishlist', it's already added — return done. " +
+            "Return done after clicking.";
         const cuResult = await executors.computer_use({goal, max_steps: "6"});
-        return `${opened}\n\nOtomatik ekleme denemesi:\n${cuResult}\n\n(Computer-use kırılgandır; eklenmediyse sayfadan elle '+ İstek Listesine Ekle'ye tıkla.)`;
+        return `${opened}\n\nAutomatic add attempt:\n${cuResult}\n\n(Computer-use is fragile; if it wasn't added, click '+ Add to your wishlist' manually from the page.)`;
     },
     async steam_wishlist_remove({game}: {game?: unknown}) { return steamWishlistAdd(String(game ?? ""), false); },
     async steam_wishlist_list() { return steamWishlistList(); },
@@ -2119,20 +2119,20 @@ else{
     async steam_take_screenshot() { return steamTakeScreenshot(); },
     async steam_repeat_last_action() { return steamRepeatLastAction(); },
 
-    // ── Faz 47: Computer Use ─────────────────────────────────────────────────
+    // ── Phase 47: Computer Use ───────────────────────────────────────────────
     async mouse_move({x, y}: {x?: unknown; y?: unknown}) {
         return mouseMove(Number(x ?? 0), Number(y ?? 0));
     },
     async mouse_click({x, y, button, double: dbl, verify}: {x?: unknown; y?: unknown; button?: unknown; double?: unknown; verify?: unknown}) {
         const doClick = () => mouseClick(Number(x ?? 0), Number(y ?? 0), (String(button ?? "left")) as "left"|"right"|"middle", Boolean(dbl));
-        // Faz 60 — verify="true" ise tıkla → ekran değişti mi doğrula → rapor et.
+        // Phase 60 — if verify="true", click → verify whether the screen changed → report.
         if (String(verify ?? "") === "true" && _screenshotCallback) {
             const snap = async () => {
                 const r = await _screenshotCallback!();
                 return "base64" in r ? r.base64 : "";
             };
             const {actionResult, verify: v} = await actWithVerification(snap, doClick);
-            return `${actionResult}\n[DOĞRULAMA] ${v.note}`;
+            return `${actionResult}\n[VERIFICATION] ${v.note}`;
         }
         return doClick();
     },
@@ -2150,45 +2150,45 @@ else{
     },
     async screen_size() {
         const s = await getScreenSize();
-        return `Ekran çözünürlüğü: ${s.width}x${s.height}`;
+        return `Screen resolution: ${s.width}x${s.height}`;
     },
     async computer_use({goal, max_steps}: {goal?: unknown; max_steps?: unknown}) {
-        if (!_screenshotCallback) return "HATA: Screenshot callback kayıtlı değil.";
-        if (!_analyzeScreenCallback) return "HATA: Vision callback kayıtlı değil.";
-        if (!goal) return "HATA: Hedef belirtilmedi.";
+        if (!_screenshotCallback) return "ERROR: Screenshot callback not registered.";
+        if (!_analyzeScreenCallback) return "ERROR: Vision callback not registered.";
+        if (!goal) return "ERROR: No goal specified.";
 
         const maxSteps = Math.min(Number(max_steps ?? 10), 20);
         const log: string[] = [];
 
         const screenSize = await getScreenSize();
-        const systemPrompt = `Sen bir bilgisayar kullanıcısısın. Ekran görüntüsüne bakıp mouse/klavye ile hedefi gerçekleştiriyorsun.
-Ekran boyutu: ${screenSize.width}x${screenSize.height}.
-Her yanıtında SADECE JSON formatında bir eylem döndür:
+        const systemPrompt = `You are a computer user. You look at a screenshot and accomplish the goal with mouse/keyboard.
+Screen size: ${screenSize.width}x${screenSize.height}.
+In every response, return ONLY a single action in JSON format:
 {"action": "click", "x": 100, "y": 200, "button": "left"}
 {"action": "double_click", "x": 100, "y": 200}
 {"action": "right_click", "x": 100, "y": 200}
-{"action": "type", "text": "yazılacak metin"}
+{"action": "type", "text": "text to type"}
 {"action": "key", "keys": "ctrl+c"}
 {"action": "scroll", "x": 500, "y": 400, "direction": "down", "amount": 3}
 {"action": "move", "x": 300, "y": 150}
-{"action": "done", "result": "Açıklama"}
-{"action": "fail", "reason": "Neden başarısız"}
-Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
+{"action": "done", "result": "Description"}
+{"action": "fail", "reason": "Why it failed"}
+Return "done" if the goal is complete, or "fail" if it cannot be completed.`;
 
         for (let step = 0; step < maxSteps; step++) {
             const scResult = await _screenshotCallback();
             if ("error" in scResult) {
-                log.push(`[Adım ${step + 1}] Screenshot hatası: ${scResult.error}`);
+                log.push(`[Step ${step + 1}] Screenshot error: ${scResult.error}`);
                 break;
             }
 
-            const prompt = `Hedef: ${String(goal)}\nTamamlanan adımlar: ${log.join("; ") || "yok"}\nEkrana bak ve sonraki eylemi JSON olarak döndür.`;
+            const prompt = `Goal: ${String(goal)}\nCompleted steps: ${log.join("; ") || "none"}\nLook at the screen and return the next action as JSON.`;
             const response = await _analyzeScreenCallback(scResult.base64, `${systemPrompt}\n\n${prompt}`);
 
-            // JSON çıkar
+            // Extract JSON
             const jsonMatch = response.match(/\{[^}]+\}/);
             if (!jsonMatch) {
-                log.push(`[Adım ${step + 1}] JSON parse hatası`);
+                log.push(`[Step ${step + 1}] JSON parse error`);
                 break;
             }
 
@@ -2196,19 +2196,19 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
             try {
                 action = JSON.parse(jsonMatch[0]);
             } catch {
-                log.push(`[Adım ${step + 1}] JSON geçersiz`);
+                log.push(`[Step ${step + 1}] Invalid JSON`);
                 break;
             }
 
             const act = String(action.action ?? "");
 
             if (act === "done") {
-                log.push(`[Adım ${step + 1}] Tamamlandı: ${action.result}`);
-                return `Hedef tamamlandı (${step + 1} adımda):\n${log.join("\n")}`;
+                log.push(`[Step ${step + 1}] Completed: ${action.result}`);
+                return `Goal completed (in ${step + 1} steps):\n${log.join("\n")}`;
             }
             if (act === "fail") {
-                log.push(`[Adım ${step + 1}] Başarısız: ${action.reason}`);
-                return `Hedef tamamlanamadı:\n${log.join("\n")}`;
+                log.push(`[Step ${step + 1}] Failed: ${action.reason}`);
+                return `Goal could not be completed:\n${log.join("\n")}`;
             }
 
             let stepResult = "";
@@ -2223,30 +2223,30 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
             else if (act === "key")     stepResult = await keyPress(String(action.keys ?? ""));
             else if (act === "scroll")  stepResult = await mouseScroll(x, y, String(action.direction ?? "down") as "up"|"down", Number(action.amount ?? 3));
             else {
-                log.push(`[Adım ${step + 1}] Bilinmeyen eylem: ${act}`);
+                log.push(`[Step ${step + 1}] Unknown action: ${act}`);
                 break;
             }
 
-            log.push(`[Adım ${step + 1}] ${act}: ${stepResult}`);
-            // Ekranın güncellenmesi için kısa bekleme
+            log.push(`[Step ${step + 1}] ${act}: ${stepResult}`);
+            // Short wait for the screen to update
             await new Promise((r) => setTimeout(r, 600));
         }
 
-        return `Computer Use tamamlandı (${maxSteps} adım limiti):\n${log.join("\n")}`;
+        return `Computer Use finished (${maxSteps}-step limit):\n${log.join("\n")}`;
     },
 
-    // ─────────────────────────────────────────── Faz 62 — Akıllı Ev (Home Assistant)
+    // ─────────────────────────────────────────── Phase 62 — Smart Home (Home Assistant)
     async smart_home_devices({area}) {
         const cfg = getHAConfig();
         if (!cfg) return HA_NOT_CONFIGURED;
         try {
             const all = smartHome.controllable(await smartHome.fetchStates(cfg));
-            if (all.length === 0) return "Home Assistant'a bağlanıldı ama kontrol edilebilir cihaz bulunamadı.";
+            if (all.length === 0) return "Connected to Home Assistant but no controllable device was found.";
             let list = all;
             if (area) {
                 const a = smartHome.normalize(area);
                 list = all.filter((e) => smartHome.normalize(e.friendly_name + " " + (e.attributes.area as string ?? "")).includes(a));
-                if (list.length === 0) return `"${area}" alanında cihaz bulunamadı. Tüm cihazları görmek için alan belirtme.`;
+                if (list.length === 0) return `No device found in area "${area}". Omit the area to see all devices.`;
             }
             const byArea = smartHome.groupByArea(list);
             const parts: string[] = [];
@@ -2254,9 +2254,9 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
                 parts.push(`\n📍 ${areaName}:`);
                 for (const e of ents) parts.push(`  • ${smartHome.describeState(e)}${smartHome.isCriticalEntity(e) ? " ⚠️" : ""}`);
             }
-            return `Akıllı ev cihazları (${list.length}):${parts.join("\n")}\n\n⚠️ = kritik cihaz (kontrol için onay ister)`;
+            return `Smart home devices (${list.length}):${parts.join("\n")}\n\n⚠️ = critical device (requires confirmation to control)`;
         } catch (e) {
-            return `Akıllı ev cihazları alınamadı: ${(e as Error).message}`;
+            return `Failed to fetch smart home devices: ${(e as Error).message}`;
         }
     },
 
@@ -2266,10 +2266,10 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
         try {
             const states = await smartHome.fetchStates(cfg);
             const {matches} = smartHome.resolveEntities(target, states);
-            if (matches.length === 0) return `"${target}" ile eşleşen cihaz bulunamadı. 'akıllı ev cihazlarını listele' diyerek mevcut cihazları gör.`;
+            if (matches.length === 0) return `No device matching "${target}" found. Say 'list smart home devices' to see available devices.`;
             return matches.map((e) => smartHome.describeState(e)).join("\n");
         } catch (e) {
-            return `Durum sorgulanamadı: ${(e as Error).message}`;
+            return `Failed to query status: ${(e as Error).message}`;
         }
     },
 
@@ -2279,19 +2279,19 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
         try {
             const states = await smartHome.fetchStates(cfg);
             const {matches, scope} = smartHome.resolveEntities(target, states);
-            if (matches.length === 0) return `"${target}" ile eşleşen cihaz bulunamadı. 'akıllı ev cihazlarını listele' diyerek mevcut cihazları gör.`;
+            if (matches.length === 0) return `No device matching "${target}" found. Say 'list smart home devices' to see available devices.`;
 
             const act = buildSmartHomeAction(action, value);
-            if (typeof act === "string") return act; // hata mesajı
+            if (typeof act === "string") return act; // error message
 
-            // Onay kapısı: eşleşenlerden biri kritikse ve confirm gelmemişse, dur ve sor.
+            // Confirmation gate: if any match is critical and confirm wasn't passed, stop and ask.
             const critical = matches.filter((e) => smartHome.isCriticalEntity(e));
             const confirmed = String(confirm ?? "").toLowerCase() === "true";
             if (critical.length > 0 && !confirmed) {
                 const names = critical.map((e) => e.friendly_name).join(", ");
-                return `ONAY GEREKLİ: Bu kritik cihaz(lar) etkilenecek → ${names}. ` +
-                    `Kullanıcıya "${names} için '${describeAction(action, value)}' yapayım mı?" diye sor. ` +
-                    `Onaylarsa aynı aracı confirm:"true" ile tekrar çağır.`;
+                return `CONFIRMATION REQUIRED: These critical device(s) will be affected → ${names}. ` +
+                    `Ask the user "Should I '${describeAction(action, value)}' for ${names}?" ` +
+                    `If they confirm, call the same tool again with confirm:"true".`;
             }
 
             const results: string[] = [];
@@ -2305,7 +2305,7 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
             const header = scope ? `${scope} → ${describeAction(action, value)}:\n` : "";
             return header + results.join("\n");
         } catch (e) {
-            return `Kontrol başarısız: ${(e as Error).message}`;
+            return `Control failed: ${(e as Error).message}`;
         }
     },
 
@@ -2315,25 +2315,25 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
         try {
             const states = await smartHome.fetchStates(cfg);
             const target = smartHome.normalize(name);
-            // scene.* veya script.* domain'inde isim eşleşmesi ara
+            // Look for a name match in the scene.* or script.* domain
             const cand = states.filter((e) => (e.domain === "scene" || e.domain === "script"))
                 .map((e) => ({e, hay: smartHome.normalize(e.friendly_name + " " + e.entity_id)}))
                 .filter((x) => target.split(" ").every((w) => x.hay.includes(w)));
-            if (cand.length === 0) return `"${name}" adında sahne veya script bulunamadı.`;
+            if (cand.length === 0) return `No scene or script named "${name}" found.`;
             const chosen = cand[0].e;
             if (chosen.domain === "scene") {
                 await smartHome.callService(cfg, "scene", "turn_on", {entity_id: chosen.entity_id});
             } else {
                 await smartHome.callService(cfg, "script", "turn_on", {entity_id: chosen.entity_id});
             }
-            return `✓ "${chosen.friendly_name}" etkinleştirildi.`;
+            return `✓ "${chosen.friendly_name}" activated.`;
         } catch (e) {
-            return `Sahne etkinleştirilemedi: ${(e as Error).message}`;
+            return `Failed to activate scene: ${(e as Error).message}`;
         }
     },
 
     async local_devices_scan({duration_ms}) {
-        // Home Assistant GEREKMEZ — saf yerel ağ keşfi (mDNS + SSDP).
+        // Home Assistant is NOT required — pure local network discovery (mDNS + SSDP).
         const raw = parseInt(String(duration_ms ?? "3000"), 10);
         const dur = Number.isFinite(raw) ? Math.min(6000, Math.max(1000, raw)) : 3000;
         try {
@@ -2341,16 +2341,16 @@ Hedef tamamlandıysa "done", tamamlanamıyorsa "fail" döndür.`;
             const devices = await discoverAll(dur);
             return formatDevices(devices, net);
         } catch (e) {
-            return `Yerel cihaz taraması başarısız: ${(e as Error).message}`;
+            return `Local device scan failed: ${(e as Error).message}`;
         }
     },
 };
 
-// ── Akıllı ev yardımcıları ────────────────────────────────────────────────────
+// ── Smart home helpers ─────────────────────────────────────────────────────────
 const HA_NOT_CONFIGURED =
-    "Akıllı ev bağlı değil. Ayarlar → Akıllı Ev'den Home Assistant adresini (örn: " +
-    "http://homeassistant.local:8123) ve erişim token'ını gir. Home Assistant, tek " +
-    "bağlantıyla Philips Hue, Tapo, Tuya, Matter ve daha fazlasını kontrol etmeni sağlar.";
+    "Smart home is not connected. Enter your Home Assistant address (e.g. " +
+    "http://homeassistant.local:8123) and access token under Settings → Smart Home. " +
+    "Home Assistant lets you control Philips Hue, Tapo, Tuya, Matter and more with a single connection.";
 
 function getHAConfig(): HAConfig | null {
     const url = process.env.HOME_ASSISTANT_URL ?? "";
@@ -2359,7 +2359,7 @@ function getHAConfig(): HAConfig | null {
     return {url, token};
 }
 
-// action + value → SmartHomeAction (veya kullanıcıya dönecek hata string'i).
+// action + value → SmartHomeAction (or an error string to return to the user).
 function buildSmartHomeAction(action: string, value?: string): SmartHomeAction | string {
     switch (action) {
         case "on": return {kind: "on"};
@@ -2371,53 +2371,53 @@ function buildSmartHomeAction(action: string, value?: string): SmartHomeAction |
         case "close": return {kind: "close"};
         case "brightness": {
             const pct = Number(value);
-            if (!Number.isFinite(pct)) return "Parlaklık için 0-100 arası bir yüzde değeri gerekli (value).";
+            if (!Number.isFinite(pct)) return "Brightness requires a percentage value between 0-100 (value).";
             return {kind: "brightness", pct};
         }
         case "temperature": {
             const c = Number(value);
-            if (!Number.isFinite(c)) return "Sıcaklık için derece değeri gerekli (value).";
+            if (!Number.isFinite(c)) return "Temperature requires a degree value (value).";
             return {kind: "temperature", celsius: c};
         }
         default:
-            return `Bilinmeyen aksiyon: "${action}".`;
+            return `Unknown action: "${action}".`;
     }
 }
 
 function describeAction(action: string, value?: string): string {
     switch (action) {
-        case "on": return "aç";
-        case "off": return "kapat";
-        case "toggle": return "değiştir";
-        case "lock": return "kilitle";
-        case "unlock": return "kilidi aç";
-        case "open": return "aç (panjur/garaj)";
-        case "close": return "kapat (panjur/garaj)";
-        case "brightness": return `parlaklık %${value ?? "?"}`;
+        case "on": return "turn on";
+        case "off": return "turn off";
+        case "toggle": return "toggle";
+        case "lock": return "lock";
+        case "unlock": return "unlock";
+        case "open": return "open (shutter/garage)";
+        case "close": return "close (shutter/garage)";
+        case "brightness": return `brightness ${value ?? "?"}%`;
         case "temperature": return `${value ?? "?"}°C`;
         default: return action;
     }
 }
 
 export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
-    if (_disabledTools.has(name)) return `ENGELLENDI: "${name}" aracı ayarlardan devre dışı bırakılmış.`;
+    if (_disabledTools.has(name)) return `BLOCKED: tool "${name}" has been disabled in settings.`;
     const fn = executors[name] ?? _pluginExecutors[name];
     if (!fn) {
-        console.error(`[executeTool] Bilinmeyen araç: "${name}"`);
-        return `Bu araç tanımlı değil: "${name}". Model yanlış bir araç adı üretiyor olabilir — konuşmayı yenile.`;
+        console.error(`[executeTool] Unknown tool: "${name}"`);
+        return `This tool is not defined: "${name}". The model may be generating an incorrect tool name — refresh the conversation.`;
     }
     let args: Record<string, string> = {};
     try {
         args = argsJson ? JSON.parse(argsJson) : {};
     } catch {
-        console.error(`[executeTool] JSON parse hatası — araç: ${name}, args: ${argsJson}`);
-        return `Araç argümanları geçersiz format içeriyor. Tekrar dene.`;
+        console.error(`[executeTool] JSON parse error — tool: ${name}, args: ${argsJson}`);
+        return `Tool arguments contain invalid format. Try again.`;
     }
     try {
         return await fn(args);
     } catch (e) {
         const msg = (e as Error).message ?? String(e);
-        console.error(`[executeTool] "${name}" çalışırken hata:`, msg);
-        return `"${name}" aracı çalışırken hata oluştu: ${msg}`;
+        console.error(`[executeTool] error while running "${name}":`, msg);
+        return `An error occurred while running tool "${name}": ${msg}`;
     }
 }
