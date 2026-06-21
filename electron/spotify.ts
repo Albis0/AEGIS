@@ -76,6 +76,64 @@ function generateChallenge(verifier: string): string {
 let _pendingVerifier: string | null = null;
 let _callbackServer: http.Server | null = null;
 
+// Tarayıcıda görünen callback sayfası — AEGIS marka çizgisinde (koyu zemin,
+// gradient logo, Inter). Çıplak Times New Roman HTML yerine.
+function callbackPage(opts: {ok: boolean; title: string; sub: string}): string {
+    const {ok, title, sub} = opts;
+    const accent = ok ? "52, 211, 153" : "248, 113, 113"; // emerald | red-400
+    const icon = ok
+        ? '<path d="M20 6 9 17l-5-5" stroke="rgb(' + accent + ')" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+        : '<circle cx="12" cy="12" r="9" stroke="rgb(' + accent + ')" stroke-width="2.2"/><path d="M12 7v6m0 4h.01" stroke="rgb(' + accent + ')" stroke-width="2.2" stroke-linecap="round"/>';
+    return `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AEGIS · Spotify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+    background:#0a0e17;color:#f8fafc;display:grid;place-items:center;overflow:hidden}
+  .bg{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 15% 0%,rgba(129,140,248,.16),transparent 55%),
+      radial-gradient(120% 90% at 100% 100%,rgba(56,189,248,.14),transparent 55%)}
+  .card{position:relative;text-align:center;padding:48px 40px;max-width:420px;
+    animation:rise .5s ease-out}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:36px}
+  .brand span{font-weight:700;letter-spacing:.3em;font-size:13px}
+  .badge{width:72px;height:72px;border-radius:20px;display:grid;place-items:center;margin:0 auto 24px;
+    background:rgba(${accent},.12);border:1px solid rgba(${accent},.4)}
+  h1{font-size:22px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
+  p{font-size:14px;line-height:1.6;color:#94a3b8}
+  .hint{margin-top:28px;font-size:12.5px;color:#64748b}
+</style></head>
+<body>
+  <div class="bg"></div>
+  <div class="card">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient></defs>
+        <path d="M12 2 4 5.5v6c0 5 3.4 8.5 8 10.5 4.6-2 8-5.5 8-10.5v-6L12 2Z" fill="url(#g)" fill-opacity=".18" stroke="url(#g)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M12 7v5l3 2" stroke="url(#g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>AEGIS</span>
+    </div>
+    <div class="badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none">${icon}</svg></div>
+    <h1>${title}</h1>
+    <p>${sub}</p>
+    <div class="hint">Bu sekmeyi kapatıp AEGIS'e dönebilirsin.</div>
+  </div>
+</body></html>`;
+}
+
+function sendPage(res: http.ServerResponse, opts: {ok: boolean; title: string; sub: string}): void {
+    res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"});
+    res.end(callbackPage(opts));
+}
+
 export async function spotifyAuthorize(): Promise<string> {
     if (_callbackServer) return "Yetkilendirme zaten devam ediyor. Lütfen tarayıcıda giriş yap.";
 
@@ -105,7 +163,7 @@ export async function spotifyAuthorize(): Promise<string> {
             const err = url.searchParams.get("error");
 
             if (err || !code) {
-                res.end("<html><body><h2>Hata: " + (err ?? "code yok") + "</h2></body></html>");
+                sendPage(res, {ok: false, title: "Yetkilendirme iptal edildi", sub: err ?? "Yetki kodu alınamadı. Tekrar deneyebilirsin."});
                 server.close();
                 _callbackServer = null;
                 reject(new Error(err ?? "code yok"));
@@ -115,9 +173,9 @@ export async function spotifyAuthorize(): Promise<string> {
             try {
                 const token = await exchangeCode(code, _pendingVerifier ?? "");
                 saveToken(token);
-                res.end("<html><body><h2>AEGIS Spotify yetkilendirmesi tamamlandi! Bu sekmeyi kapatabilirsin.</h2></body></html>");
+                sendPage(res, {ok: true, title: "Spotify bağlandı", sub: "AEGIS artık müziğini kontrol edebilir."});
             } catch (e) {
-                res.end("<html><body><h2>Token alinamaadi: " + (e as Error).message + "</h2></body></html>");
+                sendPage(res, {ok: false, title: "Bağlantı başarısız", sub: (e as Error).message});
             }
             server.close();
             _callbackServer = null;
@@ -1000,3 +1058,6 @@ export async function spotifyGetAudiobook(id: string): Promise<string> {
         return `${d.name} | Yazar: ${d.authors.map((a) => a.name).join(", ")} | Anlatıcı: ${d.narrators.map((n) => n.name).join(", ")} | ${d.total_chapters} bölüm | Dil: ${d.languages.join(", ")}\n${d.description.slice(0,200)}`;
     } catch (e) { return spotifyConnErr(e); }
 }
+
+// Test/görsel doğrulama için callback sayfası üreticisini dışa aç (saf fonksiyon).
+export const __callbackPageForTest = callbackPage;
