@@ -46,6 +46,7 @@
 git clone https://github.com/Albis0/AEGIS.git
 cd AEGIS
 bun install
+cp .env.example .env   # fill in your keys (or enter them in-app later)
 ```
 
 ### 2. Pick an AI provider
@@ -158,8 +159,24 @@ supabase/          # Edge Function + schema
 - Row-Level Security (RLS) ensures each user can only read their own data
 - No secrets are bundled into the client; tokens required for private-repo update checks are supplied via environment variables at build/runtime — the updater fails closed without one rather than shipping a credential to every install
 
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+---
+
+## Troubleshooting
+
+- **Kokoro / local TTS not working:** It's optional and not installed by default. Run `bun add kokoro-js`; the ONNX model (~900 MB) downloads to your user data directory on first use.
+- **Native binaries missing after install (onnxruntime, sharp):** `bun` skips postinstall for untrusted packages. The required packages are listed under `trustedDependencies` in `package.json`; re-run `bun install`.
+- **Electron opens as Node instead of a window:** If `ELECTRON_RUN_AS_NODE` is set in your shell, unset it before `bun run dev`.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process, and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ---
 
 ## License
 
-MIT
+Licensed under the [Apache License 2.0](LICENSE).

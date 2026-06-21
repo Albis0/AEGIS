@@ -2,6 +2,7 @@
   "name": "real-jarvis",
   "version": "1.11.0",
   "description": "Windows için kişisel AI asistanı — konuşma tanıma, 150+ araç, çoklu LLM desteği",
+  "license": "Apache-2.0",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev:vite": "vite --host 127.0.0.1",
