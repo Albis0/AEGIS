@@ -1742,6 +1742,13 @@ process.on("uncaughtException", (err) => {
 });
 
 app.whenReady().then(async () => {
+    // Geliştirici kolaylığı: AEGIS_FORCE_ONBOARDING=1 ile onboarding akışını
+    // koşulsuz aç (config/trial token olsa bile). Yalnızca tasarım/UX testi için.
+    if (process.env.AEGIS_FORCE_ONBOARDING === "1") {
+        createOnboardingWindow();
+        return;
+    }
+
     // Gelişmiş mod hazır mı? (kendi Groq key'i config'te veya env'de)
     const ownReady =
         currentSettings.aiMode === "own" &&

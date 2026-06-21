@@ -162,11 +162,9 @@ function SpotifyConnectScreen({lang, step, totalSteps, onDone}: {lang: Lang; ste
                             border: `1px solid ${status === "done" ? "rgba(34,197,94,0.4)" : `rgba(${C.line},0.16)`}`,
                         }}
                     >
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={status === "done" ? "rgb(34,197,94)" : "rgb(34,197,94)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M8 11.5c2.5-1 5.5-1 8 0" />
-                            <path d="M7 14.5c3-1.2 7-1.2 10 0" />
-                            <path d="M9.5 17.5c2-.8 5-.8 7 0" />
+                        {/* Resmi Spotify logosu — dolu yeşil daire + 3 dalga (simetrik, ortalı) */}
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="rgb(34,197,94)" aria-hidden>
+                            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.871 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.224-2.723a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.232 1.329a.78.78 0 0 1 .257 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.618-1.156a.935.935 0 1 1-.542-1.79c3.532-1.072 9.404-.865 13.115 1.337a.936.936 0 0 1-.955 1.609Z" />
                         </svg>
                     </div>
                     <Heading title={s.title} subtitle={s.desc} />
