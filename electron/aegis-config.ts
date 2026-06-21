@@ -18,12 +18,11 @@ export const AEGIS_SUPABASE_ANON_KEY =
     process.env.AEGIS_SUPABASE_ANON_KEY ??
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InducGd5YWxzeW1vcWVlbmd0c2JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjc0NzYsImV4cCI6MjA5NTgwMzQ3Nn0.djJ5dB8JjMKA9oeRVzPmqoXfkEIsFqkqDYWX9z-IjMM";
 
-// GitHub PAT — sadece releases/latest okumak için (repo:read scope).
-// Repo private olduğundan update-checker bu token olmadan 404 alır.
-// Public-safe: token yalnızca read erişimi verir, write yetkisi yok.
+// GitHub token must never be bundled. Private-repo update checks may pass a
+// read-only token via environment at build/runtime; otherwise updater fails
+// closed instead of shipping a credential to every client.
 export const AEGIS_GITHUB_TOKEN =
-    process.env.AEGIS_GITHUB_TOKEN ??
-    "REDACTED_GITHUB_TOKEN";
+    process.env.AEGIS_GITHUB_TOKEN ?? "";
 
 // chat-proxy Edge Function endpoint'i (deneme modu LLM çağrıları buraya gider)
 export const AEGIS_PROXY_URL =
