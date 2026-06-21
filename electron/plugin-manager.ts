@@ -1,14 +1,14 @@
 /**
- * Faz 18.1 — Plugin Marketplace & Yönetimi
+ * Phase 18.1 — Plugin Marketplace & Management
  *
- * Harici bağımlılık yok:
- *   - Arama: GitHub Search API (api.github.com)
- *   - Kurulum: HTTPS ile zip indir, ~/.aegis/plugins/ altına çıkar
- *   - Kaldırma: klasörü sil
+ * No external dependencies:
+ *   - Search: GitHub Search API (api.github.com)
+ *   - Install: download zip over HTTPS, extract under ~/.aegis/plugins/
+ *   - Remove: delete the folder
  *
- * Güvenlik:
- *   - manifest.json şema doğrulaması (name, version, tools)
- *   - index.js'de basit yasak pattern taraması
+ * Security:
+ *   - manifest.json schema validation (name, version, tools)
+ *   - simple forbidden-pattern scan in index.js
  */
 
 import * as fs from "fs";
@@ -37,7 +37,7 @@ function httpsGet(url: string, timeoutMs = 10000): Promise<string> {
             });
         });
         req.on("error", reject);
-        req.on("timeout", () => { req.destroy(); reject(new Error("Zaman aşımı")); });
+        req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
     });
 }
 
@@ -58,12 +58,12 @@ function httpsGetBinary(url: string): Promise<Buffer> {
 }
 
 function validateManifest(manifest: unknown): {valid: boolean; error?: string} {
-    if (typeof manifest !== "object" || manifest === null) return {valid: false, error: "manifest.json nesne değil"};
+    if (typeof manifest !== "object" || manifest === null) return {valid: false, error: "manifest.json is not an object"};
     const m = manifest as Record<string, unknown>;
-    if (typeof m.name !== "string" || !m.name.trim()) return {valid: false, error: "name alanı eksik"};
-    if (!Array.isArray(m.tools) || m.tools.length === 0) return {valid: false, error: "tools dizisi eksik veya boş"};
+    if (typeof m.name !== "string" || !m.name.trim()) return {valid: false, error: "name field is missing"};
+    if (!Array.isArray(m.tools) || m.tools.length === 0) return {valid: false, error: "tools array is missing or empty"};
     for (const tool of m.tools) {
-        if (typeof (tool as Record<string, unknown>).name !== "string") return {valid: false, error: "tool.name eksik"};
+        if (typeof (tool as Record<string, unknown>).name !== "string") return {valid: false, error: "tool.name is missing"};
     }
     return {valid: true};
 }
@@ -76,7 +76,7 @@ const DANGEROUS_PATTERNS = [
 
 function securityScan(code: string): string | null {
     for (const p of DANGEROUS_PATTERNS) {
-        if (p.test(code)) return `Güvenlik uyarısı: şüpheli pattern tespit edildi (${p.source.slice(0, 40)})`;
+        if (p.test(code)) return `Security warning: suspicious pattern detected (${p.source.slice(0, 40)})`;
     }
     return null;
 }
@@ -87,26 +87,26 @@ export async function pluginSearch(query: string): Promise<string> {
         const raw = await httpsGet(`https://api.github.com/search/repositories?q=${q}&sort=stars&per_page=8`);
         const data = JSON.parse(raw) as {items?: {full_name: string; description: string | null; stargazers_count: number; html_url: string}[]};
         const items = data.items ?? [];
-        if (items.length === 0) return `"${query}" için plugin bulunamadı.`;
+        if (items.length === 0) return `No plugins found for "${query}".`;
         return items.map((r) =>
-            `• ${r.full_name} ⭐${r.stargazers_count}\n  ${r.description ?? "(açıklama yok)"}\n  ${r.html_url}`,
+            `• ${r.full_name} ⭐${r.stargazers_count}\n  ${r.description ?? "(no description)"}\n  ${r.html_url}`,
         ).join("\n\n");
     } catch (e) {
-        return `Arama başarısız: ${(e as Error).message}`;
+        return `Search failed: ${(e as Error).message}`;
     }
 }
 
 export async function pluginInstall(repoOrUrl: string): Promise<string> {
     ensurePluginsDir();
     const repo = repoOrUrl.replace("https://github.com/", "").replace(/\.git$/, "").trim();
-    if (!repo.includes("/")) return `HATA: Geçersiz repo: "${repo}". Örn: kullanici/aegis-plugin-spotify`;
+    if (!repo.includes("/")) return `ERROR: Invalid repo: "${repo}". E.g. user/aegis-plugin-spotify`;
 
     const zipUrl = `https://github.com/${repo}/archive/refs/heads/main.zip`;
     let zipBuffer: Buffer;
     try {
         zipBuffer = await httpsGetBinary(zipUrl);
     } catch (e) {
-        return `HATA: Repo indirilemedi (${repo}): ${(e as Error).message}`;
+        return `ERROR: Could not download repo (${repo}): ${(e as Error).message}`;
     }
 
     const tmpDir = path.join(os.tmpdir(), `aegis-plugin-${crypto.randomBytes(4).toString("hex")}`);
@@ -114,7 +114,7 @@ export async function pluginInstall(repoOrUrl: string): Promise<string> {
     const zipPath = path.join(tmpDir, "plugin.zip");
     fs.writeFileSync(zipPath, zipBuffer);
 
-    // Node'un yerleşik zip desteği yok — PowerShell stdin üzerinden çalıştır (injection-proof)
+    // Node has no built-in zip support — run via PowerShell over stdin (injection-proof)
     const {exec} = await import("child_process");
     await new Promise<void>((resolve, reject) => {
         const child = exec(
@@ -125,25 +125,25 @@ export async function pluginInstall(repoOrUrl: string): Promise<string> {
         child.stdin?.end(`Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${tmpDir.replace(/'/g, "''")}' -Force`);
     });
 
-    // İçeriği bul
+    // Find the content
     const extracted = fs.readdirSync(tmpDir).filter((f) => f !== "plugin.zip");
-    if (extracted.length === 0) { fs.rmSync(tmpDir, {recursive: true}); return "HATA: Zip boş çıktı."; }
+    if (extracted.length === 0) { fs.rmSync(tmpDir, {recursive: true}); return "ERROR: Zip came out empty."; }
     const srcDir = path.join(tmpDir, extracted[0]);
 
-    // manifest.json doğrula
+    // Validate manifest.json
     const manifestPath = path.join(srcDir, "manifest.json");
-    if (!fs.existsSync(manifestPath)) { fs.rmSync(tmpDir, {recursive: true}); return "HATA: manifest.json bulunamadı."; }
+    if (!fs.existsSync(manifestPath)) { fs.rmSync(tmpDir, {recursive: true}); return "ERROR: manifest.json not found."; }
     let manifest: unknown;
-    try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")); } catch { return "HATA: manifest.json geçersiz JSON."; }
+    try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")); } catch { return "ERROR: manifest.json is invalid JSON."; }
     const check = validateManifest(manifest);
-    if (!check.valid) { fs.rmSync(tmpDir, {recursive: true}); return `HATA: ${check.error}`; }
+    if (!check.valid) { fs.rmSync(tmpDir, {recursive: true}); return `ERROR: ${check.error}`; }
 
-    // index.js güvenlik taraması
+    // index.js security scan
     const indexPath = path.join(srcDir, "index.js");
     if (fs.existsSync(indexPath)) {
         const code = fs.readFileSync(indexPath, "utf-8");
         const warn = securityScan(code);
-        if (warn) { fs.rmSync(tmpDir, {recursive: true}); return `Güvenlik taraması başarısız: ${warn}`; }
+        if (warn) { fs.rmSync(tmpDir, {recursive: true}); return `Security scan failed: ${warn}`; }
     }
 
     const pluginName = (manifest as {name: string}).name;
@@ -152,7 +152,7 @@ export async function pluginInstall(repoOrUrl: string): Promise<string> {
     fs.cpSync(srcDir, destDir, {recursive: true});
     fs.rmSync(tmpDir, {recursive: true});
 
-    return `"${pluginName}" plugin'i kuruldu. AEGIS'e "plugin'leri yeniden yükle" diyerek aktif et.`;
+    return `Plugin "${pluginName}" installed. Activate it by telling AEGIS "reload plugins".`;
 }
 
 export function pluginRemove(name: string): string {
@@ -160,10 +160,10 @@ export function pluginRemove(name: string): string {
     if (!fs.existsSync(dir)) {
         const dirs = fs.existsSync(PLUGINS_DIR) ? fs.readdirSync(PLUGINS_DIR) : [];
         const match = dirs.find((d) => d.toLowerCase().includes(name.toLowerCase()));
-        if (!match) return `"${name}" adında yüklü plugin bulunamadı.`;
+        if (!match) return `No installed plugin named "${name}" found.`;
         fs.rmSync(path.join(PLUGINS_DIR, match), {recursive: true});
-        return `"${match}" plugin'i kaldırıldı.`;
+        return `Plugin "${match}" removed.`;
     }
     fs.rmSync(dir, {recursive: true});
-    return `"${name}" plugin'i kaldırıldı. Değişiklikler için "plugin'leri yeniden yükle" de.`;
+    return `Plugin "${name}" removed. Say "reload plugins" to apply the changes.`;
 }

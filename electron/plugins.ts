@@ -80,7 +80,7 @@ export function loadPlugins(): {
                 plugins.push({name: manifest.name, dir, tools: toolNames});
             }
         } catch (e) {
-            console.error(`[plugins] Yükleme hatası (${entry.name}):`, e);
+            console.error(`[plugins] Load error (${entry.name}):`, e);
         }
     }
 

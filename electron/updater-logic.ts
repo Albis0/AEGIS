@@ -1,7 +1,7 @@
-// Updater akış mantığı — saf, test edilebilir. main.ts IPC handler'ları bunu çağırır.
-// Asıl bug: "Güncellemeleri Denetle" ham GitHub fetch yapıp electron-updater'ın
-// state'ini beslemiyordu; sonra downloadUpdate() "Please check update first" atıyordu.
-// Çözüm: hem check hem download, electron-updater'ın KENDİ checkForUpdates'ine dayanır.
+// Updater flow logic — pure, testable. The main.ts IPC handlers call this.
+// The real bug: "Check for Updates" did a raw GitHub fetch and didn't feed
+// electron-updater's state; then downloadUpdate() threw "Please check update first".
+// The fix: both check and download rely on electron-updater's OWN checkForUpdates.
 
 export interface UpdaterLike {
     checkForUpdates(): Promise<{updateInfo?: {version?: string}} | null>;
@@ -20,7 +20,7 @@ export interface DownloadResult {
     error?: string;
 }
 
-/** "Güncellemeleri Denetle" mantığı — gerçek updater check'ini kullanır (state'i besler). */
+/** "Check for Updates" logic — uses the real updater check (feeds its state). */
 export async function performCheck(updater: UpdaterLike, currentVersion: string): Promise<CheckResult> {
     try {
         const result = await updater.checkForUpdates();
@@ -32,7 +32,7 @@ export async function performCheck(updater: UpdaterLike, currentVersion: string)
     }
 }
 
-/** "İndir" mantığı — indirmeden ÖNCE check yapar; updater'ın update bulduğundan emin olur. */
+/** "Download" logic — checks BEFORE downloading; makes sure the updater found an update. */
 export async function performDownload(
     updater: UpdaterLike,
     currentVersion: string,
@@ -41,7 +41,7 @@ export async function performDownload(
     try {
         const result = await updater.checkForUpdates();
         if (!result?.updateInfo?.version || result.updateInfo.version === currentVersion) {
-            const msg = "Güncel sürümdesin veya yeni sürüm bulunamadı.";
+            const msg = "You're on the latest version, or no new version was found.";
             onError(msg);
             return {ok: false, error: msg};
         }

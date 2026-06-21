@@ -28,7 +28,7 @@ function saveAutomations(list: Automation[]): void {
 
 export function addAutomation(condition: string, action: string): string {
     if (!parseCondition(condition)) {
-        return `HATA: Geçersiz koşul formatı. Örnekler:\n  "cpu > 80"\n  "ram > 75"\n  "hour == 23"\n  "gpu > 90"`;
+        return `ERROR: Invalid condition format. Examples:\n  "cpu > 80"\n  "ram > 75"\n  "hour == 23"\n  "gpu > 90"`;
     }
     const auto: Automation = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
@@ -40,15 +40,15 @@ export function addAutomation(condition: string, action: string): string {
     const list = loadAutomations();
     list.push(auto);
     saveAutomations(list);
-    return `Otomasyon oluşturuldu (ID: ${auto.id}):\n  Koşul: ${condition}\n  Eylem: ${action}`;
+    return `Automation created (ID: ${auto.id}):\n  Condition: ${condition}\n  Action: ${action}`;
 }
 
 export function listAutomations(): string {
     const list = loadAutomations();
-    if (list.length === 0) return "Tanımlı otomasyon yok.";
+    if (list.length === 0) return "No automations defined.";
     return list.map((a) =>
-        `[${a.enabled ? "✓" : "✗"}] ${a.id}: EĞer ${a.condition} → ${a.action}` +
-        (a.lastTriggered ? `\n  Son tetiklenme: ${new Date(a.lastTriggered).toLocaleString("tr-TR")}` : ""),
+        `[${a.enabled ? "✓" : "✗"}] ${a.id}: IF ${a.condition} → ${a.action}` +
+        (a.lastTriggered ? `\n  Last triggered: ${new Date(a.lastTriggered).toLocaleString("tr-TR")}` : ""),
     ).join("\n\n");
 }
 
@@ -57,10 +57,10 @@ export function removeAutomation(idOrCondition: string): string {
     const idx = list.findIndex(
         (a) => a.id === idOrCondition || a.condition.toLowerCase().includes(idOrCondition.toLowerCase()),
     );
-    if (idx === -1) return `"${idOrCondition}" ID/koşulda otomasyon bulunamadı.`;
+    if (idx === -1) return `No automation found for ID/condition "${idOrCondition}".`;
     const removed = list.splice(idx, 1)[0];
     saveAutomations(list);
-    return `Otomasyon silindi: ${removed.condition} → ${removed.action}`;
+    return `Automation removed: ${removed.condition} → ${removed.action}`;
 }
 
 export function toggleAutomation(idOrCondition: string): string {
@@ -68,10 +68,10 @@ export function toggleAutomation(idOrCondition: string): string {
     const auto = list.find(
         (a) => a.id === idOrCondition || a.condition.toLowerCase().includes(idOrCondition.toLowerCase()),
     );
-    if (!auto) return `"${idOrCondition}" ID/koşulda otomasyon bulunamadı.`;
+    if (!auto) return `No automation found for ID/condition "${idOrCondition}".`;
     auto.enabled = !auto.enabled;
     saveAutomations(list);
-    return `Otomasyon ${auto.enabled ? "etkinleştirildi" : "devre dışı"}: ${auto.condition}`;
+    return `Automation ${auto.enabled ? "enabled" : "disabled"}: ${auto.condition}`;
 }
 
 // ---- Condition evaluation ----
@@ -116,7 +116,7 @@ export function checkAutomations(
         const cond = parseCondition(auto.condition);
         if (!cond || !evaluate(cond, metrics)) continue;
         const last = _cooldowns.get(auto.id) ?? 0;
-        if (now - last < 120_000) continue; // 2 dakika cooldown
+        if (now - last < 120_000) continue; // 2-minute cooldown
         _cooldowns.set(auto.id, now);
         auto.lastTriggered = new Date().toISOString();
         changed = true;

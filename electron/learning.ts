@@ -58,7 +58,7 @@ function saveCards(cards: Flashcard[]): void {
 }
 
 export function addFlashcard(front: string, back: string, tags: string[]): string {
-    if (!front.trim() || !back.trim()) return "HATA: Ön yüz ve arka yüz gerekli.";
+    if (!front.trim() || !back.trim()) return "ERROR: Front and back are required.";
     const cards = loadCards();
     const card: Flashcard = {
         id: uid(), front, back, tags,
@@ -67,7 +67,7 @@ export function addFlashcard(front: string, back: string, tags: string[]): strin
     };
     cards.push(card);
     saveCards(cards);
-    return `Flashcard eklendi: "${front.slice(0, 40)}${front.length > 40 ? "..." : ""}" → "${back.slice(0, 40)}${back.length > 40 ? "..." : ""}"${tags.length ? " [" + tags.join(", ") + "]" : ""}`;
+    return `Flashcard added: "${front.slice(0, 40)}${front.length > 40 ? "..." : ""}" → "${back.slice(0, 40)}${back.length > 40 ? "..." : ""}"${tags.length ? " [" + tags.join(", ") + "]" : ""}`;
 }
 
 export function reviewFlashcard(tag: string, count: number): string {
@@ -80,12 +80,12 @@ export function reviewFlashcard(tag: string, count: number): string {
     if (due.length === 0) {
         const next = cards.filter((c) => !tag || c.tags.includes(tag))
             .sort((a, b) => a.nextReview - b.nextReview)[0];
-        if (!next) return tag ? `"${tag}" etiketli kart yok.` : "Hiç flashcard eklenmemiş.";
+        if (!next) return tag ? `No cards tagged "${tag}".` : "No flashcards have been added.";
         const mins = Math.round((next.nextReview - now) / 60000);
-        return `Tekrar edilecek kart yok${tag ? ` (${tag})` : ""}. Bir sonraki: ${mins < 60 ? mins + " dakika" : Math.round(mins / 60) + " saat"} sonra.`;
+        return `No cards due for review${tag ? ` (${tag})` : ""}. Next one: in ${mins < 60 ? mins + " minutes" : Math.round(mins / 60) + " hours"}.`;
     }
 
-    const result = due.map((c, i) => `[${i + 1}/${due.length}] SORU: ${c.front}\nCEVAP: ${c.back}\nBu kartı ${Math.round(c.interval)} gün sonra tekrar göster.`);
+    const result = due.map((c, i) => `[${i + 1}/${due.length}] QUESTION: ${c.front}\nANSWER: ${c.back}\nShow this card again in ${Math.round(c.interval)} days.`);
 
     // Auto-update intervals (SM-2 lite: assume medium difficulty)
     for (const card of due) {
@@ -123,24 +123,24 @@ export function addReadingItem(urlOrTitle: string, notes: string, priority: numb
     };
     items.push(item);
     saveReading(items);
-    return `Okuma listesine eklendi (öncelik ${priority}/5): "${urlOrTitle.slice(0, 60)}"`;
+    return `Added to reading list (priority ${priority}/5): "${urlOrTitle.slice(0, 60)}"`;
 }
 
 export function getReadingList(status: string): string {
     const items = loadReading();
     const filtered = status === "all" ? items : items.filter((i) => i.status === (status === "done" ? "done" : "pending"));
-    if (filtered.length === 0) return `Okuma listesi boş (${status}).`;
+    if (filtered.length === 0) return `Reading list is empty (${status}).`;
     const sorted = filtered.sort((a, b) => b.priority - a.priority);
     const lines = sorted.map((i) => {
         const p = "★".repeat(i.priority) + "☆".repeat(5 - i.priority);
         const done = i.status === "done" ? "[✓] " : "";
-        return `${done}${p} ${i.title.slice(0, 60)}${i.url ? "\n  " + i.url : ""}${i.notes ? "\n  Not: " + i.notes : ""}`;
+        return `${done}${p} ${i.title.slice(0, 60)}${i.url ? "\n  " + i.url : ""}${i.notes ? "\n  Note: " + i.notes : ""}`;
     });
-    return `Okuma Listesi (${filtered.length} öğe):\n\n${lines.join("\n\n")}`;
+    return `Reading List (${filtered.length} items):\n\n${lines.join("\n\n")}`;
 }
 
 export async function summarizeUrl(url: string, addToList: boolean): Promise<string> {
-    if (!url.startsWith("http")) return "HATA: Geçerli bir URL girin.";
+    if (!url.startsWith("http")) return "ERROR: Enter a valid URL.";
     try {
         const ac = new AbortController();
         const tid = setTimeout(() => ac.abort(), 10000);
@@ -149,7 +149,7 @@ export async function summarizeUrl(url: string, addToList: boolean): Promise<str
             headers: {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AEGIS/1.0"},
         });
         clearTimeout(tid);
-        if (!resp.ok) return `HATA: URL alınamadı (${resp.status}): ${url}`;
+        if (!resp.ok) return `ERROR: Could not fetch URL (${resp.status}): ${url}`;
         const html = await resp.text();
         // Extract text from HTML
         const text = html
@@ -161,11 +161,11 @@ export async function summarizeUrl(url: string, addToList: boolean): Promise<str
             .slice(0, 4000);
 
         if (addToList) {
-            addReadingItem(url, "URL özetlendi", 3);
+            addReadingItem(url, "URL summarized", 3);
         }
-        return `URL içeriği (${url.slice(0, 60)}):\n\n${text}\n\n[LLM olarak: Yukarıdaki metni özetle, ana noktaları çıkar.]`;
+        return `URL content (${url.slice(0, 60)}):\n\n${text}\n\n[As the LLM: summarize the text above and extract the main points.]`;
     } catch (e) {
-        return `HATA: ${(e as Error).message}`;
+        return `ERROR: ${(e as Error).message}`;
     }
 }
 
@@ -181,7 +181,7 @@ function saveGoals(goals: Goal[]): void {
 }
 
 export function setGoal(title: string, deadline: string, steps: string[]): string {
-    if (!title.trim()) return "HATA: Hedef başlığı gerekli.";
+    if (!title.trim()) return "ERROR: Goal title is required.";
     const goals = loadGoals();
     const goal: Goal = {
         id: uid(), title, deadline, steps, progress: 0,
@@ -190,13 +190,13 @@ export function setGoal(title: string, deadline: string, steps: string[]): strin
     };
     goals.push(goal);
     saveGoals(goals);
-    return `Hedef oluşturuldu: "${title}"${deadline ? " (son tarih: " + deadline + ")" : ""}${steps.length ? "\nAdımlar: " + steps.map((s, i) => `${i + 1}. ${s}`).join(", ") : ""}`;
+    return `Goal created: "${title}"${deadline ? " (deadline: " + deadline + ")" : ""}${steps.length ? "\nSteps: " + steps.map((s, i) => `${i + 1}. ${s}`).join(", ") : ""}`;
 }
 
 export function checkInGoal(idOrTitle: string, progress: number, note: string): string {
     const goals = loadGoals();
     const idx = goals.findIndex((g) => g.id === idOrTitle || g.title.toLowerCase().includes(idOrTitle.toLowerCase()));
-    if (idx === -1) return `Hedef bulunamadı: "${idOrTitle}"`;
+    if (idx === -1) return `Goal not found: "${idOrTitle}"`;
     const goal = goals[idx];
     goal.progress = Math.min(100, Math.max(0, progress));
     goal.updatedAt = Date.now();
@@ -204,18 +204,18 @@ export function checkInGoal(idOrTitle: string, progress: number, note: string): 
     if (goal.progress === 100) goal.status = "done";
     saveGoals(goals);
     const bar = "█".repeat(Math.round(goal.progress / 10)) + "░".repeat(10 - Math.round(goal.progress / 10));
-    return `Hedef güncellendi: "${goal.title}"\n[${bar}] %${goal.progress}${note ? "\nNot: " + note : ""}${goal.status === "done" ? "\n🎯 TAMAMLANDI!" : ""}`;
+    return `Goal updated: "${goal.title}"\n[${bar}] ${goal.progress}%${note ? "\nNote: " + note : ""}${goal.status === "done" ? "\n🎯 COMPLETED!" : ""}`;
 }
 
 export function listGoals(status: string): string {
     const goals = loadGoals();
     const filtered = status === "all" ? goals : goals.filter((g) => g.status === (status === "done" ? "done" : "active"));
-    if (filtered.length === 0) return `Hedef yok (${status}).`;
+    if (filtered.length === 0) return `No goals (${status}).`;
     const lines = filtered.map((g) => {
         const bar = "█".repeat(Math.round(g.progress / 10)) + "░".repeat(10 - Math.round(g.progress / 10));
-        const dl = g.deadline ? ` (son tarih: ${g.deadline})` : "";
-        const steps = g.steps.length ? `\n  Adımlar: ${g.steps.join(" → ")}` : "";
-        return `• ${g.title}${dl}\n  [${bar}] %${g.progress}${steps}`;
+        const dl = g.deadline ? ` (deadline: ${g.deadline})` : "";
+        const steps = g.steps.length ? `\n  Steps: ${g.steps.join(" → ")}` : "";
+        return `• ${g.title}${dl}\n  [${bar}] ${g.progress}%${steps}`;
     });
-    return `Hedefler (${filtered.length}):\n\n${lines.join("\n\n")}`;
+    return `Goals (${filtered.length}):\n\n${lines.join("\n\n")}`;
 }

@@ -1,19 +1,19 @@
-// AEGIS — Akıllı Ev (Smart Home) katmanı · Faz 62
+// AEGIS — Smart Home layer · Phase 62
 //
-// Home Assistant REST API üzerinden akıllı ev cihazlarını kontrol eder. Tek bir
-// Home Assistant sunucusu, arkasındaki tüm markaları (Hue, Tapo, Tuya, Matter,
-// Zigbee…) tek API'den yönetir → kullanıcı tek kurulum yapar, yüzlerce cihaz.
+// Controls smart home devices via the Home Assistant REST API. A single Home
+// Assistant server manages all the brands behind it (Hue, Tapo, Tuya, Matter,
+// Zigbee…) from one API → the user sets up once, hundreds of devices.
 //
-// Bu modül SAF mantık + HTTP'dir (Electron'a bağımlı değil); tools.ts executor'ları
-// buradaki fonksiyonları çağırır. Akıllılık burada:
-//   - Doğal dil ("salonu karart", "her şeyi kapat") → entity çözümleme
-//   - Oda / grup / cihaz adı normalize + fuzzy eşleştirme (TR + EN)
-//   - Kritik cihazlarda (kilit/ısıtıcı/garaj/priz) onay kapısı
+// This module is PURE logic + HTTP (not dependent on Electron); the tools.ts executors
+// call the functions here. The intelligence is here:
+//   - Natural language ("dim the living room", "turn everything off") → entity resolution
+//   - Room / group / device name normalize + fuzzy matching (TR + EN)
+//   - Confirmation gate for critical devices (lock/heater/garage/outlet)
 //
-// Kimlik: HA base URL + long-lived access token. Settings'te (AegisConfig) saklanır.
+// Auth: HA base URL + long-lived access token. Stored in Settings (AegisConfig).
 
 export interface HAConfig {
-    url: string;     // http://homeassistant.local:8123  (sondaki / opsiyonel)
+    url: string;     // http://homeassistant.local:8123  (trailing / optional)
     token: string;   // long-lived access token
 }
 
@@ -22,27 +22,27 @@ export interface HAEntity {
     state: string;                // "on" | "off" | "23.5" | "locked" …
     attributes: Record<string, unknown>;
     friendly_name: string;        // attributes.friendly_name ?? entity_id
-    domain: string;               // entity_id'nin başı: light, switch, lock, climate…
+    domain: string;               // the head of entity_id: light, switch, lock, climate…
 }
 
-// ── Domain sınıflandırması ────────────────────────────────────────────────────
-// Onaysız direkt çalışabilen (zararsız) domain'ler. Diğer her şey "kritik" sayılır.
+// ── Domain classification ─────────────────────────────────────────────────────
+// Domains that can run directly without confirmation (harmless). Everything else is "critical".
 const SAFE_DOMAINS = new Set([
     "light", "switch", "scene", "script", "media_player", "fan",
     "input_boolean", "automation", "group",
 ]);
 
-// Açıkça "kritik" (fiziksel/güvenlik) domain'ler — onay ister.
+// Explicitly "critical" (physical/security) domains — require confirmation.
 const CRITICAL_DOMAINS = new Set([
-    "lock",        // kapı kilidi
-    "cover",       // garaj / panjur / kepenk
-    "climate",     // ısıtıcı / klima / termostat
+    "lock",        // door lock
+    "cover",       // garage / blind / shutter
+    "climate",     // heater / AC / thermostat
     "water_heater",
-    "vacuum",      // robot süpürge (hareket eder)
+    "vacuum",      // robot vacuum (it moves)
     "alarm_control_panel",
 ]);
 
-// Bir switch/outlet'in adı bu kelimeleri içeriyorsa kritik say (ısıtıcı prizi vb.).
+// If a switch/outlet's name contains these words, treat it as critical (heater outlet, etc.).
 const CRITICAL_NAME_HINTS = [
     "isitici", "heater", "soba", "firin", "oven", "ocak", "stove",
     "kombi", "boiler", "kazan", "garaj", "garage", "kapi", "door",
@@ -58,7 +58,7 @@ export function isCriticalEntity(e: HAEntity): boolean {
     return false;
 }
 
-// ── Normalize (TR + aksan → ASCII) ────────────────────────────────────────────
+// ── Normalize (TR + accents → ASCII) ──────────────────────────────────────────
 export function normalize(s: string): string {
     return s.toLowerCase()
         .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
@@ -70,7 +70,7 @@ export function normalize(s: string): string {
         .replace(/\s+/g, " ").trim();
 }
 
-// ── HTTP yardımcıları ─────────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 function baseUrl(cfg: HAConfig): string {
     return cfg.url.replace(/\/+$/, "");
 }
@@ -106,22 +106,22 @@ function toEntity(raw: any): HAEntity {
     };
 }
 
-/** Bağlantı testi — HA ayağa kalkmış ve token geçerli mi? */
+/** Connection test — is HA up and is the token valid? */
 export async function testConnection(cfg: HAConfig): Promise<{ok: boolean; message: string}> {
     if (!cfg.url || !cfg.token) {
-        return {ok: false, message: "Home Assistant URL veya token ayarlı değil. Ayarlar → Akıllı Ev'den gir."};
+        return {ok: false, message: "Home Assistant URL or token is not set. Enter it in Settings → Smart Home."};
     }
     try {
         const r = await haFetch(cfg, "/api/", undefined, 6000);
-        if (r.status === 401) return {ok: false, message: "Token geçersiz (401). Ayarlar → Akıllı Ev'den token'ı kontrol et."};
-        if (!r.ok) return {ok: false, message: `Home Assistant ${r.status} döndü.`};
-        return {ok: true, message: "Home Assistant'a bağlanıldı."};
+        if (r.status === 401) return {ok: false, message: "Token is invalid (401). Check the token in Settings → Smart Home."};
+        if (!r.ok) return {ok: false, message: `Home Assistant returned ${r.status}.`};
+        return {ok: true, message: "Connected to Home Assistant."};
     } catch (e) {
-        return {ok: false, message: `Home Assistant'a ulaşılamadı: ${(e as Error).message}. URL doğru mu? (örn: http://homeassistant.local:8123)`};
+        return {ok: false, message: `Could not reach Home Assistant: ${(e as Error).message}. Is the URL correct? (e.g. http://homeassistant.local:8123)`};
     }
 }
 
-/** Tüm entity'leri çek (kontrol edilebilir domain'lerle sınırla). */
+/** Fetch all entities (limited to controllable domains). */
 export async function fetchStates(cfg: HAConfig): Promise<HAEntity[]> {
     const r = await haFetch(cfg, "/api/states");
     if (!r.ok) throw new Error(`Home Assistant /api/states ${r.status}`);
@@ -129,7 +129,7 @@ export async function fetchStates(cfg: HAConfig): Promise<HAEntity[]> {
     return arr.map(toEntity);
 }
 
-// Yalnızca kullanıcının "kontrol edeceği" türden cihazlar (sensör/otomasyon-iç vs. ele).
+// Only devices the user would "control" (filter out sensors/automation-internal, etc.).
 const CONTROLLABLE = new Set([
     ...SAFE_DOMAINS, ...CRITICAL_DOMAINS,
 ]);
@@ -138,11 +138,11 @@ export function controllable(entities: HAEntity[]): HAEntity[] {
     return entities.filter((e) => CONTROLLABLE.has(e.domain));
 }
 
-// ── Doğal dil → entity çözümleme ──────────────────────────────────────────────
-// "salon", "salondaki ışıklar", "yatak odası lambası" gibi ifadeleri entity'lere eşle.
-// Strateji: hedef metni normalize et → her entity'nin friendly_name+id'sine karşı
-// kelime-örtüşme skoru hesapla → en iyi eşleşen(ler)i döndür. Oda adı geçince o odadaki
-// TÜM uygun cihazları kapsayabilir ("salonu karart" → salon ışıkları).
+// ── Natural language → entity resolution ──────────────────────────────────────
+// Map phrases like "salon", "salondaki ışıklar", "yatak odası lambası" to entities.
+// Strategy: normalize the target text → compute a word-overlap score against each
+// entity's friendly_name+id → return the best match(es). When a room name appears it
+// can cover ALL suitable devices in that room ("salonu karart" → living-room lights).
 const STOPWORDS = new Set([
     "yi", "yu", "yi", "i", "u", "deki", "daki", "teki", "taki", "nin", "nun",
     "lar", "ler", "le", "yi", "ye", "ya", "the", "a", "an", "in", "on", "of",
@@ -152,15 +152,15 @@ const STOPWORDS = new Set([
 
 export interface ResolveResult {
     matches: HAEntity[];
-    /** Birden çok cihaz veya geniş kapsam ("her şey") eşleştiyse açıklama. */
+    /** A description when multiple devices or a broad scope ("everything") matched. */
     scope: string;
 }
 
-/** "her şey / hepsi / tüm ışıklar / all" gibi toplu ifade mi? */
+/** Is it a bulk phrase like "her şey / hepsi / tüm ışıklar / all"? */
 function isAllScope(target: string): "all" | "all_lights" | null {
     const t = normalize(target);
-    // "tüm ışık" en spesifik → önce kontrol et (yoksa "tüm" → all'a düşer).
-    // normalize sonrası ekler ASCII olarak kalır ("isiklari"), bu yüzden substring kontrolü.
+    // "tüm ışık" is most specific → check first (otherwise "tüm" would fall into all).
+    // After normalize, suffixes remain ASCII ("isiklari"), hence the substring check.
     if (/(tum isik|butun isik|tum lamba|butun lamba|all light|all lamp|tum led)/.test(t)) return "all_lights";
     if (/(her sey|hersey|hepsi|tum cihaz|butun cihaz|all device|everything|tum ev)/.test(t)) return "all";
     return null;
@@ -169,16 +169,16 @@ function isAllScope(target: string): "all" | "all_lights" | null {
 export function resolveEntities(target: string, entities: HAEntity[]): ResolveResult {
     const ctrl = controllable(entities);
 
-    // Toplu kapsam
+    // Bulk scope
     const all = isAllScope(target);
     if (all === "all") {
-        return {matches: ctrl.filter((e) => SAFE_DOMAINS.has(e.domain)), scope: "tüm cihazlar"};
+        return {matches: ctrl.filter((e) => SAFE_DOMAINS.has(e.domain)), scope: "all devices"};
     }
     if (all === "all_lights") {
-        return {matches: ctrl.filter((e) => e.domain === "light"), scope: "tüm ışıklar"};
+        return {matches: ctrl.filter((e) => e.domain === "light"), scope: "all lights"};
     }
 
-    // Tam entity_id verildiyse direkt
+    // If a full entity_id was given, match directly
     const exact = ctrl.find((e) => normalize(e.entity_id) === normalize(target));
     if (exact) return {matches: [exact], scope: ""};
 
@@ -190,8 +190,8 @@ export function resolveEntities(target: string, entities: HAEntity[]): ResolveRe
         const hay = normalize(e.friendly_name + " " + e.entity_id).split(" ");
         let score = 0;
         for (const w of targetWords) {
-            if (hay.includes(w)) score += 2;                       // tam kelime
-            else if (hay.some((h) => h.startsWith(w) || w.startsWith(h))) score += 1; // önek
+            if (hay.includes(w)) score += 2;                       // exact word
+            else if (hay.some((h) => h.startsWith(w) || w.startsWith(h))) score += 1; // prefix
         }
         return {e, score};
     }).filter((s) => s.score > 0);
@@ -201,21 +201,21 @@ export function resolveEntities(target: string, entities: HAEntity[]): ResolveRe
     scored.sort((a, b) => b.score - a.score);
     const best = scored[0].score;
 
-    // En yüksek skorlu eşleşmeler. Oda adı gibi geniş eşleşmede birden çok cihaz dönebilir
-    // (örn. "salon" → salon_lamba + salon_spot). Işık varsa ışıkları öncele.
+    // Highest-scoring matches. A broad match like a room name can return multiple devices
+    // (e.g. "salon" → salon_lamba + salon_spot). If there are lights, prioritize lights.
     const top = scored.filter((s) => s.score === best).map((s) => s.e);
 
     if (top.length > 1) {
         const lights = top.filter((e) => e.domain === "light");
         if (lights.length > 0 && lights.length < top.length) {
-            return {matches: lights, scope: `${lights.length} ışık`};
+            return {matches: lights, scope: `${lights.length} lights`};
         }
-        return {matches: top, scope: `${top.length} cihaz`};
+        return {matches: top, scope: `${top.length} devices`};
     }
     return {matches: top, scope: ""};
 }
 
-// ── Servis çağrısı ────────────────────────────────────────────────────────────
+// ── Service call ──────────────────────────────────────────────────────────────
 export async function callService(
     cfg: HAConfig, domain: string, service: string, data: Record<string, unknown>,
 ): Promise<void> {
@@ -225,7 +225,7 @@ export async function callService(
     });
     if (!r.ok) {
         const body = await r.text().catch(() => "");
-        throw new Error(`servis ${domain}.${service} ${r.status}${body ? ": " + body.slice(0, 120) : ""}`);
+        throw new Error(`service ${domain}.${service} ${r.status}${body ? ": " + body.slice(0, 120) : ""}`);
     }
 }
 
@@ -240,7 +240,7 @@ export type Action =
     | {kind: "open"}                         // cover
     | {kind: "close"};
 
-/** Bir entity'ye bir aksiyon uygula — domain'e göre doğru servisi seçer. */
+/** Apply an action to an entity — picks the right service based on the domain. */
 export async function applyAction(cfg: HAConfig, e: HAEntity, action: Action): Promise<string> {
     const id = e.entity_id;
     const d = e.domain;
@@ -248,56 +248,56 @@ export async function applyAction(cfg: HAConfig, e: HAEntity, action: Action): P
     switch (action.kind) {
         case "on":
             await callService(cfg, d === "light" || d === "switch" || d === "fan" || d === "media_player" ? d : "homeassistant", "turn_on", {entity_id: id});
-            return `${e.friendly_name} açıldı`;
+            return `${e.friendly_name} turned on`;
         case "off":
             await callService(cfg, d === "light" || d === "switch" || d === "fan" || d === "media_player" ? d : "homeassistant", "turn_off", {entity_id: id});
-            return `${e.friendly_name} kapatıldı`;
+            return `${e.friendly_name} turned off`;
         case "toggle":
             await callService(cfg, "homeassistant", "toggle", {entity_id: id});
-            return `${e.friendly_name} değiştirildi`;
+            return `${e.friendly_name} toggled`;
         case "brightness": {
             const pct = Math.max(0, Math.min(100, Math.round(action.pct)));
             if (pct === 0) {
                 await callService(cfg, "light", "turn_off", {entity_id: id});
-                return `${e.friendly_name} kapatıldı (%0)`;
+                return `${e.friendly_name} turned off (0%)`;
             }
             await callService(cfg, "light", "turn_on", {entity_id: id, brightness_pct: pct});
-            return `${e.friendly_name} parlaklığı %${pct} yapıldı`;
+            return `${e.friendly_name} brightness set to ${pct}%`;
         }
         case "temperature":
             await callService(cfg, "climate", "set_temperature", {entity_id: id, temperature: action.celsius});
-            return `${e.friendly_name} ${action.celsius}°C'ye ayarlandı`;
+            return `${e.friendly_name} set to ${action.celsius}°C`;
         case "lock":
             await callService(cfg, "lock", "lock", {entity_id: id});
-            return `${e.friendly_name} kilitlendi`;
+            return `${e.friendly_name} locked`;
         case "unlock":
             await callService(cfg, "lock", "unlock", {entity_id: id});
-            return `${e.friendly_name} kilidi açıldı`;
+            return `${e.friendly_name} unlocked`;
         case "open":
             await callService(cfg, "cover", "open_cover", {entity_id: id});
-            return `${e.friendly_name} açıldı`;
+            return `${e.friendly_name} opened`;
         case "close":
             await callService(cfg, "cover", "close_cover", {entity_id: id});
-            return `${e.friendly_name} kapatıldı`;
+            return `${e.friendly_name} closed`;
     }
 }
 
-// ── İnsan-okur durum özeti ────────────────────────────────────────────────────
+// ── Human-readable status summary ─────────────────────────────────────────────
 export function describeState(e: HAEntity): string {
     const a = e.attributes;
     switch (e.domain) {
         case "light": {
-            if (e.state !== "on") return `${e.friendly_name}: kapalı`;
+            if (e.state !== "on") return `${e.friendly_name}: off`;
             const b = typeof a.brightness === "number" ? Math.round((a.brightness / 255) * 100) : null;
-            return `${e.friendly_name}: açık${b != null ? ` (%${b})` : ""}`;
+            return `${e.friendly_name}: on${b != null ? ` (${b}%)` : ""}`;
         }
         case "climate": {
             const cur = a.current_temperature;
             const tgt = a.temperature;
-            return `${e.friendly_name}: ${e.state}${cur != null ? `, ortam ${cur}°C` : ""}${tgt != null ? `, hedef ${tgt}°C` : ""}`;
+            return `${e.friendly_name}: ${e.state}${cur != null ? `, ambient ${cur}°C` : ""}${tgt != null ? `, target ${tgt}°C` : ""}`;
         }
         case "lock":
-            return `${e.friendly_name}: ${e.state === "locked" ? "kilitli" : "açık"}`;
+            return `${e.friendly_name}: ${e.state === "locked" ? "locked" : "unlocked"}`;
         case "cover":
             return `${e.friendly_name}: ${e.state}`;
         case "sensor":
@@ -307,11 +307,11 @@ export function describeState(e: HAEntity): string {
     }
 }
 
-/** Oda/alan bazlı gruplama (friendly_name'in ilk kelimesinden kaba tahmin). */
+/** Group by room/area (rough guess from the first word of friendly_name). */
 export function groupByArea(entities: HAEntity[]): Map<string, HAEntity[]> {
     const map = new Map<string, HAEntity[]>();
     for (const e of entities) {
-        const area = (e.attributes.area as string) || normalize(e.friendly_name).split(" ")[0] || "diğer";
+        const area = (e.attributes.area as string) || normalize(e.friendly_name).split(" ")[0] || "other";
         if (!map.has(area)) map.set(area, []);
         map.get(area)!.push(e);
     }

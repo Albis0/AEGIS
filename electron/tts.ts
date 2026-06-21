@@ -62,17 +62,17 @@ function float32ToWav(pcm: Float32Array, sampleRate: number): Buffer {
 let _kokoro: any = null;
 let _kokoroWarmupDone = false;
 
-// ── Kokoro model dosyaları YAZILABILIR bir klasöre indirilir (paketlenmiş app'te
-// node_modules/asar salt-okunur). main process kurulumda buraya userData yolunu verir.
+// ── Kokoro model files are downloaded to a WRITABLE folder (in the packaged app
+// node_modules/asar is read-only). The main process passes the userData path here at startup.
 const KOKORO_REPO = "onnx-community/Kokoro-82M-v1.0-ONNX";
 let _kokoroModelDir: string | null = null;
 
-/** main.ts başlangıçta çağırır: model ağırlıklarının indirileceği yazılabilir klasör. */
+/** Called by main.ts at startup: the writable folder where model weights will be downloaded. */
 export function setKokoroModelDir(dir: string): void {
     _kokoroModelDir = dir;
 }
 
-/** transformers'ın cache klasörünü yazılabilir dizine yönlendir (require'dan ÖNCE değil, from_pretrained'den önce yeter). */
+/** Point the transformers cache folder to a writable directory (not before require — before from_pretrained is enough). */
 function configureTransformersCache(): void {
     if (!_kokoroModelDir) return;
     try {
@@ -80,23 +80,23 @@ function configureTransformersCache(): void {
         const {env} = require("@huggingface/transformers");
         env.cacheDir = _kokoroModelDir;
         env.allowLocalModels = true;
-    } catch { /* transformers henüz yoksa sorun değil; from_pretrained zaten hata verir */ }
+    } catch { /* fine if transformers isn't present yet; from_pretrained will throw anyway */ }
 }
 
-/** İndirilen model dosyalarının bulunacağı tam klasör (HF cache yapısı: models--owner--repo). */
+/** The exact folder where downloaded model files will live (HF cache layout: models--owner--repo). */
 function kokoroSnapshotDir(): string | null {
     if (!_kokoroModelDir) return null;
     const safe = "models--" + KOKORO_REPO.replace(/\//g, "--");
     return path.join(_kokoroModelDir, safe);
 }
 
-/** Model dosyaları DİSKTE var mı? require.resolve cache'ine güvenmez. */
+/** Are the model files present ON DISK? Doesn't trust the require.resolve cache. */
 export function isKokoroInstalled(): boolean {
     const snap = kokoroSnapshotDir();
     if (!snap) return false;
     try {
         if (!fs.existsSync(snap)) return false;
-        // snapshots/<hash>/onnx/*.onnx — en az bir .onnx ağırlık dosyası olmalı.
+        // snapshots/<hash>/onnx/*.onnx — there must be at least one .onnx weight file.
         return hasOnnxWeight(snap);
     } catch { return false; }
 }
@@ -115,14 +115,14 @@ function hasOnnxWeight(dir: string): boolean {
     return found;
 }
 
-/** Model klasörünü tamamen sil. Gerçekten silinip silinmediğini döndürür. */
+/** Delete the model folder entirely. Returns whether it was actually deleted. */
 export function deleteKokoroModel(): {deleted: boolean; freedBytes: number} {
     const snap = kokoroSnapshotDir();
     if (!snap || !fs.existsSync(snap)) return {deleted: false, freedBytes: 0};
     let freed = 0;
     try { freed = dirSize(snap); } catch { /* ignore */ }
     fs.rmSync(snap, {recursive: true, force: true});
-    _kokoro = null;            // bellekteki örneği bırak
+    _kokoro = null;            // release the in-memory instance
     _kokoroWarmupDone = false;
     return {deleted: !fs.existsSync(snap), freedBytes: freed};
 }
@@ -139,7 +139,7 @@ function dirSize(dir: string): number {
 
 export function warmupKokoro(voice: string): void {
     if (_kokoroWarmupDone) return;
-    if (!isKokoroInstalled()) return; // model yoksa indirme tetikleme — sadece warmup
+    if (!isKokoroInstalled()) return; // if the model isn't there, don't trigger a download — warmup only
     _kokoroWarmupDone = true;
     getKokoro()
         .then((tts: any) => tts.generate(".", {voice: voice || "af_heart"}))
@@ -199,7 +199,7 @@ export async function generateTts(text: string, opts: TtsOptions): Promise<Buffe
         );
         if (!resp.ok) {
             const body = await resp.text().catch(() => "");
-            throw new Error(`ElevenLabs ${resp.status}: ${body || "Bilinmeyen hata. API key doğru mu?"}`);
+            throw new Error(`ElevenLabs ${resp.status}: ${body || "Unknown error. Is the API key correct?"}`);
         }
         return Buffer.from(await resp.arrayBuffer());
     }

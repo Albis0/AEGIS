@@ -26,9 +26,9 @@ function anySignal(signals: AbortSignal[]): AbortSignal {
     return ctrl.signal;
 }
 
-/** Maps a fetch AbortError to a user-friendly Turkish message. */
+/** Maps a fetch AbortError to a user-friendly message. */
 export function isTimeoutError(e: unknown): boolean {
     return e instanceof Error && e.name === "AbortError";
 }
 
-export const TIMEOUT_MSG = "İstek zaman aşımına uğradı. Ağ bağlantını kontrol et ve tekrar dene.";
+export const TIMEOUT_MSG = "The request timed out. Check your network connection and try again.";

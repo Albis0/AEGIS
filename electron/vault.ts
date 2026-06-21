@@ -1,12 +1,12 @@
 /**
- * Faz 17 — Güvenlik & Gizlilik
+ * Phase 17 — Security & Privacy
  *
- * 17.1 Windows Credential Manager (DPAPI) ile API key vault
- *      → safeStorage (Electron) kullanılır — AES-256 ile şifreli, OS kullanıcısına bağlı
+ * 17.1 API key vault via Windows Credential Manager (DPAPI)
+ *      → uses safeStorage (Electron) — AES-256 encrypted, bound to the OS user
  *
- * 17.2 Privacy audit: hangi veriler nerede saklanıyor
+ * 17.2 Privacy audit: which data is stored where
  *
- * 17.3 Otomatik silme: X günden eski konuşmaları temizle
+ * 17.3 Automatic deletion: clear conversations older than X days
  */
 
 import * as fs from "fs";
@@ -16,9 +16,9 @@ import * as os from "os";
 const BASE = path.join(os.homedir(), ".aegis");
 const VAULT_PATH = path.join(BASE, "vault.enc.json");
 
-// ---- 17.1 Güvenli Depo (safeStorage wrapper) ----
-// safeStorage Electron main process'te kullanılabilir.
-// Bu modül main.ts'ten import edilir, Electron ortamında çalışır.
+// ---- 17.1 Secure Vault (safeStorage wrapper) ----
+// safeStorage is available in the Electron main process.
+// This module is imported from main.ts and runs in the Electron environment.
 
 let _safeStorage: {isEncryptionAvailable(): boolean; encryptString(s: string): Buffer; decryptString(b: Buffer): string} | null = null;
 
@@ -41,13 +41,13 @@ function saveVaultData(data: VaultData): void {
 
 export function vaultStore(key: string, value: string): string {
     if (!_safeStorage?.isEncryptionAvailable()) {
-        return "HATA: Şifreli depo bu sistemde kullanılamıyor. Electron safeStorage gerekli.";
+        return "ERROR: Encrypted vault is not available on this system. Electron safeStorage is required.";
     }
     const encrypted = _safeStorage.encryptString(value);
     const data = loadVault();
     data[key] = encrypted.toString("hex");
     saveVaultData(data);
-    return `"${key}" güvenli depoya kaydedildi.`;
+    return `"${key}" saved to the secure vault.`;
 }
 
 export function vaultGet(key: string): string | null {
@@ -62,35 +62,35 @@ export function vaultGet(key: string): string | null {
 export function vaultList(): string {
     const data = loadVault();
     const keys = Object.keys(data);
-    if (keys.length === 0) return "Güvenli depoda kayıtlı anahtar yok.";
-    return `Güvenli depodaki anahtarlar:\n${keys.map((k) => `• ${k}`).join("\n")}`;
+    if (keys.length === 0) return "No keys stored in the secure vault.";
+    return `Keys in the secure vault:\n${keys.map((k) => `• ${k}`).join("\n")}`;
 }
 
 export function vaultDelete(key: string): string {
     const data = loadVault();
-    if (!data[key]) return `"${key}" güvenli depoda bulunamadı.`;
+    if (!data[key]) return `"${key}" not found in the secure vault.`;
     delete data[key];
     saveVaultData(data);
-    return `"${key}" güvenli depodan silindi.`;
+    return `"${key}" deleted from the secure vault.`;
 }
 
 // ---- 17.2 Privacy Audit ----
 
 export function privacyAudit(): string {
     const checks: {label: string; path: string}[] = [
-        {label: "Ayarlar (API key'ler dahil)", path: path.join(BASE, "settings.json")},
-        {label: "Config (Groq/Supabase key'leri)", path: path.join(BASE, "config.json")},
-        {label: "Konuşma notu / Supabase URL", path: path.join(BASE, "config.json")},
-        {label: "Kullanıcı profili", path: path.join(BASE, "profile.json")},
-        {label: "Notlar (Supabase'de)", path: "(Supabase DB)"},
-        {label: "Zamanlanmış görevler", path: path.join(BASE, "scheduled-tasks.json")},
-        {label: "Makrolar", path: path.join(BASE, "macros.json")},
-        {label: "Otomasyonlar", path: path.join(BASE, "automations.json")},
-        {label: "Kalıcı gerçekler", path: path.join(BASE, "facts.json")},
-        {label: "Bilgi tabanı index", path: path.join(BASE, "index/")},
-        {label: "Güvenli vault", path: VAULT_PATH},
+        {label: "Settings (including API keys)", path: path.join(BASE, "settings.json")},
+        {label: "Config (Groq/Supabase keys)", path: path.join(BASE, "config.json")},
+        {label: "Conversation note / Supabase URL", path: path.join(BASE, "config.json")},
+        {label: "User profile", path: path.join(BASE, "profile.json")},
+        {label: "Notes (in Supabase)", path: "(Supabase DB)"},
+        {label: "Scheduled tasks", path: path.join(BASE, "scheduled-tasks.json")},
+        {label: "Macros", path: path.join(BASE, "macros.json")},
+        {label: "Automations", path: path.join(BASE, "automations.json")},
+        {label: "Persistent facts", path: path.join(BASE, "facts.json")},
+        {label: "Knowledge base index", path: path.join(BASE, "index/")},
+        {label: "Secure vault", path: VAULT_PATH},
         {label: "API token", path: path.join(BASE, "api-token.txt")},
-        {label: "Alışkanlık verisi", path: path.join(BASE, "habits.json")},
+        {label: "Habit data", path: path.join(BASE, "habits.json")},
     ];
 
     const lines = checks.map((c) => {
@@ -101,16 +101,16 @@ export function privacyAudit(): string {
         return `${exists ? "✓" : "○"} ${c.label}\n  → ${c.path}`;
     });
 
-    return `GİZLİLİK DENETİMİ — AEGIS veri konumları:\n\n${lines.join("\n\n")}`;
+    return `PRIVACY AUDIT — AEGIS data locations:\n\n${lines.join("\n\n")}`;
 }
 
-// ---- 17.3 Otomatik Silme ----
+// ---- 17.3 Automatic Deletion ----
 
 export function clearOldData(olderThanDays: number): string {
     const results: string[] = [];
     const cutoff = Date.now() - olderThanDays * 86_400_000;
 
-    // Bilgi tabanı — eski chunk'ları temizle
+    // Knowledge base — clear old chunks
     const indexDir = path.join(BASE, "index");
     if (fs.existsSync(indexDir)) {
         let removed = 0;
@@ -124,10 +124,10 @@ export function clearOldData(olderThanDays: number): string {
                 }
             } catch {}
         }
-        if (removed > 0) results.push(`Bilgi tabanı: ${removed} eski chunk silindi.`);
+        if (removed > 0) results.push(`Knowledge base: ${removed} old chunks deleted.`);
     }
 
-    // Zamanlanmış görevler — devre dışı + eski
+    // Scheduled tasks — disabled + old
     const tasksPath = path.join(BASE, "scheduled-tasks.json");
     if (fs.existsSync(tasksPath)) {
         try {
@@ -136,11 +136,11 @@ export function clearOldData(olderThanDays: number): string {
             const kept = tasks.filter((t) => t.enabled || new Date(t.createdAt).getTime() > cutoff);
             if (kept.length < before) {
                 fs.writeFileSync(tasksPath, JSON.stringify(kept, null, 2), "utf-8");
-                results.push(`Zamanlanmış görevler: ${before - kept.length} eski devre dışı görev silindi.`);
+                results.push(`Scheduled tasks: ${before - kept.length} old disabled tasks deleted.`);
             }
         } catch {}
     }
 
-    if (results.length === 0) return `${olderThanDays} günden eski silinecek veri bulunamadı.`;
+    if (results.length === 0) return `No data older than ${olderThanDays} days found to delete.`;
     return results.join("\n");
 }

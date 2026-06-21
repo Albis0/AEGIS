@@ -1,21 +1,23 @@
-// AEGIS — Cloud Sync (Faz 30.7)
+// AEGIS — Cloud Sync (Phase 30.7)
 //
-// Giriş yapan kullanıcının ayarlarını + (şifreli) API anahtarlarını Supabase
-// user_configs tablosuna yazar ve cihazlar arası senkronlar.
+// Writes the signed-in user's settings + (encrypted) API keys to the Supabase
+// user_configs table and syncs them across devices.
 //
-// Şifreleme: API key'ler istemci tarafında AES-256-GCM ile şifrelenir. Anahtar,
-// kullanıcının Supabase user.id'sinden + uygulama sabitinden scrypt ile türetilir.
-// Sunucu yalnızca şifreli blob görür — düz key asla buluta gitmez.
+// Encryption: API keys are encrypted client-side with AES-256-GCM. The key is
+// derived via scrypt from the user's Supabase user.id + an application constant.
+// The server only ever sees the encrypted blob — the plaintext key never leaves
+// for the cloud.
 //
-// NOT: Bu, parola-tabanlı şifrelemeden zayıftır (user.id sır değil), ama RLS
-// zaten satırı korur; bu katman "veritabanı dökümü sızsa bile key'ler düz değil"
-// güvencesi verir. Tam parola-türetme ileride eklenebilir.
+// NOTE: This is weaker than password-based encryption (user.id is not a secret),
+// but RLS already protects the row; this layer provides the guarantee that "even
+// if a database dump leaks, the keys are not in plaintext". Full password
+// derivation can be added later.
 
 import * as crypto from "crypto";
 import {getAuthClient, getCurrentUser} from "./auth";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 
-// Uygulama sabiti — anahtar türetmede tuz olarak kullanılır (public-safe, RLS korur).
+// Application constant — used as salt in key derivation (public-safe, protected by RLS).
 const APP_PEPPER = "aegis-v1-sync-pepper-7f3a";
 
 function deriveKey(userId: string): Buffer {
@@ -28,7 +30,7 @@ function encrypt(plain: string, userId: string): string {
     const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
     const enc = Buffer.concat([cipher.update(plain, "utf-8"), cipher.final()]);
     const tag = cipher.getAuthTag();
-    // iv:tag:ciphertext (hepsi base64)
+    // iv:tag:ciphertext (all base64)
     return `${iv.toString("base64")}:${tag.toString("base64")}:${enc.toString("base64")}`;
 }
 
@@ -44,8 +46,8 @@ function decrypt(blob: string, userId: string): string | null {
     }
 }
 
-// Senkronlanan ayar alanları (hassas olmayan tercihler). providerKeys ayrı
-// (şifreli) gider; aiApiKey de hassas olduğu için ayrı tutulur.
+// Synced setting fields (non-sensitive preferences). providerKeys are sent
+// separately (encrypted); aiApiKey is also kept separate since it is sensitive.
 const SYNCED_SETTING_KEYS: (keyof AppSettings)[] = [
     "model", "ttsVoice", "ttsRate", "accentColor", "ttsProvider", "aiProvider",
     "ollamaUrl", "ollamaNumCtx", "skin", "font", "layout", "customCss", "language",
@@ -59,17 +61,17 @@ function pickSyncedSettings(s: AppSettings): Partial<AppSettings> {
     return out as Partial<AppSettings>;
 }
 
-// "Bu cihazı senkronla" tercihi — settings.json'da tutulur (sync edilmez).
+// "Sync this device" preference — stored in settings.json (not itself synced).
 function syncEnabled(): boolean {
     const s = loadSettings() as AppSettings & {cloudSync?: boolean};
-    return s.cloudSync !== false; // default açık (giriş varsa)
+    return s.cloudSync !== false; // on by default (if signed in)
 }
 
-// Yerel ayar + key'leri buluta yaz (debounce'lu çağrılır).
+// Write local settings + keys to the cloud (called debounced).
 export async function pushToCloud(): Promise<{ok: boolean; error?: string}> {
-    if (!syncEnabled()) return {ok: false, error: "sync kapalı"};
+    if (!syncEnabled()) return {ok: false, error: "sync disabled"};
     const user = await getCurrentUser();
-    if (!user) return {ok: false, error: "giriş yok"};
+    if (!user) return {ok: false, error: "not signed in"};
 
     const s = loadSettings();
     const settingsJson = pickSyncedSettings(s);
@@ -87,12 +89,12 @@ export async function pushToCloud(): Promise<{ok: boolean; error?: string}> {
     return error ? {ok: false, error: error.message} : {ok: true};
 }
 
-// Buluttan çek, yerelle birleştir (en yeni kazanır mantığı için updated_at).
-// Açılışta çağrılır. Dönen değer: değişiklik yapıldıysa true.
+// Pull from the cloud, merge with local (updated_at drives last-writer-wins).
+// Called at startup. Return value: true if a change was applied.
 export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; error?: string}> {
-    if (!syncEnabled()) return {ok: false, applied: false, error: "sync kapalı"};
+    if (!syncEnabled()) return {ok: false, applied: false, error: "sync disabled"};
     const user = await getCurrentUser();
-    if (!user) return {ok: false, applied: false, error: "giriş yok"};
+    if (!user) return {ok: false, applied: false, error: "not signed in"};
 
     const {data, error} = await getAuthClient()
         .from("user_configs")
@@ -101,17 +103,17 @@ export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; e
         .maybeSingle();
 
     if (error) return {ok: false, applied: false, error: error.message};
-    if (!data) return {ok: true, applied: false}; // bulutta kayıt yok (ilk kez)
+    if (!data) return {ok: true, applied: false}; // no record in the cloud (first time)
 
     const local = loadSettings();
-    // data.settings güvenli mi kontrol et — bozuk cloud verisi local'i ezmesin
+    // Check that data.settings is safe — don't let corrupt cloud data overwrite local
     let cloudSettings: Partial<AppSettings> = {};
     if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
         cloudSettings = data.settings as Partial<AppSettings>;
     }
     const merged: AppSettings = {...local, ...cloudSettings};
 
-    // Şifreli key'leri çöz ve birleştir
+    // Decrypt and merge the encrypted keys
     if (data.encrypted_keys) {
         const dec = decrypt(data.encrypted_keys, user.userId);
         if (dec) {
@@ -119,7 +121,7 @@ export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; e
                 const {providerKeys, aiApiKey} = JSON.parse(dec);
                 if (providerKeys && typeof providerKeys === 'object') merged.providerKeys = {...(local.providerKeys ?? {}), ...providerKeys};
                 if (aiApiKey && typeof aiApiKey === 'string') merged.aiApiKey = aiApiKey;
-            } catch { /* bozuk blob — yoksay */ }
+            } catch { /* corrupt blob — ignore */ }
         }
     }
 

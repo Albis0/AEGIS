@@ -20,32 +20,32 @@ interface Personas {
 const DEFAULT_PERSONAS: Record<string, Persona> = {
     default: {
         name: "default",
-        description: "Standart AEGIS asistanı — kısa ve net",
+        description: "Standard AEGIS assistant — short and clear",
         systemPrompt: "",
         createdAt: 0,
     },
     formal: {
         name: "formal",
-        description: "Resmi asistan — kurumsal dil, saygılı hitap",
-        systemPrompt: "Resmi ve kurumsal bir dil kullan. Kullanıcıya 'Sayın kullanıcı' ile hitap et. Her yanıt yapılandırılmış ve profesyonel olsun.",
+        description: "Formal assistant — corporate tone, respectful address",
+        systemPrompt: "Use formal, corporate language. Address the user as 'Dear user'. Keep every response structured and professional.",
         createdAt: 0,
     },
     friendly: {
         name: "friendly",
-        description: "Samimi arkadaş — rahat, sıcak, eğlenceli",
-        systemPrompt: "Samimi ve sıcak bir dil kullan. Kullanıcıyla arkadaş gibi konuş, sen-sen hitabı kullan. Hafif esprili olabilirsin.",
+        description: "Close friend — relaxed, warm, fun",
+        systemPrompt: "Use warm, friendly language. Talk to the user like a friend, in a casual tone. You can be lightly humorous.",
         createdAt: 0,
     },
     coach: {
         name: "coach",
-        description: "Sert koç — doğrudan, motive edici, sonuç odaklı",
-        systemPrompt: "Bir performans koçu gibi davran. Doğrudan ve net ol. Kullanıcıyı motive et, zorla, hedeflerine odaklanmasını sağla. Bahane kabul etme.",
+        description: "Tough coach — direct, motivating, results-driven",
+        systemPrompt: "Act like a performance coach. Be direct and clear. Motivate the user, push them, keep them focused on their goals. Don't accept excuses.",
         createdAt: 0,
     },
     teacher: {
         name: "teacher",
-        description: "Öğretmen — sabırlı, açıklayıcı, adım adım",
-        systemPrompt: "Sabırlı bir öğretmen gibi davran. Konuları adım adım açıkla, örnekler kullan. Kullanıcının anlayıp anlamadığını kontrol et.",
+        description: "Teacher — patient, explanatory, step by step",
+        systemPrompt: "Act like a patient teacher. Explain topics step by step, use examples. Check whether the user understands.",
         createdAt: 0,
     },
 };
@@ -74,35 +74,35 @@ function savePersonas(data: Personas): void {
 export function setActivePersona(name: string): string {
     const data = loadPersonas();
     if (!data.personas[name]) {
-        return `Kişilik bulunamadı: "${name}". Mevcut: ${Object.keys(data.personas).join(", ")}`;
+        return `Persona not found: "${name}". Available: ${Object.keys(data.personas).join(", ")}`;
     }
     data.active = name;
     savePersonas(data);
     const p = data.personas[name];
-    return `Aktif kişilik: ${name}${p.description ? ` — ${p.description}` : ""}`;
+    return `Active persona: ${name}${p.description ? ` — ${p.description}` : ""}`;
 }
 
 export function getActivePersona(): string {
     const data = loadPersonas();
     const p = data.personas[data.active] ?? data.personas["default"];
-    return `Aktif kişilik: ${p.name}\nAçıklama: ${p.description || "—"}\nYönerge: ${p.systemPrompt || "(varsayılan AEGIS davranışı)"}`;
+    return `Active persona: ${p.name}\nDescription: ${p.description || "—"}\nInstruction: ${p.systemPrompt || "(default AEGIS behavior)"}`;
 }
 
 export function listPersonas(): string {
     const data = loadPersonas();
     const active = data.active;
     const lines = Object.values(data.personas).map((p) =>
-        `${p.name === active ? "▶" : "•"} ${p.name} — ${p.description || "açıklama yok"}`
+        `${p.name === active ? "▶" : "•"} ${p.name} — ${p.description || "no description"}`
     );
-    return `Kişilikler (${lines.length}):\n${lines.join("\n")}`;
+    return `Personas (${lines.length}):\n${lines.join("\n")}`;
 }
 
 export function addPersona(name: string, description: string, systemPrompt: string): string {
-    if (!name.trim()) return "HATA: Kişilik adı gerekli.";
+    if (!name.trim()) return "ERROR: Persona name is required.";
     const data = loadPersonas();
     data.personas[name] = {name, description, systemPrompt, createdAt: Date.now()};
     savePersonas(data);
-    return `Yeni kişilik eklendi: "${name}"`;
+    return `New persona added: "${name}"`;
 }
 
 export function getPersonaSystemPrompt(): string {
@@ -110,11 +110,11 @@ export function getPersonaSystemPrompt(): string {
         const data = loadPersonas();
         const roleplayState = getRoleplayState();
         if (roleplayState.active) {
-            return `[ROL YAPMA MODU]\nKarakter: ${roleplayState.character}\n${roleplayState.scenario ? "Senaryo: " + roleplayState.scenario : ""}\nBu karakterde konuş. Karakter dışına çıkma.`;
+            return `[ROLEPLAY MODE]\nCharacter: ${roleplayState.character}\n${roleplayState.scenario ? "Scenario: " + roleplayState.scenario : ""}\nSpeak as this character. Do not break character.`;
         }
         const p = data.personas[data.active];
         if (!p || !p.systemPrompt) return "";
-        return `[KİŞİLİK: ${p.name.toUpperCase()}]\n${p.systemPrompt}`;
+        return `[PERSONA: ${p.name.toUpperCase()}]\n${p.systemPrompt}`;
     } catch {
         return "";
     }
@@ -136,20 +136,20 @@ function getRoleplayState(): RoleplayState {
 }
 
 export function startRoleplay(character: string, scenario: string): string {
-    if (!character.trim()) return "HATA: Karakter açıklaması gerekli.";
+    if (!character.trim()) return "ERROR: Character description is required.";
     const state: RoleplayState = {active: true, character, scenario, startedAt: Date.now()};
     fs.mkdirSync(path.dirname(ROLEPLAY_STATE), {recursive: true});
     fs.writeFileSync(ROLEPLAY_STATE, JSON.stringify(state, null, 2));
-    return `Rol yapma modu başladı.\nKarakter: ${character}${scenario ? "\nSenaryo: " + scenario : ""}`;
+    return `Roleplay mode started.\nCharacter: ${character}${scenario ? "\nScenario: " + scenario : ""}`;
 }
 
 export function stopRoleplay(): string {
     const state = getRoleplayState();
-    if (!state.active) return "Aktif rol yapma modu yok.";
+    if (!state.active) return "No active roleplay mode.";
     fs.writeFileSync(ROLEPLAY_STATE, JSON.stringify({...state, active: false}, null, 2));
-    return "Rol yapma modu kapatıldı. Normal moda dönüldü.";
+    return "Roleplay mode disabled. Back to normal mode.";
 }
 
 export function getRoleplayPrompt(): string {
-    return getRoleplayState().active ? `ROL: ${getRoleplayState().character}` : "";
+    return getRoleplayState().active ? `ROLE: ${getRoleplayState().character}` : "";
 }

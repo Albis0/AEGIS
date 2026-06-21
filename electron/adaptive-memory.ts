@@ -1,19 +1,19 @@
 /**
- * Faz 57 — Adaptif Hafıza: Semantik arama + otomatik çıkarım + çelişki çözme
+ * Phase 57 — Adaptive Memory: semantic search + auto-inference + conflict resolution
  *
- * `facts.json` düz-JSON + keyword'dü: AEGIS kullanıcıyı KAYDEDİYOR ama ÖĞRENMİYORDU.
- * Bu modül üç saf yetenek ekler (Electron/IO bağımsız — `Fact[]` alır, `Fact[]` döner):
+ * `facts.json` was flat-JSON + keyword: AEGIS SAVED the user but didn't LEARN.
+ * This module adds three pure capabilities (Electron/IO-independent — takes `Fact[]`, returns `Fact[]`):
  *
- *   1. searchFacts   — token-overlap skoruyla anlamca en yakın gerçekleri bulur
- *                      ("geçen ay X hakkında ne demiştim?"). Embedding YOK — yerel,
- *                      sıfır-bağımlılık keyword skoru (knowledge.ts BM25-lite ruhu).
- *                      Embedding eklenirse buraya takılır; yokken graceful keyword.
- *   2. inferFacts    — bir kullanıcı mesajından otomatik gerçek çıkarır
- *                      ("benim adım X", "Python kullanıyorum", "kahveyi severim").
- *   3. reconcileFact — yeni gerçek eskisiyle ÇELİŞİYORSA (aynı özne/yüklem, farklı
- *                      değer) eskiyi günceller; değilse ekler.
+ *   1. searchFacts   — finds the most semantically relevant facts via a token-overlap score
+ *                      ("what did I say about X last month?"). NO embeddings — local,
+ *                      zero-dependency keyword score (in the spirit of knowledge.ts BM25-lite).
+ *                      If embeddings are added they plug in here; without them, graceful keyword fallback.
+ *   2. inferFacts    — automatically extracts a fact from a user message
+ *                      ("my name is X", "I use Python", "I like coffee").
+ *   3. reconcileFact — if a new fact CONFLICTS with an old one (same subject/predicate, different
+ *                      value) it updates the old one; otherwise it adds it.
  *
- * Yeni provider EKLENMEZ (ROADMAP kuralı). Saf fonksiyonlar; kalıcılık memory-plus.ts'te.
+ * No new providers (ROADMAP rule). Pure functions; persistence lives in memory-plus.ts.
  */
 
 export interface FactLike {
@@ -24,7 +24,7 @@ export interface FactLike {
     tags: string[];
 }
 
-// ── 1. Semantik (token-overlap) arama ────────────────────────────────────────
+// ── 1. Semantic (token-overlap) search ───────────────────────────────────────
 
 const STOP = new Set([
     "ve", "ile", "bir", "bu", "şu", "o", "da", "de", "ki", "mi", "ne", "için",
@@ -41,8 +41,8 @@ function toTokens(s: string): string[] {
 }
 
 /**
- * Sorguya anlamca en yakın gerçekleri skorlu döndürür. Skor = ortak token sayısı /
- * sorgu token sayısı (Jaccard-benzeri). 0 skorlular elenir; en yüksek `limit` döner.
+ * Returns the facts most semantically relevant to the query, with scores. Score = shared token count /
+ * query token count (Jaccard-like). Zero-score entries are dropped; the top `limit` are returned.
  */
 export function searchFacts(facts: FactLike[], query: string, limit = 5): {fact: FactLike; score: number}[] {
     const q = toTokens(query);
@@ -60,39 +60,39 @@ export function searchFacts(facts: FactLike[], query: string, limit = 5): {fact:
         .slice(0, limit);
 }
 
-// ── 2. Konuşmadan otomatik çıkarım ───────────────────────────────────────────
+// ── 2. Automatic inference from conversation ─────────────────────────────────
 
 /**
- * Bir kullanıcı mesajından kalıcı sayılabilecek gerçekleri çıkarır. Yalnızca NET,
- * kişisel ve kalıcı ifadeler (isim, kullanılan teknoloji, tercih) — geçici/komut
- * cümleleri ("dosyayı aç") çıkarılmaz. Her gerçek bir `subject` (çelişki çözmede
- * kullanılır) ile döner.
+ * Extracts facts worth persisting from a user message. Only CLEAR, personal and
+ * lasting statements (name, technology used, preference) — transient/command
+ * sentences ("open the file") are not extracted. Each fact returns with a `subject`
+ * (used in conflict resolution).
  */
 export interface InferredFact {
     content: string;
-    subject: string;   // çelişki çözme anahtarı: "isim", "dil:python", "tercih:kahve"
+    subject: string;   // conflict-resolution key: "name", "lang:python", "preference:coffee"
     tags: string[];
 }
 
 const PATTERNS: {re: RegExp; build: (m: RegExpMatchArray) => InferredFact}[] = [
-    // İsim
+    // Name
     {re: /\b(?:benim )?ad[ıi]m\s+([a-zçğıöşü]+)/i,
-     build: (m) => ({content: `Kullanıcının adı ${cap(m[1])}.`, subject: "isim", tags: ["profil", "isim"]})},
+     build: (m) => ({content: `The user's name is ${cap(m[1])}.`, subject: "name", tags: ["profile", "name"]})},
     {re: /\bbana\s+([a-zçğıöşü]+)\s+de(?:nir|yebilirsin|rler)?\b/i,
-     build: (m) => ({content: `Kullanıcının adı ${cap(m[1])}.`, subject: "isim", tags: ["profil", "isim"]})},
+     build: (m) => ({content: `The user's name is ${cap(m[1])}.`, subject: "name", tags: ["profile", "name"]})},
     {re: /\bmy name is\s+([a-z]+)/i,
-     build: (m) => ({content: `Kullanıcının adı ${cap(m[1])}.`, subject: "isim", tags: ["profil", "isim"]})},
-    // Kullanılan teknoloji/dil
+     build: (m) => ({content: `The user's name is ${cap(m[1])}.`, subject: "name", tags: ["profile", "name"]})},
+    // Technology/language used
     {re: /\b([a-zçğıöşü0-9+#.]+)\s+(?:kullan[ıi]yorum|ile çalış[ıi]yorum|yaz[ıi]yorum)\b/i,
-     build: (m) => ({content: `Kullanıcı ${m[1]} kullanıyor.`, subject: `dil:${norm(m[1])}`, tags: ["teknoloji"]})},
+     build: (m) => ({content: `The user uses ${m[1]}.`, subject: `lang:${norm(m[1])}`, tags: ["technology"]})},
     {re: /\bi (?:use|code in|work with)\s+([a-z0-9+#.]+)/i,
-     build: (m) => ({content: `Kullanıcı ${m[1]} kullanıyor.`, subject: `dil:${norm(m[1])}`, tags: ["teknoloji"]})},
-    // Tercih (sevme)
+     build: (m) => ({content: `The user uses ${m[1]}.`, subject: `lang:${norm(m[1])}`, tags: ["technology"]})},
+    // Preference (likes)
     {re: /\b([a-zçğıöşü ]+?)['ıiyu]?\s*(?:severim|seviyorum|bay[ıi]l[ıi]r[ıi]m)\b/i,
-     build: (m) => ({content: `Kullanıcı ${m[1].trim()} sever.`, subject: `tercih:${norm(m[1])}`, tags: ["tercih"]})},
-    // Tercih (sevmeme)
+     build: (m) => ({content: `The user likes ${m[1].trim()}.`, subject: `preference:${norm(m[1])}`, tags: ["preference"]})},
+    // Preference (dislikes)
     {re: /\b([a-zçğıöşü ]+?)['ıiyu]?\s*(?:sevmem|sevmiyorum|nefret ederim)\b/i,
-     build: (m) => ({content: `Kullanıcı ${m[1].trim()} sevmez.`, subject: `tercih:${norm(m[1])}`, tags: ["tercih"]})},
+     build: (m) => ({content: `The user dislikes ${m[1].trim()}.`, subject: `preference:${norm(m[1])}`, tags: ["preference"]})},
 ];
 
 function cap(s: string): string { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -115,21 +115,21 @@ export function inferFacts(message: string): InferredFact[] {
     return out;
 }
 
-// ── 3. Çelişki çözme ─────────────────────────────────────────────────────────
+// ── 3. Conflict resolution ───────────────────────────────────────────────────
 
-// Kaydedilmiş gerçek cümlelerinin ("Kullanıcının adı X.", "Kullanıcı Y kullanıyor.",
-// "Kullanıcı Z sever/sevmez.") öznesini tanıyan desenler — çelişki çözmede mevcut
-// gerçeğin subject'ini bulmak için (girdi kalıpları inferFacts'ta, bunlar ÇIKTI kalıpları).
+// Patterns recognizing the subject of stored fact sentences ("The user's name is X.",
+// "The user uses Y.", "The user likes/dislikes Z.") — to find the existing fact's
+// subject during conflict resolution (input patterns are in inferFacts; these are OUTPUT patterns).
 const STORED_SUBJECT: {re: RegExp; subject: (m: RegExpMatchArray) => string}[] = [
-    {re: /kullanıcının ad[ıi]\s+/i, subject: () => "isim"},
-    {re: /kullanıcı\s+(.+?)\s+kullanıyor/i, subject: (m) => `dil:${norm(m[1])}`},
-    {re: /kullanıcı\s+(.+?)\s+sev(?:er|mez)/i, subject: (m) => `tercih:${norm(m[1])}`},
+    {re: /the user's name is\s+/i, subject: () => "name"},
+    {re: /the user uses\s+(.+?)\.?$/i, subject: (m) => `lang:${norm(m[1])}`},
+    {re: /the user (?:likes|dislikes)\s+(.+?)\.?$/i, subject: (m) => `preference:${norm(m[1])}`},
 ];
 
 /**
- * Bir gerçeğin "öznesini" çıkarır (çelişki anahtarı). Hem girdi kalıplarını
- * (inferFacts: "benim adım X") hem kaydedilmiş çıktı kalıplarını ("Kullanıcının
- * adı X.") tanır — böylece reconcileFact mevcut gerçeğin öznesini bulabilir.
+ * Extracts a fact's "subject" (conflict key). Recognizes both input patterns
+ * (inferFacts: "my name is X") and stored output patterns ("The user's name is X.") —
+ * so reconcileFact can find the existing fact's subject.
  */
 export function subjectOf(content: string): string | null {
     for (const s of STORED_SUBJECT) {
@@ -147,9 +147,9 @@ export interface ReconcileResult {
 }
 
 /**
- * Yeni içerik mevcut gerçeklerle çelişiyorsa (aynı subject, farklı içerik) ESKİYİ
- * günceller; aynıysa duplicate; çelişki yoksa ekler. Subject yalnızca otomatik
- * çıkarılabilen tiplerde (isim/dil/tercih) hesaplanır; çıkarılamıyorsa düz ekleme.
+ * If the new content conflicts with existing facts (same subject, different content) it
+ * UPDATES the old one; if identical, duplicate; if no conflict, adds it. Subject is only
+ * computed for auto-inferable types (name/lang/preference); if not inferable, plain add.
  */
 export function reconcileFact(
     facts: FactLike[],
@@ -158,9 +158,9 @@ export function reconcileFact(
     now: () => string = () => new Date().toISOString(),
 ): ReconcileResult {
     const trimmed = newContent.trim();
-    // Birebir aynı içerik → duplicate
+    // Exactly identical content → duplicate
     if (facts.some((f) => f.content.toLowerCase() === trimmed.toLowerCase())) {
-        return {facts, action: "duplicate", message: "Bu gerçek zaten kayıtlı."};
+        return {facts, action: "duplicate", message: "This fact is already saved."};
     }
     if (subject) {
         const idx = facts.findIndex((f) => (subjectOf(f.content) === subject));
@@ -169,12 +169,12 @@ export function reconcileFact(
             const updated = [...facts];
             updated[idx] = {...updated[idx], content: trimmed, addedAt: now(), source: "auto"};
             return {facts: updated, action: "updated",
-                message: `Güncellendi: "${old}" → "${trimmed}"`};
+                message: `Updated: "${old}" → "${trimmed}"`};
         }
     }
     const fact: FactLike = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         content: trimmed, addedAt: now(), source: "auto", tags: [],
     };
-    return {facts: [...facts, fact], action: "added", message: `Gerçek kaydedildi: "${trimmed}"`};
+    return {facts: [...facts, fact], action: "added", message: `Fact saved: "${trimmed}"`};
 }

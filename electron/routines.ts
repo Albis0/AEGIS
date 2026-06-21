@@ -1,20 +1,20 @@
 /**
- * Faz 52 — Routines (deterministik çok-adımlı aksiyon kaydı)
+ * Phase 52 — Routines (deterministic multi-step action recording)
  *
- * Macro'dan farkı: macro doğal-dil komut METNİ kaydeder ve `chat-stream-inject`
- * ile LLM'e geri yollar (yavaş, belirsiz). Routine ise TOOL ÇAĞRILARINI
- * ({tool, args}) yakalar ve doğrudan `executeTool` ile deterministik çalıştırır —
- * LLM'e geri dönmeden, tıpkı reference-resolver gibi. "Jarvis hissi" için sağlam.
+ * Difference from a macro: a macro records the natural-language command TEXT and sends it
+ * back to the LLM via `chat-stream-inject` (slow, fuzzy). A routine instead captures the
+ * TOOL CALLS ({tool, args}) and runs them deterministically via `executeTool` directly —
+ * without going back to the LLM, just like the reference-resolver. Solid for the "Jarvis feel".
  *
- * Akış:
- *   "Kayıt başlat: Oyun Modu" → startRecording("Oyun Modu")
- *   (kullanıcı normal komutlar verir; eylem tool'ları otomatik yakalanır)
- *   "Kayıt bitir"             → stopRecording() → routines.json'a yazılır
- *   "Oyun Modunu aç"          → runRoutine'in adımları sırayla executeTool ile çalışır
+ * Flow:
+ *   "Start recording: Game Mode" → startRecording("Game Mode")
+ *   (the user gives normal commands; action tools are captured automatically)
+ *   "Stop recording"             → stopRecording() → written to routines.json
+ *   "Open Game Mode"             → runRoutine's steps run in order via executeTool
  *
- * Kayıt KAPSAMI: yalnızca DURUM DEĞİŞTİREN eylem tool'ları (spotify/steam/sistem/
- * dosya…). Salt-okuma tool'ları (web_search, screenshot, list_*, *_now_playing …)
- * routine'e eklenmez — tekrar çalıştırınca temiz ve anlamlı olsun.
+ * Recording SCOPE: only STATE-CHANGING action tools (spotify/steam/system/file…).
+ * Read-only tools (web_search, screenshot, list_*, *_now_playing …) are not added to a
+ * routine — so re-running it stays clean and meaningful.
  */
 
 import * as fs from "fs";
@@ -73,8 +73,8 @@ function findRoutine(routines: Routine[], idOrName: string): number {
 // ---- which tools are worth recording ----
 
 /**
- * Salt-okuma / yan etkisiz tool'lar — routine'e KAYDEDİLMEZ.
- * Routine tekrar çalıştırılınca gereksiz aramalar/screenshot'lar tekrarlanmasın.
+ * Read-only / side-effect-free tools — NOT recorded into a routine.
+ * So that re-running a routine doesn't repeat unnecessary searches/screenshots.
  */
 const READONLY_PREFIXES = ["list_", "get_"];
 const READONLY_TOOLS = new Set<string>([
@@ -84,12 +84,12 @@ const READONLY_TOOLS = new Set<string>([
     "read_file", "read_clipboard", "system_report", "get_weather",
     "search_knowledge", "content_search", "file_search", "app_search",
     "list_windows", "git_status", "git_log", "git_diff",
-    // routine/macro/agent meta-tool'ları asla bir routine'in içine girmemeli
+    // routine/macro/agent meta-tools must never go inside a routine
     "start_macro", "stop_macro", "run_macro", "list_macros", "delete_macro",
     "agent_run", "computer_use",
 ]);
 
-/** Bu tool durum değiştiren bir eylem mi? (kayda değer mi) */
+/** Is this tool a state-changing action? (worth recording) */
 export function isRecordableTool(tool: string): boolean {
     if (tool.startsWith("routine_")) return false;
     if (READONLY_TOOLS.has(tool)) return false;
@@ -111,17 +111,17 @@ export function recordingName(): string | null {
 }
 
 export function startRecording(name: string): string {
-    const clean = name.trim() || "İsimsiz Routine";
+    const clean = name.trim() || "Unnamed Routine";
     if (recording) {
-        return `Zaten "${recording.name}" routine'i kaydediliyor (${recording.steps.length} adım). Önce "kayıt bitir" de.`;
+        return `The routine "${recording.name}" is already being recorded (${recording.steps.length} steps). Say "stop recording" first.`;
     }
     recording = {name: clean, steps: []};
-    return `🔴 "${clean}" routine kaydı başladı. Şimdi yapmamı istediğin işlemleri komut olarak ver; bitince "kayıt bitir" de.`;
+    return `🔴 Recording of routine "${clean}" started. Now give the actions you want me to do as commands; say "stop recording" when done.`;
 }
 
 /**
- * runAgent tool döngüsünden, her başarılı eylem tool'u sonrası çağrılır.
- * Kayıt aktif değilse veya tool kayda değmiyorsa sessizce yok sayar.
+ * Called from the runAgent tool loop after each successful action tool.
+ * Silently ignored if recording is not active or the tool isn't worth recording.
  */
 export function captureStep(tool: string, args: Record<string, unknown>): void {
     if (!recording) return;
@@ -130,12 +130,12 @@ export function captureStep(tool: string, args: Record<string, unknown>): void {
 }
 
 export function stopRecording(): string {
-    if (!recording) return "Aktif routine kaydı yok.";
+    if (!recording) return "No active routine recording.";
     const {name, steps} = recording;
     recording = null;
 
     if (steps.length === 0) {
-        return `"${name}" routine'ine kaydedilecek bir eylem olmadı. Routine oluşturulmadı.`;
+        return `No action was recorded for the routine "${name}". Routine was not created.`;
     }
 
     const routines = loadRoutines();
@@ -144,83 +144,83 @@ export function stopRecording(): string {
     if (existing !== -1 && routines[existing].name.toLowerCase() === name.toLowerCase()) {
         routines[existing] = {...routines[existing], steps, updatedAt: now};
         saveRoutines(routines);
-        return `✅ "${name}" routine'i güncellendi (${steps.length} adım).`;
+        return `✅ Routine "${name}" updated (${steps.length} steps).`;
     }
     routines.push({id: makeId(), name, steps, createdAt: now, updatedAt: now});
     saveRoutines(routines);
-    return `✅ "${name}" routine'i kaydedildi (${steps.length} adım). "${name} aç/çalıştır" diyerek tekrarlayabilirsin.`;
+    return `✅ Routine "${name}" saved (${steps.length} steps). You can repeat it by saying "open/run ${name}".`;
 }
 
-/** Kaydı kaydetmeden iptal et. */
+/** Cancel recording without saving. */
 export function cancelRecording(): string {
-    if (!recording) return "Aktif routine kaydı yok.";
+    if (!recording) return "No active routine recording.";
     const name = recording.name;
     recording = null;
-    return `"${name}" routine kaydı iptal edildi (kaydedilmedi).`;
+    return `Recording of routine "${name}" cancelled (not saved).`;
 }
 
 // ---- CRUD ----
 
 export function listRoutines(): string {
     const routines = loadRoutines();
-    if (routines.length === 0) return "Kayıtlı routine yok. 'Kayıt başlat: <isim>' ile oluşturabilirsin.";
+    if (routines.length === 0) return "No saved routines. You can create one with 'start recording: <name>'.";
     return routines
-        .map((r) => `• ${r.name} (${r.steps.length} adım, ID: ${r.id})`)
+        .map((r) => `• ${r.name} (${r.steps.length} steps, ID: ${r.id})`)
         .join("\n");
 }
 
 export function deleteRoutine(idOrName: string): string {
     const routines = loadRoutines();
     const idx = findRoutine(routines, idOrName);
-    if (idx === -1) return `"${idOrName}" adında routine bulunamadı.`;
+    if (idx === -1) return `No routine found named "${idOrName}".`;
     const removed = routines.splice(idx, 1)[0];
     saveRoutines(routines);
-    return `🗑️ "${removed.name}" routine'i silindi.`;
+    return `🗑️ Routine "${removed.name}" deleted.`;
 }
 
 export function renameRoutine(idOrName: string, newName: string): string {
     const clean = newName.trim();
-    if (!clean) return "Yeni isim boş olamaz.";
+    if (!clean) return "The new name cannot be empty.";
     const routines = loadRoutines();
     const idx = findRoutine(routines, idOrName);
-    if (idx === -1) return `"${idOrName}" adında routine bulunamadı.`;
+    if (idx === -1) return `No routine found named "${idOrName}".`;
     const old = routines[idx].name;
     routines[idx].name = clean;
     routines[idx].updatedAt = new Date().toISOString();
     saveRoutines(routines);
-    return `✏️ "${old}" → "${clean}" olarak yeniden adlandırıldı.`;
+    return `✏️ Renamed "${old}" → "${clean}".`;
 }
 
-/** Bir adımı kaldır (1-tabanlı index). */
+/** Remove a step (1-based index). */
 export function deleteRoutineStep(idOrName: string, stepNumber: number): string {
     const routines = loadRoutines();
     const idx = findRoutine(routines, idOrName);
-    if (idx === -1) return `"${idOrName}" adında routine bulunamadı.`;
+    if (idx === -1) return `No routine found named "${idOrName}".`;
     const r = routines[idx];
     if (stepNumber < 1 || stepNumber > r.steps.length) {
-        return `Geçersiz adım numarası ${stepNumber}. "${r.name}" routine'inde ${r.steps.length} adım var.`;
+        return `Invalid step number ${stepNumber}. The routine "${r.name}" has ${r.steps.length} steps.`;
     }
     const removed = r.steps.splice(stepNumber - 1, 1)[0];
     r.updatedAt = new Date().toISOString();
     saveRoutines(routines);
-    return `"${r.name}" routine'inden ${stepNumber}. adım (${removed.tool}) çıkarıldı. Kalan: ${r.steps.length} adım.`;
+    return `Step ${stepNumber} (${removed.tool}) removed from routine "${r.name}". Remaining: ${r.steps.length} steps.`;
 }
 
-/** Bir routine'in adımlarını okunabilir biçimde göster (düzenleme öncesi). */
+/** Show a routine's steps in readable form (before editing). */
 export function showRoutine(idOrName: string): string {
     const routines = loadRoutines();
     const idx = findRoutine(routines, idOrName);
-    if (idx === -1) return `"${idOrName}" adında routine bulunamadı.`;
+    if (idx === -1) return `No routine found named "${idOrName}".`;
     const r = routines[idx];
-    if (r.steps.length === 0) return `"${r.name}" routine'i boş.`;
+    if (r.steps.length === 0) return `Routine "${r.name}" is empty.`;
     const lines = r.steps.map((s, i) => {
         const argStr = Object.entries(s.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
         return `  ${i + 1}. ${s.tool}(${argStr})`;
     });
-    return `"${r.name}" routine'i (${r.steps.length} adım):\n${lines.join("\n")}`;
+    return `Routine "${r.name}" (${r.steps.length} steps):\n${lines.join("\n")}`;
 }
 
-/** Çalıştırma için adımları döndür (null = bulunamadı). */
+/** Return the steps for execution (null = not found). */
 export function getRoutine(idOrName: string): Routine | null {
     const routines = loadRoutines();
     const idx = findRoutine(routines, idOrName);
@@ -229,8 +229,8 @@ export function getRoutine(idOrName: string): Routine | null {
 
 // ---- test helper ----
 
-/** Test izolasyonu için: dosyayı ve kayıt durumunu sıfırla. */
+/** For test isolation: reset the file and recording state. */
 export function _resetForTest(): void {
     recording = null;
-    try { fs.rmSync(ROUTINES_PATH, {force: true}); } catch { /* yok */ }
+    try { fs.rmSync(ROUTINES_PATH, {force: true}); } catch { /* none */ }
 }

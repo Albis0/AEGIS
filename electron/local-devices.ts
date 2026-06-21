@@ -1,31 +1,31 @@
-// AEGIS — Yerel Ağ Cihaz Keşfi (Local Device Discovery)
+// AEGIS — Local Network Device Discovery
 //
-// Home Assistant GEREKTİRMEDEN ev ağındaki cihazları bulur. Kullanıcı hiçbir şey
-// kurmadan "evdeki cihazları göster" diyebilsin diye. İki standart protokol:
+// Finds devices on the home network WITHOUT requiring Home Assistant, so the user
+// can say "show home devices" without installing anything. Two standard protocols:
 //
 //   • mDNS / Bonjour (UDP 5353, 224.0.0.251) — Chromecast, AirPlay, HomeKit,
-//     yazıcılar, NAS, çoğu IoT cihazı kendini buradan duyurur.
-//   • SSDP / UPnP   (UDP 1900, 239.255.255.250) — akıllı TV, DLNA medya
-//     sunucuları, router, oyun konsolu.
+//     printers, NAS, most IoT devices advertise themselves here.
+//   • SSDP / UPnP   (UDP 1900, 239.255.255.250) — smart TVs, DLNA media
+//     servers, routers, game consoles.
 //
-// Tamamen Node yerleşik `dgram` + `os` ile; harici bağımlılık yok. Saf I/O —
-// Electron'a bağımlı değil, bu yüzden test edilebilir (parse fonksiyonları mock'suz).
+// Entirely Node built-in `dgram` + `os`; no external dependencies. Pure I/O —
+// not dependent on Electron, so testable (parse functions are mock-free).
 
 import * as dgram from "dgram";
 import * as os from "os";
 
 export interface DiscoveredDevice {
-    name: string;            // okunabilir ad ("Living Room TV", "HP-Printer")
-    address: string;         // IP (biliniyorsa)
+    name: string;            // readable name ("Living Room TV", "HP-Printer")
+    address: string;         // IP (if known)
     kind: string;            // "chromecast" | "airplay" | "printer" | "tv" | "upnp" | "mdns" …
     protocol: "mdns" | "ssdp";
-    detail?: string;         // servis tipi / model / ek bilgi
+    detail?: string;         // service type / model / extra info
 }
 
-// ── Ağ özeti (kendi IP / subnet) ────────────────────────────────────────────
+// ── Network summary (own IP / subnet) ───────────────────────────────────────
 export interface NetworkInfo {
     interfaces: {name: string; address: string; netmask: string; cidr: string}[];
-    primary?: string;        // dışa açık (internal olmayan) IPv4
+    primary?: string;        // externally reachable (non-internal) IPv4
 }
 
 export function getNetworkInfo(): NetworkInfo {
@@ -42,13 +42,13 @@ export function getNetworkInfo(): NetworkInfo {
     return {interfaces: out, primary};
 }
 
-// ── mDNS sorgu paketi ───────────────────────────────────────────────────────
-// "_services._dns-sd._udp.local" PTR sorgusu → ağdaki tüm servis tiplerini ister.
-// Standart bir mDNS keşif paketi (RFC 6763 §9). Elle kuruyoruz; kütüphane yok.
+// ── mDNS query packet ───────────────────────────────────────────────────────
+// "_services._dns-sd._udp.local" PTR query → asks for all service types on the network.
+// A standard mDNS discovery packet (RFC 6763 §9). Built by hand; no library.
 export function buildMdnsQuery(serviceName = "_services._dns-sd._udp.local"): Buffer {
     const header = Buffer.from([
         0x00, 0x00, // ID = 0
-        0x00, 0x00, // flags = standart sorgu
+        0x00, 0x00, // flags = standard query
         0x00, 0x01, // QDCOUNT = 1
         0x00, 0x00, // ANCOUNT
         0x00, 0x00, // NSCOUNT
@@ -60,7 +60,7 @@ export function buildMdnsQuery(serviceName = "_services._dns-sd._udp.local"): Bu
         const b = Buffer.from(part, "utf8");
         labels.push(Buffer.from([b.length]), b);
     }
-    labels.push(Buffer.from([0x00])); // kök etiketi
+    labels.push(Buffer.from([0x00])); // root label
     const question = Buffer.concat([
         ...labels,
         Buffer.from([0x00, 0x0c]), // QTYPE = PTR
@@ -69,8 +69,8 @@ export function buildMdnsQuery(serviceName = "_services._dns-sd._udp.local"): Bu
     return Buffer.concat([header, question]);
 }
 
-// ── mDNS yanıt çözümleme ────────────────────────────────────────────────────
-// DNS adlarını (etiket uzunluğu önekli + 0xC0 işaretçi sıkıştırması) okur.
+// ── mDNS response parsing ───────────────────────────────────────────────────
+// Reads DNS names (label-length prefixed + 0xC0 pointer compression).
 export function parseDnsName(buf: Buffer, offset: number): {name: string; next: number} {
     const parts: string[] = [];
     let pos = offset;
@@ -81,7 +81,7 @@ export function parseDnsName(buf: Buffer, offset: number): {name: string; next: 
         const len = buf[pos];
         if (len === 0) { if (!jumped) next = pos + 1; break; }
         if ((len & 0xc0) === 0xc0) {
-            // sıkıştırma işaretçisi → 14-bit offset'e atla
+            // compression pointer → jump to the 14-bit offset
             const ptr = ((len & 0x3f) << 8) | buf[pos + 1];
             if (!jumped) next = pos + 2;
             pos = ptr;
@@ -96,7 +96,7 @@ export function parseDnsName(buf: Buffer, offset: number): {name: string; next: 
     return {name: parts.join("."), next};
 }
 
-// Bir mDNS yanıt paketindeki PTR/SRV/A kayıtlarından servis adlarını çıkarır.
+// Extracts service names from the PTR/SRV/A records in an mDNS response packet.
 export function parseMdnsResponse(buf: Buffer): string[] {
     const names = new Set<string>();
     if (buf.length < 12) return [];
@@ -105,7 +105,7 @@ export function parseMdnsResponse(buf: Buffer): string[] {
     const ns = buf.readUInt16BE(8);
     const ar = buf.readUInt16BE(10);
     let pos = 12;
-    // Soruları atla
+    // Skip the questions
     for (let i = 0; i < qd && pos < buf.length; i++) {
         const {next} = parseDnsName(buf, pos);
         pos = next + 4; // QTYPE + QCLASS
@@ -119,7 +119,7 @@ export function parseMdnsResponse(buf: Buffer): string[] {
         const rdlength = buf.readUInt16BE(pos + 8);
         pos += 10;
         if (type === 12) {
-            // PTR → rdata da bir DNS adı
+            // PTR → rdata is also a DNS name
             const {name} = parseDnsName(buf, pos);
             if (name) names.add(name);
         }
@@ -128,7 +128,7 @@ export function parseMdnsResponse(buf: Buffer): string[] {
     return [...names];
 }
 
-// mDNS servis tipinden okunabilir cihaz türü çıkar.
+// Derive a readable device kind from an mDNS service type.
 export function classifyMdns(service: string): {kind: string; name: string} {
     const s = service.toLowerCase();
     const map: [RegExp, string][] = [
@@ -144,12 +144,12 @@ export function classifyMdns(service: string): {kind: string; name: string} {
     ];
     let kind = "mdns";
     for (const [re, k] of map) { if (re.test(s)) { kind = k; break; } }
-    // Servis adından insan-okur kısmı al ("Living Room._googlecast._tcp.local" → "Living Room")
+    // Take the human-readable part of the service name ("Living Room._googlecast._tcp.local" → "Living Room")
     const human = service.split(".")[0]?.replace(/\\.*$/, "").trim() || service;
     return {kind, name: human};
 }
 
-// ── SSDP M-SEARCH paketi ────────────────────────────────────────────────────
+// ── SSDP M-SEARCH packet ────────────────────────────────────────────────────
 export function buildSsdpSearch(target = "ssdp:all", mx = 2): Buffer {
     const msg =
         "M-SEARCH * HTTP/1.1\r\n" +
@@ -161,10 +161,10 @@ export function buildSsdpSearch(target = "ssdp:all", mx = 2): Buffer {
     return Buffer.from(msg, "utf8");
 }
 
-// SSDP yanıtından okunabilir cihaz bilgisi çıkar.
+// Extract readable device info from an SSDP response.
 export function parseSsdpResponse(text: string, address: string): DiscoveredDevice | null {
     if (!/^HTTP\/1\.\d\s+200/i.test(text) && !/^NOTIFY/i.test(text)) {
-        // İlk satır 200 OK veya NOTIFY değilse de devam et (bazı cihazlar farklı)
+        // Continue even if the first line isn't 200 OK or NOTIFY (some devices differ)
     }
     const headers: Record<string, string> = {};
     for (const line of text.split(/\r?\n/)) {
@@ -183,13 +183,13 @@ export function parseSsdpResponse(text: string, address: string): DiscoveredDevi
     else if (/mediaserver/.test(s)) kind = "media-server";
     else if (/printer/.test(s)) kind = "printer";
 
-    const name = server.split(/[,/]/)[0]?.trim() || st || "UPnP cihazı";
+    const name = server.split(/[,/]/)[0]?.trim() || st || "UPnP device";
     return {name, address, kind, protocol: "ssdp", detail: st || server};
 }
 
-// ── Canlı tarama (UDP) ──────────────────────────────────────────────────────
-// Belirtilen süre boyunca dinler; bağlantısı/izni olmayan ortamda (CI) hata
-// fırlatmaz, boş liste döner. Gerçek ağda cihazları toplar.
+// ── Live scan (UDP) ─────────────────────────────────────────────────────────
+// Listens for the given duration; in an environment without connectivity/permission
+// (CI) it doesn't throw, it returns an empty list. On a real network it collects devices.
 export function discoverMdns(durationMs = 3000): Promise<DiscoveredDevice[]> {
     return new Promise((resolve) => {
         const found = new Map<string, DiscoveredDevice>();
@@ -199,7 +199,7 @@ export function discoverMdns(durationMs = 3000): Promise<DiscoveredDevice[]> {
         } catch { resolve([]); return; }
 
         const done = () => {
-            try { sock.close(); } catch { /* zaten kapalı */ }
+            try { sock.close(); } catch { /* already closed */ }
             resolve([...found.values()]);
         };
         const timer = setTimeout(done, durationMs);
@@ -212,14 +212,14 @@ export function discoverMdns(durationMs = 3000): Promise<DiscoveredDevice[]> {
                     const {kind, name} = classifyMdns(svc);
                     found.set(svc, {name, address: rinfo.address, kind, protocol: "mdns", detail: svc});
                 }
-            } catch { /* bozuk paket → atla */ }
+            } catch { /* malformed packet → skip */ }
         });
         sock.bind(() => {
             try {
                 sock.addMembership("224.0.0.251");
-            } catch { /* multicast üyeliği başarısız → yine de yanıt gelebilir */ }
+            } catch { /* multicast membership failed → responses may still arrive */ }
             const q = buildMdnsQuery();
-            sock.send(q, 0, q.length, 5353, "224.0.0.251", (e) => { if (e) { /* gönderim hatası → timeout'a kadar dinle */ } });
+            sock.send(q, 0, q.length, 5353, "224.0.0.251", (e) => { if (e) { /* send error → keep listening until timeout */ } });
         });
     });
 }
@@ -245,19 +245,19 @@ export function discoverSsdp(durationMs = 3000): Promise<DiscoveredDevice[]> {
         });
         sock.bind(() => {
             const q = buildSsdpSearch();
-            sock.send(q, 0, q.length, 1900, "239.255.255.250", () => { /* yanıtlar mesaj olayında */ });
+            sock.send(q, 0, q.length, 1900, "239.255.255.250", () => { /* responses arrive in the message event */ });
         });
     });
 }
 
-/** Hem mDNS hem SSDP'yi paralel tara, sonuçları birleştir + IP'ye göre tekille. */
+/** Scan both mDNS and SSDP in parallel, merge results + dedupe by IP. */
 export async function discoverAll(durationMs = 3000): Promise<DiscoveredDevice[]> {
     const [mdns, ssdp] = await Promise.all([
         discoverMdns(durationMs).catch(() => []),
         discoverSsdp(durationMs).catch(() => []),
     ]);
     const merged = [...mdns, ...ssdp];
-    // Aynı IP+kind tekrarını ele
+    // Drop duplicates with the same IP+kind
     const seen = new Set<string>();
     const out: DiscoveredDevice[] = [];
     for (const d of merged) {
@@ -269,12 +269,12 @@ export async function discoverAll(durationMs = 3000): Promise<DiscoveredDevice[]
     return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
 }
 
-/** Keşfedilen cihazları LLM/kullanıcı için okunabilir metne çevir. */
+/** Convert discovered devices into readable text for the LLM/user. */
 export function formatDevices(devices: DiscoveredDevice[], net: NetworkInfo): string {
     const lines: string[] = [];
-    if (net.primary) lines.push(`Bu cihaz: ${net.primary}`);
+    if (net.primary) lines.push(`This device: ${net.primary}`);
     if (devices.length === 0) {
-        lines.push("Ağda mDNS/SSDP ile duyuran cihaz bulunamadı. (Cihazlar farklı VLAN'da olabilir veya keşif yayınına yanıt vermiyor olabilir.)");
+        lines.push("No devices advertising via mDNS/SSDP were found on the network. (Devices may be on a different VLAN or may not respond to the discovery broadcast.)");
         return lines.join("\n");
     }
     const byKind = new Map<string, DiscoveredDevice[]>();
@@ -283,7 +283,7 @@ export function formatDevices(devices: DiscoveredDevice[], net: NetworkInfo): st
         arr.push(d);
         byKind.set(d.kind, arr);
     }
-    lines.push(`${devices.length} cihaz bulundu:`);
+    lines.push(`${devices.length} devices found:`);
     for (const [kind, arr] of [...byKind.entries()].sort()) {
         lines.push(`\n${kind}:`);
         for (const d of arr) lines.push(`  • ${d.name}${d.address ? " (" + d.address + ")" : ""}`);

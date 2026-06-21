@@ -1,14 +1,14 @@
-// AEGIS — gömülü public yapılandırma (Faz 30.3)
+// AEGIS — embedded public configuration (Phase 30.3)
 //
-// Bu değerler PUBLIC-SAFE'tir ve bundle'a gömülmesi güvenlidir:
-//   - SUPABASE_ANON_KEY: anon/public key — RLS koruduğu için açıkta olması normal
-//   - SUPABASE_URL / PROXY_URL: zaten herkese açık endpoint'ler
+// These values are PUBLIC-SAFE and safe to embed in the bundle:
+//   - SUPABASE_ANON_KEY: anon/public key — normal to be exposed since RLS protects it
+//   - SUPABASE_URL / PROXY_URL: already publicly accessible endpoints
 //
-// ⚠️ service_role key ve Groq key BURAYA ASLA YAZILMAZ — onlar yalnızca
-//    Supabase Edge Function secret'ında yaşar. Repo public olsa bile güvenli.
+// ⚠️ The service_role key and the Groq key are NEVER written HERE — they live only
+//    in the Supabase Edge Function secret. Safe even if the repo is public.
 //
-// Build sırasında env ile override edilebilir (CI secret enjeksiyonu için),
-// ama anon-safe değerler olduğundan default'lar doğrudan koda gömülüdür.
+// Can be overridden via env at build time (for CI secret injection), but since
+// these are anon-safe values, the defaults are embedded directly in the code.
 
 export const AEGIS_SUPABASE_URL =
     process.env.AEGIS_SUPABASE_URL ??
@@ -24,7 +24,7 @@ export const AEGIS_SUPABASE_ANON_KEY =
 export const AEGIS_GITHUB_TOKEN =
     process.env.AEGIS_GITHUB_TOKEN ?? "";
 
-// chat-proxy Edge Function endpoint'i (deneme modu LLM çağrıları buraya gider)
+// chat-proxy Edge Function endpoint (trial mode LLM calls go here)
 export const AEGIS_PROXY_URL =
     process.env.AEGIS_PROXY_URL ??
     `${AEGIS_SUPABASE_URL}/functions/v1/chat-proxy`;

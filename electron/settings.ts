@@ -16,10 +16,10 @@ export interface AppSettings {
     ttsRate: number;
     accentColor: string;
     ttsProvider: "edge" | "elevenlabs" | "kokoro";
-    // Faz 30 — dağıtım modu:
-    //   "trial" = deneme; chat senin proxy'inden (rate limited). Kullanıcı kendi
-    //             Groq key'ini girerse proxy bypass edilir, direkt Groq'a gider.
-    //   "own"   = gelişmiş; kullanıcının seçtiği provider + kendi key'i (proxy yok).
+    // Phase 30 — distribution mode:
+    //   "trial" = trial; chat goes through your proxy (rate limited). If the user
+    //             enters their own Groq key, the proxy is bypassed and it goes straight to Groq.
+    //   "own"   = advanced; the user's chosen provider + their own key (no proxy).
     aiMode: "trial" | "own";
     aiProvider: AiProvider;
     aiApiKey: string; // backward compat — prefer providerKeys
@@ -27,7 +27,7 @@ export interface AppSettings {
     ollamaUrl: string;
     ollamaNumCtx: number;
     skin: string; // skin id (registry.tsx): hologram/minimal/terminal/dashboard/nebula-*
-    uiFamily: string; // renk/zemin palet preset (themes.ts): cyber/synthwave/matrix/aurora/ember
+    uiFamily: string; // color/background palette preset (themes.ts): cyber/synthwave/matrix/aurora/ember
     font: "jetbrains" | "sharetech" | "orbitron" | "oxanium" | "syne" | "rajdhani" | "poppins" | "inter" | "spacegrotesk";
     layout: "normal" | "compact";
     customCss: string;
@@ -43,7 +43,7 @@ export interface AppSettings {
     mistralSafeMode: boolean;
     autoLaunch: boolean;
     minimizeToTray: boolean;
-    proactiveSuggestions: boolean;   // Faz 61 — opt-in proaktif örüntü önerileri (varsayılan kapalı)
+    proactiveSuggestions: boolean;   // Phase 61 — opt-in proactive pattern suggestions (off by default)
     apiServerEnabled: boolean;
     alertCpuPct: number | null;
     alertRamPct: number | null;
@@ -54,11 +54,11 @@ export interface AppSettings {
     tempUnit: "C" | "F";
     fullPcAccess: boolean;
     disabledTools: string[];
-    // Geliştirici ayarı — açıkken referans çözücünün kararı (intent/confidence/
-    // bellek/tool/args/çözüm) chat akışına [AÇIKLAMA] bloğu olarak eklenir.
+    // Developer setting — when on, the reference resolver's decision (intent/confidence/
+    // memory/tool/args/resolution) is appended to the chat stream as an [EXPLANATION] block.
     explainMode: boolean;
-    cloudSync: boolean; // "Bu cihazı senkronla" (Faz 30.7) — giriş varsa ayar/key bulut sync
-    weatherCity: string; // manuel şehir adı; boşsa IP geolocation fallback
+    cloudSync: boolean; // "Sync this device" (Phase 30.7) — if signed in, settings/keys sync to the cloud
+    weatherCity: string; // manual city name; if empty, falls back to IP geolocation
     reactorStyle: "rings" | "hexcore" | "pulsar" | "vortex" | "orb" | "plasma" | "helix" | "quantum";
 }
 
@@ -70,7 +70,7 @@ const DEFAULTS: AppSettings = {
     ttsRate: 1.0,
     accentColor: "34,211,238",
     ttsProvider: "edge",
-    aiMode: "own", // mevcut kurulumlar bozulmasın; yeni kullanıcı 30.4'te seçer
+    aiMode: "own", // don't break existing installs; new users choose in 30.4
     aiProvider: "groq",
     aiApiKey: "",
     providerKeys: {},
@@ -92,7 +92,7 @@ const DEFAULTS: AppSettings = {
     mistralSafeMode: false,
     autoLaunch: false,
     minimizeToTray: true,
-    proactiveSuggestions: false,   // Faz 61 — varsayılan KAPALI (opt-in)
+    proactiveSuggestions: false,   // Phase 61 — OFF by default (opt-in)
     apiServerEnabled: false,
     alertCpuPct: null,
     alertRamPct: null,
@@ -115,7 +115,7 @@ function ensureDir(): void {
     fs.mkdirSync(path.dirname(SETTINGS_PATH), {recursive: true});
 }
 
-// Hex (#rrggbb) → "r,g,b" string dönüştür — accentColor her zaman "r,g,b" formatında olmalı
+// Convert hex (#rrggbb) → "r,g,b" string — accentColor must always be in "r,g,b" format
 function normalizeAccent(color: string | undefined): string {
     if (!color) return DEFAULTS.accentColor;
     const hex = color.trim();

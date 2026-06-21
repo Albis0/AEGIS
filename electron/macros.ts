@@ -28,9 +28,9 @@ function saveMacros(macros: Macro[]): void {
 let recording: {name: string; steps: string[]} | null = null;
 
 export function startMacroRecording(name: string): string {
-    if (recording) return `Zaten "${recording.name}" makrosu kaydediliyor. Önce durdur.`;
+    if (recording) return `The "${recording.name}" macro is already being recorded. Stop it first.`;
     recording = {name, steps: []};
-    return `"${name}" makrosu kaydedilmeye başlandı. Komutlarını ver, bitince "makroyu durdur" de.`;
+    return `Started recording the "${name}" macro. Give your commands, and when done say "makroyu durdur".`;
 }
 
 export function addMacroStep(command: string): void {
@@ -38,8 +38,8 @@ export function addMacroStep(command: string): void {
 }
 
 export function stopMacroRecording(): string {
-    if (!recording) return "Aktif makro kaydı yok.";
-    if (recording.steps.length === 0) return `"${recording.name}" makrosuna hiç adım eklenmedi. Kaydedilmedi.`;
+    if (!recording) return "No active macro recording.";
+    if (recording.steps.length === 0) return `No steps were added to the "${recording.name}" macro. Not saved.`;
 
     const macro: Macro = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
@@ -53,15 +53,15 @@ export function stopMacroRecording(): string {
     else macros.push(macro);
     saveMacros(macros);
     recording = null;
-    return `"${macro.name}" makrosu kaydedildi (${macro.steps.length} adım).`;
+    return `The "${macro.name}" macro was saved (${macro.steps.length} steps).`;
 }
 
 export function isRecording(): boolean { return recording !== null; }
 
 export function listMacros(): string {
     const macros = loadMacros();
-    if (macros.length === 0) return "Kayıtlı makro yok.";
-    return macros.map((m) => `• ${m.name} (${m.steps.length} adım, ID: ${m.id})`).join("\n");
+    if (macros.length === 0) return "No saved macros.";
+    return macros.map((m) => `• ${m.name} (${m.steps.length} steps, ID: ${m.id})`).join("\n");
 }
 
 export function deleteMacro(idOrName: string): string {
@@ -69,10 +69,10 @@ export function deleteMacro(idOrName: string): string {
     const idx = macros.findIndex(
         (m) => m.id === idOrName || m.name.toLowerCase().includes(idOrName.toLowerCase()),
     );
-    if (idx === -1) return `"${idOrName}" adında makro bulunamadı.`;
+    if (idx === -1) return `No macro found named "${idOrName}".`;
     const removed = macros.splice(idx, 1)[0];
     saveMacros(macros);
-    return `"${removed.name}" makrosu silindi.`;
+    return `The "${removed.name}" macro was deleted.`;
 }
 
 export function getMacroSteps(idOrName: string): string[] | null {

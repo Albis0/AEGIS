@@ -36,7 +36,7 @@ export function meetingStart(): string {
     ensureDir();
     const existing = loadActive();
     if (existing) {
-        return `Zaten aktif bir toplantı var (başlangıç: ${existing.startedAt}). Önce 'meeting_stop' ile sonlandır.`;
+        return `A meeting is already active (started: ${existing.startedAt}). End it first with 'meeting_stop'.`;
     }
     const id = `meeting_${Date.now()}`;
     const active: MeetingActive = {
@@ -45,12 +45,12 @@ export function meetingStart(): string {
         transcript: [],
     };
     saveActive(active);
-    return `Toplantı kaydı başladı (ID: ${id}). Sesli konuşmalar otomatik transkript edilecek. Bitirmek için 'meeting_stop' kullan.`;
+    return `Meeting recording started (ID: ${id}). Spoken conversation will be transcribed automatically. Use 'meeting_stop' to finish.`;
 }
 
 export function meetingStop(): string {
     const active = loadActive();
-    if (!active) return "Aktif toplantı yok.";
+    if (!active) return "No active meeting.";
     ensureDir();
     const meeting: Meeting = {
         id: active.id,
@@ -62,7 +62,7 @@ export function meetingStop(): string {
     fs.writeFileSync(filePath, JSON.stringify(meeting, null, 2));
     saveActive(null);
     const duration = Math.round((Date.now() - new Date(active.startedAt).getTime()) / 60000);
-    return `Toplantı kaydedildi (${duration} dakika). ID: ${active.id}. Özet için 'meeting_summarize ${active.id}' kullan.`;
+    return `Meeting saved (${duration} minutes). ID: ${active.id}. Use 'meeting_summarize ${active.id}' for a summary.`;
 }
 
 export function meetingAddTranscript(text: string): void {
@@ -75,14 +75,14 @@ export function meetingAddTranscript(text: string): void {
 export function meetingList(): string {
     ensureDir();
     const files = fs.readdirSync(MEETINGS_DIR).filter((f) => f.endsWith(".json")).sort().reverse();
-    if (files.length === 0) return "Kayıtlı toplantı yok.";
+    if (files.length === 0) return "No saved meetings.";
     return files.slice(0, 10).map((f) => {
         try {
             const m: Meeting = JSON.parse(fs.readFileSync(path.join(MEETINGS_DIR, f), "utf-8"));
             const dur = Math.round((new Date(m.endedAt).getTime() - new Date(m.startedAt).getTime()) / 60000);
             const lines = m.transcript.length;
             const hasSummary = !!m.summary;
-            return `${m.id} — ${new Date(m.startedAt).toLocaleString("tr-TR")} (${dur}dk, ${lines} satır transkript)${hasSummary ? " [özetlendi]" : ""}`;
+            return `${m.id} — ${new Date(m.startedAt).toLocaleString("tr-TR")} (${dur}min, ${lines} transcript lines)${hasSummary ? " [summarized]" : ""}`;
         } catch { return f; }
     }).join("\n");
 }
@@ -90,44 +90,44 @@ export function meetingList(): string {
 export function meetingSummarize(id: string): string {
     ensureDir();
     const targetId = id || loadActive()?.id;
-    if (!targetId) return "Toplantı ID gerekli.";
+    if (!targetId) return "Meeting ID is required.";
     const filePath = path.join(MEETINGS_DIR, `${targetId}.json`);
-    if (!fs.existsSync(filePath)) return `HATA: Toplantı bulunamadı: ${targetId}`;
+    if (!fs.existsSync(filePath)) return `ERROR: Meeting not found: ${targetId}`;
     const m: Meeting = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    if (m.transcript.length === 0) return "Toplantı transkripi boş, özetlenecek içerik yok.";
+    if (m.transcript.length === 0) return "The meeting transcript is empty; there is nothing to summarize.";
     const transcriptText = m.transcript.join("\n");
-    // LLM'e özetletmek için yapılandırılmış prompt döndür
-    return `[TOPLANTI_OZET|id:${targetId}|sure:${Math.round((new Date(m.endedAt ?? new Date()).getTime() - new Date(m.startedAt).getTime()) / 60000)}dk|transkript:\n${transcriptText.slice(0, 8000)}]`;
+    // Return a structured prompt for the LLM to summarize
+    return `[MEETING_SUMMARY|id:${targetId}|duration:${Math.round((new Date(m.endedAt ?? new Date()).getTime() - new Date(m.startedAt).getTime()) / 60000)}min|transcript:\n${transcriptText.slice(0, 8000)}]`;
 }
 
 export function meetingExport(id: string): string {
     ensureDir();
-    if (!id) return "Toplantı ID gerekli.";
+    if (!id) return "Meeting ID is required.";
     const filePath = path.join(MEETINGS_DIR, `${id}.json`);
-    if (!fs.existsSync(filePath)) return `HATA: Toplantı bulunamadı: ${id}`;
+    if (!fs.existsSync(filePath)) return `ERROR: Meeting not found: ${id}`;
     const m: Meeting = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     const mdPath = filePath.replace(".json", ".md");
     const lines = [
-        `# Toplantı: ${m.id}`,
-        `**Başlangıç:** ${new Date(m.startedAt).toLocaleString("tr-TR")}`,
-        m.endedAt ? `**Bitiş:** ${new Date(m.endedAt).toLocaleString("tr-TR")}` : "",
+        `# Meeting: ${m.id}`,
+        `**Start:** ${new Date(m.startedAt).toLocaleString("tr-TR")}`,
+        m.endedAt ? `**End:** ${new Date(m.endedAt).toLocaleString("tr-TR")}` : "",
         "",
-        m.summary ? `## Özet\n${m.summary}` : "",
-        m.actionItems?.length ? `## Eylem Maddeleri\n${m.actionItems.map((a) => `- ${a}`).join("\n")}` : "",
-        "## Transkript",
+        m.summary ? `## Summary\n${m.summary}` : "",
+        m.actionItems?.length ? `## Action Items\n${m.actionItems.map((a) => `- ${a}`).join("\n")}` : "",
+        "## Transcript",
         ...m.transcript,
     ].filter((l) => l !== undefined).join("\n");
     fs.writeFileSync(mdPath, lines);
-    return `Toplantı dışa aktarıldı: ${mdPath}`;
+    return `Meeting exported: ${mdPath}`;
 }
 
 export function meetingActionItems(id: string): string {
     ensureDir();
-    if (!id) return "Toplantı ID gerekli.";
+    if (!id) return "Meeting ID is required.";
     const filePath = path.join(MEETINGS_DIR, `${id}.json`);
-    if (!fs.existsSync(filePath)) return `HATA: Toplantı bulunamadı: ${id}`;
+    if (!fs.existsSync(filePath)) return `ERROR: Meeting not found: ${id}`;
     const m: Meeting = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    if (m.actionItems?.length) return `Eylem Maddeleri (${id}):\n${m.actionItems.map((a, i) => `${i + 1}. ${a}`).join("\n")}`;
+    if (m.actionItems?.length) return `Action Items (${id}):\n${m.actionItems.map((a, i) => `${i + 1}. ${a}`).join("\n")}`;
     const transcriptText = m.transcript.join("\n");
-    return `[EYLEM_MADDELERI|id:${id}|transkript:\n${transcriptText.slice(0, 6000)}]`;
+    return `[ACTION_ITEMS|id:${id}|transcript:\n${transcriptText.slice(0, 6000)}]`;
 }

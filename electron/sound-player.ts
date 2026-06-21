@@ -22,12 +22,12 @@ export function playSound(filePath: string, volume = 50): string {
     const target = fs.existsSync(resolved) ? resolved : fs.existsSync(builtIn) ? builtIn : null;
 
     if (!target) {
-        return `HATA: Dosya bulunamadı: ${filePath}. Ses dosyaları şuraya koy: ${SOUNDS_DIR}`;
+        return `ERROR: File not found: ${filePath}. Put sound files here: ${SOUNDS_DIR}`;
     }
 
     const ext = path.extname(target).toLowerCase();
     if (![".mp3", ".wav", ".ogg", ".m4a", ".flac"].includes(ext)) {
-        return `HATA: Desteklenmeyen format: ${ext}. Desteklenenler: mp3, wav, ogg, m4a, flac`;
+        return `ERROR: Unsupported format: ${ext}. Supported: mp3, wav, ogg, m4a, flac`;
     }
 
     const vol = Math.min(100, Math.max(0, volume));
@@ -47,7 +47,7 @@ Start-Sleep -Seconds ([int]$mp.NaturalDuration.TimeSpan.TotalSeconds + 1)
     exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpPs}"`, {windowsHide: true}, () => {
         try { fs.unlinkSync(tmpPs); } catch {}
     });
-    return `Çalıyor: ${path.basename(target)} (ses %${vol})`;
+    return `Playing: ${path.basename(target)} (volume ${vol}%)`;
 }
 
 // ---- Ambient sound ----
@@ -83,13 +83,13 @@ Start-Sleep -Seconds 36000
         });
         ambientPlaying = true;
         fs.writeFileSync(AMBIENT_STATE_PATH, JSON.stringify({active: true, category: cat, startedAt: Date.now()}));
-        return `Ambient ses başladı: ${cat} (${localFiles[0]}, ses %${vol})`;
+        return `Ambient sound started: ${cat} (${localFiles[0]}, volume ${vol}%)`;
     }
 
     // Fallback: use Windows built-in sounds or inform user
     ambientPlaying = true;
     fs.writeFileSync(AMBIENT_STATE_PATH, JSON.stringify({active: true, category: cat, startedAt: Date.now()}));
-    return `Ambient mod aktif: ${cat}. Gerçek ses için ~/.aegis/sounds/ klasörüne ${cat}.mp3 koy. Şu an ses dosyası yok, mod kaydedildi.`;
+    return `Ambient mode active: ${cat}. For actual sound, put ${cat}.mp3 in the ~/.aegis/sounds/ folder. There's no sound file right now, but the mode was saved.`;
 }
 
 export function ambientStop(): string {
@@ -104,7 +104,7 @@ export function ambientStop(): string {
     if (fs.existsSync(AMBIENT_STATE_PATH)) {
         fs.writeFileSync(AMBIENT_STATE_PATH, JSON.stringify({active: false, category: null, startedAt: null}));
     }
-    return "Ambient ses durduruldu.";
+    return "Ambient sound stopped.";
 }
 
 export function listSounds(): string {
@@ -113,9 +113,9 @@ export function listSounds(): string {
         ? fs.readdirSync(SOUNDS_DIR).filter((f) => [".mp3", ".wav", ".ogg"].some((e) => f.endsWith(e)))
         : [];
 
-    const ambientStatus = ambientPlaying ? " [AMBIENT AKTIF]" : "";
+    const ambientStatus = ambientPlaying ? " [AMBIENT ACTIVE]" : "";
     if (files.length === 0) {
-        return `Ses dosyası yok${ambientStatus}. ${SOUNDS_DIR} klasörüne .mp3/.wav dosyaları ekle.\n\nAmbient kategorileri: rain, forest, cafe, white (beyaz gürültü), space`;
+        return `No sound files${ambientStatus}. Add .mp3/.wav files to the ${SOUNDS_DIR} folder.\n\nAmbient categories: rain, forest, cafe, white (white noise), space`;
     }
-    return `Ses dosyaları (${SOUNDS_DIR})${ambientStatus}:\n${files.map((f) => `• ${f}`).join("\n")}\n\nAmbient kategorileri: rain, forest, cafe, white, space`;
+    return `Sound files (${SOUNDS_DIR})${ambientStatus}:\n${files.map((f) => `• ${f}`).join("\n")}\n\nAmbient categories: rain, forest, cafe, white, space`;
 }

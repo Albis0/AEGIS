@@ -7,15 +7,15 @@ function ps(script: string, timeoutMs = 10000): Promise<string> {
             {timeout: timeoutMs, windowsHide: true},
             (err, stdout, stderr) => {
                 const out = (stdout ?? "").trim();
-                if (err && !out) resolve(`HATA: ${err.message}${stderr ? "\n" + stderr.trim() : ""}`);
-                else resolve(out || "(tamam)");
+                if (err && !out) resolve(`ERROR: ${err.message}${stderr ? "\n" + stderr.trim() : ""}`);
+                else resolve(out || "(ok)");
             }
         );
         child.stdin?.end(script);
     });
 }
 
-// ── WinAPI P/Invoke kodu (her çağrıda tek seferlik Add-Type) ─────────────────
+// ── WinAPI P/Invoke code (one-time Add-Type per call) ────────────────────────
 const WIN_API_CODE = `
 Add-Type -TypeDefinition @"
 using System;
@@ -81,14 +81,14 @@ public class WinInput {
 "@ -ErrorAction SilentlyContinue
 `;
 
-// ── Fare hareket ─────────────────────────────────────────────────────────────
+// ── Mouse move ───────────────────────────────────────────────────────────────
 export async function mouseMove(x: number, y: number): Promise<string> {
     await ps(`${WIN_API_CODE}
 [WinInput]::SetCursorPos(${Math.round(x)}, ${Math.round(y)})`);
-    return `Fare (${Math.round(x)}, ${Math.round(y)}) konumuna taşındı.`;
+    return `Mouse moved to (${Math.round(x)}, ${Math.round(y)}).`;
 }
 
-// ── Fare tıklama ─────────────────────────────────────────────────────────────
+// ── Mouse click ──────────────────────────────────────────────────────────────
 export async function mouseClick(
     x: number,
     y: number,
@@ -109,7 +109,7 @@ for ($i = 0; $i -lt ${clicks}; $i++) {
     [WinInput]::MouseClick([WinInput]::${dn}, [WinInput]::${up})
     Start-Sleep -Milliseconds 50
 }`);
-    return `${double ? "Çift " : ""}${button === "right" ? "Sağ " : button === "middle" ? "Orta " : "Sol "}tıklama: (${Math.round(x)}, ${Math.round(y)})`;
+    return `${double ? "Double " : ""}${button === "right" ? "Right" : button === "middle" ? "Middle" : "Left"} click: (${Math.round(x)}, ${Math.round(y)})`;
 }
 
 // ── Mouse scroll ──────────────────────────────────────────────────────────────
@@ -128,10 +128,10 @@ $inp.Type = [WinInput]::INPUT_MOUSE
 $inp.Data.Mouse.Flags = [WinInput]::MOUSEEVENTF_WHEEL
 $inp.Data.Mouse.MouseData = [uint32]${delta}
 [WinInput]::SendInput(1, @($inp), [System.Runtime.InteropServices.Marshal]::SizeOf([WinInput+INPUT]))`);
-    return `Scroll ${direction} (${amount} adım) @ (${Math.round(x)}, ${Math.round(y)})`;
+    return `Scroll ${direction} (${amount} steps) @ (${Math.round(x)}, ${Math.round(y)})`;
 }
 
-// ── Sürükle bırak ────────────────────────────────────────────────────────────
+// ── Drag and drop ────────────────────────────────────────────────────────────
 export async function mouseDrag(
     x1: number, y1: number,
     x2: number, y2: number
@@ -149,10 +149,10 @@ for ($i = 1; $i -le $steps; $i++) {
     Start-Sleep -Milliseconds 20
 }
 [WinInput]::MouseClick(0, [WinInput]::MOUSEEVENTF_LEFTUP)`);
-    return `Sürüklendi: (${Math.round(x1)},${Math.round(y1)}) → (${Math.round(x2)},${Math.round(y2)})`;
+    return `Dragged: (${Math.round(x1)},${Math.round(y1)}) → (${Math.round(x2)},${Math.round(y2)})`;
 }
 
-// ── Klavye: VK kodu tablosu ───────────────────────────────────────────────────
+// ── Keyboard: VK code table ───────────────────────────────────────────────────
 const VK_MAP: Record<string, number> = {
     enter: 0x0D, esc: 0x1B, tab: 0x09, space: 0x20,
     backspace: 0x08, delete: 0x2E, insert: 0x2D,
@@ -170,11 +170,11 @@ const VK_MAP: Record<string, number> = {
     "5":0x35,"6":0x36,"7":0x37,"8":0x38,"9":0x39,
 };
 
-// ── Klavye kısayolu (ör: "ctrl+c", "alt+tab", "win+d") ───────────────────────
+// ── Keyboard shortcut (e.g. "ctrl+c", "alt+tab", "win+d") ────────────────────
 export async function keyPress(keys: string): Promise<string> {
     const parts = keys.toLowerCase().split("+").map((k) => k.trim());
     const vks = parts.map((k) => VK_MAP[k] ?? parseInt(k, 16)).filter(Boolean);
-    if (vks.length === 0) return `HATA: Tanımsız tuş: "${keys}"`;
+    if (vks.length === 0) return `ERROR: Undefined key: "${keys}"`;
 
     const downCmds = vks.map((vk) => `[WinInput]::KeyEvent(${vk}, $false)`).join("\n");
     const upCmds = [...vks].reverse().map((vk) => `[WinInput]::KeyEvent(${vk}, $true)`).join("\n");
@@ -183,14 +183,14 @@ export async function keyPress(keys: string): Promise<string> {
 ${downCmds}
 Start-Sleep -Milliseconds 50
 ${upCmds}`);
-    return `Tuş basıldı: ${keys}`;
+    return `Key pressed: ${keys}`;
 }
 
-// ── Metin yaz ─────────────────────────────────────────────────────────────────
+// ── Type text ─────────────────────────────────────────────────────────────────
 export async function typeText(text: string): Promise<string> {
-    if (!text) return "HATA: Metin boş.";
-    // WScript.Shell SendKeys ile yaz (özel karakter desteği sınırlı)
-    // Uzun metinler için parça parça
+    if (!text) return "ERROR: Text is empty.";
+    // Type via WScript.Shell SendKeys (limited special-character support)
+    // Chunked for long text
     const escaped = text
         .replace(/\\/g, "\\\\")
         .replace(/"/g, '`"')
@@ -203,10 +203,10 @@ export async function typeText(text: string): Promise<string> {
 
     await ps(`$wsh = New-Object -ComObject WScript.Shell
 $wsh.SendKeys("${escaped}")`);
-    return `Yazıldı: "${text.length > 50 ? text.slice(0, 50) + "..." : text}"`;
+    return `Typed: "${text.length > 50 ? text.slice(0, 50) + "..." : text}"`;
 }
 
-// ── Ekran boyutunu al ─────────────────────────────────────────────────────────
+// ── Get screen size ───────────────────────────────────────────────────────────
 export async function getScreenSize(): Promise<{width: number; height: number}> {
     const out = await ps(`${WIN_API_CODE}
 "$([WinInput]::GetSystemMetrics(0))x$([WinInput]::GetSystemMetrics(1))"`);

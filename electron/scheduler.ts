@@ -121,10 +121,10 @@ export function stopScheduler(): void {
 
 export function toolScheduleTask(name: string, schedule: string, command: string): string {
     if (!parseSchedule(schedule)) {
-        return `HATA: Geçersiz zamanlama. Örnekler: "every 30 minutes", "every 2 hours", "daily at 09:00", "hourly"`;
+        return `ERROR: Invalid schedule. Examples: "every 30 minutes", "every 2 hours", "daily at 09:00", "hourly"`;
     }
     const nextRun = computeNextRun(schedule);
-    if (!nextRun) return "HATA: Sonraki çalışma zamanı hesaplanamadı.";
+    if (!nextRun) return "ERROR: Could not compute the next run time.";
 
     const task: ScheduledTask = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -140,16 +140,16 @@ export function toolScheduleTask(name: string, schedule: string, command: string
     tasks.push(task);
     saveTasks(tasks);
 
-    return `"${name}" görevi oluşturuldu. Zamanlama: ${schedule}. İlk çalışma: ${nextRun.toLocaleString("tr-TR")}`;
+    return `Task "${name}" created. Schedule: ${schedule}. First run: ${nextRun.toLocaleString("tr-TR")}`;
 }
 
 export function toolListScheduledTasks(): string {
     const tasks = loadTasks();
-    if (tasks.length === 0) return "Zamanlanmış görev yok.";
+    if (tasks.length === 0) return "No scheduled tasks.";
     return tasks.map((t) => {
         const next = new Date(t.nextRun).toLocaleString("tr-TR");
-        const last = t.lastRun ? new Date(t.lastRun).toLocaleString("tr-TR") : "henüz çalışmadı";
-        return `[${t.enabled ? "✓" : "✗"}] ${t.name} (ID: ${t.id})\n  Zamanlama: ${t.schedule}\n  Sonraki: ${next}  |  Son: ${last}\n  Komut: ${t.command}`;
+        const last = t.lastRun ? new Date(t.lastRun).toLocaleString("tr-TR") : "not run yet";
+        return `[${t.enabled ? "✓" : "✗"}] ${t.name} (ID: ${t.id})\n  Schedule: ${t.schedule}\n  Next: ${next}  |  Last: ${last}\n  Command: ${t.command}`;
     }).join("\n\n");
 }
 
@@ -158,10 +158,10 @@ export function toolCancelScheduledTask(idOrName: string): string {
     const idx = tasks.findIndex(
         (t) => t.id === idOrName || t.name.toLowerCase().includes(idOrName.toLowerCase()),
     );
-    if (idx === -1) return `"${idOrName}" adında/ID'sinde görev bulunamadı.`;
+    if (idx === -1) return `No task found with the name/ID "${idOrName}".`;
     const removed = tasks.splice(idx, 1)[0];
     saveTasks(tasks);
-    return `"${removed.name}" görevi iptal edildi.`;
+    return `Task "${removed.name}" cancelled.`;
 }
 
 export function toolToggleScheduledTask(idOrName: string): string {
@@ -169,8 +169,8 @@ export function toolToggleScheduledTask(idOrName: string): string {
     const task = tasks.find(
         (t) => t.id === idOrName || t.name.toLowerCase().includes(idOrName.toLowerCase()),
     );
-    if (!task) return `"${idOrName}" adında/ID'sinde görev bulunamadı.`;
+    if (!task) return `No task found with the name/ID "${idOrName}".`;
     task.enabled = !task.enabled;
     saveTasks(tasks);
-    return `"${task.name}" görevi ${task.enabled ? "etkinleştirildi" : "devre dışı bırakıldı"}.`;
+    return `Task "${task.name}" ${task.enabled ? "enabled" : "disabled"}.`;
 }

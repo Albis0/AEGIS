@@ -1,16 +1,17 @@
 /**
- * Faz 59 — Self-Healing: Tekrarlayan Hata Tanıma
+ * Phase 59 — Self-Healing: Recurring Error Recognition
  *
- * Loop-guard (Faz 53) AYNI çağrıyı tekrarı keser; ama bir tool FARKLI argümanlarla
- * da olsa hep AYNI hatayı veriyorsa (ör. her spotify_* çağrısı "Premium gerekiyor"
- * ile düşüyorsa) bu kör tekrardır — kök sebep aynıdır. Bu modül STM geçmişindeki
- * (tool-ailesi, hata-sınıfı) örüntüsünü tanır ve NET bir teşhis + strateji önerir.
+ * The loop-guard (Phase 53) cuts off repeating the SAME call; but if a tool keeps
+ * returning the SAME error even with DIFFERENT arguments (e.g. every spotify_* call
+ * fails with "Premium required"), that is blind repetition — the root cause is the
+ * same. This module recognizes the (tool-family, error-class) pattern in STM history
+ * and proposes a CLEAR diagnosis + strategy.
  *
- * Saf fonksiyon — STM girişlerini alır, teşhis döndürür (Electron/IO bağımsız).
- * classifyError (Faz 56) ile hata sınıfını paylaşır.
+ * Pure function — takes STM entries, returns a diagnosis (Electron/IO independent).
+ * Shares the error class with classifyError (Phase 56).
  *
- * OpenJarvis `agents/errors.py` classify_error taksonomisinden ilham; trace-mining
- * ALINMADI.
+ * Inspired by the OpenJarvis `agents/errors.py` classify_error taxonomy; trace-mining
+ * NOT adopted.
  */
 
 import {classifyError, type ErrorKind} from "./goal-executor";
@@ -22,47 +23,47 @@ export interface HealEntry {
 }
 
 export interface Diagnosis {
-    /** Tekrarlayan bir hata örüntüsü bulundu mu? */
+    /** Was a recurring error pattern found? */
     detected: boolean;
-    /** Kaç kez tekrarladı. */
+    /** How many times it repeated. */
     count: number;
-    /** Örüntünün hata sınıfı. */
+    /** The error class of the pattern. */
     kind: ErrorKind | null;
-    /** Tool ailesi (ön ek, ör. "spotify") — aynı domain tekrarını yakalamak için. */
+    /** Tool family (prefix, e.g. "spotify") — to catch same-domain repetition. */
     family: string | null;
-    /** Modele/kullanıcıya sunulacak net teşhis + strateji (boş = yok). */
+    /** Clear diagnosis + strategy to present to the model/user (empty = none). */
     advice: string;
 }
 
 const NONE: Diagnosis = {detected: false, count: 0, kind: null, family: null, advice: ""};
 
-/** Tool ailesini çıkar: ilk "_" öncesi ("spotify_play" → "spotify"). */
+/** Extract the tool family: the part before the first "_" ("spotify_play" → "spotify"). */
 function familyOf(tool: string): string {
     const i = tool.indexOf("_");
     return i > 0 ? tool.slice(0, i) : tool;
 }
 
-/** Aynı hata sınıfı için domain'e özgü, eyleme dönük teşhis cümlesi. */
+/** A domain-specific, actionable diagnosis sentence for the same error class. */
 function adviceFor(family: string, kind: ErrorKind, count: number): string {
-    const base = `"${family}" ile ${count} kez aynı tür hata (${kind}) aldım — kör tekrar yerine durum değişti.`;
+    const base = `I got the same kind of error (${kind}) ${count} times with "${family}" — instead of blind repetition, the situation has changed.`;
     const hint: Partial<Record<ErrorKind, string>> = {
-        permission: `Bu bir yetki/erişim sorunu (ör. ${family === "spotify" ? "Spotify Premium / yeniden yetkilendirme" : "eksik anahtar/izin"}). Tekrar denemek çözmez; kullanıcıya gerekli erişimi söyle.`,
-        not_found: `Hedef bulunamıyor. Aynı isim/yolla tekrar etme; adı doğrula, alternatif kaynak dene veya kullanıcıdan netleştirme iste.`,
-        transient: `Geçici sorun ısrar ediyor (ağ/servis). Bir süre sonra denenebilir; şimdilik durup kullanıcıya bağlantı/servis durumunu öner.`,
-        invalid_args: `Argüman biçimi sürekli reddediliyor. Şemayı/biçimi gözden geçir; farklı bir parametre kombinasyonu dene.`,
-        fatal: `Toparlanamayan bir hata sürüyor. Görevi durdur ve net teşhisi kullanıcıya ilet.`,
-        blocked: `Eylem tekrar tekrar engelleniyor (izin/döngü). Yaklaşımı değiştir veya kullanıcı onayı iste.`,
+        permission: `This is a permission/access problem (e.g. ${family === "spotify" ? "Spotify Premium / re-authorization" : "missing key/permission"}). Retrying won't fix it; tell the user what access is needed.`,
+        not_found: `The target can't be found. Don't retry with the same name/path; verify the name, try an alternative source, or ask the user to clarify.`,
+        transient: `A temporary problem persists (network/service). It could be retried later; for now stop and suggest the user check the connection/service status.`,
+        invalid_args: `The argument format keeps being rejected. Review the schema/format; try a different parameter combination.`,
+        fatal: `An unrecoverable error continues. Stop the task and report the clear diagnosis to the user.`,
+        blocked: `The action is repeatedly blocked (permission/loop). Change the approach or ask for user approval.`,
     };
-    return `${base} ${hint[kind] ?? "Yaklaşımı değiştir veya kullanıcıya danış."}`;
+    return `${base} ${hint[kind] ?? "Change the approach or consult the user."}`;
 }
 
 /**
- * STM geçmişinde tekrarlayan hata örüntüsü ara. Aynı tool AİLESİNİN aynı hata
- * SINIFIYLA `threshold` (varsayılan 3) veya daha çok başarısız olduğu durumu yakalar.
- * En son hatalardan geriye doğru bakar; ilk eşleşen örüntüyü döndürür.
+ * Search the STM history for a recurring error pattern. Catches the case where the
+ * same tool FAMILY fails with the same error CLASS `threshold` (default 3) or more
+ * times. Looks backwards from the most recent errors; returns the first matching pattern.
  */
 export function diagnose(recent: HealEntry[], threshold = 3): Diagnosis {
-    // (family + kind) → sayaç
+    // (family + kind) → counter
     const counts = new Map<string, {family: string; kind: ErrorKind; n: number}>();
     for (const e of recent) {
         if (e.success) continue;

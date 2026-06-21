@@ -1,16 +1,16 @@
 /**
- * Faz 14 — Yerel Ağ API Sunucusu
+ * Phase 14 — Local Network API Server
  *
- * Node'un yerleşik http modülü (harici bağımlılık yok).
- * Endpoint'ler:
- *   GET  /api/status        → sunucu sağlık kontrolü
- *   POST /api/ask           → AEGIS'e soru sor, yanıt döndür
- *   POST /api/tts           → metin → MP3 buffer (base64)
- *   GET  /api/qr            → bağlantı bilgisi (IP + token)
- *   POST /api/token/reset   → yeni token üret
+ * Node's built-in http module (no external dependencies).
+ * Endpoints:
+ *   GET  /api/status        → server health check
+ *   POST /api/ask           → ask AEGIS a question, return the answer
+ *   POST /api/tts           → text → MP3 buffer (base64)
+ *   GET  /api/qr            → connection info (IP + token)
+ *   POST /api/token/reset   → generate a new token
  *
- * Auth: Authorization: Bearer <token> (tüm endpoint'ler)
- * Token ~/.aegis/api-token.txt dosyasında saklanır.
+ * Auth: Authorization: Bearer <token> (all endpoints)
+ * Token is stored in ~/.aegis/api-token.txt.
  */
 
 import * as http from "http";
@@ -83,10 +83,10 @@ export function broadcastFeedEvent(type: "delta" | "done" | "tool" | "user", dat
     }
 }
 
-// Minimal web UI HTML (ip/port istemci tarafında window.location'dan alınır)
+// Minimal web UI HTML (ip/port are read client-side from window.location)
 function buildWebUI(): string {
     return `<!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AEGIS Web</title>
@@ -106,11 +106,11 @@ body{background:#04070d;color:#22d3ee;font-family:'JetBrains Mono',monospace;hei
 </style>
 </head>
 <body>
-<div id="hdr">AEGIS · Web Arayüzü</div>
+<div id="hdr">AEGIS · Web Interface</div>
 <div id="feed"></div>
 <div id="bar">
-  <input id="inp" type="text" placeholder="Mesajını yaz…" autocomplete="off"/>
-  <button id="btn" onclick="sendMsg()">GÖNDER</button>
+  <input id="inp" type="text" placeholder="Type your message…" autocomplete="off"/>
+  <button id="btn" onclick="sendMsg()">SEND</button>
 </div>
 <div id="tok">Token: <input id="tkf" type="password" placeholder="Bearer token" style="background:transparent;border:none;color:#22d3ee;font-size:11px;width:220px;outline:none"/></div>
 <script>
@@ -152,7 +152,7 @@ connectSSE();
 
 async function sendMsg() {
   const text = inp.value.trim();
-  if (!text || !token) { alert('Mesaj ve token gerekli.'); return; }
+  if (!text || !token) { alert('Message and token are required.'); return; }
   inp.value = '';
   try {
     await fetch('/api/ask', {
@@ -160,7 +160,7 @@ async function sendMsg() {
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
       body: JSON.stringify({text})
     });
-  } catch(e) { addMsg('ai', 'HATA: ' + e.message); }
+  } catch(e) { addMsg('ai', 'ERROR: ' + e.message); }
 }
 inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
 </script>
@@ -176,7 +176,7 @@ export function setApiServerWindow(win: {webContents: {send: (ch: string, data: 
 }
 
 export function startApiServer(port = DEFAULT_PORT): string {
-    if (server) return `API sunucusu zaten çalışıyor (port ${port}).`;
+    if (server) return `API server is already running (port ${port}).`;
 
     const token = loadToken();
     const ip    = getLocalIP();
@@ -205,7 +205,7 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // SSE — auth via query param (browsers can't set headers on EventSource)
         if (url === "/events" && req.method === "GET") {
             const t = query.get("token") ?? "";
-            if (t !== token) { send(res, 401, {error: "Yetkisiz."}); return; }
+            if (t !== token) { send(res, 401, {error: "Unauthorized."}); return; }
             res.writeHead(200, {
                 "Content-Type": "text/event-stream",
                 "Cache-Control": "no-cache",
@@ -221,15 +221,15 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // Auth
         const authHeader = req.headers["authorization"] ?? "";
         const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-        if (provided !== token) { send(res, 401, {error: "Yetkisiz. Geçerli token gerekli."}); return; }
+        if (provided !== token) { send(res, 401, {error: "Unauthorized. A valid token is required."}); return; }
 
         // POST /api/ask
         if (url === "/api/ask" && req.method === "POST") {
             const body = await parseBody(req);
             const question = String(body.text ?? body.question ?? "").trim();
-            if (!question) { send(res, 400, {error: "text alanı gerekli."}); return; }
+            if (!question) { send(res, 400, {error: "The text field is required."}); return; }
             try {
-                const answer = await (_askHandler?.(question) ?? Promise.resolve("AEGIS bağlı değil."));
+                const answer = await (_askHandler?.(question) ?? Promise.resolve("AEGIS is not connected."));
                 send(res, 200, {answer});
             } catch (e) {
                 send(res, 500, {error: (e as Error).message});
@@ -241,10 +241,10 @@ export function startApiServer(port = DEFAULT_PORT): string {
         if (url === "/api/tts" && req.method === "POST") {
             const body = await parseBody(req);
             const text = String(body.text ?? "").trim();
-            if (!text) { send(res, 400, {error: "text alanı gerekli."}); return; }
+            if (!text) { send(res, 400, {error: "The text field is required."}); return; }
             try {
                 const buf = await (_ttsHandler?.(text) ?? Promise.resolve(null));
-                if (!buf) { send(res, 503, {error: "TTS kullanılamıyor."}); return; }
+                if (!buf) { send(res, 503, {error: "TTS is unavailable."}); return; }
                 send(res, 200, {audio: buf.toString("base64"), format: "mp3"});
             } catch (e) {
                 send(res, 500, {error: (e as Error).message});
@@ -252,7 +252,7 @@ export function startApiServer(port = DEFAULT_PORT): string {
             return;
         }
 
-        // GET /api/qr — bağlantı bilgisi
+        // GET /api/qr — connection info
         if (url === "/api/qr" && req.method === "GET") {
             send(res, 200, {ip, port, token, url: `http://${ip}:${port}`}); return;
         }
@@ -260,10 +260,10 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // POST /api/token/reset
         if (url === "/api/token/reset" && req.method === "POST") {
             const newToken = generateToken();
-            send(res, 200, {token: newToken, message: "Yeni token oluşturuldu. Cihazları yeniden bağla."}); return;
+            send(res, 200, {token: newToken, message: "New token generated. Reconnect your devices."}); return;
         }
 
-        send(res, 404, {error: "Endpoint bulunamadı."});
+        send(res, 404, {error: "Endpoint not found."});
     });
 
     server.listen(port, "0.0.0.0", () => {
@@ -272,16 +272,16 @@ export function startApiServer(port = DEFAULT_PORT): string {
 
     server.on("error", (e: NodeJS.ErrnoException) => {
         if (e.code === "EADDRINUSE") {
-            const msg = `API sunucusu başlatılamadı: port ${port} başka bir uygulama tarafından kullanılıyor. Ayarlardan farklı bir port dene.`;
+            const msg = `Failed to start API server: port ${port} is in use by another application. Try a different port in Settings.`;
             console.warn("[API]", msg);
             _notifyWindow?.webContents.send("feed-event", {type: "warn", text: msg});
         } else {
-            console.error("[API] Sunucu hatası:", e.message);
+            console.error("[API] Server error:", e.message);
         }
         server = null;
     });
 
-    return `API sunucusu başlatıldı: http://${ip}:${port}`;
+    return `API server started: http://${ip}:${port}`;
 }
 
 export function stopApiServer(): void {

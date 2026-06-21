@@ -11,7 +11,7 @@ export interface AegisConfig {
     elevenlabsApiKey?: string;
     steamApiKey?: string;
     steamId64?: string;
-    homeAssistantUrl?: string;    // Faz 62 — akıllı ev: http://homeassistant.local:8123
+    homeAssistantUrl?: string;    // Phase 62 — smart home: http://homeassistant.local:8123
     homeAssistantToken?: string;  // long-lived access token
 }
 

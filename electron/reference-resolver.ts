@@ -2,7 +2,7 @@
  * Deterministic Reference Resolver (Jarvis Reliability Upgrade)
  *
  * Some user utterances must NOT be left to the LLM, because the model resolves
- * them inconsistently ("bi çalışıyor bi çalışmıyor"):
+ * them inconsistently ("works one time, fails the next"):
  *
  *   tekrar yap · aynısını yap · az önce yaptığını yap · bunu tekrar et
  *   bir önceki · onu kapat · biraz artır · biraz azalt
@@ -20,15 +20,15 @@
  * No new tools, no new providers — only re-targets EXISTING tools from STM.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * SCOPE GUARD — bu modül bir REFLEX'tir, BEYİN DEĞİL. Büyütmeyin.
+ * SCOPE GUARD — this module is a REFLEX, NOT a BRAIN. Don't grow it.
  *
- *   YAPAR  : STM'deki MEVCUT bir aksiyonu yeniden hedefler (tekrar/kapat/delta).
- *   YAPMAZ : arama (Spotify/Steam ara), uygulama açma (Discord/browser başlat),
- *            niyet sınıflandırma, planlama, çok-adımlı akıl yürütme.
+ *   DOES     : re-targets an EXISTING action in STM (repeat/close/delta).
+ *   DOESN'T  : search (Spotify/Steam search), launch apps (start Discord/browser),
+ *              intent classification, planning, multi-step reasoning.
  *
- * Bunların hepsi LLM'in işidir. Yeni bir "X de çözsün" kalıbı eklemeden önce sor:
- * "Bu, daha önce yapılmış bir şeye REFERANS mı, yoksa YENİ bir hedef mi?"
- * Yeni hedefse → buraya GİRMEZ, LLM'e bırak (resolveReference null döner).
+ * All of that is the LLM's job. Before adding a new "let X handle this too" pattern, ask:
+ * "Is this a REFERENCE to something already done, or a NEW target?"
+ * If it's a new target → it does NOT belong here, leave it to the LLM (resolveReference returns null).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -152,11 +152,11 @@ export function resolveReference(message: string): ResolverResult {
     if (recent.length === 0) {
         return {
             kind: "clarify",
-            question: "Neyi kastettiğini bilmiyorum — henüz bir işlem yapmadım. Ne yapmamı istersin?",
+            question: "I don't know what you mean — I haven't done anything yet. What would you like me to do?",
             confidence: 0.2,
-            intent: `referans:${kind}`,
-            usedMemory: "(STM boş)",
-            resolution: "STM boş olduğu için referans çözülemedi",
+            intent: `reference:${kind}`,
+            usedMemory: "(STM empty)",
+            resolution: "Reference could not be resolved because STM is empty",
         };
     }
 
@@ -169,10 +169,10 @@ export function resolveReference(message: string): ResolverResult {
                 args: {...last.args},
                 entity: last.entity,
                 source: "resolver",
-                intent: "son işlemi tekrarla",
+                intent: "repeat last action",
                 confidence: 0.95,
                 usedMemory: `lastTool=${last.tool} args=${JSON.stringify(last.args)}`,
-                resolution: `"tekrar/aynısını" → son işlem (${last.tool}) aynı argümanlarla yeniden`,
+                resolution: `"repeat/same again" → last action (${last.tool}) again with the same arguments`,
             };
         }
 
@@ -181,11 +181,11 @@ export function resolveReference(message: string): ResolverResult {
             if (!prev) {
                 return {
                     kind: "clarify",
-                    question: "Bir öncekinden kastın ne? Sadece tek bir işlem hatırlıyorum.",
+                    question: "What do you mean by the previous one? I only remember a single action.",
                     confidence: 0.3,
-                    intent: "bir önceki",
+                    intent: "previous",
                     usedMemory: `recentCount=${recent.length}`,
-                    resolution: "İki öncesi yok → çözülemedi",
+                    resolution: "No second-to-last action → could not resolve",
                 };
             }
             return {
@@ -194,10 +194,10 @@ export function resolveReference(message: string): ResolverResult {
                 args: {...prev.args},
                 entity: prev.entity,
                 source: "resolver",
-                intent: "bir önceki işlemi yap",
+                intent: "do the previous action",
                 confidence: 0.85,
                 usedMemory: `recent[-2]=${prev.tool} args=${JSON.stringify(prev.args)}`,
-                resolution: `"bir önceki" → STM[-2] (${prev.tool})`,
+                resolution: `"previous" → STM[-2] (${prev.tool})`,
             };
         }
 
@@ -207,11 +207,11 @@ export function resolveReference(message: string): ResolverResult {
             if (!close) {
                 return {
                     kind: "clarify",
-                    question: `"${last.entity ?? last.tool}" için nasıl bir kapatma istediğini netleştirir misin?`,
+                    question: `Can you clarify what kind of close you want for "${last.entity ?? last.tool}"?`,
                     confidence: 0.4,
-                    intent: "onu kapat",
+                    intent: "close that",
                     usedMemory: `lastTool=${last.tool} entity=${last.entity}`,
-                    resolution: "Son işlem için güvenli bir kapatma tool'u eşleşmedi",
+                    resolution: "No safe close tool matched the last action",
                 };
             }
             return {
@@ -220,10 +220,10 @@ export function resolveReference(message: string): ResolverResult {
                 args: close.args,
                 entity: last.entity ?? close.label,
                 source: "resolver",
-                intent: "onu kapat",
+                intent: "close that",
                 confidence: 0.9,
                 usedMemory: `lastTool=${last.tool} entity=${last.entity}`,
-                resolution: `"onu kapat" → ${close.label} kapat (${close.tool})`,
+                resolution: `"close that" → close ${close.label} (${close.tool})`,
             };
         }
 
@@ -237,11 +237,11 @@ export function resolveReference(message: string): ResolverResult {
             if (lvlEntry === null || cur === null) {
                 return {
                     kind: "clarify",
-                    question: "Neyin seviyesini değiştireyim? Önce bir ses/parlaklık ayarı yapmadım.",
+                    question: "What level should I change? I haven't set any volume/brightness yet.",
                     confidence: 0.35,
-                    intent: kind === "deltaUp" ? "biraz artır" : "biraz azalt",
-                    usedMemory: lvlEntry ? `${lvlEntry.tool} (seviye okunamadı)` : "(seviye işlemi yok)",
-                    resolution: "Mevcut seviye STM'de yok → delta uygulanamadı",
+                    intent: kind === "deltaUp" ? "increase a bit" : "decrease a bit",
+                    usedMemory: lvlEntry ? `${lvlEntry.tool} (level unreadable)` : "(no level action)",
+                    resolution: "Current level not in STM → delta could not be applied",
                 };
             }
             const mag = deltaMagnitude(norm);
@@ -252,7 +252,7 @@ export function resolveReference(message: string): ResolverResult {
                 args: {level: String(next)},
                 entity: lvlEntry.entity,
                 source: "resolver",
-                intent: kind === "deltaUp" ? "biraz artır" : "biraz azalt",
+                intent: kind === "deltaUp" ? "increase a bit" : "decrease a bit",
                 confidence: 0.9,
                 usedMemory: `${lvlEntry.tool} level=${cur}`,
                 resolution: `"${kind === "deltaUp" ? "+" : "-"}${mag}" → ${cur} ${kind === "deltaUp" ? "→" : "→"} ${next}`,
@@ -264,11 +264,11 @@ export function resolveReference(message: string): ResolverResult {
             if (!last || !last.entity) {
                 return {
                     kind: "clarify",
-                    question: "Son oynadığın oyunu hatırlamıyorum. Hangi oyunu açayım?",
+                    question: "I don't remember the game you last played. Which game should I open?",
                     confidence: 0.3,
-                    intent: "son oynadığım oyunu aç",
-                    usedMemory: last ? `${last.tool} (entity yok)` : "(steam işlemi yok)",
-                    resolution: "STM'de oyun entity'si bulunamadı",
+                    intent: "open the game I last played",
+                    usedMemory: last ? `${last.tool} (no entity)` : "(no steam action)",
+                    resolution: "No game entity found in STM",
                 };
             }
             return {
@@ -277,10 +277,10 @@ export function resolveReference(message: string): ResolverResult {
                 args: {game: last.entity},
                 entity: last.entity,
                 source: "resolver",
-                intent: "son oynadığım oyunu aç",
+                intent: "open the game I last played",
                 confidence: 0.9,
-                usedMemory: `son steam işlemi: ${last.tool} game=${last.entity}`,
-                resolution: `"son oynadığım" → ${last.entity} (steam_launch)`,
+                usedMemory: `last steam action: ${last.tool} game=${last.entity}`,
+                resolution: `"last played" → ${last.entity} (steam_launch)`,
             };
         }
 
@@ -291,11 +291,11 @@ export function resolveReference(message: string): ResolverResult {
             if (!last || !last.entity) {
                 return {
                     kind: "clarify",
-                    question: "Son açtığın şeyi hatırlamıyorum. Neyi tekrar açayım?",
+                    question: "I don't remember the last thing you opened. What should I open again?",
                     confidence: 0.3,
-                    intent: "son açtığımı aç",
-                    usedMemory: last ? `${last.tool} (entity yok)` : "(açma işlemi yok)",
-                    resolution: "STM'de açılan bir entity bulunamadı",
+                    intent: "open what I last opened",
+                    usedMemory: last ? `${last.tool} (no entity)` : "(no open action)",
+                    resolution: "No opened entity found in STM",
                 };
             }
             // Re-open via the same tool that opened it.
@@ -305,10 +305,10 @@ export function resolveReference(message: string): ResolverResult {
                 args: {...last.args},
                 entity: last.entity,
                 source: "resolver",
-                intent: "son açtığımı tekrar aç",
+                intent: "open what I last opened again",
                 confidence: 0.85,
-                usedMemory: `son açma: ${last.tool} entity=${last.entity}`,
-                resolution: `"son açtığım" → ${last.entity} (${last.tool})`,
+                usedMemory: `last open: ${last.tool} entity=${last.entity}`,
+                resolution: `"last opened" → ${last.entity} (${last.tool})`,
             };
         }
     }
@@ -318,18 +318,18 @@ export function resolveReference(message: string): ResolverResult {
 
 /** Format a resolver decision for Explain Mode (developer setting). */
 export function explainResolution(r: ResolvedAction | NeedsClarification): string {
-    const lines = ["[AÇIKLAMA — referans çözücü]"];
+    const lines = ["[EXPLAIN — reference resolver]"];
     lines.push(`  intent     : ${r.intent}`);
-    lines.push(`  confidence : ${r.confidence.toFixed(2)}  (eşik ${CONFIDENCE_THRESHOLD})`);
-    lines.push(`  bellek     : ${r.usedMemory}`);
-    lines.push(`  çözüm      : ${r.resolution}`);
+    lines.push(`  confidence : ${r.confidence.toFixed(2)}  (threshold ${CONFIDENCE_THRESHOLD})`);
+    lines.push(`  memory     : ${r.usedMemory}`);
+    lines.push(`  resolution : ${r.resolution}`);
     if (r.kind === "action") {
         lines.push(`  tool       : ${r.tool}`);
         lines.push(`  args       : ${JSON.stringify(r.args)}`);
         lines.push(`  entity     : ${r.entity ?? "-"}`);
         lines.push(`  source     : ${r.source}`);
     } else {
-        lines.push(`  karar      : netleştirme istendi (confidence < eşik)`);
+        lines.push(`  decision   : clarification requested (confidence < threshold)`);
     }
     return lines.join("\n");
 }

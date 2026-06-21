@@ -1,41 +1,41 @@
 /**
- * Faz 53 — Loop Guard & Eylem Bütçesi
+ * Phase 53 — Loop Guard & Action Budget
  *
- * `runAgent`'taki 8-adım limiti degenerate döngüyü ÇÖZMEZ, sadece geç keser:
- * aynı tool'u tekrar tekrar çağıran model token/para yakar + "AEGIS takıldı" hissi
- * verir. Bu modül degenerate tool-call örüntülerini ERKEN tespit edip durdurur.
+ * The 8-step limit in `runAgent` does NOT solve degenerate loops, it just cuts them off late:
+ * a model calling the same tool over and over burns tokens/money + creates the feeling that
+ * "AEGIS is stuck". This module detects and stops degenerate tool-call patterns EARLY.
  *
- * Tespit edilen üç örüntü:
- *   1. Aynı (tool, args) çağrısının N kez tekrarı           → MAX_IDENTICAL
- *   2. A-B-A-B ping-pong (iki tool arasında salınım)        → PING_PONG_REPEATS
- *   3. Bir polling tool'unun (durum sorgulayan) aşırı çağrısı → POLL_BUDGET
+ * Three detected patterns:
+ *   1. Same (tool, args) call repeated N times              → MAX_IDENTICAL
+ *   2. A-B-A-B ping-pong (oscillation between two tools)    → PING_PONG_REPEATS
+ *   3. Excessive calls of a polling (status-querying) tool  → POLL_BUDGET
  *
- * Saf veri + saf fonksiyon — Electron'a, dosya sistemine, ağa bağımlı DEĞİL.
- * Her `runAgent` döngüsü kendi `LoopGuard` örneğini açar (paralel istek izolasyonu).
+ * Pure data + pure functions — NOT dependent on Electron, the filesystem, or the network.
+ * Each `runAgent` loop opens its own `LoopGuard` instance (parallel-request isolation).
  */
 
-/** Bir tool çağrısının kararı: çalıştır, yoksa neden engellendi. */
+/** The verdict for a tool call: run it, or why it was blocked. */
 export interface GuardVerdict {
     ok: boolean;
-    /** Engellendiyse kullanıcıya/modele gösterilecek kısa Türkçe sebep. */
+    /** If blocked, a short reason to show the user/model. */
     reason?: string;
-    /** Hangi örüntü tetikledi (telemetri / test için). */
+    /** Which pattern triggered (for telemetry / tests). */
     pattern?: "identical" | "ping_pong" | "poll_budget";
 }
 
-/** Aynı (tool,args) çağrısı bu kadar kez görülünce engellenir (3. çağrı bloklanır). */
+/** Blocked when the same (tool,args) call is seen this many times (the 3rd call is blocked). */
 export const MAX_IDENTICAL = 3;
-/** Son bu kadar çağrı içinde A-B-A-B örüntüsü aranır. */
+/** An A-B-A-B pattern is searched within the last this-many calls. */
 export const PING_PONG_WINDOW = 4;
-/** Ping-pong: A↔B salınımı bu kadar tam tur tamamlanınca engellenir. */
+/** Ping-pong: blocked once the A↔B oscillation completes this many full cycles. */
 export const PING_PONG_REPEATS = 2;
-/** Polling tool'ları için gevşek bütçe (durum sorguları normalde çok çağrılır). */
+/** Loose budget for polling tools (status queries are normally called a lot). */
 export const POLL_BUDGET = 6;
 
 /**
- * Polling / salt-okuma durum tool'ları — döngüde tekrar çağrılması NORMALDİR
- * (ör. indirme ilerlemesi, telemetri). Bunlara identical/ping-pong uygulanmaz;
- * yalnızca daha gevşek POLL_BUDGET geçerli olur. İsim parçası eşleşmesi (substring).
+ * Polling / read-only status tools — repeated calls in the loop are NORMAL
+ * (e.g. download progress, telemetry). identical/ping-pong are not applied to these;
+ * only the looser POLL_BUDGET applies. Name-fragment match (substring).
  */
 const POLL_TOOL_HINTS = [
     "status", "durum", "get_", "list_", "telemetry", "telemetri",
@@ -49,8 +49,8 @@ function isPollTool(tool: string): boolean {
 }
 
 /**
- * args objesini deterministik bir imzaya çevirir (anahtar sırası fark etmesin).
- * Geçersiz/parse edilemez args ham string olarak kullanılır — yine de stabil hash verir.
+ * Converts the args object into a deterministic signature (key order shouldn't matter).
+ * Invalid/unparsable args are used as a raw string — still yielding a stable hash.
  */
 function hashCall(tool: string, args: unknown): string {
     let argPart: string;
@@ -73,20 +73,20 @@ function hashCall(tool: string, args: unknown): string {
 }
 
 export class LoopGuard {
-    /** Çağrı imzası → kaç kez görüldü. */
+    /** Call signature → how many times it was seen. */
     private counts = new Map<string, number>();
-    /** Sadece tool adlarının zaman sıralı geçmişi (ping-pong tespiti için). */
+    /** Time-ordered history of tool names only (for ping-pong detection). */
     private toolSeq: string[] = [];
-    /** Polling tool adı → bütçe sayacı. */
+    /** Polling tool name → budget counter. */
     private pollCounts = new Map<string, number>();
 
     /**
-     * Bir tool çağrısı YÜRÜTÜLMEDEN ÖNCE çağır. Çalışmasına izin varsa
-     * sayaçları günceller ve `{ok:true}` döner; degenerate örüntü tespit
-     * edilirse `{ok:false, reason}` döner ve çağrı atlanmalıdır.
+     * Call this BEFORE a tool call is EXECUTED. If it's allowed to run, it updates
+     * the counters and returns `{ok:true}`; if a degenerate pattern is detected it
+     * returns `{ok:false, reason}` and the call should be skipped.
      */
     check(tool: string, args: unknown): GuardVerdict {
-        // ── Polling tool'ları: yalnızca gevşek bütçe ─────────────────────────
+        // ── Polling tools: loose budget only ─────────────────────────────────
         if (isPollTool(tool)) {
             const n = (this.pollCounts.get(tool) ?? 0) + 1;
             this.pollCounts.set(tool, n);
@@ -95,13 +95,13 @@ export class LoopGuard {
                 return {
                     ok: false,
                     pattern: "poll_budget",
-                    reason: `"${tool}" durum sorgusu ${POLL_BUDGET} kez tekrarlandı; sonuç değişmiyor gibi. Döngüyü durduruyorum.`,
+                    reason: `The "${tool}" status query repeated ${POLL_BUDGET} times; the result doesn't seem to change. Stopping the loop.`,
                 };
             }
             return {ok: true};
         }
 
-        // ── Aynı (tool,args) tekrarı ─────────────────────────────────────────
+        // ── Same (tool,args) repetition ──────────────────────────────────────
         const sig = hashCall(tool, args);
         const seen = (this.counts.get(sig) ?? 0) + 1;
         this.counts.set(sig, seen);
@@ -111,7 +111,7 @@ export class LoopGuard {
             return {
                 ok: false,
                 pattern: "identical",
-                reason: `Aynı işlemi ("${tool}") aynı argümanlarla ${seen}. kez deniyorum — sonuç değişmeyecek. Döngüyü durdurdum.`,
+                reason: `I'm attempting the same action ("${tool}") with the same arguments for the ${seen}th time — the result won't change. I've stopped the loop.`,
             };
         }
 
@@ -120,7 +120,7 @@ export class LoopGuard {
             return {
                 ok: false,
                 pattern: "ping_pong",
-                reason: `İki işlem arasında ("${this.toolSeq[this.toolSeq.length - 2]}" ↔ "${tool}") gidip geliyorum. Bu bir döngü; durdurdum.`,
+                reason: `I'm going back and forth between two actions ("${this.toolSeq[this.toolSeq.length - 2]}" ↔ "${tool}"). This is a loop; I've stopped.`,
             };
         }
 
@@ -128,8 +128,8 @@ export class LoopGuard {
     }
 
     /**
-     * Son PING_PONG_WINDOW çağrıda A-B-A-B (en az PING_PONG_REPEATS tam tur)
-     * örüntüsü var mı? Yalnızca tam-değişimli, iki farklı tool salınımı sayılır.
+     * Is there an A-B-A-B pattern (at least PING_PONG_REPEATS full cycles) in the
+     * last PING_PONG_WINDOW calls? Only a fully alternating oscillation of two distinct tools counts.
      */
     private detectPingPong(): boolean {
         const seq = this.toolSeq;
@@ -138,7 +138,7 @@ export class LoopGuard {
         const tail = seq.slice(-need);
         const a = tail[0];
         const b = tail[1];
-        if (a === b) return false; // salınım değil, aynı tool tekrarı (identical kapsar)
+        if (a === b) return false; // not an oscillation, just same-tool repetition (covered by identical)
         for (let i = 0; i < need; i++) {
             const expected = i % 2 === 0 ? a : b;
             if (tail[i] !== expected) return false;
@@ -146,7 +146,7 @@ export class LoopGuard {
         return true;
     }
 
-    /** Test/telemetri: bir imzanın şimdiye kadarki çağrı sayısı. */
+    /** Test/telemetry: how many times a signature has been called so far. */
     countOf(tool: string, args: unknown): number {
         return this.counts.get(hashCall(tool, args)) ?? 0;
     }

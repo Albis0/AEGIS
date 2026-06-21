@@ -2,13 +2,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 let _supabase: SupabaseClient | null = null
 
-// Supabase yapılandırılmış mı? (Faz 30: gelişmiş modda Supabase opsiyonel —
-// girilmezse session/mesaj kaydı sessizce devre dışı kalır, uygulama çalışmaya devam eder.)
+// Is Supabase configured? (Phase 30: Supabase is optional in advanced mode —
+// if not provided, session/message logging is silently disabled and the app keeps running.)
 export function hasDb(): boolean {
     return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
 }
 
-// Supabase istemcisi — yapılandırılmamışsa null döner (throw etmez).
+// Supabase client — returns null if not configured (doesn't throw).
 function db(): SupabaseClient | null {
     if (_supabase) return _supabase
     const url = process.env.SUPABASE_URL

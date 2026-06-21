@@ -37,16 +37,16 @@ function fuzzyScore(query: string, target: string): number {
 }
 
 export async function fileSearch(query: string, dir?: string): Promise<string> {
-    if (!query) return "HATA: Arama terimi gerekli.";
+    if (!query) return "ERROR: Search term required.";
     const searchDir = dir || os.homedir();
-    // Path'leri PS değişkeni olarak aktar — injection yok
+    // Pass paths as PS variables — no injection
     const esResult = await runPs(
         `$q = '${query.replace(/'/g, "''")}'\n` +
         `& 'C:\\Program Files\\Everything\\es.exe' $q -n 20 2>$null`,
         5000
     );
-    if (esResult && esResult.length > 5 && !esResult.includes("HATA")) {
-        return `Arama sonuçları (Everything):\n${esResult}`;
+    if (esResult && esResult.length > 5 && !esResult.includes("ERROR")) {
+        return `Search results (Everything):\n${esResult}`;
     }
     const result = await runPs(
         `$p = '${searchDir.replace(/'/g, "''")}'\n` +
@@ -54,13 +54,13 @@ export async function fileSearch(query: string, dir?: string): Promise<string> {
         `Get-ChildItem -Path $p -Recurse -ErrorAction SilentlyContinue -Filter $q | Select-Object -First 20 -ExpandProperty FullName`,
         20000
     );
-    if (!result) return `"${query}" için dosya bulunamadı.`;
-    return `Dosya arama sonuçları:\n${result}`;
+    if (!result) return `No files found for "${query}".`;
+    return `File search results:\n${result}`;
 }
 
 export async function contentSearch(query: string, dir: string, extension?: string): Promise<string> {
-    if (!query || !dir) return "HATA: Arama terimi ve klasör gerekli.";
-    if (!fs.existsSync(dir)) return `HATA: Klasör bulunamadı: ${dir}`;
+    if (!query || !dir) return "ERROR: Search term and folder required.";
+    if (!fs.existsSync(dir)) return `ERROR: Folder not found: ${dir}`;
     const extFilter = extension ? `-Include '*.${extension.replace(/'/g, "").replace(".", "")}'` : "-Include '*.txt','*.md','*.ts','*.js','*.py','*.json','*.cs','*.cpp','*.java','*.go'";
     const result = await runPs(
         `$p = '${dir.replace(/'/g, "''")}'\n` +
@@ -68,12 +68,12 @@ export async function contentSearch(query: string, dir: string, extension?: stri
         `Get-ChildItem -Path $p -Recurse -ErrorAction SilentlyContinue ${extFilter} | Select-String -Pattern $q -ErrorAction SilentlyContinue | Select-Object -First 30 | ForEach-Object {"$($_.Filename):$($_.LineNumber): $($_.Line.Trim())"}`,
         30000
     );
-    if (!result) return `"${query}" içerik araması: sonuç bulunamadı.`;
-    return `İçerik arama (${dir}):\n${result}`;
+    if (!result) return `Content search for "${query}": no results found.`;
+    return `Content search (${dir}):\n${result}`;
 }
 
 export async function appSearch(query: string, launch: boolean): Promise<string> {
-    if (!query) return "HATA: Uygulama adı gerekli.";
+    if (!query) return "ERROR: Application name required.";
     // Scan start menu shortcuts
     const startMenuPaths = [
         path.join(os.homedir(), "AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs"),
@@ -109,7 +109,7 @@ export async function appSearch(query: string, launch: boolean): Promise<string>
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
 
-    if (scored.length === 0) return `"${query}" için uygulama bulunamadı.`;
+    if (scored.length === 0) return `No application found for "${query}".`;
 
     if (launch) {
         const best = scored[0];

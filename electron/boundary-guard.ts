@@ -1,31 +1,31 @@
 /**
- * Faz 58 — Boundary Guard: Dışarı Sızıntı Koruması
+ * Phase 58 — Boundary Guard: Outbound Leak Protection
  *
- * Tool sonuçları + dosya içeriği LLM'e (deneme modunda senin proxy'inden) gidiyor.
- * Bir `.env` okutup özetletmek = API anahtarının log'a/3. tarafa düşmesi. Bir sızıntı
- * = kalıcı güven kaybı. Bu modül GİDEN içerikte sır desenlerini tespit edip REDAKTE
- * eder (maskeleyerek), içeriğin geri kalanını bozmadan.
+ * Tool results + file content go to the LLM (through your proxy in trial mode).
+ * Reading and summarizing a `.env` = leaking an API key into a log / to a third party.
+ * One leak = permanent loss of trust. This module detects secret patterns in OUTBOUND
+ * content and REDACTS them (by masking), without corrupting the rest of the content.
  *
- * Saf fonksiyon — Electron/IO/ağ bağımsız. ai-client.ts giden mesajları çağırmadan
- * hemen önce uygular (perf etkisi ihmal edilebilir: birkaç regex/mesaj).
+ * Pure function — Electron/IO/network independent. ai-client.ts applies it to outbound
+ * messages right before the call (negligible perf impact: a few regexes per message).
  *
- * OpenJarvis `security/boundary.py` redact modu + `credential_stripper.py`'den
- * sadeleştirilerek alındı. Taint/SSRF/signing ALINMADI.
+ * Simplified from the OpenJarvis `security/boundary.py` redact mode +
+ * `credential_stripper.py`. Taint/SSRF/signing NOT adopted.
  */
 
 export interface SecretPattern {
     name: string;
     re: RegExp;
-    /** Eşleşmenin tamamı mı yoksa bir yakalama grubu mu maskelenecek? */
+    /** Mask the entire match, or just a capture group? */
     group?: number;
 }
 
-// Bilinen sır desenleri. `g` bayrağı şart (replaceAll için). Sıra: en özelden
-// gevşeğe — bir token birden çok desene uymasın diye spesifik olanlar önce.
+// Known secret patterns. The `g` flag is required (for replaceAll). Order: most
+// specific to loosest — specific ones first so a token doesn't match multiple patterns.
 const PATTERNS: SecretPattern[] = [
     // AWS access key id
     {name: "aws-access-key", re: /\bAKIA[0-9A-Z]{16}\b/g},
-    // AWS secret access key (40 char base64-ish, "secret" bağlamında)
+    // AWS secret access key (40 char base64-ish, in a "secret" context)
     {name: "aws-secret", re: /\b(?:aws_secret_access_key|aws_secret)\s*[=:]\s*([A-Za-z0-9/+]{40})/gi, group: 1},
     // OpenAI / Anthropic / generic "sk-" keys
     {name: "openai-key", re: /\bsk-[A-Za-z0-9_-]{20,}\b/g},
@@ -45,17 +45,17 @@ const PATTERNS: SecretPattern[] = [
     {name: "bearer", re: /\b(?:Bearer|Authorization:\s*Bearer)\s+([A-Za-z0-9._-]{16,})/gi, group: 1},
     // Private key blocks
     {name: "private-key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/g},
-    // password=... / parola=... / pwd:... (anahtar=değer biçimi)
+    // password=... / parola=... / pwd:... (key=value form; keeps TR password keywords for matching)
     {name: "password-kv", re: /\b(?:password|passwd|pwd|parola|şifre|sifre)\s*[=:]\s*("[^"]+"|'[^']+'|[^\s,;]{4,})/gi, group: 1},
-    // Generic "api_key=..." / "token=..." / "secret=..." (uzun değerler).
-    // Prefix'li anahtarları da yakalar (GOOGLE_API_KEY, MY_ACCESS_TOKEN) — bu yüzden
-    // \b yerine "kelime başı VEYA _ ardından" sınırı kullanılır.
+    // Generic "api_key=..." / "token=..." / "secret=..." (long values).
+    // Also catches prefixed keys (GOOGLE_API_KEY, MY_ACCESS_TOKEN) — so instead of
+    // \b it uses a "word start OR after _" boundary.
     {name: "generic-secret-kv", re: /(?:^|[^A-Za-z])(?:[a-z]+[_-])*(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret[_-]?key|client[_-]?secret|api[_-]?token)\s*[=:]\s*("[^"]+"|'[^']+'|[A-Za-z0-9._-]{12,})/gi, group: 1},
 ];
 
 const MASK = "[REDACTED]";
 
-/** Bir metni maskeler. Hiç sır yoksa AYNI referansı döndürür (perf). */
+/** Masks a text. Returns the SAME reference if there are no secrets (perf). */
 export function redactSecrets(text: string): string {
     if (!text || text.length < 8) return text;
     let out = text;
@@ -72,8 +72,8 @@ export function redactSecrets(text: string): string {
 }
 
 /**
- * Bir metinde HAM (maskelenmemiş) sır var mı? Zaten redakte edilmiş `[REDACTED]`
- * değerlerini sır SAYMAZ → redaksiyon idempotenttir (redact(redact(x))==redact(x)).
+ * Does a text contain a RAW (unmasked) secret? Already-redacted `[REDACTED]` values
+ * do NOT count as secrets → redaction is idempotent (redact(redact(x))==redact(x)).
  */
 export function hasSecret(text: string): boolean {
     if (!text || text.length < 8) return false;
@@ -82,17 +82,17 @@ export function hasSecret(text: string): boolean {
         let m: RegExpExecArray | null;
         while ((m = p.re.exec(text)) !== null) {
             const secretPart = p.group != null ? m[p.group] : m[0];
-            // Maskelenmiş değer (sadece [REDACTED]) gerçek sır değildir.
+            // A masked value (just [REDACTED]) is not a real secret.
             if (secretPart && !/^["']?\[REDACTED\]["']?$/.test(secretPart)) return true;
-            if (p.re.lastIndex === m.index) p.re.lastIndex++; // sonsuz döngü koruması
+            if (p.re.lastIndex === m.index) p.re.lastIndex++; // infinite-loop guard
         }
     }
     return false;
 }
 
 /**
- * Bir OAI mesaj içeriğini (string | parça dizisi) redakte eder. String → string;
- * parça dizisinde yalnız text parçaları maskelenir (görüntü/diğer parçalar dokunulmaz).
+ * Redacts an OAI message content (string | array of parts). String → string; in a part
+ * array only text parts are masked (image/other parts are left untouched).
  */
 export function redactContent(content: unknown): unknown {
     if (typeof content === "string") return redactSecrets(content);
@@ -108,9 +108,10 @@ export function redactContent(content: unknown): unknown {
 }
 
 /**
- * Giden mesaj dizisini redakte eder. system + user + tool + assistant içerikleri
- * taranır; tool_calls argümanları da maskelenebilir (model'in döndürdüğü args'ta
- * sır olabilir). Yeni dizi döner; sır yoksa orijinal referans korunur (perf).
+ * Redacts an outbound message array. system + user + tool + assistant contents are
+ * scanned; tool_calls arguments can also be masked (the args the model returns may
+ * contain secrets). Returns a new array; if there are no secrets the original reference
+ * is preserved (perf).
  */
 export function redactMessages<T extends {role: string; content?: unknown; tool_calls?: unknown}>(messages: T[]): T[] {
     let changed = false;

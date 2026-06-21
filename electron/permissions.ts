@@ -1,13 +1,14 @@
 /**
- * Faz 54 — Yıkıcı Eylem İzin Kapısı
+ * Phase 54 — Destructive Action Permission Gate
  *
- * `run_command` / `delete_file` / `kill_heavy_process` gibi tool'lar şu ana kadar
- * SINIRSIZdı: model tek yanlış argümanla geri dönülmez hasar verebilirdi. Güven =
- * geri alınamaz eylemde durup sorma. Bu modül her tool'u bir RİSK SEVİYESİNE atar
- * ve "her zaman izin ver" kararlarını `~/.aegis/permissions.json`'da kalıcı tutar.
+ * Tools like `run_command` / `delete_file` / `kill_heavy_process` were UNLIMITED
+ * until now: the model could cause irreversible damage with a single wrong argument.
+ * Trust = stop and ask before an irreversible action. This module assigns each tool
+ * a RISK TIER and persists "always allow" decisions in `~/.aegis/permissions.json`.
  *
- * Bu modül SAF: sınıflandırma + store. Gerçek onay diyaloğu main.ts'te (UI katmanı).
- * Salt-okuma tool'lar HİÇ sormaz — yalnızca yıkıcı/yüksek-riskli olanlar kapıdan geçer.
+ * This module is PURE: classification + store. The actual approval dialog lives in
+ * main.ts (UI layer). Read-only tools NEVER prompt — only destructive/high-risk ones
+ * pass through the gate.
  */
 
 import * as fs from "fs";
@@ -19,22 +20,23 @@ export type RiskTier = "safe" | "destructive";
 const STORE_PATH = path.join(os.homedir(), ".aegis", "permissions.json");
 
 /**
- * Her zaman yıkıcı sayılan tool'lar (argümandan bağımsız). Geri alınamaz veya
- * sistem/dosya bütünlüğünü etkileyen eylemler.
+ * Tools always considered destructive (regardless of arguments). Irreversible actions
+ * or ones that affect system/file integrity.
  */
 const ALWAYS_DESTRUCTIVE = new Set<string>([
     "delete_file",
     "move_file",
     "kill_heavy_process",
-    "organize_folder",   // dosyaları toplu taşır
-    "bulk_rename",       // toplu yeniden adlandırma
-    "clear_old_data",    // veri siler
-    "format_code",       // dosyaları yerinde değiştirir
+    "organize_folder",   // moves files in bulk
+    "bulk_rename",       // bulk renaming
+    "clear_old_data",    // deletes data
+    "format_code",       // modifies files in place
 ]);
 
 /**
- * `run_command` argümanı tehlikeliyse yıkıcı sayılır. Bu desenler SYSTEM_DESTROY'dan
- * (tools.ts — tamamen engellenenler) daha geniştir: bunlar engellenmez, ONAY ister.
+ * `run_command` is considered destructive if its argument is dangerous. These patterns
+ * are broader than SYSTEM_DESTROY (tools.ts — fully blocked): these are not blocked,
+ * they require APPROVAL.
  */
 const COMMAND_DESTRUCTIVE_PATTERNS: RegExp[] = [
     /\bRemove-Item\b/i,
@@ -44,18 +46,18 @@ const COMMAND_DESTRUCTIVE_PATTERNS: RegExp[] = [
     /\bStop-Process\b/i,
     /\btaskkill\b/i,
     /\bStop-Service\b/i,
-    /\bSet-ItemProperty\b.*HK(LM|CU)/i,  // registry yazımı
+    /\bSet-ItemProperty\b.*HK(LM|CU)/i,  // registry write
     /\breg\s+(add|delete)\b/i,
     /\bShutdown\b/i,
     /\bRestart-Computer\b/i,
     /\b(Format|mkfs)\b/i,
     /\bUninstall-/i,
-    /\b>\s*[A-Za-z]:\\/,                  // dosyaya yönlendirme (üzerine yazma)
+    /\b>\s*[A-Za-z]:\\/,                  // redirect to file (overwrite)
 ];
 
 /**
- * Bir tool çağrısının risk seviyesini döndürür. `run_command` için argümana bakar;
- * diğerleri için sabit listeye bakar; geri kalan her şey "safe" (kapı sormaz).
+ * Returns the risk tier of a tool call. For `run_command` it inspects the argument;
+ * for others it checks the fixed list; everything else is "safe" (the gate doesn't ask).
  */
 export function classifyRisk(tool: string, args: Record<string, unknown>): RiskTier {
     if (ALWAYS_DESTRUCTIVE.has(tool)) return "destructive";
@@ -66,10 +68,10 @@ export function classifyRisk(tool: string, args: Record<string, unknown>): RiskT
     return "safe";
 }
 
-// ── Kalıcı "her zaman izin ver" store ────────────────────────────────────────
+// ── Persistent "always allow" store ──────────────────────────────────────────
 
 interface PermStore {
-    /** "her zaman izin ver" denmiş tool adları. */
+    /** Tool names marked "always allow". */
     alwaysAllow: string[];
 }
 
@@ -92,16 +94,16 @@ function save(s: PermStore): void {
         fs.mkdirSync(path.dirname(STORE_PATH), {recursive: true});
         fs.writeFileSync(STORE_PATH, JSON.stringify(s, null, 2), "utf-8");
     } catch (e) {
-        console.error("[permissions] kaydedilemedi:", (e as Error).message);
+        console.error("[permissions] could not save:", (e as Error).message);
     }
 }
 
-/** Bu tool için kullanıcı daha önce "her zaman izin ver" demiş mi? */
+/** Has the user previously said "always allow" for this tool? */
 export function isAlwaysAllowed(tool: string): boolean {
     return load().alwaysAllow.includes(tool);
 }
 
-/** Bu tool'u kalıcı izinli yap (bir daha sorulmaz). */
+/** Mark this tool as permanently allowed (never asked again). */
 export function grantAlways(tool: string): void {
     const s = load();
     if (!s.alwaysAllow.includes(tool)) {
@@ -109,18 +111,19 @@ export function grantAlways(tool: string): void {
     }
 }
 
-/** Kalıcı izni geri al. */
+/** Revoke the permanent permission. */
 export function revokeAlways(tool: string): void {
     const s = load();
     save({alwaysAllow: s.alwaysAllow.filter((t) => t !== tool)});
 }
 
-/** Test için: in-memory cache'i sıfırla (diskten yeniden okutur). */
+/** For tests: reset the in-memory cache (forces a re-read from disk). */
 export function _resetCache(): void { _cache = null; }
 
 /**
- * Kapı kararı: bu çağrı onay GEREKTİRİYOR mu?
- * Yıkıcı + henüz kalıcı izin yok → true (UI onay sormalı). Aksi halde false.
+ * Gate decision: does this call REQUIRE approval?
+ * Destructive + no permanent permission yet → true (UI must ask for approval).
+ * Otherwise false.
  */
 export function needsApproval(tool: string, args: Record<string, unknown>): boolean {
     if (classifyRisk(tool, args) !== "destructive") return false;

@@ -49,20 +49,20 @@ export async function getRecentNotifications(count: number): Promise<string> {
     const ps = `Get-WinEvent -ProviderName Microsoft-Windows-PushNotification-Platform -MaxEvents ${n} -ErrorAction SilentlyContinue | Select-Object TimeCreated,Message | ConvertTo-Json -Compress`;
     const raw = await runPs(ps);
     if (!raw || raw.length < 5) {
-        // Fallback: uygulama event log
+        // Fallback: application event log
         const fb = await runPs(`Get-EventLog -LogName Application -Newest ${n} -ErrorAction SilentlyContinue | Select-Object TimeGenerated,Source,Message | ConvertTo-Json -Compress`);
-        if (!fb || fb.length < 5) return "Bildirim geçmişi alınamadı (PushNotification log erişimi kısıtlı olabilir).";
+        if (!fb || fb.length < 5) return "Could not retrieve notification history (PushNotification log access may be restricted).";
         try {
             const arr = JSON.parse(fb.startsWith("[") ? fb : `[${fb}]`);
             const records: NotifRecord[] = arr.slice(0, n).map((e: Record<string, string>) => ({
                 time: e.TimeGenerated,
-                app: e.Source ?? "Sistem",
+                app: e.Source ?? "System",
                 title: (e.Message ?? "").slice(0, 80),
                 body: "",
             }));
             saveHistory(records);
             return records.map((r) => `[${r.time}] ${r.app}: ${r.title}`).join("\n");
-        } catch { return "Bildirim geçmişi çözümlenemedi."; }
+        } catch { return "Could not parse notification history."; }
     }
     try {
         const arr = JSON.parse(raw.startsWith("[") ? raw : `[${raw}]`);
@@ -89,24 +89,24 @@ export function notifFilterSet(app: string, action: "show" | "hide"): string {
     if (idx >= 0) filters[idx].action = action;
     else filters.push({app, action});
     save(FILTERS_PATH, filters);
-    return `Kural eklendi: "${app}" uygulamasının bildirimleri ${action === "show" ? "gösterilecek" : "gizlenecek"}.`;
+    return `Rule added: notifications from "${app}" will be ${action === "show" ? "shown" : "hidden"}.`;
 }
 
 export function notifFilterList(): string {
     const filters: NotifFilter[] = load(FILTERS_PATH, []);
-    if (filters.length === 0) return "Bildirim filtresi kuralı yok.";
-    return filters.map((f) => `${f.action === "show" ? "GÖSTER" : "GİZLE"} — ${f.app}`).join("\n");
+    if (filters.length === 0) return "No notification filter rules.";
+    return filters.map((f) => `${f.action === "show" ? "SHOW" : "HIDE"} — ${f.app}`).join("\n");
 }
 
 export function dndSet(minutes: number): string {
     const endsAt = Date.now() + minutes * 60 * 1000;
     save(DND_PATH, {active: true, endsAt});
-    return `Rahatsız Etme modu ${minutes} dakika aktif. Sona erme: ${new Date(endsAt).toLocaleTimeString("tr-TR")}.`;
+    return `Do Not Disturb mode active for ${minutes} minutes. Ends at: ${new Date(endsAt).toLocaleTimeString("tr-TR")}.`;
 }
 
 export function dndOff(): string {
     save(DND_PATH, {active: false, endsAt: null});
-    return "Rahatsız Etme modu kapatıldı.";
+    return "Do Not Disturb mode turned off.";
 }
 
 export function getDndState(): DndState {
@@ -116,6 +116,6 @@ export function getDndState(): DndState {
 export function getNotifHistory(count: number): string {
     const records: NotifRecord[] = load(HISTORY_PATH, []);
     const n = Math.min(count || 20, records.length);
-    if (n === 0) return "Kayıtlı bildirim geçmişi yok.";
+    if (n === 0) return "No saved notification history.";
     return records.slice(0, n).map((r) => `[${r.time}] ${r.app}: ${r.title}`).join("\n");
 }

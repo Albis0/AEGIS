@@ -68,7 +68,7 @@ export function toAnthropicContent(content: string | MsgPart[] | null): unknown[
             }
             return {type: "image", source: {type: "url", url}};
         }
-        if (p.type === "file") return {type: "text", text: `[Dosya: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
+        if (p.type === "file") return {type: "text", text: `[File: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
         return {type: "text", text: ""};
     });
 }
@@ -87,7 +87,7 @@ export function toGeminiParts(content: string | MsgPart[] | null): object[] {
             }
             return {text: url};
         }
-        if (p.type === "file") return {text: `[Dosya: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
+        if (p.type === "file") return {text: `[File: ${p.name}]\n${Buffer.from(p.data, "base64").toString("utf-8")}`};
         return {text: ""};
     });
 }
@@ -105,42 +105,42 @@ export async function friendlyHttpError(providerLabel: string, resp: Response): 
     const s = resp.status;
     const d = detail.toLowerCase();
 
-    if (s === 401) return `${providerLabel}: API anahtarın geçersiz veya süresi dolmuş. Ayarlar → Model'den anahtarı güncelle.`;
+    if (s === 401) return `${providerLabel}: Your API key is invalid or expired. Update the key in Settings → Model.`;
     if (s === 403) {
         if (/duplicate|already declared|function declaration/i.test(detail)) {
-            return `${providerLabel}: İç hata — tekrarlı araç tanımı (400). Lütfen konuşmayı yenile.`;
+            return `${providerLabel}: Internal error — duplicate tool declaration (400). Please refresh the conversation.`;
         }
-        return `${providerLabel}: Bu işlem için yetkin yok (403). Ayarlar → Model'den API anahtarını kontrol et.`;
+        return `${providerLabel}: You are not authorized for this operation (403). Check your API key in Settings → Model.`;
     }
     if (s === 400) {
         if (/duplicate.*function|function.*declaration.*found/i.test(detail)) {
-            return `${providerLabel}: Tekrarlı araç tanımı hatası. Konuşmayı yenile (Ctrl+R).`;
+            return `${providerLabel}: Duplicate tool declaration error. Refresh the conversation (Ctrl+R).`;
         }
         if (/model|not found|does not exist|decommission/i.test(detail)) {
-            return `${providerLabel}: Seçili model bu sağlayıcıda mevcut değil. Ayarlar → Model'den başka bir model seç.`;
+            return `${providerLabel}: The selected model is not available with this provider. Pick another model in Settings → Model.`;
         }
         if (/context.*length|too.*long|max.*token/i.test(d)) {
-            return `${providerLabel}: Mesaj çok uzun, bağlam penceresine sığmıyor. Sohbeti temizle veya daha kısa yaz.`;
+            return `${providerLabel}: Message is too long and doesn't fit the context window. Clear the chat or write something shorter.`;
         }
-        return `${providerLabel}: Geçersiz istek (400)${detail ? " — " + detail.slice(0, 140) : ""}. Ayarlar → Model'den yapılandırmayı kontrol et.`;
+        return `${providerLabel}: Invalid request (400)${detail ? " — " + detail.slice(0, 140) : ""}. Check your configuration in Settings → Model.`;
     }
-    if (s === 404) return `${providerLabel}: Model bulunamadı. Ayarlar → Model'den güncel bir model seç.`;
+    if (s === 404) return `${providerLabel}: Model not found. Pick a current model in Settings → Model.`;
     if (s === 429) {
         if (/quota|billing|insufficient|credit|payment/i.test(d)) {
-            return `${providerLabel}: Hesap kredisi/kotası yetersiz. ${providerLabel} hesabına bakiye ekle.`;
+            return `${providerLabel}: Insufficient account credit/quota. Add balance to your ${providerLabel} account.`;
         }
         if (/tpm|tokens per minute/i.test(d)) {
-            return `${providerLabel}: Dakikalık token limiti aşıldı. Birkaç saniye bekle veya daha kısa mesaj yaz.`;
+            return `${providerLabel}: Per-minute token limit exceeded. Wait a few seconds or write a shorter message.`;
         }
-        return `${providerLabel}: Çok fazla istek gönderildi (hız limiti). Birkaç saniye bekleyip tekrar dene.`;
+        return `${providerLabel}: Too many requests sent (rate limit). Wait a few seconds and try again.`;
     }
-    if (s === 413) return `${providerLabel}: Mesaj veya dosya çok büyük. Daha kısa içerikle tekrar dene.`;
-    if (s === 422) return `${providerLabel}: İstek formatı geçersiz (422)${detail ? " — " + detail.slice(0, 120) : ""}.`;
-    if (s >= 500 && s < 600) return `${providerLabel}: Sağlayıcı sunucusunda geçici hata (${s}). Birkaç saniye sonra tekrar dene.`;
+    if (s === 413) return `${providerLabel}: Message or file is too large. Try again with shorter content.`;
+    if (s === 422) return `${providerLabel}: Invalid request format (422)${detail ? " — " + detail.slice(0, 120) : ""}.`;
+    if (s >= 500 && s < 600) return `${providerLabel}: Temporary error on the provider's server (${s}). Try again in a few seconds.`;
     if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(detail)) {
-        return `${providerLabel}: Sunucuya ulaşılamıyor. İnternet bağlantını ve VPN durumunu kontrol et.`;
+        return `${providerLabel}: Cannot reach the server. Check your internet connection and VPN status.`;
     }
-    return `${providerLabel} hatası (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
+    return `${providerLabel} error (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
 }
 
 export function friendlyGroqError(e: unknown): string {
@@ -149,14 +149,14 @@ export function friendlyGroqError(e: unknown): string {
     const detail = (err?.error?.message ?? err?.message ?? "").toString();
     const low = detail.toLowerCase();
     if (isTimeoutError(e)) return `Groq: ${TIMEOUT_MSG}`;
-    if (status === 401 || status === 403) return "Groq: API anahtarın geçersiz veya süresi dolmuş. Ayarlar → Model'den anahtarı güncelle.";
-    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: Seçili model artık mevcut değil. Ayarlar → Model'den güncel bir model seç.";
-    if (status === 413 || /too large|reduce your message/.test(low)) return "Groq: Mesajın çok uzun. Sohbeti temizle veya daha kısa yaz.";
-    if (status === 429 || /rate.limit|tpm|tokens per minute/.test(low)) return "Groq: Hız limitine takıldı (otomatik retry yapıldı). Birkaç saniye bekle veya farklı bir model seç.";
-    if (status >= 500) return "Groq: Sunucu geçici hata verdi. Birkaç saniye sonra tekrar dene.";
-    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "Groq'a ulaşılamıyor. İnternet bağlantını kontrol et.";
-    if (/failed_generation/.test(low)) return "Groq: Model yanıt üretemedi. Tekrar dene.";
-    return `Groq hatası${detail ? ": " + detail.slice(0, 140) : ""}`;
+    if (status === 401 || status === 403) return "Groq: Your API key is invalid or expired. Update the key in Settings → Model.";
+    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: The selected model is no longer available. Pick a current model in Settings → Model.";
+    if (status === 413 || /too large|reduce your message/.test(low)) return "Groq: Your message is too long. Clear the chat or write something shorter.";
+    if (status === 429 || /rate.limit|tpm|tokens per minute/.test(low)) return "Groq: Hit the rate limit (auto-retry was attempted). Wait a few seconds or pick a different model.";
+    if (status >= 500) return "Groq: The server returned a temporary error. Try again in a few seconds.";
+    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "Cannot reach Groq. Check your internet connection.";
+    if (/failed_generation/.test(low)) return "Groq: The model failed to generate a response. Try again.";
+    return `Groq error${detail ? ": " + detail.slice(0, 140) : ""}`;
 }
 
 export function stripImagesIfNeeded(messages: OAIMessage[], caps: ModelCaps): OAIMessage[] {
@@ -167,7 +167,7 @@ export function stripImagesIfNeeded(messages: OAIMessage[], caps: ModelCaps): OA
         if (!msg.content.some((p) => p.type === "image_url")) return msg;
         changed = true;
         const parts = msg.content.map((p) =>
-            p.type === "image_url" ? {type: "text" as const, text: "[görüntü atlandı: bu model görüntü desteklemiyor]"} : p);
+            p.type === "image_url" ? {type: "text" as const, text: "[image skipped: this model does not support images]"} : p);
         return {...msg, content: parts};
     });
     return changed ? out : messages;
@@ -221,7 +221,7 @@ export async function callProxy(
     onDelta?: (text: string) => void,
 ): Promise<OAICompletion> {
     const token = await getAccessToken();
-    if (!token) throw new Error("Deneme modu için giriş yapman gerekiyor. Lütfen oturum aç.");
+    if (!token) throw new Error("You need to sign in to use trial mode. Please log in.");
 
     let resp: Response;
     try {
@@ -237,33 +237,33 @@ export async function callProxy(
             }),
         }, 90_000);
     } catch (e) {
-        if (isTimeoutError(e)) throw new Error("Deneme servisi yanıt vermedi (zaman aşımı). İnternet bağlantını kontrol et veya Ayarlar → Model'den kendi anahtarınla Gelişmiş moda geç.");
-        throw new Error("Deneme servisine ulaşılamıyor. İnternet bağlantını kontrol et veya Ayarlar → Model'den Gelişmiş moda geçebilirsin.");
+        if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.");
+        throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.");
     }
 
     if (resp.status === 429) {
         const info = await resp.json().catch(() => ({}) as Record<string, unknown>);
         const raw = JSON.stringify(info).toLowerCase();
         if ((info as {error?: string}).error === "limit") {
-            const err = new Error((info as {message?: string}).message ?? "Günlük deneme limitin doldu. Kendi Groq anahtarını ekle veya yarın tekrar dene.");
+            const err = new Error((info as {message?: string}).message ?? "Your daily trial limit is used up. Add your own Groq key or try again tomorrow.");
             (err as Error & {isLimit?: boolean}).isLimit = true;
             throw err;
         }
         if (/tpm|tokens per minute|rate_limit|too large/.test(raw)) {
-            throw new Error("Şu an çok yoğunluk var (dakikalık hız limiti). Birkaç saniye bekleyip tekrar dene; mesajın çok uzunsa kısalt.");
+            throw new Error("There's heavy load right now (per-minute rate limit). Wait a few seconds and try again; shorten your message if it's too long.");
         }
-        const err2 = new Error("Deneme servisi geçici olarak meşgul. Birkaç saniye sonra tekrar dene.");
+        const err2 = new Error("The trial service is temporarily busy. Try again in a few seconds.");
         (err2 as Error & {isLimit?: boolean}).isLimit = true;
         throw err2;
     }
-    if (resp.status === 413) throw new Error("Mesajın veya ekli dosyalar çok büyük. Daha kısa bir mesaj veya daha küçük dosya ile dene.");
-    if (resp.status === 401) throw new Error("Deneme modu için oturumun geçersiz. Lütfen çıkış yapıp tekrar giriş yap.");
+    if (resp.status === 413) throw new Error("Your message or attached files are too large. Try a shorter message or a smaller file.");
+    if (resp.status === 401) throw new Error("Your session is invalid for trial mode. Please log out and sign in again.");
     if (!resp.ok || !resp.body) {
         const errText = await resp.text().catch(() => "");
         let detail = "";
         try { const j = JSON.parse(errText); detail = j?.error?.message ?? j?.message ?? j?.error ?? ""; } catch { detail = errText.slice(0, 120); }
-        if (resp.status >= 500) throw new Error("Deneme sunucusunda geçici bir hata oluştu. Tekrar dene.");
-        throw new Error(`Deneme servisi hatası${detail ? ": " + String(detail).slice(0, 120) : ` (${resp.status})`}`);
+        if (resp.status >= 500) throw new Error("A temporary error occurred on the trial server. Try again.");
+        throw new Error(`Trial service error${detail ? ": " + String(detail).slice(0, 120) : ` (${resp.status})`}`);
     }
 
     let fullContent = "";
@@ -331,9 +331,9 @@ export async function callAI(
     const maxTok = clampMaxTokens(reqMaxTok, caps);
     const sendTemp = resolveTemperature(temp, caps);
 
-    // Faz 58 — Boundary Guard: giden içerikte sır (API key/parola/token) varsa
-    // REDAKTE et. Yerel Ollama hariç (içerik kullanıcının makinesinden çıkmıyor);
-    // diğer tüm provider'lar + deneme-modu proxy 3. tarafa içerik gönderir.
+    // Phase 58 — Boundary Guard: REDACT any secrets (API key/password/token) in
+    // outgoing content. Except local Ollama (content never leaves the user's
+    // machine); all other providers + trial-mode proxy send content to a 3rd party.
     if (effectiveProvider !== "ollama") {
         messages = redactMessages(messages);
     }
@@ -448,7 +448,7 @@ export async function callAI(
 
     // ── Gemini ────────────────────────────────────────────────────────────────
     if (provider === "gemini") {
-        if (!key) throw new Error("Gemini API key eksik. Model ayarlarından girin.");
+        if (!key) throw new Error("Gemini API key is missing. Enter it in the model settings.");
         const sysMsg = messages.find((m) => m.role === "system");
         const turns = messages.filter((m) => m.role !== "system");
 
@@ -495,8 +495,8 @@ export async function callAI(
         if (sysMsg?.content) body.systemInstruction = {parts: [{text: extractTextContent(sysMsg.content)}]};
         if (functionDeclarations.length > 0) body.tools = [{functionDeclarations}];
 
-        // Anahtarı query param yerine x-goog-api-key başlığıyla gönder — Google'ın
-        // güncel standardı; ayrıca URL'deki key hata loglarına/proxy'lere sızmaz.
+        // Send the key in the x-goog-api-key header instead of a query param —
+        // Google's current standard; also keeps the key out of error logs/proxies.
         const resp = await fetchWithTimeout(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
             {method: "POST", headers: {"Content-Type": "application/json", "x-goog-api-key": key}, body: JSON.stringify(body)},
@@ -542,18 +542,18 @@ export async function callAI(
                 }),
             }, 60_000);
         } catch {
-            throw new Error("Ollama bağlantı hatası. Ollama çalışıyor mu? (ollama serve)");
+            throw new Error("Ollama connection error. Is Ollama running? (ollama serve)");
         }
         if (!resp.ok) {
             const txt = await resp.text().catch(() => "");
-            throw new Error(`Ollama ${resp.status}: ${txt || "bilinmeyen hata"}`);
+            throw new Error(`Ollama ${resp.status}: ${txt || "unknown error"}`);
         }
         return await resp.json() as OAICompletion;
     }
 
     // ── xAI (Grok) ───────────────────────────────────────────────────────────
     if (provider === "xai") {
-        if (!key) throw new Error("xAI API key eksik. Model ayarlarından girin.");
+        if (!key) throw new Error("xAI API key is missing. Enter it in the model settings.");
         const body: Record<string, unknown> = {model, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;
@@ -571,7 +571,7 @@ export async function callAI(
 
     // ── DeepSeek ─────────────────────────────────────────────────────────────
     if (provider === "deepseek") {
-        if (!key) throw new Error("DeepSeek API key eksik. Model ayarlarından girin.");
+        if (!key) throw new Error("DeepSeek API key is missing. Enter it in the model settings.");
         const body: Record<string, unknown> = {model, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;

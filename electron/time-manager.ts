@@ -56,7 +56,7 @@ export function pomodoroStart(workMinutes = 25, breakMinutes = 5): string {
     if (state.active) {
         const elapsed = Math.floor((Date.now() - state.startedAt) / 60000);
         const total = state.phase === "work" ? state.workMinutes : state.breakMinutes;
-        return `Pomodoro zaten çalışıyor. ${state.phase === "work" ? "Çalışma" : "Mola"} fazı — ${elapsed}/${total} dk geçti. Durdurmak için 'pomodoro_stop'.`;
+        return `Pomodoro is already running. ${state.phase === "work" ? "Work" : "Break"} phase — ${elapsed}/${total} min elapsed. Use 'pomodoro_stop' to stop.`;
     }
 
     const newState: PomodoroState = {
@@ -71,33 +71,33 @@ export function pomodoroStart(workMinutes = 25, breakMinutes = 5): string {
         const s = loadPomodoro();
         if (!s.active) return;
         if (Notification.isSupported()) {
-            new Notification({title: "AEGIS · Pomodoro", body: `${workMinutes} dakikalık çalışma bitti! ${breakMinutes} dk mola.`}).show();
+            new Notification({title: "AEGIS · Pomodoro", body: `${workMinutes}-minute work session done! ${breakMinutes} min break.`}).show();
         }
         savePomodoro({...s, phase: "break", startedAt: Date.now()});
         // Schedule break end
         pomodoroTimer = setTimeout(() => {
             const s2 = loadPomodoro();
             if (s2.active && Notification.isSupported()) {
-                new Notification({title: "AEGIS · Pomodoro", body: "Mola bitti! Tekrar çalışma zamanı."}).show();
+                new Notification({title: "AEGIS · Pomodoro", body: "Break over! Time to get back to work."}).show();
             }
             savePomodoro({...s2, active: false});
         }, breakMinutes * 60 * 1000);
     }, workMinutes * 60 * 1000);
 
-    return `Pomodoro başladı: ${workMinutes} dk çalışma, ${breakMinutes} dk mola. Oturum #${newState.session}`;
+    return `Pomodoro started: ${workMinutes} min work, ${breakMinutes} min break. Session #${newState.session}`;
 }
 
 export function pomodoroStop(): string {
     if (pomodoroTimer) { clearTimeout(pomodoroTimer); pomodoroTimer = null; }
     const state = loadPomodoro();
-    if (!state.active) return "Aktif pomodoro yok.";
+    if (!state.active) return "No active pomodoro.";
     const elapsed = Math.floor((Date.now() - state.startedAt) / 60000);
     savePomodoro({...state, active: false});
-    return `Pomodoro durduruldu. ${state.phase === "work" ? "Çalışma" : "Mola"} fazında ${elapsed} dk geçmişti. Oturum #${state.session} tamamlanmadı.`;
+    return `Pomodoro stopped. ${elapsed} min had elapsed in the ${state.phase === "work" ? "work" : "break"} phase. Session #${state.session} not completed.`;
 }
 
-// Faz 63.4 — Widget için makine-okunur durum. Aktifse "PHASE|remainingSec|session",
-// değilse "INACTIVE". Geri sayım UI tarafında saniye saniye yapılır (bu anlık fotoğraf).
+// Phase 63.4 — Machine-readable status for the widget. If active "PHASE|remainingSec|session",
+// otherwise "INACTIVE". The countdown is done second-by-second on the UI side (this is a snapshot).
 export function pomodoroStatus(): string {
     const state = loadPomodoro();
     if (!state.active) return "INACTIVE";
@@ -108,7 +108,7 @@ export function pomodoroStatus(): string {
 }
 
 export function timeTrackStart(taskName: string): string {
-    if (!taskName.trim()) return "HATA: Görev adı gerekli.";
+    if (!taskName.trim()) return "ERROR: Task name required.";
     const log = loadTimeLog();
     // Stop any active tracking first
     const activeIdx = log.findIndex((e) => !e.stoppedAt);
@@ -119,20 +119,20 @@ export function timeTrackStart(taskName: string): string {
     }
     log.push({task: taskName, startedAt: Date.now()});
     saveTimeLog(log);
-    return `Zaman takibi başladı: "${taskName}"${activeIdx !== -1 ? ` (önceki görev "${log[activeIdx].task}" durduruldu)` : ""}`;
+    return `Time tracking started: "${taskName}"${activeIdx !== -1 ? ` (previous task "${log[activeIdx].task}" stopped)` : ""}`;
 }
 
 export function timeTrackStop(): string {
     const log = loadTimeLog();
     const activeIdx = log.findIndex((e) => !e.stoppedAt);
-    if (activeIdx === -1) return "Aktif zaman takibi yok.";
+    if (activeIdx === -1) return "No active time tracking.";
     const entry = log[activeIdx];
     entry.stoppedAt = Date.now();
     entry.durationMs = entry.stoppedAt - entry.startedAt;
     saveTimeLog(log);
     const mins = Math.floor(entry.durationMs / 60000);
     const secs = Math.floor((entry.durationMs % 60000) / 1000);
-    return `Zaman takibi durduruldu: "${entry.task}" — ${mins} dk ${secs} sn`;
+    return `Time tracking stopped: "${entry.task}" — ${mins} min ${secs} sec`;
 }
 
 export function timeTrackReport(period: string): string {
@@ -144,7 +144,7 @@ export function timeTrackReport(period: string): string {
     else since = new Date().setHours(0, 0, 0, 0);
 
     const entries = log.filter((e) => e.startedAt >= since && e.stoppedAt);
-    if (entries.length === 0) return `${period === "week" ? "Bu hafta" : period === "month" ? "Bu ay" : "Bugün"} kayıtlı zaman yok.`;
+    if (entries.length === 0) return `No recorded time ${period === "week" ? "this week" : period === "month" ? "this month" : "today"}.`;
 
     const taskMap = new Map<string, number>();
     for (const e of entries) {
@@ -153,7 +153,7 @@ export function timeTrackReport(period: string): string {
     const totalMs = [...taskMap.values()].reduce((s, v) => s + v, 0);
     const lines = [...taskMap.entries()]
         .sort((a, b) => b[1] - a[1])
-        .map(([task, ms]) => `• ${task}: ${Math.floor(ms / 60000)} dk`);
-    const label = period === "week" ? "Bu Hafta" : period === "month" ? "Bu Ay" : "Bugün";
-    return `${label} Zaman Raporu:\n${lines.join("\n")}\nToplam: ${Math.floor(totalMs / 60000)} dk`;
+        .map(([task, ms]) => `• ${task}: ${Math.floor(ms / 60000)} min`);
+    const label = period === "week" ? "This Week" : period === "month" ? "This Month" : "Today";
+    return `${label} Time Report:\n${lines.join("\n")}\nTotal: ${Math.floor(totalMs / 60000)} min`;
 }

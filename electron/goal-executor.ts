@@ -1,58 +1,58 @@
 /**
- * Faz 56 — Goal Executor: Plan → Adım → Doğrula → Toparla
+ * Phase 56 — Goal Executor: Plan → Step → Verify → Recover
  *
- * `agent_run` şu ana kadar "8 adım dene, olmazsa pes"ti: plan yok, ara-doğrulama
- * yok, takılınca toparlama yok. Bu modül çok-adımlı görev yürütmenin DOĞRULAMA ve
- * TOPARLAMA çekirdeğini sağlar (saf fonksiyonlar — Electron/IO bağımsız):
+ * Until now `agent_run` was "try 8 steps, then give up": no plan, no intermediate
+ * verification, no recovery when stuck. This module provides the VERIFICATION and
+ * RECOVERY core of multi-step task execution (pure functions — Electron/IO-independent):
  *
- *   1. classifyError  — bir tool sonucunu hata TAKSONOMİSİNE atar (kör tekrar yerine
- *                       strateji değişimi: yeniden dene / argüman düzelt / vazgeç)
- *   2. verifyStep     — adım sonucunun "ilerleme" mi yoksa "tıkanma" mı olduğunu söyler
- *   3. buildPlanPrompt— hedefi plan-temelli bir ajan promptuna çevirir (adım + doğrulama)
+ *   1. classifyError  — assigns a tool result to an error TAXONOMY (strategy change
+ *                       instead of blind retry: retry / fix args / give up)
+ *   2. verifyStep     — tells whether a step's result is "progress" or "stuck"
+ *   3. buildPlanPrompt— turns a goal into a plan-based agent prompt (step + verification)
  *
- * OpenJarvis `agents/executor.py` error taxonomy'sinden (classify_error/retry/
- * escalate/fatal) sadeleştirilerek alındı. Meta-planner ALINMADI.
+ * Distilled from OpenJarvis `agents/executor.py` error taxonomy (classify_error/retry/
+ * escalate/fatal). The meta-planner was NOT adopted.
  */
 
-/** Bir tool sonucunun hata sınıfı. */
+/** The error class of a tool result. */
 export type ErrorKind =
-    | "ok"          // başarı — sonuç hata değil
-    | "transient"   // geçici (ağ/zaman aşımı/meşgul) → YENİDEN DENE mantıklı
-    | "permission"  // yetki/izin reddi → yeniden deneme anlamsız; kullanıcıya sor
-    | "not_found"   // hedef yok (dosya/cihaz/oyun) → argümanı/hedefi DEĞİŞTİR
-    | "invalid_args"// argüman/şema hatası → argümanı DÜZELT, aynısıyla tekrar etme
-    | "blocked"     // loop-guard / izin kapısı / devre dışı → durumu kabul et, dur
-    | "fatal";      // toparlanamaz → görevi sonlandır, net teşhis ver
+    | "ok"          // success — the result is not an error
+    | "transient"   // transient (network/timeout/busy) → RETRY makes sense
+    | "permission"  // auth/permission denial → retry is pointless; ask the user
+    | "not_found"   // target missing (file/device/game) → CHANGE the argument/target
+    | "invalid_args"// argument/schema error → FIX the argument, don't repeat the same
+    | "blocked"     // loop-guard / permission gate / disabled → accept the state, stop
+    | "fatal";      // unrecoverable → end the task, give a clear diagnosis
 
 export interface ErrorVerdict {
     kind: ErrorKind;
-    /** Bu sonuç bir hata mı? (kind !== "ok") */
+    /** Is this result an error? (kind !== "ok") */
     isError: boolean;
-    /** Aynı çağrıyı tekrar denemek mantıklı mı? */
+    /** Does retrying the same call make sense? */
     retriable: boolean;
-    /** Modele/kullanıcıya verilecek kısa Türkçe yönlendirme. */
+    /** A short guidance string for the model/user. */
     advice: string;
 }
 
-// Sonuç metninde aranan desenler (executeTool/tool sonuçları Türkçe + İngilizce karışık).
+// Patterns searched in the result text (executeTool/tool results are a mix of Turkish + English).
 const PATTERNS: {kind: ErrorKind; re: RegExp; retriable: boolean; advice: string}[] = [
     {kind: "blocked", re: /^ENGELLENDI|loop koruması|döngü koruması|kullanıcı onayı reddedildi|devre dışı/i,
-        retriable: false, advice: "Eylem engellendi (döngü/izin/devre dışı). Tekrar deneme; kullanıcıya durumu açıkla."},
+        retriable: false, advice: "Action blocked (loop/permission/disabled). Don't retry; explain the situation to the user."},
     {kind: "permission", re: /\b(401|403|unauthorized|forbidden|yetki|izin yok|permission denied|access denied|premium gerek)/i,
-        retriable: false, advice: "Yetki/izin sorunu. Yeniden deneme; gerekli erişim/anahtar için kullanıcıya sor."},
+        retriable: false, advice: "Auth/permission issue. Don't retry; ask the user for the required access/key."},
     {kind: "not_found", re: /\b(404|not found|bulunamadı|yok\b|mevcut değil|no such|tanımlı değil|geçersiz oyun|cihaz yok)/i,
-        retriable: false, advice: "Hedef bulunamadı. Aynı argümanla tekrar etme; adı/yolu/hedefi düzelt veya alternatif dene."},
+        retriable: false, advice: "Target not found. Don't repeat with the same argument; fix the name/path/target or try an alternative."},
     {kind: "invalid_args", re: /\b(geçersiz|invalid|bad request|400|422|eksik (parametre|argüman)|yanlış format|parse)/i,
-        retriable: false, advice: "Argüman/şema hatası. Aynı argümanları gönderme; düzeltip dene."},
+        retriable: false, advice: "Argument/schema error. Don't send the same arguments; fix them and retry."},
     {kind: "transient", re: /\b(zaman aşımı|timeout|econn|etimedout|503|502|429|rate limit|geçici|temporarily|meşgul|busy|try again)/i,
-        retriable: true, advice: "Geçici hata. Kısa bekleyip BİR kez daha denemek mantıklı."},
+        retriable: true, advice: "Transient error. Waiting briefly and trying ONE more time makes sense."},
     {kind: "fatal", re: /^HATA|^Araç hatası|çalışırken hata|crash|fatal|exception/i,
-        retriable: false, advice: "Toparlanamaz hata. Görevi durdur ve net bir teşhis sun."},
+        retriable: false, advice: "Unrecoverable error. Stop the task and provide a clear diagnosis."},
 ];
 
 /**
- * Bir tool sonucunu hata taksonomisine atar. Sonuç başarılıysa kind="ok".
- * Eşleşme sırası önemlidir (en özelden gevşeğe): blocked > permission > not_found
+ * Assigns a tool result to the error taxonomy. If the result is successful, kind="ok".
+ * Match order matters (most specific to loosest): blocked > permission > not_found
  * > invalid_args > transient > fatal.
  */
 export function classifyError(result: string): ErrorVerdict {
@@ -66,8 +66,8 @@ export function classifyError(result: string): ErrorVerdict {
 }
 
 /**
- * Adım doğrulama: bir adımın sonucu görevi ileri taşıdı mı, yoksa tıkandı mı?
- * "progress" → devam et; "stuck" → strateji değiştir (advice'a göre); "fail" → dur.
+ * Step verification: did a step's result move the task forward, or did it get stuck?
+ * "progress" → continue; "stuck" → change strategy (per advice); "fail" → stop.
  */
 export interface StepVerdict {
     status: "progress" | "retry" | "stuck" | "fail";
@@ -83,23 +83,23 @@ export function verifyStep(result: string): StepVerdict {
 }
 
 /**
- * Hedefi plan-temelli bir ajan promptuna çevirir. Düz "adım adım yap"tan farkı:
- * modelden ÖNCE kısa bir plan, her adımdan SONRA doğrulama ve takılınca alternatif
- * istenir (Faz 53 loop-guard + Faz 54 izin kapısı zaten döngüde devrede).
+ * Turns a goal into a plan-based agent prompt. Difference from plain "do it step by step":
+ * a short plan is requested BEFORE, verification AFTER each step, and an alternative when
+ * stuck (Phase 53 loop-guard + Phase 54 permission gate are already active in the loop).
  */
 export function buildPlanPrompt(goal: string, maxSteps: number): string {
     return [
-        `[AJAN MODU — PLANLA, YAP, DOĞRULA · maks ${maxSteps} adım]`,
-        `Hedef: ${goal}`,
+        `[AGENT MODE — PLAN, ACT, VERIFY · max ${maxSteps} steps]`,
+        `Goal: ${goal}`,
         ``,
-        `Çalışma biçimin:`,
-        `1) Önce hedefi 2-5 somut adıma böl ve kısaca planı yaz.`,
-        `2) Her adımı uygun araçla yap. Adımdan sonra sonucu KONTROL et:`,
-        `   - Başarılıysa sıradaki adıma geç.`,
-        `   - Hedef bulunamadıysa (dosya/cihaz/oyun yok) AYNI argümanı tekrar deneme; adı/yolu düzelt veya alternatif dene.`,
-        `   - Yetki/izin hatasıysa tekrar deneme; kullanıcıya neyin gerektiğini söyle.`,
-        `   - Geçici hata (zaman aşımı/meşgul) ise en fazla BİR kez daha dene.`,
-        `3) Bir adımda takılır ve ilerleyemezsen DUR; ne yaptığını, nerede takıldığını ve önerini özetle. Sonsuz deneme yapma.`,
-        `4) Bitince kısa bir kapanış özeti ver (ne yapıldı / ne yapılamadı).`,
+        `How you work:`,
+        `1) First break the goal into 2-5 concrete steps and briefly write the plan.`,
+        `2) Do each step with the appropriate tool. After a step, CHECK the result:`,
+        `   - If successful, move to the next step.`,
+        `   - If the target was not found (no file/device/game), don't retry the SAME argument; fix the name/path or try an alternative.`,
+        `   - If it's an auth/permission error, don't retry; tell the user what is required.`,
+        `   - If it's a transient error (timeout/busy), retry at most ONE more time.`,
+        `3) If you get stuck on a step and can't progress, STOP; summarize what you did, where you got stuck, and your suggestion. Don't retry forever.`,
+        `4) When done, give a short closing summary (what was done / what couldn't be done).`,
     ].join("\n");
 }

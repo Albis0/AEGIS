@@ -1,10 +1,10 @@
-// AEGIS — Supabase Auth (Faz 30.3)
+// AEGIS — Supabase Auth (Phase 30.3)
 //
-// Main process'te oturum yönetimi. Anon key ile Supabase Auth'a bağlanır;
-// login/signup/logout + token saklama + sessiz yenileme.
+// Session management in the main process. Connects to Supabase Auth with the anon
+// key; login/signup/logout + token storage + silent refresh.
 //
-// Oturum ~/.aegis/session.json'da tutulur. Node'da localStorage olmadığı için
-// supabase-js'e dosya tabanlı bir storage adaptörü veriyoruz.
+// The session is kept in ~/.aegis/session.json. Since Node has no localStorage,
+// we provide supabase-js with a file-based storage adapter.
 
 import * as fs from "fs";
 import * as path from "path";
@@ -18,7 +18,7 @@ const WebSocket = require("ws");
 
 const SESSION_PATH = path.join(os.homedir(), ".aegis", "session.json");
 
-// supabase-js storage arayüzü — senkron dosya okuma/yazma yeterli (tek süreç).
+// supabase-js storage interface — synchronous file read/write is enough (single process).
 const fileStorage = {
     getItem(key: string): string | null {
         try {
@@ -32,7 +32,7 @@ const fileStorage = {
         let all: Record<string, string> = {};
         try {
             all = JSON.parse(fs.readFileSync(SESSION_PATH, "utf-8"));
-        } catch { /* yeni dosya */ }
+        } catch { /* new file */ }
         all[key] = value;
         fs.mkdirSync(path.dirname(SESSION_PATH), {recursive: true});
         fs.writeFileSync(SESSION_PATH, JSON.stringify(all), "utf-8");
@@ -42,7 +42,7 @@ const fileStorage = {
             const all = JSON.parse(fs.readFileSync(SESSION_PATH, "utf-8"));
             delete all[key];
             fs.writeFileSync(SESSION_PATH, JSON.stringify(all), "utf-8");
-        } catch { /* yoksa sorun değil */ }
+        } catch { /* fine if it doesn't exist */ }
     },
 };
 
@@ -85,13 +85,13 @@ export async function signOut(): Promise<void> {
     await getAuthClient().auth.signOut();
 }
 
-// Geçerli oturumu döndürür (varsa otomatik yenilenmiş). Yoksa null.
+// Returns the current session (auto-refreshed if present). Null if none.
 export async function getSession(): Promise<Session | null> {
     const {data} = await getAuthClient().auth.getSession();
     return data.session;
 }
 
-// Proxy çağrıları için taze access_token. Süresi dolmuşsa yeniler.
+// Fresh access_token for proxy calls. Refreshes if expired.
 export async function getAccessToken(): Promise<string | null> {
     try {
         const session = await getSession();
@@ -108,7 +108,7 @@ export async function getCurrentUser(): Promise<{userId: string; email?: string}
     return {userId: session.user.id, email: session.user.email};
 }
 
-// Deneme modu günlük kotası. Edge Function'daki limitlerle TUTARLI tutulmalı.
+// Trial mode daily quota. Must be kept CONSISTENT with the limits in the Edge Function.
 export const TRIAL_DAILY_REQUEST_LIMIT = 50;
 export const TRIAL_DAILY_TOKEN_LIMIT = 100_000;
 
@@ -120,8 +120,8 @@ export interface UsageInfo {
     limitTokens: number;
 }
 
-// Kullanıcının bugünkü (UTC) kullanımını döndürür. RLS sayesinde anon client
-// kendi satırını okuyabilir. Gün sınırı UTC'ye göredir (Edge Function ile aynı).
+// Returns the user's usage for today (UTC). Thanks to RLS, the anon client can
+// read its own row. The day boundary is in UTC (same as the Edge Function).
 export async function getUsage(): Promise<UsageInfo> {
     const base: UsageInfo = {
         signedIn: false,

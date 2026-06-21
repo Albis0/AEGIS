@@ -1,9 +1,9 @@
 /**
- * Faz 16 — Gelişmiş Hafıza
+ * Phase 16 — Advanced Memory
  *
- * 16.1 Kalıcı Gerçekler (Facts): "Bunu bil" ile manuel, ya da konuşmadan otomatik çıkarılır.
- * 16.2 Alışkanlık Takibi: hangi tool'ların kullanıldığı sayılır → sık kullanılanlar önce listelenir.
- * 16.3 Sabah Özeti: ilk açılışta gün özeti hazırlanır (hava, notlar, görevler).
+ * 16.1 Persistent Facts: added manually via "remember this", or auto-extracted from conversation.
+ * 16.2 Habit Tracking: counts which tools are used → most-used ones are listed first.
+ * 16.3 Morning Summary: a daily summary is prepared on first launch (weather, notes, tasks).
  */
 
 import * as fs from "fs";
@@ -15,11 +15,11 @@ import {detectPatterns, buildProactiveSuggestion, type UsageRecord} from "./proa
 const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH  = path.join(BASE, "facts.json");
 const HABITS_PATH = path.join(BASE, "habits.json");
-const USAGE_LOG_PATH = path.join(BASE, "usage-log.json");   // Faz 61 — zaman-damgalı kullanım
+const USAGE_LOG_PATH = path.join(BASE, "usage-log.json");   // Phase 61 — timestamped usage
 
 function ensureDir(): void { fs.mkdirSync(BASE, {recursive: true}); }
 
-// ---- 16.1 Gerçekler (Facts) ----
+// ---- 16.1 Facts ----
 
 export interface Fact {
     id: string;
@@ -39,10 +39,10 @@ function saveFacts(facts: Fact[]): void {
 }
 
 export function addFact(content: string, source: "manual" | "auto" = "manual", tags: string[] = []): string {
-    if (!content.trim()) return "HATA: Boş gerçek eklenemez.";
+    if (!content.trim()) return "ERROR: Cannot add an empty fact.";
     const facts = loadFacts();
     if (facts.some((f) => f.content.toLowerCase() === content.toLowerCase())) {
-        return `Bu gerçek zaten kayıtlı.`;
+        return `This fact is already saved.`;
     }
     const fact: Fact = {
         id: Date.now().toString(36),
@@ -53,56 +53,56 @@ export function addFact(content: string, source: "manual" | "auto" = "manual", t
     };
     facts.push(fact);
     saveFacts(facts);
-    return `Gerçek kaydedildi: "${content}"`;
+    return `Fact saved: "${content}"`;
 }
 
 export function listFacts(filter = ""): string {
     const facts = loadFacts();
-    if (facts.length === 0) return "Kayıtlı gerçek yok. 'Bunu bil: …' ile ekleyebilirsin.";
+    if (facts.length === 0) return "No saved facts. You can add one with 'remember this: …'.";
     const filtered = filter
         ? facts.filter((f) => f.content.toLowerCase().includes(filter.toLowerCase()) || f.tags.some((t) => t.toLowerCase().includes(filter.toLowerCase())))
         : facts;
-    if (filtered.length === 0) return `"${filter}" ile eşleşen gerçek bulunamadı.`;
+    if (filtered.length === 0) return `No facts matching "${filter}".`;
     return filtered.map((f) => `• [${f.id}] ${f.content}${f.tags.length ? " (" + f.tags.join(", ") + ")" : ""}`).join("\n");
 }
 
 export function removeFact(idOrContent: string): string {
     const facts = loadFacts();
     const idx = facts.findIndex((f) => f.id === idOrContent || f.content.toLowerCase().includes(idOrContent.toLowerCase()));
-    if (idx === -1) return `"${idOrContent}" adında/ID'sinde gerçek bulunamadı.`;
+    if (idx === -1) return `No fact found with the name/ID "${idOrContent}".`;
     const removed = facts.splice(idx, 1)[0];
     saveFacts(facts);
-    return `Gerçek silindi: "${removed.content}"`;
+    return `Fact deleted: "${removed.content}"`;
 }
 
 export function getFactsForContext(): string {
     const facts = loadFacts();
     if (facts.length === 0) return "";
-    return `\n\nKAYITLI GERÇEKLER:\n${facts.map((f) => `- ${f.content}`).join("\n")}`;
+    return `\n\nSAVED FACTS:\n${facts.map((f) => `- ${f.content}`).join("\n")}`;
 }
 
-// ---- Faz 57 — Adaptif Hafıza (semantik arama + otomatik çıkarım + çelişki çözme) ----
+// ---- Phase 57 — Adaptive Memory (semantic search + auto-inference + conflict resolution) ----
 
 /**
- * "Geçen ay X hakkında ne demiştim?" — kayıtlı gerçekler içinde anlamca en yakın
- * olanları bulur (yerel token-overlap; embedding gerekmez). Tool: search_memory.
+ * "What did I say about X last month?" — finds the most semantically relevant saved
+ * facts (local token-overlap; no embeddings needed). Tool: search_memory.
  */
 export function searchMemory(query: string, limit = 5): string {
     const facts = loadFacts();
-    if (facts.length === 0) return "Kayıtlı gerçek yok.";
+    if (facts.length === 0) return "No saved facts.";
     const hits = searchFacts(facts, query, limit);
-    if (hits.length === 0) return `"${query}" ile anlamca eşleşen gerçek bulunamadı.`;
-    return `"${query}" için en alakalı gerçekler:\n` +
-        hits.map((h) => `• ${h.fact.content}  (%${Math.round(h.score * 100)} uyum)`).join("\n");
+    if (hits.length === 0) return `No facts semantically matching "${query}".`;
+    return `Most relevant facts for "${query}":\n` +
+        hits.map((h) => `• ${h.fact.content}  (${Math.round(h.score * 100)}% match)`).join("\n");
 }
 
 /**
- * Çelişki-çözen ekleme: yeni gerçek mevcut bir gerçekle aynı özneye sahipse
- * (ör. tekrar "adım …") eskiyi GÜNCELLER, yenisini eklemek yerine. Manuel
- * `remember_fact` ve otomatik çıkarım bunu kullanır.
+ * Conflict-resolving add: if the new fact shares a subject with an existing one
+ * (e.g. "my name …" again) it UPDATES the old one instead of adding a new one. Manual
+ * `remember_fact` and auto-inference both use this.
  */
 export function addFactReconciled(content: string, source: "manual" | "auto" = "manual"): string {
-    if (!content.trim()) return "HATA: Boş gerçek eklenemez.";
+    if (!content.trim()) return "ERROR: Cannot add an empty fact.";
     const facts = loadFacts();
     const subject = subjectOf(content);
     const res = reconcileFact(facts, content, subject);
@@ -110,7 +110,7 @@ export function addFactReconciled(content: string, source: "manual" | "auto" = "
         const out = res.facts as Fact[];
         if (source === "manual") {
             const target = out.find((f) => f.content.trim() === content.trim());
-            if (target) target.source = "manual"; // reconcile auto işaretler; manuel'i koru
+            if (target) target.source = "manual"; // reconcile marks it auto; preserve manual
         }
         saveFacts(out);
     }
@@ -118,9 +118,9 @@ export function addFactReconciled(content: string, source: "manual" | "auto" = "
 }
 
 /**
- * Bir kullanıcı mesajından otomatik gerçek çıkarır ve çelişki-çözerek kaydeder.
- * runAgent her kullanıcı turunda (sessizce) çağırır → AEGIS konuşurken öğrenir.
- * Döndürülen liste, gerçekten yeni/güncellenen gerçeklerin özetidir (boş olabilir).
+ * Auto-extracts facts from a user message and saves them with conflict resolution.
+ * runAgent calls this (silently) on every user turn → AEGIS learns while talking.
+ * The returned list summarizes genuinely new/updated facts (may be empty).
  */
 export function autoLearnFromMessage(message: string): string[] {
     const inferred = inferFacts(message);
@@ -130,7 +130,7 @@ export function autoLearnFromMessage(message: string): string[] {
         const facts = loadFacts();
         const res = reconcileFact(facts, inf.content, inf.subject);
         if (res.action !== "duplicate") {
-            // çıkarılan tag'leri uygula
+            // apply the inferred tags
             const updated = res.facts as Fact[];
             const target = updated.find((f) => f.content.trim() === inf.content.trim());
             if (target && inf.tags.length) target.tags = inf.tags;
@@ -141,7 +141,7 @@ export function autoLearnFromMessage(message: string): string[] {
     return learned;
 }
 
-// ---- 16.2 Alışkanlık Takibi ----
+// ---- 16.2 Habit Tracking ----
 
 interface HabitEntry {
     tool: string;
@@ -168,12 +168,12 @@ export function recordToolUsage(toolName: string): void {
         habits.push({tool: toolName, count: 1, lastUsed: new Date().toISOString()});
     }
     saveHabits(habits);
-    recordUsageTimestamped(toolName);   // Faz 61 — zamansal örüntü için
+    recordUsageTimestamped(toolName);   // Phase 61 — for temporal patterns
 }
 
-// ---- Faz 61 — Proaktif örüntü öğrenme (opt-in) ----
+// ---- Phase 61 — Proactive pattern learning (opt-in) ----
 
-const MAX_USAGE_LOG = 500;   // son N kullanım; alışkanlık çıkarımına yeter, dosya şişmez
+const MAX_USAGE_LOG = 500;   // last N uses; enough for habit inference, keeps the file from bloating
 
 function loadUsageLog(): UsageRecord[] {
     try { return JSON.parse(fs.readFileSync(USAGE_LOG_PATH, "utf-8")); } catch { return []; }
@@ -188,14 +188,15 @@ function recordUsageTimestamped(tool: string): void {
     catch (e) { console.error("[usage-log]", (e as Error).message); }
 }
 
-/** Tespit edilen zamansal alışkanlık örüntülerini döndürür (opt-in'den bağımsız ham veri). */
+/** Returns the detected temporal habit patterns (raw data, independent of opt-in). */
 export function getProactivePatterns(): ReturnType<typeof detectPatterns> {
     return detectPatterns(loadUsageLog());
 }
 
 /**
- * Opt-in proaktif öneri. `enabled` false (varsayılan) ise null döner — güven tabanı
- * kurulmadan ters tepmesin. Açıksa en güçlü zamansal örüntüleri özetler.
+ * Opt-in proactive suggestion. Returns null when `enabled` is false (the default) — so it
+ * doesn't backfire before a trust baseline is established. When enabled, it summarizes the
+ * strongest temporal patterns.
  */
 export function getProactiveSuggestion(enabled: boolean): string | null {
     return buildProactiveSuggestion(loadUsageLog(), enabled);
@@ -207,11 +208,11 @@ export function getTopTools(n = 5): {tool: string; count: number}[] {
 
 export function listHabits(): string {
     const habits = getTopTools(10);
-    if (habits.length === 0) return "Henüz alışkanlık verisi yok.";
-    return `En sık kullanılan araçlar:\n${habits.map((h, i) => `${i + 1}. ${h.tool} — ${h.count} kullanım`).join("\n")}`;
+    if (habits.length === 0) return "No habit data yet.";
+    return `Most frequently used tools:\n${habits.map((h, i) => `${i + 1}. ${h.tool} — ${h.count} uses`).join("\n")}`;
 }
 
-// ---- 16.3 Sabah Özeti ----
+// ---- 16.3 Morning Summary ----
 
 const MORNING_CHECK_PATH = path.join(BASE, "morning-check.json");
 
@@ -235,6 +236,6 @@ export function markMorningSummaryShown(): void {
 
 export function buildMorningSummaryPrompt(): string {
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Günaydın" : hour < 18 ? "İyi günler" : "İyi akşamlar";
-    return `${greeting}! Günlük özet hazırla: 1) Hava durumunu al. 2) Bekleyen notları kontrol et. 3) Zamanlanmış görevleri listele. Kısa ve sade tut.`;
+    const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    return `${greeting}! Prepare a daily summary: 1) Get the weather. 2) Check pending notes. 3) List scheduled tasks. Keep it short and simple.`;
 }

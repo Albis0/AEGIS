@@ -40,7 +40,7 @@ function parseRss(xml: string, maxItems: number): string[] {
     let m: RegExpExecArray | null;
     while ((m = itemRe.exec(xml)) !== null && results.length < maxItems) {
         const block = m[1];
-        const title = titleRe.exec(block)?.[1]?.trim() ?? "(başlık yok)";
+        const title = titleRe.exec(block)?.[1]?.trim() ?? "(no title)";
         const link = linkRe.exec(block)?.[1]?.trim() ?? "";
         results.push(link ? `${title}\n  ${link}` : title);
     }
@@ -49,7 +49,7 @@ function parseRss(xml: string, maxItems: number): string[] {
         const entryRe = /<entry[^>]*>([\s\S]*?)<\/entry>/gi;
         while ((m = entryRe.exec(xml)) !== null && results.length < maxItems) {
             const block = m[1];
-            const title = titleRe.exec(block)?.[1]?.trim() ?? "(başlık yok)";
+            const title = titleRe.exec(block)?.[1]?.trim() ?? "(no title)";
             results.push(title);
         }
     }
@@ -57,12 +57,12 @@ function parseRss(xml: string, maxItems: number): string[] {
 }
 
 export function rssAdd(url: string, label: string): string {
-    if (!url.startsWith("http")) return "HATA: Geçerli bir RSS/Atom URL girin.";
+    if (!url.startsWith("http")) return "ERROR: Enter a valid RSS/Atom URL.";
     const feeds: Feed[] = load(FEEDS_PATH, []);
-    if (feeds.find((f) => f.url === url)) return `Feed zaten kayıtlı: ${url}`;
+    if (feeds.find((f) => f.url === url)) return `Feed already registered: ${url}`;
     feeds.push({url, label: label || url, addedAt: new Date().toISOString()});
     save(FEEDS_PATH, feeds);
-    return `Feed eklendi: "${label || url}"`;
+    return `Feed added: "${label || url}"`;
 }
 
 export function rssRemove(url: string): string {
@@ -70,18 +70,18 @@ export function rssRemove(url: string): string {
     const before = feeds.length;
     const filtered = feeds.filter((f) => f.url !== url && f.label !== url);
     save(FEEDS_PATH, filtered);
-    return before === filtered.length ? "Feed bulunamadı." : "Feed silindi.";
+    return before === filtered.length ? "Feed not found." : "Feed removed.";
 }
 
 export function rssList(): string {
     const feeds: Feed[] = load(FEEDS_PATH, []);
-    if (feeds.length === 0) return "Kayıtlı feed yok. rss_add ile ekle.";
+    if (feeds.length === 0) return "No registered feeds. Add one with rss_add.";
     return feeds.map((f, i) => `${i + 1}. ${f.label}\n   ${f.url}`).join("\n");
 }
 
 export async function rssFetch(count: number): Promise<string> {
     const feeds: Feed[] = load(FEEDS_PATH, []);
-    if (feeds.length === 0) return "Kayıtlı feed yok. rss_add ile ekle.";
+    if (feeds.length === 0) return "No registered feeds. Add one with rss_add.";
     const itemsPerFeed = Math.max(3, Math.floor((count || 10) / feeds.length));
     const results: string[] = [];
     for (const feed of feeds) {
@@ -90,7 +90,7 @@ export async function rssFetch(count: number): Promise<string> {
             const items = parseRss(xml, itemsPerFeed);
             results.push(`── ${feed.label} ──\n${items.join("\n")}`);
         } catch (e) {
-            results.push(`── ${feed.label} ── (HATA: ${(e as Error).message})`);
+            results.push(`── ${feed.label} ── (ERROR: ${(e as Error).message})`);
         }
     }
     return results.join("\n\n");
@@ -106,9 +106,9 @@ export async function getPrice(symbols: string): Promise<string> {
             const price = j?.chart?.result?.[0]?.meta?.regularMarketPrice;
             const currency = j?.chart?.result?.[0]?.meta?.currency ?? "";
             if (price != null) results.push(`${sym}: ${price.toFixed(2)} ${currency}`);
-            else results.push(`${sym}: fiyat alınamadı`);
+            else results.push(`${sym}: price unavailable`);
         } catch {
-            results.push(`${sym}: HATA (Yahoo Finance erişilemedi)`);
+            results.push(`${sym}: ERROR (could not reach Yahoo Finance)`);
         }
     }
     return results.join("\n");
@@ -122,9 +122,9 @@ export async function getCryptoPrice(coins: string): Promise<string> {
         return Object.entries(j).map(([coin, prices]) => {
             const p = prices as Record<string, number>;
             return `${coin.toUpperCase()}: $${p.usd?.toLocaleString("en-US")} / ₺${p.try?.toLocaleString("tr-TR")}`;
-        }).join("\n") || "Sonuç bulunamadı.";
+        }).join("\n") || "No results found.";
     } catch (e) {
-        return `HATA: ${(e as Error).message}`;
+        return `ERROR: ${(e as Error).message}`;
     }
 }
 
@@ -139,10 +139,10 @@ export async function getFxRate(pairs: string): Promise<string> {
             const fromRate = from === "USD" ? 1 : (1 / (rates[from] ?? NaN));
             const toRate = to === "USD" ? 1 : (rates[to] ?? NaN);
             const rate = fromRate * toRate;
-            return isNaN(rate) ? `${pair}: bilinmiyor` : `${from}/${to}: ${rate.toFixed(4)}`;
+            return isNaN(rate) ? `${pair}: unknown` : `${from}/${to}: ${rate.toFixed(4)}`;
         }).join("\n");
     } catch (e) {
-        return `HATA: ${(e as Error).message}`;
+        return `ERROR: ${(e as Error).message}`;
     }
 }
 
@@ -150,12 +150,12 @@ export function priceAlertSet(symbol: string, type: "crypto" | "stock" | "fx", a
     const alerts: PriceAlert[] = load(PRICE_ALERTS_PATH, []);
     alerts.push({symbol, type, above, below});
     save(PRICE_ALERTS_PATH, alerts);
-    const cond = [above != null ? `>${above}` : null, below != null ? `<${below}` : null].filter(Boolean).join(" veya ");
-    return `Fiyat aleti eklendi: ${symbol} ${cond}`;
+    const cond = [above != null ? `>${above}` : null, below != null ? `<${below}` : null].filter(Boolean).join(" or ");
+    return `Price alert added: ${symbol} ${cond}`;
 }
 
 export function portfolioSummary(): string {
     const portfolio: Record<string, number> = load(PORTFOLIO_PATH, {});
-    if (Object.keys(portfolio).length === 0) return "Portföy boş. portfolio_add ile sembol ekle.";
-    return "Portföy listesi: " + Object.entries(portfolio).map(([sym, qty]) => `${sym}×${qty}`).join(", ") + ". Anlık fiyat için price_get kullan.";
+    if (Object.keys(portfolio).length === 0) return "Portfolio is empty. Add a symbol with portfolio_add.";
+    return "Portfolio list: " + Object.entries(portfolio).map(([sym, qty]) => `${sym}×${qty}`).join(", ") + ". Use price_get for live prices.";
 }

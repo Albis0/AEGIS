@@ -1,9 +1,9 @@
-// AEGIS — canlı model listesi çekme (provider güvenilirliği)
+// AEGIS — fetching the live model list (provider reliability)
 //
-// Hardcoded model listeleri zamanla eskiyor / uydurma ID içeriyordu (404'e
-// sebep oluyordu). Bunun yerine her provider'ın resmi "model listele"
-// endpoint'inden canlı çekiyoruz. API key girilince gerçek, çalışan modeller
-// gelir; uydurma ID kalmaz.
+// Hardcoded model lists go stale over time / contained made-up IDs (which
+// caused 404s). Instead we fetch live from each provider's official "list
+// models" endpoint. Once an API key is entered, real, working models are
+// returned; no more made-up IDs.
 
 import {fetchWithTimeout} from "./fetch-utils";
 
@@ -12,7 +12,7 @@ export interface LiveModel {
     label?: string;
 }
 
-// Sohbet dışı / kullanılamaz modelleri ele (whisper, tts, embedding, guard, vb.)
+// Filter out non-chat / unusable models (whisper, tts, embedding, guard, etc.)
 function isChatModel(id: string): boolean {
     return !/whisper|tts|embed|guard|orpheus|moderation|rerank|dall-e|image|vision-only/i.test(id);
 }
@@ -25,7 +25,7 @@ async function fetchOpenAICompat(baseUrl: string, key: string): Promise<LiveMode
 }
 
 async function fetchGemini(key: string): Promise<LiveModel[]> {
-    // Anahtar query param yerine başlıkta — loglara/proxy'lere sızmaz (ai-client ile tutarlı).
+    // Key in the header instead of a query param — won't leak to logs/proxies (consistent with ai-client).
     const resp = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {headers: {"x-goog-api-key": key}}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string; supportedGenerationMethods?: string[]}[]};
@@ -51,19 +51,19 @@ async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
     return (data.models ?? []).map((m) => ({id: m.name}));
 }
 
-// Groq fallback — API erişilemez olduğunda gösterilecek bilinen, AKTİF modeller.
-// (Haziran 2026: gemma2-9b-it, mistral-saba-24b ve llama-4-maverick Groq
-// production listesinden kalktı/deprecate edildi → fallback'ten çıkarıldı.
-// Yerlerine Groq'un önerdiği gpt-oss serisi eklendi. Scout vision için tutuldu.)
+// Groq fallback — known, ACTIVE models to show when the API is unreachable.
+// (June 2026: gemma2-9b-it, mistral-saba-24b and llama-4-maverick were removed/
+// deprecated from Groq's production list → dropped from the fallback. Replaced
+// with Groq's recommended gpt-oss series. Scout kept for vision.)
 const GROQ_FALLBACK: LiveModel[] = [
     {id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)"},
     {id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq)"},
     {id: "openai/gpt-oss-120b", label: "GPT-OSS 120B (Groq)"},
     {id: "openai/gpt-oss-20b", label: "GPT-OSS 20B (Groq)"},
-    {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout · Vizyon (Groq)"},
+    {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout · Vision (Groq)"},
 ];
 
-// provider + key (+ ollama url) → canlı model listesi. Hata olursa fallback döner.
+// provider + key (+ ollama url) → live model list. Returns the fallback on error.
 export async function fetchModels(provider: string, key: string, ollamaUrl?: string): Promise<LiveModel[]> {
     try {
         switch (provider) {
@@ -78,7 +78,7 @@ export async function fetchModels(provider: string, key: string, ollamaUrl?: str
             default:         return [];
         }
     } catch (e) {
-        console.error(`[models] ${provider} model listesi çekilemedi:`, (e as Error).message);
+        console.error(`[models] failed to fetch ${provider} model list:`, (e as Error).message);
         if (provider === "groq") return GROQ_FALLBACK;
         return [];
     }

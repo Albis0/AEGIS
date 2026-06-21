@@ -1,9 +1,9 @@
 /**
  * Spotify Web API — OAuth2 PKCE + full control
  *
- * Client ID ve Secret vault'ta saklanır (aegis-config veya vaultGet).
- * İlk çalıştırmada tarayıcı açılır, kullanıcı Spotify'a login olur,
- * callback port:17832'ye gelir, token alınır ve şifreli olarak kaydedilir.
+ * Client ID and Secret are stored in the vault (aegis-config or vaultGet).
+ * On first run a browser opens, the user logs in to Spotify, the callback
+ * arrives on port:17832, the token is obtained and saved encrypted.
  *
  * Scopes: streaming, user-read-playback-state, user-modify-playback-state,
  *         user-read-currently-playing, playlist-read-private,
@@ -55,10 +55,10 @@ function saveToken(data: TokenData): void {
     } catch (e) {
         const code = (e as NodeJS.ErrnoException).code;
         const msg = code === "EACCES"
-            ? "Spotify token kaydedilemedi: dosya izni hatası."
+            ? "Could not save Spotify token: file permission error."
             : code === "ENOSPC"
-            ? "Spotify token kaydedilemedi: disk dolu."
-            : `Spotify token kaydedilemedi: ${(e as Error).message}`;
+            ? "Could not save Spotify token: disk full."
+            : `Could not save Spotify token: ${(e as Error).message}`;
         console.error("[spotify]", msg);
     }
 }
@@ -76,15 +76,15 @@ function generateChallenge(verifier: string): string {
 let _pendingVerifier: string | null = null;
 let _callbackServer: http.Server | null = null;
 
-// Tarayıcıda görünen callback sayfası — AEGIS marka çizgisinde (koyu zemin,
-// gradient logo, Inter). Çıplak Times New Roman HTML yerine.
+// The callback page shown in the browser — in the AEGIS brand style (dark background,
+// gradient logo, Inter). Instead of bare Times New Roman HTML.
 function callbackPage(opts: {ok: boolean; title: string; sub: string}): string {
     const {ok, title, sub} = opts;
     const accent = ok ? "52, 211, 153" : "248, 113, 113"; // emerald | red-400
     const icon = ok
         ? '<path d="M20 6 9 17l-5-5" stroke="rgb(' + accent + ')" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
         : '<circle cx="12" cy="12" r="9" stroke="rgb(' + accent + ')" stroke-width="2.2"/><path d="M12 7v6m0 4h.01" stroke="rgb(' + accent + ')" stroke-width="2.2" stroke-linecap="round"/>';
-    return `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AEGIS · Spotify</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -124,7 +124,7 @@ function callbackPage(opts: {ok: boolean; title: string; sub: string}): string {
     <div class="badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none">${icon}</svg></div>
     <h1>${title}</h1>
     <p>${sub}</p>
-    <div class="hint">Bu sekmeyi kapatıp AEGIS'e dönebilirsin.</div>
+    <div class="hint">You can close this tab and return to AEGIS.</div>
   </div>
 </body></html>`;
 }
@@ -135,7 +135,7 @@ function sendPage(res: http.ServerResponse, opts: {ok: boolean; title: string; s
 }
 
 export async function spotifyAuthorize(): Promise<string> {
-    if (_callbackServer) return "Yetkilendirme zaten devam ediyor. Lütfen tarayıcıda giriş yap.";
+    if (_callbackServer) return "Authorization is already in progress. Please log in in the browser.";
 
     const verifier = generateVerifier();
     const challenge = generateChallenge(verifier);
@@ -153,7 +153,7 @@ export async function spotifyAuthorize(): Promise<string> {
     });
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
 
-    // Callback sunucusu — tek seferlik
+    // Callback server — one-shot
     await new Promise<void>((resolve, reject) => {
         const server = http.createServer(async (req, res) => {
             const url = new URL(req.url ?? "/", "http://localhost");
@@ -163,19 +163,19 @@ export async function spotifyAuthorize(): Promise<string> {
             const err = url.searchParams.get("error");
 
             if (err || !code) {
-                sendPage(res, {ok: false, title: "Yetkilendirme iptal edildi", sub: err ?? "Yetki kodu alınamadı. Tekrar deneyebilirsin."});
+                sendPage(res, {ok: false, title: "Authorization canceled", sub: err ?? "Could not get the authorization code. You can try again."});
                 server.close();
                 _callbackServer = null;
-                reject(new Error(err ?? "code yok"));
+                reject(new Error(err ?? "no code"));
                 return;
             }
 
             try {
                 const token = await exchangeCode(code, _pendingVerifier ?? "");
                 saveToken(token);
-                sendPage(res, {ok: true, title: "Spotify bağlandı", sub: "AEGIS artık müziğini kontrol edebilir."});
+                sendPage(res, {ok: true, title: "Spotify connected", sub: "AEGIS can now control your music."});
             } catch (e) {
-                sendPage(res, {ok: false, title: "Bağlantı başarısız", sub: (e as Error).message});
+                sendPage(res, {ok: false, title: "Connection failed", sub: (e as Error).message});
             }
             server.close();
             _callbackServer = null;
@@ -185,9 +185,9 @@ export async function spotifyAuthorize(): Promise<string> {
 
         server.listen(17832, "127.0.0.1", () => {
             _callbackServer = server;
-            // Tarayıcıyı aç
+            // Open the browser
             execCb(`cmd /c start "" "${authUrl}"`, {windowsHide: true}, () => {});
-            resolve(); // sunucu açıldı, devam et — callback async gelecek
+            resolve(); // server is up, continue — the callback will arrive async
         });
 
         server.on("error", (e) => {
@@ -196,7 +196,7 @@ export async function spotifyAuthorize(): Promise<string> {
         });
     });
 
-    return `Spotify yetkilendirme tarayıcıda açıldı. Giriş yap ve izin ver. Tamamlanınca AEGIS otomatik token alacak.`;
+    return `Spotify authorization opened in the browser. Log in and grant access. Once done, AEGIS will get the token automatically.`;
 }
 
 async function exchangeCode(code: string, verifier: string): Promise<TokenData> {
@@ -245,10 +245,10 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
     };
 }
 
-// ── Token getter — otomatik yenileme ─────────────────────────────────────────
+// ── Token getter — automatic refresh ─────────────────────────────────────────
 async function getToken(): Promise<string> {
     let token = loadToken();
-    if (!token) throw new Error("Spotify hesabı bağlı değil. 'Spotify bağla' veya 'Spotify yetkilendir' de.");
+    if (!token) throw new Error("No Spotify account is connected. Say 'connect Spotify' or 'authorize Spotify'.");
 
     if (Date.now() > token.expires_at - 30_000) {
         token = await refreshAccessToken(token.refresh_token);
@@ -280,30 +280,30 @@ async function api(
     return {ok: resp.ok, status: resp.status, data};
 }
 
-// ── Spotify bağlantı hatası çevirici ─────────────────────────────────────────
+// ── Spotify connection error translator ──────────────────────────────────────
 function spotifyConnErr(e: unknown): string {
-    if (isTimeoutError(e)) return "Spotify'a bağlanırken zaman aşımı. İnternet bağlantını kontrol et.";
+    if (isTimeoutError(e)) return "Timed out connecting to Spotify. Check your internet connection.";
     const msg = (e as Error).message ?? String(e);
-    if (/ENOTFOUND|ECONNREFUSED|fetch failed/i.test(msg)) return "Spotify sunucusuna ulaşılamıyor. İnternet bağlantını kontrol et.";
-    if (msg.includes("bağlı değil") || msg.includes("not authorized")) return "Spotify AEGIS'e bağlı değil. 'spotify bağla' diyerek yetkilendir.";
-    if (msg.includes("No active device")) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç ve bir şey çal.";
-    return `Spotify hatası: ${msg}`;
+    if (/ENOTFOUND|ECONNREFUSED|fetch failed/i.test(msg)) return "Cannot reach the Spotify server. Check your internet connection.";
+    if (msg.includes("not connected") || msg.includes("not authorized")) return "Spotify is not connected to AEGIS. Say 'connect Spotify' to authorize.";
+    if (msg.includes("No active device")) return "No active Spotify device. Open the Spotify app and play something.";
+    return `Spotify error: ${msg}`;
 }
 
-// ── Spotify HTTP hata mesajı çevirici ─────────────────────────────────────────
+// ── Spotify HTTP error message translator ─────────────────────────────────────
 function spotifyErr(status: number, data?: unknown): string {
     const msg = (data as {error?: {message?: string}})?.error?.message ?? "";
     const low = msg.toLowerCase();
-    if (status === 401) return "Spotify oturumu sona erdi. 'Spotify bağla' diyerek yeniden yetkilendir.";
+    if (status === 401) return "Your Spotify session has expired. Say 'connect Spotify' to re-authorize.";
     if (status === 403) {
-        if (/premium/i.test(low)) return "Bu özellik için Spotify Premium gerekiyor.";
-        if (/not.*register|developer/i.test(low)) return "Bu Spotify hesabı uygulamaya kayıtlı değil. Geliştirici panelinden eklenmen gerekiyor.";
-        return `Spotify: Erişim reddedildi (403)${msg ? " — " + msg : ""}`;
+        if (/premium/i.test(low)) return "This feature requires Spotify Premium.";
+        if (/not.*register|developer/i.test(low)) return "This Spotify account is not registered with the app. It needs to be added from the developer dashboard.";
+        return `Spotify: Access denied (403)${msg ? " — " + msg : ""}`;
     }
-    if (status === 404) return "Spotify'da aktif çalar bulunamadı. Spotify'ı aç ve müzik çalmayı başlat.";
-    if (status === 429) return "Spotify çok fazla istek aldı. Birkaç saniye bekleyip tekrar dene.";
-    if (status >= 500) return "Spotify sunucusu geçici hata verdi. Biraz bekleyip tekrar dene.";
-    return msg ? `Spotify: ${msg}` : `Spotify hatası (${status})`;
+    if (status === 404) return "No active Spotify player found. Open Spotify and start playing music.";
+    if (status === 429) return "Spotify received too many requests. Wait a few seconds and try again.";
+    if (status >= 500) return "The Spotify server returned a temporary error. Wait a bit and try again.";
+    return msg ? `Spotify: ${msg}` : `Spotify error (${status})`;
 }
 
 // ── Active device helper ──────────────────────────────────────────────────────
@@ -315,19 +315,19 @@ async function getActiveDeviceId(): Promise<string | null> {
     return active?.id ?? null;
 }
 
-// ── Spotify kontrolü: cihaz yoksa uygulamayı aç ──────────────────────────────
+// ── Spotify control: if there is no device, open the app ─────────────────────
 async function ensureDevice(): Promise<string | null> {
     let deviceId = await getActiveDeviceId();
     if (deviceId) return deviceId;
 
-    // Spotify masaüstü uygulamasını aç
+    // Open the Spotify desktop app
     execCb(`cmd /c start spotify:`, {windowsHide: true}, () => {});
     await new Promise((r) => setTimeout(r, 3000));
     deviceId = await getActiveDeviceId();
     return deviceId;
 }
 
-// ── Public API fonksiyonları ──────────────────────────────────────────────────
+// ── Public API functions ──────────────────────────────────────────────────────
 
 export async function spotifyAuthorizeCmd(): Promise<string> {
     return spotifyAuthorize();
@@ -339,11 +339,11 @@ export async function spotifyPlay(): Promise<string> {
         const body = deviceId ? {device_ids: [deviceId], play: true} : undefined;
         await api("PUT", "/me/player", body);
         await api("PUT", "/me/player/play", deviceId ? {device_id: deviceId} : undefined);
-        return "Spotify başlatıldı.";
+        return "Spotify started.";
     } catch (e) {
         const msg = (e as Error).message;
-        if (msg.includes("bağlı değil")) return `${msg} — önce Spotify bağla.`;
-        return `Hata: ${msg}`;
+        if (msg.includes("not connected")) return `${msg} — connect Spotify first.`;
+        return `Error: ${msg}`;
     }
 }
 
@@ -351,7 +351,7 @@ export async function spotifyPause(): Promise<string> {
     try {
         const r = await api("PUT", "/me/player/pause");
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return "Spotify duraklatıldı.";
+        return "Spotify paused.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -386,49 +386,49 @@ export async function spotifySetVolume(level: number): Promise<string> {
             : `/me/player/volume?volume_percent=${clamped}`;
         const r = await api("PUT", endpoint);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return `Ses seviyesi %${clamped} yapıldı.`;
+        return `Volume set to ${clamped}%.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetState(): Promise<string> {
     try {
         const r = await api("GET", "/me/player");
-        if (r.status === 204 || !r.data) return "Spotify'da şu an hiçbir şey çalmıyor.";
+        if (r.status === 204 || !r.data) return "Nothing is playing on Spotify right now.";
         const d = r.data as {
             is_playing: boolean;
             item: {name: string; artists: {name: string}[]; album: {name: string}; duration_ms: number};
             progress_ms: number;
             device: {volume_percent: number};
         };
-        if (!d.item) return "Spotify'da şu an hiçbir şey çalmıyor.";
+        if (!d.item) return "Nothing is playing on Spotify right now.";
         const artists = d.item.artists.map((a) => a.name).join(", ");
         const prog = Math.round(d.progress_ms / 1000);
         const dur = Math.round(d.item.duration_ms / 1000);
         const vol = d.device?.volume_percent ?? -1;
         const m = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-        return `${d.is_playing ? "Oynuyor" : "Duraklatildi"}: ${d.item.name} — ${artists} (${d.item.album.name}) [${m(prog)}/${m(dur)}] {vol:${vol}}`;
+        return `${d.is_playing ? "Playing" : "Paused"}: ${d.item.name} — ${artists} (${d.item.album.name}) [${m(prog)}/${m(dur)}] {vol:${vol}}`;
     } catch (e) {
         const msg = (e as Error).message;
-        if (msg.includes("bağlı değil")) return "Spotify hesabı bağlı değil. 'Spotify bağla' de.";
-        return `Hata: ${msg}`;
+        if (msg.includes("not connected")) return "No Spotify account is connected. Say 'connect Spotify'.";
+        return `Error: ${msg}`;
     }
 }
 
 export async function spotifyOpen(): Promise<string> {
     execCb(`cmd /c start spotify:`, {windowsHide: true}, () => {});
     await new Promise((r) => setTimeout(r, 1500));
-    return "Spotify açıldı.";
+    return "Spotify opened.";
 }
 
 export async function spotifySearchPlay(query: string): Promise<string> {
-    if (!query) return "HATA: Arama sorgusu boş.";
+    if (!query) return "ERROR: Search query is empty.";
     try {
         const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=5`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
-        if (tracks.length === 0) return `"${query}" için sonuç bulunamadı.`;
+        if (tracks.length === 0) return `No results found for "${query}".`;
 
-        // Query kelimelerini track adı + sanatçıyla karşılaştır, en iyi eşleşmeyi seç
+        // Compare the query words against track name + artist, pick the best match
         const qLower = query.toLowerCase();
         const qWords = qLower.split(/\s+/).filter(Boolean);
         const scored = tracks.map((t) => {
@@ -445,8 +445,8 @@ export async function spotifySearchPlay(query: string): Promise<string> {
             ...(deviceId ? {device_id: deviceId} : {}),
         });
         if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
-        return `Caliniyor: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        return `Playing: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifyListPlaylists(): Promise<string> {
@@ -454,50 +454,50 @@ export async function spotifyListPlaylists(): Promise<string> {
         const r = await api("GET", "/me/playlists?limit=20");
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string; tracks: {total: number}}[]}).items ?? [];
-        if (items.length === 0) return "Playlist bulunamadı.";
-        return `Spotify Playlistlerin (${items.length}):\n${items.map((p, i) => `${i + 1}. ${p.name} (${p.tracks.total} sarki) — ID: ${p.id}`).join("\n")}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        if (items.length === 0) return "No playlists found.";
+        return `Your Spotify Playlists (${items.length}):\n${items.map((p, i) => `${i + 1}. ${p.name} (${p.tracks.total} tracks) — ID: ${p.id}`).join("\n")}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
-// "Beğenilen Şarkılar" / "Liked Songs" SPOTIFY'DA NORMAL PLAYLIST DEĞİL — /me/playlists'te
-// görünmez ve context_uri ile çalınamaz. Bu yüzden ayrı ele alınır (saved-tracks → uris).
+// "Liked Songs" is NOT a NORMAL PLAYLIST IN SPOTIFY — it doesn't appear in /me/playlists
+// and can't be played via context_uri. So it is handled separately (saved-tracks → uris).
 const LIKED_ALIASES = ["begenilen", "liked", "liked songs", "favori", "favoriler", "begendiklerim", "kaydedilen", "saved"];
 function isLikedSongs(name: string): boolean {
     const n = name.toLowerCase()
         .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
         .replace(/sarki(lar)?|songs?/g, "").trim();
-    if (n.length < 3) return false; // boş/çok kısa "şarkılar" sonrası false-positive olmasın
+    if (n.length < 3) return false; // avoid a false-positive after an empty/very short "songs"
     return LIKED_ALIASES.some((a) => a.includes(n) || n.includes(a.split(" ")[0]));
 }
 
 async function playLikedSongs(): Promise<string> {
-    // Beğenilen şarkıları çek (max 50) ve uris ile çal — context_uri yok.
+    // Fetch the liked songs (max 50) and play them via uris — no context_uri.
     const r = await api("GET", "/me/tracks?limit=50");
     if (!r.ok) return spotifyErr(r.status, r.data);
     const items = (r.data as {items: {track: {uri: string}}[]}).items ?? [];
     const uris = items.map((it) => it.track?.uri).filter(Boolean);
-    if (uris.length === 0) return "Beğenilen şarkın yok.";
+    if (uris.length === 0) return "You have no liked songs.";
     const deviceId = await ensureDevice();
-    if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+    if (!deviceId) return "No active Spotify device. Open the Spotify app, then try again.";
     const pr = await api("PUT", "/me/player/play", {uris, device_id: deviceId});
     if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
-    return `Beğenilen Şarkılar çalınıyor (${uris.length} şarkı).`;
+    return `Playing Liked Songs (${uris.length} tracks).`;
 }
 
 export async function spotifyPlayPlaylist(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Playlist adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Playlist name or ID is required.";
     try {
-        // ID verildiyse doğrudan çal.
+        // If an ID was given, play it directly.
         if (/^[A-Za-z0-9]{22}$/.test(nameOrId.trim())) {
             const deviceId = await ensureDevice();
-            if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+            if (!deviceId) return "No active Spotify device. Open the Spotify app, then try again.";
             const pr = await api("PUT", "/me/player/play", {context_uri: `spotify:playlist:${nameOrId.trim()}`, device_id: deviceId});
             if (!pr.ok && pr.status !== 204) return spotifyErr(pr.status, pr.data);
-            return `Playlist başlatıldı.`;
+            return `Playlist started.`;
         }
 
-        // İsimle ÖNCE gerçek playlist'lerde ara (kullanıcının "Beğenilen Şarkılar" adında
-        // GERÇEK bir playlist'i olabilir — onu tercih et).
+        // By name, search the REAL playlists FIRST (the user may have an ACTUAL playlist
+        // named "Liked Songs" — prefer that).
         const r = await api("GET", "/me/playlists?limit=50");
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string}[]}).items ?? [];
@@ -507,20 +507,20 @@ export async function spotifyPlayPlaylist(nameOrId: string): Promise<string> {
 
         if (match) {
             const deviceId = await ensureDevice();
-            if (!deviceId) return "Spotify'da aktif cihaz yok. Spotify uygulamasını aç, sonra tekrar dene.";
+            if (!deviceId) return "No active Spotify device. Open the Spotify app, then try again.";
             const pr2 = await api("PUT", "/me/player/play", {context_uri: `spotify:playlist:${match.id}`, device_id: deviceId});
             if (!pr2.ok && pr2.status !== 204) return spotifyErr(pr2.status, pr2.data);
-            return `Playlist başlatıldı: ${match.name}`;
+            return `Playlist started: ${match.name}`;
         }
 
-        // Gerçek playlist bulunamadı — "Beğenilen Şarkılar"/Liked Songs ise özel koleksiyonu çal.
+        // No real playlist found — if it's "Liked Songs", play that special collection.
         if (isLikedSongs(nameOrId)) return await playLikedSongs();
 
-        // Hiçbir şey eşleşmedi — kullanıcının seçebilmesi için mevcutları listele.
+        // Nothing matched — list the available ones so the user can choose.
         const names = items.slice(0, 8).map((p) => `• ${p.name}`).join("\n");
-        return `"${nameOrId}" adında playlist bulunamadı.` +
-            (names ? `\n\nMevcut playlist'lerin:\n${names}` : " Hiç playlist'in yok gibi görünüyor.") +
-            `\n\nNot: Spotify "Beğenilen Şarkılar"ı çalmak için "beğenilenleri çal" diyebilirsin.`;
+        return `No playlist named "${nameOrId}" found.` +
+            (names ? `\n\nYour available playlists:\n${names}` : " It looks like you don't have any playlists.") +
+            `\n\nNote: to play Spotify "Liked Songs", you can say "play my liked songs".`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -528,58 +528,58 @@ export async function spotifyLikeTrack(): Promise<string> {
     try {
         const r = await api("GET", "/me/player/currently-playing");
         const d = r.data as {item: {id: string; name: string}};
-        if (!d?.item) return "Şu an çalan şarkı yok.";
+        if (!d?.item) return "No track is currently playing.";
         await api("PUT", `/me/tracks?ids=${d.item.id}`);
-        return `Beglenildi: ${d.item.name}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        return `Liked: ${d.item.name}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifyAddToQueue(query: string): Promise<string> {
-    if (!query) return "HATA: Şarkı adı gerekli.";
+    if (!query) return "ERROR: Track name is required.";
     try {
         const r = await api("GET", `/search?q=${encodeURIComponent(query)}&type=track&limit=1`);
         const tracks = (r.data as {tracks: {items: {uri: string; name: string; artists: {name: string}[]}[]}}).tracks?.items ?? [];
-        if (tracks.length === 0) return `"${query}" bulunamadı.`;
+        if (tracks.length === 0) return `"${query}" not found.`;
         const track = tracks[0];
         await api("POST", `/me/player/queue?uri=${encodeURIComponent(track.uri)}`);
-        return `Siraya eklendi: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        return `Added to queue: ${track.name} — ${track.artists.map((a) => a.name).join(", ")}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifyListDevices(): Promise<string> {
     try {
         const r = await api("GET", "/me/player/devices");
         const devices = (r.data as {devices: {id: string; name: string; type: string; is_active: boolean; volume_percent: number}[]}).devices ?? [];
-        if (devices.length === 0) return "Aktif Spotify cihazı bulunamadı. Spotify uygulamasını aç.";
-        return `Spotify Cihazlari:\n${devices.map((d) => `${d.is_active ? "[AKTIF] " : ""}${d.name} (${d.type}) — ses: %${d.volume_percent}`).join("\n")}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        if (devices.length === 0) return "No active Spotify device found. Open the Spotify app.";
+        return `Spotify Devices:\n${devices.map((d) => `${d.is_active ? "[ACTIVE] " : ""}${d.name} (${d.type}) — volume: ${d.volume_percent}%`).join("\n")}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifyTransferDevice(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Cihaz adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Device name or ID is required.";
     try {
         const r = await api("GET", "/me/player/devices");
         const devices = (r.data as {devices: {id: string; name: string}[]}).devices ?? [];
         const dev = devices.find((d) => d.id === nameOrId || d.name.toLowerCase().includes(nameOrId.toLowerCase()));
-        if (!dev) return `"${nameOrId}" cihazı bulunamadı. "Spotify cihazları" ile listele.`;
+        if (!dev) return `Device "${nameOrId}" not found. List them with "Spotify devices".`;
         await api("PUT", "/me/player", {device_ids: [dev.id], play: true});
-        return `Muzik ${dev.name} cihazına aktarıldı.`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        return `Music transferred to ${dev.name}.`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifySetShuffle(enabled: boolean): Promise<string> {
     try {
         await api("PUT", `/me/player/shuffle?state=${enabled}`);
-        return `Karistir modu ${enabled ? "acildi" : "kapatildi"}.`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        return `Shuffle mode ${enabled ? "turned on" : "turned off"}.`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 export async function spotifySetRepeat(mode: "off" | "track" | "context"): Promise<string> {
     try {
         await api("PUT", `/me/player/repeat?state=${mode}`);
-        const labels: Record<string, string> = {off: "kapalı", track: "sarki tekrar", context: "liste tekrar"};
-        return `Tekrar modu: ${labels[mode] ?? mode}`;
-    } catch (e) { return `Hata: ${(e as Error).message}`; }
+        const labels: Record<string, string> = {off: "off", track: "repeat track", context: "repeat list"};
+        return `Repeat mode: ${labels[mode] ?? mode}`;
+    } catch (e) { return `Error: ${(e as Error).message}`; }
 }
 
 // ── Player extras ─────────────────────────────────────────────────────────────
@@ -591,7 +591,7 @@ export async function spotifySeek(position_ms: number): Promise<string> {
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
         const m = Math.floor(ms / 60000);
         const s = Math.floor((ms % 60000) / 1000);
-        return `${m}:${String(s).padStart(2, "0")} konumuna gidildi.`;
+        return `Seeked to ${m}:${String(s).padStart(2, "0")}.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -600,9 +600,9 @@ export async function spotifyGetRecentlyPlayed(limit = 20): Promise<string> {
         const r = await api("GET", `/me/player/recently-played?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {track: {name: string; artists: {name: string}[]}; played_at: string}[]}).items ?? [];
-        if (items.length === 0) return "Son dinlenen şarkı bulunamadı.";
-        return `Son Dinlenenler (${items.length}):\n${items.map((it, i) =>
-            `${i + 1}. ${it.track.name} — ${it.track.artists.map((a) => a.name).join(", ")} [${new Date(it.played_at).toLocaleTimeString("tr")}]`
+        if (items.length === 0) return "No recently played tracks found.";
+        return `Recently Played (${items.length}):\n${items.map((it, i) =>
+            `${i + 1}. ${it.track.name} — ${it.track.artists.map((a) => a.name).join(", ")} [${new Date(it.played_at).toLocaleTimeString("en")}]`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
 }
@@ -614,11 +614,11 @@ export async function spotifyGetQueue(): Promise<string> {
         const d = r.data as {currently_playing: {name: string; artists: {name: string}[]} | null; queue: {name: string; artists: {name: string}[]}[]};
         const lines: string[] = [];
         if (d.currently_playing) {
-            lines.push(`Şu an: ${d.currently_playing.name} — ${d.currently_playing.artists.map((a) => a.name).join(", ")}`);
+            lines.push(`Now: ${d.currently_playing.name} — ${d.currently_playing.artists.map((a) => a.name).join(", ")}`);
         }
         const q = d.queue?.slice(0, 10) ?? [];
-        if (q.length === 0) return lines.join("\n") + "\nSırada şarkı yok.";
-        lines.push(`Sıradaki ${q.length} şarkı:`);
+        if (q.length === 0) return lines.join("\n") + "\nNo tracks in the queue.";
+        lines.push(`Next ${q.length} tracks:`);
         q.forEach((t, i) => lines.push(`  ${i + 1}. ${t.name} — ${t.artists.map((a) => a.name).join(", ")}`));
         return lines.join("\n");
     } catch (e) { return spotifyConnErr(e); }
@@ -627,17 +627,17 @@ export async function spotifyGetQueue(): Promise<string> {
 // ── Albums ────────────────────────────────────────────────────────────────────
 
 export async function spotifyGetAlbum(id: string): Promise<string> {
-    if (!id) return "HATA: Albüm ID gerekli.";
+    if (!id) return "ERROR: Album ID is required.";
     try {
         const r = await api("GET", `/albums/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; artists: {name: string}[]; release_date: string; total_tracks: number; label?: string};
-        return `${d.name} — ${d.artists.map((a) => a.name).join(", ")} | Çıkış: ${d.release_date} | ${d.total_tracks} şarkı${d.label ? ` | Etiket: ${d.label}` : ""}`;
+        return `${d.name} — ${d.artists.map((a) => a.name).join(", ")} | Released: ${d.release_date} | ${d.total_tracks} tracks${d.label ? ` | Label: ${d.label}` : ""}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetAlbumTracks(id: string): Promise<string> {
-    if (!id) return "HATA: Albüm ID gerekli.";
+    if (!id) return "ERROR: Album ID is required.";
     try {
         const r = await api("GET", `/albums/${encodeURIComponent(id)}/tracks?limit=50`);
         if (!r.ok) return spotifyErr(r.status, r.data);
@@ -645,7 +645,7 @@ export async function spotifyGetAlbumTracks(id: string): Promise<string> {
         return items.map((t) => {
             const dur = Math.round(t.duration_ms / 1000);
             return `${t.track_number}. ${t.name} [${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}] — ${t.uri}`;
-        }).join("\n") || "Şarkı bulunamadı.";
+        }).join("\n") || "No tracks found.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -654,28 +654,28 @@ export async function spotifyGetSavedAlbums(limit = 20): Promise<string> {
         const r = await api("GET", `/me/albums?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {album: {id: string; name: string; artists: {name: string}[]; release_date: string; total_tracks: number}}[]}).items ?? [];
-        if (items.length === 0) return "Kaydedilmiş albüm yok.";
-        return `Kayıtlı Albümler (${items.length}):\n${items.map((it, i) =>
-            `${i+1}. ${it.album.name} — ${it.album.artists.map((a) => a.name).join(", ")} (${it.album.release_date.slice(0,4)}, ${it.album.total_tracks} şarkı)`
+        if (items.length === 0) return "No saved albums.";
+        return `Saved Albums (${items.length}):\n${items.map((it, i) =>
+            `${i+1}. ${it.album.name} — ${it.album.artists.map((a) => a.name).join(", ")} (${it.album.release_date.slice(0,4)}, ${it.album.total_tracks} tracks)`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifySaveAlbum(id: string): Promise<string> {
-    if (!id) return "HATA: Albüm ID gerekli.";
+    if (!id) return "ERROR: Album ID is required.";
     try {
         const r = await api("PUT", `/me/albums?ids=${encodeURIComponent(id)}`);
         if (!r.ok && r.status !== 200 && r.status !== 204) return spotifyErr(r.status, r.data);
-        return "Albüm kütüphaneye eklendi.";
+        return "Album added to your library.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyRemoveSavedAlbum(id: string): Promise<string> {
-    if (!id) return "HATA: Albüm ID gerekli.";
+    if (!id) return "ERROR: Album ID is required.";
     try {
         const r = await api("DELETE", `/me/albums?ids=${encodeURIComponent(id)}`);
         if (!r.ok && r.status !== 200 && r.status !== 204) return spotifyErr(r.status, r.data);
-        return "Albüm kütüphaneden kaldırıldı.";
+        return "Album removed from your library.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -688,12 +688,12 @@ async function resolveArtistId(nameOrId: string): Promise<{id: string; resolvedN
     const r = await api("GET", `/search?q=${encodeURIComponent(nameOrId)}&type=artist&limit=5`);
     if (!r.ok) return {error: spotifyErr(r.status, r.data)};
     const items = (r.data as {artists: {items: {id: string; name: string}[]}}).artists?.items ?? [];
-    if (items.length === 0) return {error: `"${nameOrId}" adında sanatçı bulunamadı.`};
+    if (items.length === 0) return {error: `No artist named "${nameOrId}" found.`};
     return {id: items[0].id, resolvedName: items[0].name};
 }
 
 export async function spotifyGetArtist(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
@@ -701,48 +701,48 @@ export async function spotifyGetArtist(nameOrId: string): Promise<string> {
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = (r.data ?? {}) as {name?: string; genres?: string[]; followers?: {total?: number}; popularity?: number};
         if (!d.name) return spotifyErr(r.status, r.data);
-        // Spotify bazı token/uygulama tiplerinde followers/genres/popularity döndürmüyor —
-        // yalnızca gerçekten gelen alanları göster, yoksa uydurma 0 yazma.
+        // For some token/app types Spotify doesn't return followers/genres/popularity —
+        // only show fields that actually came back, don't fabricate a 0.
         const parts = [d.name];
-        if (d.followers?.total != null) parts.push(`Takipçi: ${d.followers.total.toLocaleString("tr")}`);
-        if (d.popularity != null) parts.push(`Popülerlik: ${d.popularity}/100`);
-        if (d.genres?.length) parts.push(`Türler: ${d.genres.slice(0, 4).join(", ")}`);
+        if (d.followers?.total != null) parts.push(`Followers: ${d.followers.total.toLocaleString("en")}`);
+        if (d.popularity != null) parts.push(`Popularity: ${d.popularity}/100`);
+        if (d.genres?.length) parts.push(`Genres: ${d.genres.slice(0, 4).join(", ")}`);
         return parts.join(" | ");
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetArtistTopTracks(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
         const r = await api("GET", `/artists/${resolved.id}/top-tracks`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {name: string; popularity: number; uri: string; album: {name: string}}[]}).tracks ?? [];
-        const header = resolved.resolvedName ? `${resolved.resolvedName} — Top Şarkılar:\n` : "";
+        const header = resolved.resolvedName ? `${resolved.resolvedName} — Top Tracks:\n` : "";
         return header + (tracks.slice(0,10).map((t, i) =>
-            `${i+1}. ${t.name} (${t.album.name}) — popülerlik: ${t.popularity} — ${t.uri}`
-        ).join("\n") || "Şarkı bulunamadı.");
+            `${i+1}. ${t.name} (${t.album.name}) — popularity: ${t.popularity} — ${t.uri}`
+        ).join("\n") || "No tracks found.");
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetArtistAlbums(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
         const r = await api("GET", `/artists/${resolved.id}/albums?limit=20&include_groups=album,single`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string; release_date: string; total_tracks: number; album_type: string}[]}).items ?? [];
-        const header = resolved.resolvedName ? `${resolved.resolvedName} — Albümler:\n` : "";
+        const header = resolved.resolvedName ? `${resolved.resolvedName} — Albums:\n` : "";
         return header + (items.map((a, i) =>
-            `${i+1}. ${a.name} (${a.album_type}, ${a.release_date.slice(0,4)}, ${a.total_tracks} şarkı) — ${a.id}`
-        ).join("\n") || "Albüm bulunamadı.");
+            `${i+1}. ${a.name} (${a.album_type}, ${a.release_date.slice(0,4)}, ${a.total_tracks} tracks) — ${a.id}`
+        ).join("\n") || "No albums found.");
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetRelatedArtists(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
@@ -751,31 +751,31 @@ export async function spotifyGetRelatedArtists(nameOrId: string): Promise<string
         const artists = (r.data as {artists: {id: string; name: string; popularity: number; genres: string[]}[]}).artists ?? [];
         return artists.slice(0,10).map((a, i) =>
             `${i+1}. ${a.name} (pop: ${a.popularity}) — ${a.genres.slice(0,2).join(", ")}`
-        ).join("\n") || "Benzer sanatçı bulunamadı.";
+        ).join("\n") || "No related artists found.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
 // ── Tracks ────────────────────────────────────────────────────────────────────
 
 export async function spotifyGetTrack(id: string): Promise<string> {
-    if (!id) return "HATA: Şarkı ID gerekli.";
+    if (!id) return "ERROR: Track ID is required.";
     try {
         const r = await api("GET", `/tracks/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; artists: {name: string}[]; album: {name: string; release_date: string}; duration_ms: number; popularity: number; explicit: boolean; uri: string};
         const dur = Math.round(d.duration_ms / 1000);
-        return `${d.name} — ${d.artists.map((a) => a.name).join(", ")} | Albüm: ${d.album.name} (${d.album.release_date.slice(0,4)}) | Süre: ${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")} | Pop: ${d.popularity} | URI: ${d.uri}`;
+        return `${d.name} — ${d.artists.map((a) => a.name).join(", ")} | Album: ${d.album.name} (${d.album.release_date.slice(0,4)}) | Duration: ${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")} | Pop: ${d.popularity} | URI: ${d.uri}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetAudioFeatures(id: string): Promise<string> {
-    if (!id) return "HATA: Şarkı ID gerekli.";
+    if (!id) return "ERROR: Track ID is required.";
     try {
         const r = await api("GET", `/audio-features/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {tempo: number; energy: number; valence: number; danceability: number; acousticness: number; speechiness: number; key: number; mode: number; time_signature: number};
-        const keys = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
-        return `Tempo: ${Math.round(d.tempo)} BPM | Enerji: ${Math.round(d.energy*100)}% | Neşe: ${Math.round(d.valence*100)}% | Dans: ${Math.round(d.danceability*100)}% | Akustiklik: ${Math.round(d.acousticness*100)}% | Ton: ${keys[d.key] ?? "?"} ${d.mode ? "Major" : "Minor"} | Vuruş: ${d.time_signature}/4`;
+        const keys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+        return `Tempo: ${Math.round(d.tempo)} BPM | Energy: ${Math.round(d.energy*100)}% | Valence: ${Math.round(d.valence*100)}% | Danceability: ${Math.round(d.danceability*100)}% | Acousticness: ${Math.round(d.acousticness*100)}% | Key: ${keys[d.key] ?? "?"} ${d.mode ? "Major" : "Minor"} | Time: ${d.time_signature}/4`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -794,7 +794,7 @@ export async function spotifyGetRecommendations(opts: {
         const r = await api("GET", `/recommendations?${params}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const tracks = (r.data as {tracks: {name: string; artists: {name: string}[]; uri: string}[]}).tracks ?? [];
-        return `Önerilen ${tracks.length} şarkı:\n${tracks.map((t, i) =>
+        return `${tracks.length} recommended tracks:\n${tracks.map((t, i) =>
             `${i+1}. ${t.name} — ${t.artists.map((a) => a.name).join(", ")} — ${t.uri}`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
@@ -803,17 +803,17 @@ export async function spotifyGetRecommendations(opts: {
 // ── Playlists (extended) ──────────────────────────────────────────────────────
 
 export async function spotifyGetPlaylist(id: string): Promise<string> {
-    if (!id) return "HATA: Playlist ID gerekli.";
+    if (!id) return "ERROR: Playlist ID is required.";
     try {
         const r = await api("GET", `/playlists/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; description: string; owner: {display_name: string}; tracks: {total: number}; public: boolean; uri: string};
-        return `${d.name} | Sahibi: ${d.owner.display_name} | ${d.tracks.total} şarkı | ${d.public ? "Herkese açık" : "Gizli"} | URI: ${d.uri}${d.description ? "\nAçıklama: " + d.description : ""}`;
+        return `${d.name} | Owner: ${d.owner.display_name} | ${d.tracks.total} tracks | ${d.public ? "Public" : "Private"} | URI: ${d.uri}${d.description ? "\nDescription: " + d.description : ""}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetPlaylistItems(id: string, limit = 20): Promise<string> {
-    if (!id) return "HATA: Playlist ID gerekli.";
+    if (!id) return "ERROR: Playlist ID is required.";
     try {
         const r = await api("GET", `/playlists/${encodeURIComponent(id)}/tracks?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
@@ -822,39 +822,39 @@ export async function spotifyGetPlaylistItems(id: string, limit = 20): Promise<s
             const t = it.track!;
             const dur = Math.round(t.duration_ms / 1000);
             return `${i+1}. ${t.name} — ${t.artists.map((a) => a.name).join(", ")} [${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}]`;
-        }).join("\n") || "Şarkı bulunamadı.";
+        }).join("\n") || "No tracks found.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyCreatePlaylist(name: string, isPublic = false, description = ""): Promise<string> {
-    if (!name) return "HATA: Playlist adı gerekli.";
+    if (!name) return "ERROR: Playlist name is required.";
     try {
-        // Kullanıcı ID'si lazım
+        // Need the user ID
         const me = await api("GET", "/me");
         if (!me.ok) return spotifyErr(me.status, me.data);
         const userId = (me.data as {id: string}).id;
         const r = await api("POST", `/users/${userId}/playlists`, {name, public: isPublic, description});
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {id: string; uri: string; name: string};
-        return `Playlist oluşturuldu: ${d.name} | ID: ${d.id} | URI: ${d.uri}`;
+        return `Playlist created: ${d.name} | ID: ${d.id} | URI: ${d.uri}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyPlaylistAdd(playlistId: string, uris: string[]): Promise<string> {
-    if (!playlistId || uris.length === 0) return "HATA: Playlist ID ve en az bir URI gerekli.";
+    if (!playlistId || uris.length === 0) return "ERROR: Playlist ID and at least one URI are required.";
     try {
         const r = await api("POST", `/playlists/${encodeURIComponent(playlistId)}/tracks`, {uris});
         if (!r.ok) return spotifyErr(r.status, r.data);
-        return `${uris.length} şarkı playlist'e eklendi.`;
+        return `${uris.length} track(s) added to the playlist.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyPlaylistRemove(playlistId: string, uris: string[]): Promise<string> {
-    if (!playlistId || uris.length === 0) return "HATA: Playlist ID ve en az bir URI gerekli.";
+    if (!playlistId || uris.length === 0) return "ERROR: Playlist ID and at least one URI are required.";
     try {
         const r = await api("DELETE", `/playlists/${encodeURIComponent(playlistId)}/tracks`, {tracks: uris.map((uri) => ({uri}))});
         if (!r.ok) return spotifyErr(r.status, r.data);
-        return `${uris.length} şarkı playlist'ten kaldırıldı.`;
+        return `${uris.length} track(s) removed from the playlist.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -865,7 +865,7 @@ export async function spotifyGetFeaturedPlaylists(): Promise<string> {
         const d = r.data as {message?: string; playlists: {items: {id: string; name: string; description: string; tracks: {total: number}}[]}};
         const items = d.playlists?.items ?? [];
         const header = d.message ? `${d.message}\n` : "";
-        return header + items.map((p, i) => `${i+1}. ${p.name} (${p.tracks.total} şarkı) — ${p.description || ""}`).join("\n");
+        return header + items.map((p, i) => `${i+1}. ${p.name} (${p.tracks.total} tracks) — ${p.description || ""}`).join("\n");
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -876,20 +876,20 @@ export async function spotifyGetSavedTracks(limit = 20): Promise<string> {
         const r = await api("GET", `/me/tracks?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {added_at: string; track: {name: string; artists: {name: string}[]; uri: string}}[]}).items ?? [];
-        if (items.length === 0) return "Beğenilen şarkı yok.";
-        return `Beğenilen Şarkılar (${items.length}):\n${items.map((it, i) =>
+        if (items.length === 0) return "No liked tracks.";
+        return `Liked Songs (${items.length}):\n${items.map((it, i) =>
             `${i+1}. ${it.track.name} — ${it.track.artists.map((a) => a.name).join(", ")}`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyCheckSavedTracks(ids: string[]): Promise<string> {
-    if (ids.length === 0) return "HATA: En az bir şarkı ID gerekli.";
+    if (ids.length === 0) return "ERROR: At least one track ID is required.";
     try {
         const r = await api("GET", `/me/tracks/contains?ids=${ids.slice(0,50).join(",")}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const results = r.data as boolean[];
-        return ids.map((id, i) => `${id}: ${results[i] ? "beğenilmiş" : "beğenilmemiş"}`).join("\n");
+        return ids.map((id, i) => `${id}: ${results[i] ? "liked" : "not liked"}`).join("\n");
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -898,9 +898,9 @@ export async function spotifyGetSavedShows(limit = 20): Promise<string> {
         const r = await api("GET", `/me/shows?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {show: {id: string; name: string; publisher: string; total_episodes: number}}[]}).items ?? [];
-        if (items.length === 0) return "Kayıtlı podcast yok.";
-        return `Kayıtlı Podcastler (${items.length}):\n${items.map((it, i) =>
-            `${i+1}. ${it.show.name} — ${it.show.publisher} (${it.show.total_episodes} bölüm) — ID: ${it.show.id}`
+        if (items.length === 0) return "No saved podcasts.";
+        return `Saved Podcasts (${items.length}):\n${items.map((it, i) =>
+            `${i+1}. ${it.show.name} — ${it.show.publisher} (${it.show.total_episodes} episodes) — ID: ${it.show.id}`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
 }
@@ -910,10 +910,10 @@ export async function spotifyGetSavedEpisodes(limit = 20): Promise<string> {
         const r = await api("GET", `/me/episodes?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {episode: {name: string; show: {name: string}; duration_ms: number; uri: string}}[]}).items ?? [];
-        if (items.length === 0) return "Kayıtlı bölüm yok.";
+        if (items.length === 0) return "No saved episodes.";
         return items.map((it, i) => {
             const dur = Math.round(it.episode.duration_ms / 1000 / 60);
-            return `${i+1}. ${it.episode.name} (${it.episode.show.name}) [${dur} dk]`;
+            return `${i+1}. ${it.episode.name} (${it.episode.show.name}) [${dur} min]`;
         }).join("\n");
     } catch (e) { return spotifyConnErr(e); }
 }
@@ -923,9 +923,9 @@ export async function spotifyGetSavedAudiobooks(limit = 20): Promise<string> {
         const r = await api("GET", `/me/audiobooks?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {id: string; name: string; authors: {name: string}[]; total_chapters: number}[]}).items ?? [];
-        if (items.length === 0) return "Kayıtlı sesli kitap yok.";
+        if (items.length === 0) return "No saved audiobooks.";
         return items.map((b, i) =>
-            `${i+1}. ${b.name} — ${b.authors.map((a) => a.name).join(", ")} (${b.total_chapters} bölüm)`
+            `${i+1}. ${b.name} — ${b.authors.map((a) => a.name).join(", ")} (${b.total_chapters} chapters)`
         ).join("\n");
     } catch (e) { return spotifyConnErr(e); }
 }
@@ -937,7 +937,7 @@ export async function spotifyGetCurrentUser(): Promise<string> {
         const r = await api("GET", "/me");
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {display_name: string; email?: string; country: string; product: string; followers: {total: number}; id: string};
-        return `${d.display_name} | ID: ${d.id}${d.email ? ` | E-posta: ${d.email}` : ""} | Ülke: ${d.country} | Plan: ${d.product} | Takipçi: ${d.followers.total}`;
+        return `${d.display_name} | ID: ${d.id}${d.email ? ` | Email: ${d.email}` : ""} | Country: ${d.country} | Plan: ${d.product} | Followers: ${d.followers.total}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -946,8 +946,8 @@ export async function spotifyGetTopItems(type: "artists" | "tracks", timeRange: 
         const r = await api("GET", `/me/top/${type}?time_range=${timeRange}&limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {name: string; artists?: {name: string}[]; genres?: string[]; popularity: number}[]}).items ?? [];
-        const rangeLabel: Record<string, string> = {short_term: "Son 4 Hafta", medium_term: "Son 6 Ay", long_term: "Tüm Zamanlar"};
-        const header = `En Çok Dinlenen ${type === "artists" ? "Sanatçılar" : "Şarkılar"} (${rangeLabel[timeRange]}):\n`;
+        const rangeLabel: Record<string, string> = {short_term: "Last 4 Weeks", medium_term: "Last 6 Months", long_term: "All Time"};
+        const header = `Top ${type === "artists" ? "Artists" : "Tracks"} (${rangeLabel[timeRange]}):\n`;
         return header + items.map((it, i) => {
             if (type === "artists") return `${i+1}. ${it.name} — ${it.genres?.slice(0,2).join(", ") ?? ""}`;
             return `${i+1}. ${it.name} — ${it.artists?.map((a) => a.name).join(", ") ?? ""}`;
@@ -958,24 +958,24 @@ export async function spotifyGetTopItems(type: "artists" | "tracks", timeRange: 
 // ── Follow ────────────────────────────────────────────────────────────────────
 
 export async function spotifyFollowArtist(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
         const r = await api("PUT", `/me/following?type=artist&ids=${resolved.id}`);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return `${resolved.resolvedName ?? nameOrId} takip edildi.`;
+        return `Now following ${resolved.resolvedName ?? nameOrId}.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyUnfollowArtist(nameOrId: string): Promise<string> {
-    if (!nameOrId) return "HATA: Sanatçı adı veya ID gerekli.";
+    if (!nameOrId) return "ERROR: Artist name or ID is required.";
     try {
         const resolved = await resolveArtistId(nameOrId);
         if ("error" in resolved) return resolved.error;
         const r = await api("DELETE", `/me/following?type=artist&ids=${resolved.id}`);
         if (!r.ok && r.status !== 204) return spotifyErr(r.status, r.data);
-        return `${resolved.resolvedName ?? nameOrId} takipten çıkarıldı.`;
+        return `Unfollowed ${resolved.resolvedName ?? nameOrId}.`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
@@ -984,8 +984,8 @@ export async function spotifyGetFollowedArtists(limit = 20): Promise<string> {
         const r = await api("GET", `/me/following?type=artist&limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const artists = (r.data as {artists: {items: {id: string; name: string; popularity: number; genres: string[]}[]}}).artists?.items ?? [];
-        if (artists.length === 0) return "Takip edilen sanatçı yok.";
-        return `Takip Edilen Sanatçılar (${artists.length}):\n${artists.map((a, i) =>
+        if (artists.length === 0) return "No followed artists.";
+        return `Followed Artists (${artists.length}):\n${artists.map((a, i) =>
             `${i+1}. ${a.name} — pop: ${a.popularity} | ${a.genres.slice(0,2).join(", ")}`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
@@ -998,7 +998,7 @@ export async function spotifyGetNewReleases(limit = 10): Promise<string> {
         const r = await api("GET", `/browse/new-releases?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {albums: {items: {id: string; name: string; artists: {name: string}[]; release_date: string; album_type: string}[]}}).albums?.items ?? [];
-        return `Yeni Çıkanlar (${items.length}):\n${items.map((a, i) =>
+        return `New Releases (${items.length}):\n${items.map((a, i) =>
             `${i+1}. ${a.name} — ${a.artists.map((x) => x.name).join(", ")} (${a.album_type}, ${a.release_date}) — ID: ${a.id}`
         ).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
@@ -1006,58 +1006,58 @@ export async function spotifyGetNewReleases(limit = 10): Promise<string> {
 
 export async function spotifyGetCategories(limit = 20): Promise<string> {
     try {
-        const r = await api("GET", `/browse/categories?limit=${Math.min(50, limit)}&locale=tr_TR`);
+        const r = await api("GET", `/browse/categories?limit=${Math.min(50, limit)}&locale=en_US`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {categories: {items: {id: string; name: string}[]}}).categories?.items ?? [];
-        return `Spotify Kategorileri (${items.length}):\n${items.map((c, i) => `${i+1}. ${c.name} — ID: ${c.id}`).join("\n")}`;
+        return `Spotify Categories (${items.length}):\n${items.map((c, i) => `${i+1}. ${c.name} — ID: ${c.id}`).join("\n")}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 // ── Shows / Episodes / Audiobooks ─────────────────────────────────────────────
 
 export async function spotifyGetShow(id: string): Promise<string> {
-    if (!id) return "HATA: Podcast ID gerekli.";
+    if (!id) return "ERROR: Podcast ID is required.";
     try {
         const r = await api("GET", `/shows/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; publisher: string; description: string; total_episodes: number; explicit: boolean; languages: string[]};
-        return `${d.name} | Yayıncı: ${d.publisher} | ${d.total_episodes} bölüm | Dil: ${d.languages.join(", ")}${d.description ? "\n" + d.description.slice(0,200) : ""}`;
+        return `${d.name} | Publisher: ${d.publisher} | ${d.total_episodes} episodes | Language: ${d.languages.join(", ")}${d.description ? "\n" + d.description.slice(0,200) : ""}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetShowEpisodes(id: string, limit = 10): Promise<string> {
-    if (!id) return "HATA: Podcast ID gerekli.";
+    if (!id) return "ERROR: Podcast ID is required.";
     try {
         const r = await api("GET", `/shows/${encodeURIComponent(id)}/episodes?limit=${Math.min(50, limit)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const items = (r.data as {items: {name: string; description: string; duration_ms: number; release_date: string; uri: string}[]}).items ?? [];
         return items.map((ep, i) => {
             const dur = Math.round(ep.duration_ms / 1000 / 60);
-            return `${i+1}. ${ep.name} [${dur} dk, ${ep.release_date}]\n   ${ep.description.slice(0,100)}…\n   URI: ${ep.uri}`;
-        }).join("\n\n") || "Bölüm bulunamadı.";
+            return `${i+1}. ${ep.name} [${dur} min, ${ep.release_date}]\n   ${ep.description.slice(0,100)}…\n   URI: ${ep.uri}`;
+        }).join("\n\n") || "No episodes found.";
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetEpisode(id: string): Promise<string> {
-    if (!id) return "HATA: Bölüm ID gerekli.";
+    if (!id) return "ERROR: Episode ID is required.";
     try {
         const r = await api("GET", `/episodes/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; description: string; show: {name: string}; duration_ms: number; release_date: string; uri: string};
         const dur = Math.round(d.duration_ms / 1000 / 60);
-        return `${d.name} | Podcast: ${d.show.name} | Süre: ${dur} dk | Yayın: ${d.release_date}\n${d.description.slice(0,300)}`;
+        return `${d.name} | Podcast: ${d.show.name} | Duration: ${dur} min | Released: ${d.release_date}\n${d.description.slice(0,300)}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
 export async function spotifyGetAudiobook(id: string): Promise<string> {
-    if (!id) return "HATA: Sesli kitap ID gerekli.";
+    if (!id) return "ERROR: Audiobook ID is required.";
     try {
         const r = await api("GET", `/audiobooks/${encodeURIComponent(id)}`);
         if (!r.ok) return spotifyErr(r.status, r.data);
         const d = r.data as {name: string; authors: {name: string}[]; narrators: {name: string}[]; description: string; total_chapters: number; languages: string[]};
-        return `${d.name} | Yazar: ${d.authors.map((a) => a.name).join(", ")} | Anlatıcı: ${d.narrators.map((n) => n.name).join(", ")} | ${d.total_chapters} bölüm | Dil: ${d.languages.join(", ")}\n${d.description.slice(0,200)}`;
+        return `${d.name} | Author: ${d.authors.map((a) => a.name).join(", ")} | Narrator: ${d.narrators.map((n) => n.name).join(", ")} | ${d.total_chapters} chapters | Language: ${d.languages.join(", ")}\n${d.description.slice(0,200)}`;
     } catch (e) { return spotifyConnErr(e); }
 }
 
-// Test/görsel doğrulama için callback sayfası üreticisini dışa aç (saf fonksiyon).
+// Export the callback-page generator for tests/visual verification (pure function).
 export const __callbackPageForTest = callbackPage;

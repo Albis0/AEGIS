@@ -1,10 +1,10 @@
 /**
- * Faz 13 — Bilgi Tabanı & RAG
+ * Phase 13 — Knowledge Base & RAG
  *
- * Harici bağımlılık yok. Strateji:
- *  - Dosyaları 800-char chunk'lara böl → ~/.aegis/index/<sha>.json
- *  - Arama: LLM ile keyword extraction → chunk'larda kelime arama (BM25-lite)
- *  - chat_with_file: dosyayı yükle, soruyu LLM'e bağlam olarak ver
+ * No external dependencies. Strategy:
+ *  - Split files into 800-char chunks → ~/.aegis/index/<sha>.json
+ *  - Search: keyword extraction via LLM → word search across chunks (BM25-lite)
+ *  - chat_with_file: load the file, pass the question to the LLM as context
  */
 
 import * as fs from "fs";
@@ -72,7 +72,7 @@ function readTextFile(filePath: string): string {
     if ([".txt", ".md", ".ts", ".js", ".py", ".json", ".csv", ".html", ".xml"].includes(ext)) {
         return fs.readFileSync(filePath, "utf-8");
     }
-    throw new Error(`Desteklenmeyen dosya tipi: ${ext}. Desteklenenler: .txt, .md, .ts, .js, .py, .json, .csv`);
+    throw new Error(`Unsupported file type: ${ext}. Supported: .txt, .md, .ts, .js, .py, .json, .csv`);
 }
 
 function saveChunk(chunk: Chunk): void {
@@ -96,15 +96,15 @@ function deleteChunks(ids: string[]): void {
 
 export function indexFile(filePath: string): string {
     const resolved = filePath.startsWith("~") ? path.join(os.homedir(), filePath.slice(1)) : filePath;
-    if (!fs.existsSync(resolved)) return `HATA: Dosya bulunamadı: ${resolved}`;
+    if (!fs.existsSync(resolved)) return `ERROR: File not found: ${resolved}`;
 
     let content: string;
-    try { content = readTextFile(resolved); } catch (e) { return `HATA: ${(e as Error).message}`; }
+    try { content = readTextFile(resolved); } catch (e) { return `ERROR: ${(e as Error).message}`; }
 
     const hash = fileHash(content);
     const meta = loadMeta();
     const existing = meta.find((m) => m.source === resolved);
-    if (existing?.hash === hash) return `"${path.basename(resolved)}" zaten güncel, yeniden indekslemeye gerek yok.`;
+    if (existing?.hash === hash) return `"${path.basename(resolved)}" is already up to date, no need to reindex.`;
     if (existing) {
         deleteChunks(existing.chunkIds);
         meta.splice(meta.indexOf(existing), 1);
@@ -114,12 +114,12 @@ export function indexFile(filePath: string): string {
     for (const chunk of chunks) saveChunk(chunk);
     meta.push({source: resolved, hash, chunkIds: chunks.map((c) => c.id), indexedAt: new Date().toISOString()});
     saveMeta(meta);
-    return `"${path.basename(resolved)}" indekslendi: ${chunks.length} chunk, ${content.length} karakter.`;
+    return `"${path.basename(resolved)}" indexed: ${chunks.length} chunks, ${content.length} characters.`;
 }
 
 export function indexFolder(folderPath: string, extensions = [".txt", ".md", ".ts", ".js", ".py"]): string {
     const resolved = folderPath.startsWith("~") ? path.join(os.homedir(), folderPath.slice(1)) : folderPath;
-    if (!fs.existsSync(resolved)) return `HATA: Klasör bulunamadı: ${resolved}`;
+    if (!fs.existsSync(resolved)) return `ERROR: Folder not found: ${resolved}`;
 
     let files: string[] = [];
     function walk(dir: string): void {
@@ -132,16 +132,16 @@ export function indexFolder(folderPath: string, extensions = [".txt", ".md", ".t
         }
     }
     walk(resolved);
-    files = files.slice(0, 200); // güvenlik limiti
+    files = files.slice(0, 200); // safety limit
 
     const results = files.map((f) => indexFile(f));
-    const indexed = results.filter((r) => !r.startsWith("HATA") && !r.includes("yeniden indekslemeye gerek yok")).length;
-    return `${indexed} dosya indekslendi (${files.length} toplam). Klasör: ${resolved}`;
+    const indexed = results.filter((r) => !r.startsWith("ERROR") && !r.includes("no need to reindex")).length;
+    return `${indexed} files indexed (${files.length} total). Folder: ${resolved}`;
 }
 
 export function searchKnowledge(query: string, topK = 5): string {
     const meta = loadMeta();
-    if (meta.length === 0) return "Bilgi tabanı boş. Önce 'şu dosyayı indeksle' komutu ver.";
+    if (meta.length === 0) return "Knowledge base is empty. First give an 'index this file' command.";
 
     const queryWords = new Set(tokenize(query));
     const allChunkIds = meta.flatMap((m) => m.chunkIds);
@@ -159,30 +159,30 @@ export function searchKnowledge(query: string, topK = 5): string {
 
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, topK);
-    if (top.length === 0) return `"${query}" için bilgi tabanında eşleşme bulunamadı.`;
+    if (top.length === 0) return `No match found in the knowledge base for "${query}".`;
 
     return top.map((r, i) => {
         const src = path.basename(r.chunk.source);
         const preview = r.chunk.text.slice(0, 300).replace(/\n+/g, " ");
-        return `[${i + 1}] ${src} (skor: ${r.score})\n${preview}…`;
+        return `[${i + 1}] ${src} (score: ${r.score})\n${preview}…`;
     }).join("\n\n");
 }
 
 export function readFileForChat(filePath: string, maxChars = 12000): string {
     const resolved = filePath.startsWith("~") ? path.join(os.homedir(), filePath.slice(1)) : filePath;
-    if (!fs.existsSync(resolved)) return `HATA: Dosya bulunamadı: ${resolved}`;
+    if (!fs.existsSync(resolved)) return `ERROR: File not found: ${resolved}`;
     try {
         const content = readTextFile(resolved);
         if (content.length <= maxChars) return content;
-        return content.slice(0, maxChars) + `\n\n… [${content.length - maxChars} karakter kesildi]`;
+        return content.slice(0, maxChars) + `\n\n… [${content.length - maxChars} characters truncated]`;
     } catch (e) {
-        return `HATA: ${(e as Error).message}`;
+        return `ERROR: ${(e as Error).message}`;
     }
 }
 
 export function listIndexedFiles(): string {
     const meta = loadMeta();
-    if (meta.length === 0) return "İndekslenmiş dosya yok.";
+    if (meta.length === 0) return "No indexed files.";
     return meta.map((m) => {
         const date = new Date(m.indexedAt).toLocaleDateString("tr-TR");
         return `• ${path.basename(m.source)} (${m.chunkIds.length} chunk, ${date})\n  ${m.source}`;
@@ -193,11 +193,11 @@ export function removeFromIndex(filePath: string): string {
     const resolved = filePath.startsWith("~") ? path.join(os.homedir(), filePath.slice(1)) : filePath;
     const meta = loadMeta();
     const idx = meta.findIndex((m) => m.source === resolved || m.source.includes(filePath));
-    if (idx === -1) return `"${filePath}" indekste bulunamadı.`;
+    if (idx === -1) return `"${filePath}" not found in the index.`;
     deleteChunks(meta[idx].chunkIds);
     meta.splice(idx, 1);
     saveMeta(meta);
-    return `"${path.basename(resolved)}" indeksten kaldırıldı.`;
+    return `"${path.basename(resolved)}" removed from the index.`;
 }
 
 export function getTopChunksForQuery(query: string, topK = 6): string {

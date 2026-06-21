@@ -1,23 +1,25 @@
 /**
- * Faz 60 — Computer Use Doğrulama Döngüsü
+ * Phase 60 — Computer Use Verification Loop
  *
- * Faz 47 computer-use KÖR koordinat tıklamasıdır: tıklar ve sonucu görmez. Hedef
- * kaymışsa (pencere taşınmış, layout değişmiş) sessizce yanlış yere tıklar. Bu modül
- * "tıkla → ekran değişti mi DOĞRULA → değişmediyse fark et" döngüsünün saf çekirdeğini
- * sağlar: iki ekran görüntüsünü karşılaştırıp eylemin BİR ETKİ yapıp yapmadığını söyler.
+ * Phase 47 computer-use is BLIND coordinate clicking: it clicks and doesn't see the
+ * result. If the target has shifted (window moved, layout changed) it silently clicks
+ * the wrong place. This module provides the pure core of the "click → VERIFY whether the
+ * screen changed → if not, notice it" loop: it compares two screenshots and tells whether
+ * the action had ANY EFFECT.
  *
- * Saf fonksiyonlar (Electron/IO bağımsız). Gerçek screenshot main.ts callback'inden
- * gelir; burada yalnız hash + karşılaştırma + karar mantığı vardır → test edilebilir.
+ * Pure functions (Electron/IO independent). The real screenshot comes from a main.ts
+ * callback; here there's only hash + comparison + decision logic → testable.
  *
- * OpenJarvis `tools/browser_axtree.py` (koordinat yerine semantik) ruhundan ilham;
- * tam UIAutomation element-tree opsiyonel/sonraya bırakıldı (NICE-TO-HAVE).
+ * Inspired by the spirit of OpenJarvis `tools/browser_axtree.py` (semantic instead of
+ * coordinate); a full UIAutomation element-tree is left optional/for later (NICE-TO-HAVE).
  */
 
 /**
- * Bir base64 görüntüden hafif, deterministik bir imza üretir. Kriptografik değil —
- * amaç "iki kare aynı mı / ne kadar farklı mı"yı ucuza ölçmek. Görüntüyü sabit
- * sayıda parçaya böler, her parçanın karakter-toplamını alır → parça-imza dizisi.
- * Böylece kısmi değişim (tek bölge) de yakalanır, tüm-kare hash'inden daha bilgilendirici.
+ * Produces a lightweight, deterministic signature from a base64 image. Not cryptographic —
+ * the goal is to cheaply measure "are two frames the same / how different are they". It
+ * splits the image into a fixed number of chunks and takes each chunk's character-sum →
+ * a chunk-signature array. This catches partial change (a single region) too, and is more
+ * informative than a whole-frame hash.
  */
 export function frameSignature(base64: string, buckets = 16): number[] {
     const sig = new Array(buckets).fill(0);
@@ -26,15 +28,15 @@ export function frameSignature(base64: string, buckets = 16): number[] {
     const span = Math.max(1, Math.floor(len / buckets));
     for (let i = 0; i < len; i++) {
         const b = Math.min(buckets - 1, Math.floor(i / span));
-        // ucuz, sıralı-duyarlı karışım
+        // cheap, order-sensitive mix
         sig[b] = (sig[b] * 31 + base64.charCodeAt(i)) >>> 0;
     }
     return sig;
 }
 
 /**
- * İki imza arasındaki normalize farkı [0..1]. 0 = aynı, 1 = tüm parçalar farklı.
- * (Parça eşitliği oranı üzerinden — gürültüye dayanıklı, eşik koymaya uygun.)
+ * Normalized difference between two signatures [0..1]. 0 = same, 1 = all chunks differ.
+ * (Based on the chunk-equality ratio — noise-resistant, suitable for thresholding.)
  */
 export function signatureDiff(a: number[], b: number[]): number {
     const n = Math.min(a.length, b.length);
@@ -45,37 +47,37 @@ export function signatureDiff(a: number[], b: number[]): number {
 }
 
 export interface VerifyResult {
-    /** Eylem ekranda gözle görülür bir değişiklik yaptı mı? */
+    /** Did the action make a visible change on screen? */
     changed: boolean;
-    /** Normalize fark miktarı [0..1]. */
+    /** Normalized difference amount [0..1]. */
     diff: number;
-    /** Modele/kullanıcıya sunulacak kısa Türkçe rapor. */
+    /** Short report to present to the model/user. */
     note: string;
 }
 
 /**
- * Eylem öncesi/sonrası iki kareyi karşılaştırıp etkiyi raporlar. `threshold` altı
- * fark = "değişmedi" (muhtemelen tıklama hedefi ıskaladı). `changed=false` olunca
- * çağıran taraf yeniden deneyebilir veya durup sorabilir.
+ * Compares the before/after frames of an action and reports the effect. Difference below
+ * `threshold` = "didn't change" (the click probably missed its target). When `changed=false`
+ * the caller can retry or stop and ask.
  */
 export function verifyChange(beforeB64: string, afterB64: string, threshold = 1 / 16): VerifyResult {
-    // Screenshot alınamadıysa (boş) doğrulama yapılamaz → "bilinmiyor" yerine
-    // güvenli varsayım: değişmiş kabul etme, ama net not düş.
+    // If the screenshot couldn't be taken (empty), verification isn't possible → instead of
+    // "unknown", a safe assumption: don't treat it as changed, but add a clear note.
     if (!beforeB64 || !afterB64) {
-        return {changed: false, diff: 0, note: "Doğrulama yapılamadı (ekran görüntüsü alınamadı)."};
+        return {changed: false, diff: 0, note: "Verification not possible (could not capture a screenshot)."};
     }
     const diff = signatureDiff(frameSignature(beforeB64), frameSignature(afterB64));
     const changed = diff >= threshold;
     const note = changed
-        ? `Eylem sonrası ekran değişti (fark %${Math.round(diff * 100)}) — işlem etki etti.`
-        : `Eylem sonrası ekran neredeyse değişmedi (fark %${Math.round(diff * 100)}) — tıklama hedefi ıskalamış olabilir; koordinatı doğrula veya yeniden dene.`;
+        ? `The screen changed after the action (${Math.round(diff * 100)}% difference) — the action took effect.`
+        : `The screen barely changed after the action (${Math.round(diff * 100)}% difference) — the click may have missed its target; verify the coordinates or try again.`;
     return {changed, diff, note};
 }
 
 /**
- * Doğrulamalı eylem akışını koordine eden yardımcı. `snapshot` gerçek ekran
- * görüntüsünü (base64) döndüren callback; `doAction` eylemi yürüten callback.
- * Sıra: kare-al → eylem → kare-al → karşılaştır. Eylem sonucu + doğrulama notu döner.
+ * Helper that coordinates a verified-action flow. `snapshot` is a callback returning the
+ * real screenshot (base64); `doAction` is the callback executing the action.
+ * Order: take-frame → action → take-frame → compare. Returns the action result + verification note.
  */
 export async function actWithVerification(
     snapshot: () => Promise<string>,

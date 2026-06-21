@@ -2,7 +2,8 @@
  * Faz 50 — Short-term conversation memory (RAM-only, no persistence)
  *
  * Tracks the last N tool executions so AEGIS can resolve references like
- * "bunu kapat", "tekrar yap", "sesi biraz artır", "bir öncekini geri al".
+ * "bunu kapat", "tekrar yap", "sesi biraz artır", "bir öncekini geri al"
+ * (close this, do it again, turn the volume up a bit, undo the previous one).
  *
  * Shape kept minimal — only what the LLM needs injected in system prompt.
  */
@@ -130,7 +131,7 @@ export function stmGet(): Readonly<STMContext> {
 export function stmBuildPromptBlock(): string {
     if (_ctx.recentTools.length === 0) return "";
 
-    const lines: string[] = ["SON İŞLEMLER (referans çözümleme için):"];
+    const lines: string[] = ["RECENT ACTIONS (for reference resolution):"];
 
     // Last 5 entries, newest first
     const recent = [..._ctx.recentTools].reverse().slice(0, 5);
@@ -138,7 +139,7 @@ export function stmBuildPromptBlock(): string {
         const argStr = Object.entries(e.args)
             .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
             .join(", ");
-        lines.push(`  [${new Date(e.ts).toLocaleTimeString("tr")}] ${e.tool}(${argStr}) → ${e.success ? "OK" : "HATA"}: ${e.result.slice(0, 80)}`);
+        lines.push(`  [${new Date(e.ts).toLocaleTimeString("en")}] ${e.tool}(${argStr}) → ${e.success ? "OK" : "ERROR"}: ${e.result.slice(0, 80)}`);
     }
 
     if (_ctx.lastSpotifyTrack)   lines.push(`  lastSpotifyTrack: ${_ctx.lastSpotifyTrack}`);
@@ -169,24 +170,24 @@ export function stmLastWhere(pred: (e: ToolMemoryEntry) => boolean): ToolMemoryE
 
 function toolToIntent(tool: string): string {
     const map: Record<string, string> = {
-        spotify_play:    "Spotify çal",
-        spotify_pause:   "Spotify durdur",
-        spotify_next:    "Spotify sonraki",
-        spotify_prev:    "Spotify önceki",
-        spotify_volume:  "Spotify ses",
-        spotify_search:  "Spotify ara",
-        spotify_open:    "Spotify aç",
-        run_command:     "komut çalıştır",
-        read_file:       "dosya oku",
-        write_file:      "dosya yaz",
-        focus_window:    "pencere odakla",
-        set_volume:      "sistem sesi",
-        set_brightness:  "parlaklık",
-        steam_launch:    "Steam oyun başlat",
-        steam_open:      "Steam aç",
-        web_search:      "web ara",
-        fetch_url:       "URL getir",
-        screenshot:      "ekran görüntüsü",
+        spotify_play:    "Spotify play",
+        spotify_pause:   "Spotify pause",
+        spotify_next:    "Spotify next",
+        spotify_prev:    "Spotify previous",
+        spotify_volume:  "Spotify volume",
+        spotify_search:  "Spotify search",
+        spotify_open:    "Spotify open",
+        run_command:     "run command",
+        read_file:       "read file",
+        write_file:      "write file",
+        focus_window:    "focus window",
+        set_volume:      "system volume",
+        set_brightness:  "brightness",
+        steam_launch:    "Steam launch game",
+        steam_open:      "Steam open",
+        web_search:      "web search",
+        fetch_url:       "fetch URL",
+        screenshot:      "screenshot",
     };
     return map[tool] ?? tool.replace(/_/g, " ");
 }

@@ -63,27 +63,27 @@ export function dailyReport(): string {
     // Time tracked today
     const todayLogs = timeLogs.filter((e) => new Date(e.start) >= start && new Date(e.start) <= end);
     const totalMinutes = todayLogs.reduce((sum, e) => sum + (e.durationMin ?? 0), 0);
-    const timeLines = todayLogs.map((e) => `  ${e.task}: ${e.durationMin ?? 0}dk`).join("\n");
+    const timeLines = todayLogs.map((e) => `  ${e.task}: ${e.durationMin ?? 0}min`).join("\n");
 
     // Active goals
     const activeGoals = goals.filter((g) => g.status === "active");
-    const goalLines = activeGoals.slice(0, 5).map((g) => `  ${g.title}: %${g.progress}${g.deadline ? ` (son:${new Date(g.deadline).toLocaleDateString("tr-TR")})` : ""}`).join("\n");
+    const goalLines = activeGoals.slice(0, 5).map((g) => `  ${g.title}: ${g.progress}%${g.deadline ? ` (due:${new Date(g.deadline).toLocaleDateString("tr-TR")})` : ""}`).join("\n");
 
     const date = new Date().toLocaleDateString("tr-TR");
     const reportText = [
-        `AEGIS Günlük Rapor — ${date}`,
+        `AEGIS Daily Report — ${date}`,
         "═══════════════════════════════════════",
         "",
-        `EN SIK KULLANILAN ARAÇLAR (tüm zamanlar)`,
-        topTools || "  (henüz kayıt yok)",
+        `MOST USED TOOLS (all time)`,
+        topTools || "  (no records yet)",
         "",
-        `ZAMAN TAKİBİ — Bugün (${totalMinutes} dakika toplam)`,
-        timeLines || "  (bugün takip yok)",
+        `TIME TRACKING — Today (${totalMinutes} minutes total)`,
+        timeLines || "  (no tracking today)",
         "",
-        `AKTİF HEDEFLER (${activeGoals.length} hedef)`,
-        goalLines || "  (aktif hedef yok)",
+        `ACTIVE GOALS (${activeGoals.length} goals)`,
+        goalLines || "  (no active goals)",
         "",
-        `[RAPOR_OZET|tarih:${date}|detay:Yukarıdaki verilerden anlamlı bir günlük özet yaz, öneriler ekle]`,
+        `[REPORT_SUMMARY|date:${date}|detail:Write a meaningful daily summary from the data above and add suggestions]`,
     ].join("\n");
 
     const reportPath = path.join(REPORTS_DIR, `daily_${date.replace(/\./g, "-")}.md`);
@@ -120,26 +120,26 @@ export function weeklyReport(): string {
     const taskLines = Object.entries(taskBreakdown)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
-        .map(([t, m]) => `  ${t}: ${m}dk`)
+        .map(([t, m]) => `  ${t}: ${m}min`)
         .join("\n");
 
     const weekStart = start.toLocaleDateString("tr-TR");
     const weekEnd = new Date().toLocaleDateString("tr-TR");
     const reportText = [
-        `AEGIS Haftalık Rapor — ${weekStart} – ${weekEnd}`,
+        `AEGIS Weekly Report — ${weekStart} – ${weekEnd}`,
         "═══════════════════════════════════════",
         "",
-        `TOPLAM ZAMAN TAKİBİ: ${Math.round(totalMin / 60)} saat ${totalMin % 60} dakika`,
+        `TOTAL TIME TRACKED: ${Math.round(totalMin / 60)} hours ${totalMin % 60} minutes`,
         "",
-        `GÖREV DAĞILIMI`,
-        taskLines || "  (takip yok)",
+        `TASK BREAKDOWN`,
+        taskLines || "  (no tracking)",
         "",
-        `EN SIK KULLANILAN ARAÇLAR`,
-        topTools || "  (kayıt yok)",
+        `MOST USED TOOLS`,
+        topTools || "  (no records)",
         "",
-        `TAMAMLANAN HEDEFLER: ${completedGoals}`,
+        `COMPLETED GOALS: ${completedGoals}`,
         "",
-        `[HAFTALIK_OZET|donem:${weekStart}–${weekEnd}|toplamSaat:${Math.round(totalMin / 60)}|araçSayısı:${Object.keys(habits).length}|detay:Bu haftanın verilerinden anlamlı bir özet yaz, gelecek hafta için öneriler ekle]`,
+        `[WEEKLY_SUMMARY|period:${weekStart}–${weekEnd}|totalHours:${Math.round(totalMin / 60)}|toolCount:${Object.keys(habits).length}|detail:Write a meaningful summary from this week's data and add suggestions for next week]`,
     ].join("\n");
 
     const reportPath = path.join(REPORTS_DIR, `weekly_${weekStart.replace(/\./g, "-")}.md`);
@@ -171,14 +171,14 @@ export function productivityInsights(): string {
     const peakHour = Object.entries(hourBuckets).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
 
     return [
-        "VERİMLİLİK ANALİZİ",
+        "PRODUCTIVITY ANALYSIS",
         "═══════════════════════════════════════",
-        `Toplam araç kullanımı: ${totalToolUses}x`,
-        `Toplam takip edilen süre: ${Math.round(totalTrackedMin / 60)}sa ${totalTrackedMin % 60}dk`,
-        `Aktif hedef: ${activeGoals.length} | Tamamlanan: ${completedGoals.length}`,
-        `Ortalama hedef ilerleme: %${avgProgress}`,
-        peakHour ? `En verimli saat dilimi: ${peakHour[0]}:00 (${peakHour[1]} dakika)` : "",
+        `Total tool usage: ${totalToolUses}x`,
+        `Total time tracked: ${Math.round(totalTrackedMin / 60)}h ${totalTrackedMin % 60}min`,
+        `Active goals: ${activeGoals.length} | Completed: ${completedGoals.length}`,
+        `Average goal progress: ${avgProgress}%`,
+        peakHour ? `Most productive hour: ${peakHour[0]}:00 (${peakHour[1]} minutes)` : "",
         "",
-        `[VERİMLİLİK_KOCU|toplamArac:${totalToolUses}|toplamSure:${totalTrackedMin}|aktifHedef:${activeGoals.length}|ortalamIlerleme:${avgProgress}|detay:Bu verilerden kişisel verimlilik önerileri üret, güçlü yönler ve gelişim alanları belirt]`,
+        `[PRODUCTIVITY_COACH|totalTools:${totalToolUses}|totalTime:${totalTrackedMin}|activeGoals:${activeGoals.length}|averageProgress:${avgProgress}|detail:Generate personal productivity suggestions from this data, identify strengths and areas for improvement]`,
     ].filter(Boolean).join("\n");
 }
