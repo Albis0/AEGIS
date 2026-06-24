@@ -1,11 +1,11 @@
-// AEGIS — Tool şemaları (saf veri)
+// AEGIS — Tool schemas (pure data)
 //
-// Tüm tool tanımları (ChatCompletionTool[]) burada toplanır. Hiçbir yan etki /
-// helper bağımlılığı yoktur — yalnızca veri. Executor'lar ../tools.ts'te;
-// tool seçim mantığı (getAllToolSchemas) bu grupları import eder.
+// All tool definitions (ChatCompletionTool[]) are collected here. There are no
+// side effects / helper dependencies — data only. Executors live in ../tools.ts;
+// the tool selection logic (getAllToolSchemas) imports these groups.
 //
-// NOT: Groq number param'a string gelince tool_use_failed verir → sayı
-// parametreleri şemada "string" tipinde tanımlanır (bilinçli).
+// NOTE: Groq returns tool_use_failed when a number param receives a string → so
+// numeric parameters are deliberately defined as "string" type in the schema.
 
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 
@@ -14,7 +14,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "quit_self",
-            description: "AEGIS uygulamasını kapat. Kullanıcı 'kendini kapat', 'uygulamayı kapat', 'çık' gibi bir şey dediğinde kullan.",
+            description: "Close the AEGIS application. Use when the user says something like 'shut yourself down', 'close the app', 'exit'.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -22,10 +22,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "run_command",
-            description: "Windows PowerShell komutu çalıştır. YASAK: Steam oyunu açmak için ASLA kullanma — bunun için steam_launch aracı var. Spotify için de spotify_* araçlarını kullan.",
+            description: "Run a Windows PowerShell command. FORBIDDEN: NEVER use this to launch a Steam game — use the steam_launch tool for that. Likewise use the spotify_* tools for Spotify.",
             parameters: {
                 type: "object",
-                properties: {command: {type: "string", description: "Çalıştırılacak PowerShell komutu"}},
+                properties: {command: {type: "string", description: "The PowerShell command to run"}},
                 required: ["command"],
                 additionalProperties: false,
             },
@@ -35,10 +35,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "read_file",
-            description: "Bir metin dosyasının içeriğini oku. ~ ev dizinini temsil eder.",
+            description: "Read the contents of a text file. ~ represents the home directory.",
             parameters: {
                 type: "object",
-                properties: {path: {type: "string", description: "Okunacak dosya yolu"}},
+                properties: {path: {type: "string", description: "Path of the file to read"}},
                 required: ["path"],
                 additionalProperties: false,
             },
@@ -48,12 +48,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "write_file",
-            description: "Bir dosyaya içerik yaz (varsa üzerine yazar, yoksa oluşturur).",
+            description: "Write content to a file (overwrites if it exists, creates it otherwise).",
             parameters: {
                 type: "object",
                 properties: {
-                    path: {type: "string", description: "Yazılacak dosya yolu"},
-                    content: {type: "string", description: "Dosyaya yazılacak içerik"},
+                    path: {type: "string", description: "Path of the file to write"},
+                    content: {type: "string", description: "Content to write to the file"},
                 },
                 required: ["path", "content"],
                 additionalProperties: false,
@@ -64,12 +64,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "delete_file",
-            description: "Bir dosyayı veya klasörü sil. Yalnızca Tam PC Erişimi açıkken çalışır. ~ ev dizinini temsil eder.",
+            description: "Delete a file or folder. Only works when Full PC Access is enabled. ~ represents the home directory.",
             parameters: {
                 type: "object",
                 properties: {
-                    path: {type: "string", description: "Silinecek dosya/klasör yolu"},
-                    recursive: {type: "string", description: "Klasör için içeriğiyle birlikte sil: 'true' (varsayılan) veya 'false'"},
+                    path: {type: "string", description: "Path of the file/folder to delete"},
+                    recursive: {type: "string", description: "For a folder, delete it along with its contents: 'true' (default) or 'false'"},
                 },
                 required: ["path"],
                 additionalProperties: false,
@@ -80,12 +80,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "move_file",
-            description: "Bir dosyayı veya klasörü taşı/yeniden adlandır. Yalnızca Tam PC Erişimi açıkken çalışır. ~ ev dizinini temsil eder.",
+            description: "Move or rename a file or folder. Only works when Full PC Access is enabled. ~ represents the home directory.",
             parameters: {
                 type: "object",
                 properties: {
-                    source: {type: "string", description: "Kaynak dosya/klasör yolu"},
-                    destination: {type: "string", description: "Hedef yol"},
+                    source: {type: "string", description: "Source file/folder path"},
+                    destination: {type: "string", description: "Destination path"},
                 },
                 required: ["source", "destination"],
                 additionalProperties: false,
@@ -96,10 +96,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_directory",
-            description: "Bir klasördeki dosya ve klasörleri listele.",
+            description: "List the files and folders in a directory.",
             parameters: {
                 type: "object",
-                properties: {path: {type: "string", description: "Listelenecek klasör yolu (opsiyonel)"}},
+                properties: {path: {type: "string", description: "Path of the folder to list (optional)"}},
                 additionalProperties: false,
             },
         },
@@ -108,10 +108,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "web_search",
-            description: "İnternette güncel bilgi ara. Tavily kullanır.",
+            description: "Search the internet for up-to-date information. Uses Tavily.",
             parameters: {
                 type: "object",
-                properties: {query: {type: "string", description: "Arama sorgusu"}},
+                properties: {query: {type: "string", description: "Search query"}},
                 required: ["query"],
                 additionalProperties: false,
             },
@@ -121,12 +121,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "set_profile",
-            description: "Kullanıcı hakkında bir bilgi kaydet. Örn: isim, meslek, tercihler, alışkanlıklar.",
+            description: "Save a piece of information about the user. E.g. name, occupation, preferences, habits.",
             parameters: {
                 type: "object",
                 properties: {
-                    key: {type: "string", description: "Bilgi anahtarı (örn: 'isim', 'meslek', 'kahve_tercihi')"},
-                    value: {type: "string", description: "Bilgi değeri"},
+                    key: {type: "string", description: "Info key (e.g. 'name', 'occupation', 'coffee_preference')"},
+                    value: {type: "string", description: "Info value"},
                 },
                 required: ["key", "value"],
                 additionalProperties: false,
@@ -137,7 +137,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "get_profile",
-            description: "Kaydedilmiş kullanıcı bilgilerini getir.",
+            description: "Retrieve saved user information.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -145,12 +145,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "save_note",
-            description: "Bir not veya hatırlatıcı kaydet. Tarih/saat belirtilirse o zaman hatırlatır.",
+            description: "Save a note or reminder. If a date/time is given, it will remind at that time.",
             parameters: {
                 type: "object",
                 properties: {
-                    content: {type: "string", description: "Not içeriği"},
-                    remind_at: {type: "string", description: "ISO 8601 tarih/saat (opsiyonel, örn: '2026-06-01T09:00:00')"},
+                    content: {type: "string", description: "Note content"},
+                    remind_at: {type: "string", description: "ISO 8601 date/time (optional, e.g. '2026-06-01T09:00:00')"},
                 },
                 required: ["content"],
                 additionalProperties: false,
@@ -161,7 +161,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_notes",
-            description: "Bekleyen notları ve hatırlatıcıları listele.",
+            description: "List pending notes and reminders.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -169,10 +169,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "done_note",
-            description: "Bir notu tamamlandı olarak işaretle.",
+            description: "Mark a note as completed.",
             parameters: {
                 type: "object",
-                properties: {id: {type: "string", description: "Not ID'si"}},
+                properties: {id: {type: "string", description: "Note ID"}},
                 required: ["id"],
                 additionalProperties: false,
             },
@@ -182,7 +182,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "read_clipboard",
-            description: "Panodaki metni oku. 'Panoyu oku', 'Panoda ne var?' gibi.",
+            description: "Read the text on the clipboard. E.g. 'read the clipboard', 'what's on the clipboard?'.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -190,10 +190,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "write_clipboard",
-            description: "Metni panoya kopyala. 'Bunu kopyala', 'Panoya yaz' gibi.",
+            description: "Copy text to the clipboard. E.g. 'copy this', 'write to clipboard'.",
             parameters: {
                 type: "object",
-                properties: {text: {type: "string", description: "Panoya yazılacak metin"}},
+                properties: {text: {type: "string", description: "Text to write to the clipboard"}},
                 required: ["text"],
                 additionalProperties: false,
             },
@@ -203,7 +203,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_windows",
-            description: "Şu an açık olan pencereleri listele.",
+            description: "List the windows that are currently open.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -211,10 +211,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "focus_window",
-            description: "Belirtilen pencereyi öne getir / odakla. 'Chrome'u öne getir', 'VSCode'u aç' gibi.",
+            description: "Bring the specified window to the foreground / focus it. E.g. 'bring Chrome to front', 'open VSCode'.",
             parameters: {
                 type: "object",
-                properties: {title: {type: "string", description: "Pencere başlığı veya uygulama adı (kısmi eşleşme yeterli)"}},
+                properties: {title: {type: "string", description: "Window title or app name (partial match is fine)"}},
                 required: ["title"],
                 additionalProperties: false,
             },
@@ -224,10 +224,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "set_volume",
-            description: "Sistem ses seviyesini ayarla (0-100). 'Sesi %50 yap', 'Sesi aç/kapat' gibi.",
+            description: "Set the system volume level (0-100). E.g. 'set volume to 50%', 'turn volume up/down'.",
             parameters: {
                 type: "object",
-                properties: {level: {type: "string", description: "Ses seviyesi 0-100"}},
+                properties: {level: {type: "string", description: "Volume level 0-100"}},
                 required: ["level"],
                 additionalProperties: false,
             },
@@ -237,10 +237,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "set_brightness",
-            description: "Ekran parlaklığını ayarla (0-100). Dahili ekranlarda çalışır.",
+            description: "Set the screen brightness (0-100). Works on internal displays.",
             parameters: {
                 type: "object",
-                properties: {level: {type: "string", description: "Parlaklık 0-100"}},
+                properties: {level: {type: "string", description: "Brightness 0-100"}},
                 required: ["level"],
                 additionalProperties: false,
             },
@@ -250,12 +250,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "remind_in",
-            description: "X dakika sonra kullanıcıya sesli/yazılı hatırlatıcı gönder. '10 dakika sonra hatırlat', 'Yarım saat sonra...' gibi.",
+            description: "Send the user a voice/text reminder after X minutes. E.g. 'remind me in 10 minutes', 'in half an hour...'.",
             parameters: {
                 type: "object",
                 properties: {
-                    message: {type: "string", description: "Hatırlatıcı mesajı"},
-                    minutes: {type: "string", description: "Kaç dakika sonra (ondalık da olabilir, örn: 0.5 = 30 saniye)"},
+                    message: {type: "string", description: "Reminder message"},
+                    minutes: {type: "string", description: "How many minutes from now (decimals allowed, e.g. 0.5 = 30 seconds)"},
                 },
                 required: ["message", "minutes"],
                 additionalProperties: false,
@@ -266,12 +266,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "save_app_profile",
-            description: "Bir uygulama profili kaydet. Her satırda bir PowerShell komutu. 'Oyun modunu kaydet', 'Çalışma profili oluştur' gibi.",
+            description: "Save an app profile. One PowerShell command per line. E.g. 'save gaming mode', 'create a work profile'.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Profil adı (örn: oyun_modu, calisma_modu)"},
-                    commands: {type: "string", description: "Her satırda bir PowerShell komutu (örn: Start-Process chrome\\nStart-Process code)"},
+                    name: {type: "string", description: "Profile name (e.g. gaming_mode, work_mode)"},
+                    commands: {type: "string", description: "One PowerShell command per line (e.g. Start-Process chrome\\nStart-Process code)"},
                 },
                 required: ["name", "commands"],
                 additionalProperties: false,
@@ -282,10 +282,10 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "run_app_profile",
-            description: "Kaydedilmiş uygulama profilini çalıştır. 'Oyun modunu aç', 'Çalışma moduna geç' gibi.",
+            description: "Run a saved app profile. E.g. 'open gaming mode', 'switch to work mode'.",
             parameters: {
                 type: "object",
-                properties: {name: {type: "string", description: "Çalıştırılacak profil adı"}},
+                properties: {name: {type: "string", description: "Name of the profile to run"}},
                 required: ["name"],
                 additionalProperties: false,
             },
@@ -295,7 +295,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_app_profiles",
-            description: "Kayıtlı uygulama profillerini listele.",
+            description: "List the saved app profiles.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -303,11 +303,11 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "screenshot",
-            description: "Ekranın anlık görüntüsünü al ve analiz et. 'Ekranımda ne var?', 'Bu hata ne?', 'Ekranı analiz et' gibi sorularda kullan. question parametresi ile ne sormak istediğini belirt.",
+            description: "Take a screenshot of the screen and analyze it. Use for questions like 'what's on my screen?', 'what is this error?', 'analyze the screen'. Specify what to ask about via the question parameter.",
             parameters: {
                 type: "object",
                 properties: {
-                    question: {type: "string", description: "Ekran hakkında sorulacak soru veya yapılacak analiz (örn: 'Ekranda ne var?', 'Bu hata mesajı ne anlama geliyor?', 'Hangi uygulama açık?')"},
+                    question: {type: "string", description: "Question to ask about the screen or analysis to perform (e.g. 'What's on the screen?', 'What does this error message mean?', 'Which app is open?')"},
                 },
                 required: ["question"],
                 additionalProperties: false,
@@ -337,11 +337,11 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "fetch_url",
-            description: "Bir web sayfasının içeriğini getir ve düz metin olarak döndür. 'Bu sayfada ne yazıyor?', 'URL'yi oku', 'Haberi özetle' gibi.",
+            description: "Fetch the contents of a web page and return it as plain text. E.g. 'what does this page say?', 'read the URL', 'summarize the article'.",
             parameters: {
                 type: "object",
                 properties: {
-                    url: {type: "string", description: "Okunacak web sayfasının URL'si (örn: https://example.com)"},
+                    url: {type: "string", description: "URL of the web page to read (e.g. https://example.com)"},
                 },
                 required: ["url"],
                 additionalProperties: false,
@@ -352,12 +352,12 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "show_notification",
-            description: "Windows'ta sistem bildirim balonu göster. 'Bildirim gönder', 'Bana bildir', 'Toast bildirim' gibi.",
+            description: "Show a system notification balloon on Windows. E.g. 'send a notification', 'notify me', 'toast notification'.",
             parameters: {
                 type: "object",
                 properties: {
-                    title: {type: "string", description: "Bildirim başlığı"},
-                    body: {type: "string", description: "Bildirim içeriği / mesaj"},
+                    title: {type: "string", description: "Notification title"},
+                    body: {type: "string", description: "Notification content / message"},
                 },
                 required: ["title", "body"],
                 additionalProperties: false,
@@ -368,7 +368,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_plugins",
-            description: "Yüklü plugin'leri ve sağladıkları araçları listele.",
+            description: "List installed plugins and the tools they provide.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -376,7 +376,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "reload_plugins",
-            description: "Plugin'leri ~/.aegis/plugins/ klasöründen yeniden yükle. Yeni plugin eklendikten sonra kullan.",
+            description: "Reload plugins from the ~/.aegis/plugins/ folder. Use after adding a new plugin.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -387,13 +387,13 @@ export const schedulerSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "schedule_task",
-            description: "Tekrarlayan zamanlanmış görev oluştur. 'Her sabah hava durumunu söyle', 'Her saat başı CPU kullanımını kontrol et' gibi.",
+            description: "Create a recurring scheduled task. E.g. 'tell me the weather every morning', 'check CPU usage every hour'.",
             parameters: {
                 type: "object",
                 properties: {
-                    name:     {type: "string", description: "Görev adı (benzersiz, kısa)"},
-                    schedule: {type: "string", description: "Zamanlama: 'every 30 minutes', 'every 2 hours', 'daily at 09:00', 'hourly'"},
-                    command:  {type: "string", description: "AEGIS'e gönderilecek doğal dil komutu (örn: 'hava durumunu söyle')"},
+                    name:     {type: "string", description: "Task name (unique, short)"},
+                    schedule: {type: "string", description: "Schedule: 'every 30 minutes', 'every 2 hours', 'daily at 09:00', 'hourly'"},
+                    command:  {type: "string", description: "Natural language command to send to AEGIS (e.g. 'tell me the weather')"},
                 },
                 required: ["name", "schedule", "command"],
                 additionalProperties: false,
@@ -404,7 +404,7 @@ export const schedulerSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_scheduled_tasks",
-            description: "Tüm zamanlanmış görevleri listele.",
+            description: "List all scheduled tasks.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -412,11 +412,11 @@ export const schedulerSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "cancel_scheduled_task",
-            description: "Zamanlanmış görevi iptal et (ad veya ID ile).",
+            description: "Cancel a scheduled task (by name or ID).",
             parameters: {
                 type: "object",
                 properties: {
-                    id_or_name: {type: "string", description: "Görev adı (kısmi eşleşme yeterli) veya ID"},
+                    id_or_name: {type: "string", description: "Task name (partial match is fine) or ID"},
                 },
                 required: ["id_or_name"],
                 additionalProperties: false,
@@ -427,11 +427,11 @@ export const schedulerSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "toggle_scheduled_task",
-            description: "Zamanlanmış görevi etkinleştir/devre dışı bırak.",
+            description: "Enable/disable a scheduled task.",
             parameters: {
                 type: "object",
                 properties: {
-                    id_or_name: {type: "string", description: "Görev adı veya ID"},
+                    id_or_name: {type: "string", description: "Task name or ID"},
                 },
                 required: ["id_or_name"],
                 additionalProperties: false,
@@ -445,11 +445,11 @@ export const marketplaceSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "plugin_search",
-            description: "GitHub'da AEGIS plugin ara. 'Discord plugin var mı?', 'Notion entegrasyonu ara' gibi.",
+            description: "Search for AEGIS plugins on GitHub. E.g. 'is there a Discord plugin?', 'search for a Notion integration'.",
             parameters: {
                 type: "object",
                 properties: {
-                    query: {type: "string", description: "Arama terimi"},
+                    query: {type: "string", description: "Search term"},
                 },
                 required: ["query"],
                 additionalProperties: false,
@@ -460,11 +460,11 @@ export const marketplaceSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "plugin_install",
-            description: "GitHub repo'sundan plugin kur. 'kullanici/aegis-plugin-x' formatında.",
+            description: "Install a plugin from a GitHub repo. Format: 'user/aegis-plugin-x'.",
             parameters: {
                 type: "object",
                 properties: {
-                    repo: {type: "string", description: "GitHub repo yolu (örn: user/aegis-plugin-discord)"},
+                    repo: {type: "string", description: "GitHub repo path (e.g.: user/aegis-plugin-discord)"},
                 },
                 required: ["repo"],
                 additionalProperties: false,
@@ -475,11 +475,11 @@ export const marketplaceSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "plugin_remove",
-            description: "Yüklü bir plugin'i kaldır.",
+            description: "Remove an installed plugin.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Plugin adı"},
+                    name: {type: "string", description: "Plugin name"},
                 },
                 required: ["name"],
                 additionalProperties: false,
@@ -493,12 +493,12 @@ export const securitySchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "vault_store",
-            description: "API key veya hassas veriyi Windows şifreli depoya (safeStorage) kaydet.",
+            description: "Save an API key or sensitive data to Windows' encrypted store (safeStorage).",
             parameters: {
                 type: "object",
                 properties: {
-                    key:   {type: "string", description: "Anahtar adı (örn: 'openai_key')"},
-                    value: {type: "string", description: "Kaydedilecek değer"},
+                    key:   {type: "string", description: "Key name (e.g.: 'openai_key')"},
+                    value: {type: "string", description: "Value to store"},
                 },
                 required: ["key", "value"],
                 additionalProperties: false,
@@ -509,7 +509,7 @@ export const securitySchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "vault_list",
-            description: "Güvenli depodaki anahtarları listele (değerleri göstermez).",
+            description: "List keys in the secure store (does not show values).",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -517,11 +517,11 @@ export const securitySchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "vault_delete",
-            description: "Güvenli depodan bir anahtarı sil.",
+            description: "Delete a key from the secure store.",
             parameters: {
                 type: "object",
                 properties: {
-                    key: {type: "string", description: "Silinecek anahtar adı"},
+                    key: {type: "string", description: "Name of the key to delete"},
                 },
                 required: ["key"],
                 additionalProperties: false,
@@ -532,7 +532,7 @@ export const securitySchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "privacy_audit",
-            description: "Hangi verilerin nerede saklandığını listele. 'Gizlilik denetimi yap', 'Verilerimi nerede saklıyorsun?' gibi.",
+            description: "List what data is stored where. Use for things like \"run a privacy audit\", \"where do you store my data?\".",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -540,11 +540,11 @@ export const securitySchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "clear_old_data",
-            description: "Eski verileri temizle (bilgi tabanı chunk'ları, devre dışı görevler). 'X günden eski verileri sil' gibi.",
+            description: "Clear old data (knowledge base chunks, disabled tasks). Use for things like \"delete data older than X days\".",
             parameters: {
                 type: "object",
                 properties: {
-                    days: {type: "string", description: "Kaç günden eski veri silinsin (varsayılan 30)"},
+                    days: {type: "string", description: "Delete data older than this many days (default 30)"},
                 },
                 additionalProperties: false,
             },
@@ -557,12 +557,12 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "remember_fact",
-            description: "Kalıcı bir gerçeği hafızaya kaydet. 'Bunu bil: abimin adı Ahmet', 'Hatırla: proje teslim tarihi 15 Temmuz' gibi.",
+            description: "Save a permanent fact to memory. Use for things like \"know this: my brother's name is Ahmet\", \"remember: the project deadline is July 15th\".",
             parameters: {
                 type: "object",
                 properties: {
-                    content: {type: "string", description: "Kaydedilecek gerçek"},
-                    tags:    {type: "string", description: "Etiketler, virgülle ayrılmış (opsiyonel, örn: 'aile,kişisel')"},
+                    content: {type: "string", description: "Fact to save"},
+                    tags:    {type: "string", description: "Tags, comma-separated (optional, e.g.: 'family,personal')"},
                 },
                 required: ["content"],
                 additionalProperties: false,
@@ -573,11 +573,11 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_facts",
-            description: "Kaydedilmiş gerçekleri listele. 'Ne biliyorsun?', 'Kayıtlı bilgilerin neler?' gibi.",
+            description: "List saved facts. Use for things like \"what do you know?\", \"what info do you have stored?\".",
             parameters: {
                 type: "object",
                 properties: {
-                    filter: {type: "string", description: "Filtreleme terimi (opsiyonel)"},
+                    filter: {type: "string", description: "Filter term (optional)"},
                 },
                 additionalProperties: false,
             },
@@ -587,11 +587,11 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "search_memory",
-            description: "Kayıtlı gerçekler içinde anlamca arama yap. 'Geçen ay X hakkında ne demiştim?', 'şu konuda ne biliyorsun?' gibi sorularda kullan — list_facts'tan farkı, en alakalı gerçekleri uyum skoruyla bulmasıdır.",
+            description: "Semantic search within saved facts. Use for questions like \"what did I say about X last month?\", \"what do you know about this topic?\" — unlike list_facts, this finds the most relevant facts using a match score.",
             parameters: {
                 type: "object",
                 properties: {
-                    query: {type: "string", description: "Aranacak konu/soru"},
+                    query: {type: "string", description: "Topic/question to search for"},
                 },
                 required: ["query"],
                 additionalProperties: false,
@@ -602,11 +602,11 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "forget_fact",
-            description: "Kayıtlı bir gerçeği sil.",
+            description: "Delete a saved fact.",
             parameters: {
                 type: "object",
                 properties: {
-                    id_or_content: {type: "string", description: "Gerçek ID veya içeriği (kısmi eşleşme)"},
+                    id_or_content: {type: "string", description: "Fact ID or content (partial match)"},
                 },
                 required: ["id_or_content"],
                 additionalProperties: false,
@@ -617,7 +617,7 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_habits",
-            description: "En sık kullandığın araçları ve alışkanlık istatistiklerini göster.",
+            description: "Show your most-used tools and habit statistics.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -628,11 +628,11 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "index_file",
-            description: "Bir dosyayı bilgi tabanına indeksle. .txt, .md, .ts, .js, .py, .json, .csv desteklenir.",
+            description: "Index a file into the knowledge base. Supports .txt, .md, .ts, .js, .py, .json, .csv.",
             parameters: {
                 type: "object",
                 properties: {
-                    file_path: {type: "string", description: "İndekslenecek dosya yolu (~ desteklenir)"},
+                    file_path: {type: "string", description: "Path of the file to index (~ supported)"},
                 },
                 required: ["file_path"],
                 additionalProperties: false,
@@ -643,12 +643,12 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "index_folder",
-            description: "Bir klasördeki tüm uygun dosyaları bilgi tabanına indeksle.",
+            description: "Index all suitable files in a folder into the knowledge base.",
             parameters: {
                 type: "object",
                 properties: {
-                    folder_path: {type: "string", description: "Klasör yolu"},
-                    extensions:  {type: "string", description: "Virgülle ayrılmış uzantılar (varsayılan: .txt,.md,.ts,.js,.py)"},
+                    folder_path: {type: "string", description: "Folder path"},
+                    extensions:  {type: "string", description: "Comma-separated extensions (default: .txt,.md,.ts,.js,.py)"},
                 },
                 required: ["folder_path"],
                 additionalProperties: false,
@@ -659,12 +659,12 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "search_knowledge",
-            description: "Bilgi tabanında semantik arama yap. 'Proje notlarımda X hakkında ne var?' gibi.",
+            description: "Semantic search within the knowledge base. Use for things like \"what's in my project notes about X?\".",
             parameters: {
                 type: "object",
                 properties: {
-                    query: {type: "string", description: "Arama sorgusu"},
-                    top_k: {type: "string", description: "Döndürülecek sonuç sayısı (varsayılan 5)"},
+                    query: {type: "string", description: "Search query"},
+                    top_k: {type: "string", description: "Number of results to return (default 5)"},
                 },
                 required: ["query"],
                 additionalProperties: false,
@@ -675,11 +675,11 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "chat_with_file",
-            description: "Bir dosyayla sohbet et — dosya içeriğini bağlam olarak yükle. 'Bu PDF ne diyor?', 'Şu dosyayı özetle' gibi.",
+            description: "Chat with a file — load its content as context. Use for things like \"what does this PDF say?\", \"summarize this file\".",
             parameters: {
                 type: "object",
                 properties: {
-                    file_path: {type: "string", description: "Okunacak dosya yolu"},
+                    file_path: {type: "string", description: "Path of the file to read"},
                 },
                 required: ["file_path"],
                 additionalProperties: false,
@@ -690,7 +690,7 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_indexed_files",
-            description: "Bilgi tabanındaki indekslenmiş dosyaları listele.",
+            description: "List files indexed in the knowledge base.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -698,11 +698,11 @@ export const knowledgeSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "remove_from_index",
-            description: "Bir dosyayı bilgi tabanından kaldır.",
+            description: "Remove a file from the knowledge base.",
             parameters: {
                 type: "object",
                 properties: {
-                    file_path: {type: "string", description: "Kaldırılacak dosya yolu"},
+                    file_path: {type: "string", description: "Path of the file to remove"},
                 },
                 required: ["file_path"],
                 additionalProperties: false,
@@ -716,12 +716,12 @@ export const automationSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "if_then",
-            description: "Koşullu otomasyon kur. 'Saat 23 olunca ekranı karat', 'CPU 90 geçince müziği durdur' gibi. Desteklenen metrikler: cpu, ram, gpu, disk, hour, minute.",
+            description: "Set up a conditional automation. Use for things like \"dim the screen at 11pm\", \"stop the music when CPU goes over 90\". Supported metrics: cpu, ram, gpu, disk, hour, minute.",
             parameters: {
                 type: "object",
                 properties: {
-                    condition: {type: "string", description: "Koşul ifadesi: 'cpu > 80', 'hour == 23', 'ram >= 75'"},
-                    action:    {type: "string", description: "Tetiklenince AEGIS'e gönderilecek komut"},
+                    condition: {type: "string", description: "Condition expression: 'cpu > 80', 'hour == 23', 'ram >= 75'"},
+                    action:    {type: "string", description: "Command to send to AEGIS when triggered"},
                 },
                 required: ["condition", "action"],
                 additionalProperties: false,
@@ -732,7 +732,7 @@ export const automationSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_automations",
-            description: "Tanımlı otomasyon kurallarını listele.",
+            description: "List defined automation rules.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -740,11 +740,11 @@ export const automationSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "remove_automation",
-            description: "Bir otomasyon kuralını sil.",
+            description: "Delete an automation rule.",
             parameters: {
                 type: "object",
                 properties: {
-                    id_or_condition: {type: "string", description: "Otomasyon ID veya koşul ifadesi (kısmi eşleşme)"},
+                    id_or_condition: {type: "string", description: "Automation ID or condition expression (partial match)"},
                 },
                 required: ["id_or_condition"],
                 additionalProperties: false,
@@ -755,11 +755,11 @@ export const automationSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "toggle_automation",
-            description: "Bir otomasyon kuralını etkinleştir/devre dışı bırak.",
+            description: "Enable/disable an automation rule.",
             parameters: {
                 type: "object",
                 properties: {
-                    id_or_condition: {type: "string", description: "Otomasyon ID veya koşul ifadesi"},
+                    id_or_condition: {type: "string", description: "Automation ID or condition expression"},
                 },
                 required: ["id_or_condition"],
                 additionalProperties: false,
@@ -773,11 +773,11 @@ export const macroSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "start_macro",
-            description: "Makro kaydını başlat. Bundan sonra verilen komutlar makroya eklenir. 'Sabah rutinini kaydet', 'Oyun başlatma makrosu oluştur' gibi.",
+            description: "Start recording a macro. Commands given after this are added to the macro. Use for things like \"record my morning routine\", \"create a game-launch macro\".",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Makro adı"},
+                    name: {type: "string", description: "Macro name"},
                 },
                 required: ["name"],
                 additionalProperties: false,
@@ -788,7 +788,7 @@ export const macroSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "stop_macro",
-            description: "Aktif makro kaydını durdur ve kaydet.",
+            description: "Stop the active macro recording and save it.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -796,11 +796,11 @@ export const macroSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "run_macro",
-            description: "Kaydedilmiş bir makroyu çalıştır. 'Sabah rutinini çalıştır', 'Oyun makrosunu başlat' gibi.",
+            description: "Run a saved macro. Use for things like \"run my morning routine\", \"start the game macro\".",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Makro adı (kısmi eşleşme yeterli)"},
+                    name: {type: "string", description: "Macro name (partial match is fine)"},
                 },
                 required: ["name"],
                 additionalProperties: false,
@@ -811,7 +811,7 @@ export const macroSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_macros",
-            description: "Kayıtlı makroları listele.",
+            description: "List saved macros.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -819,11 +819,11 @@ export const macroSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "delete_macro",
-            description: "Bir makroyu sil.",
+            description: "Delete a macro.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Silinecek makro adı veya ID"},
+                    name: {type: "string", description: "Name or ID of the macro to delete"},
                 },
                 required: ["name"],
                 additionalProperties: false,
@@ -832,16 +832,16 @@ export const macroSchemas: ChatCompletionTool[] = [
     },
 ];
 
-// Faz 52 — Routines: tool çağrılarını kaydedip deterministik tekrar çalıştırma
+// Phase 52 — Routines: record tool calls and replay them deterministically
 export const routineSchemas: ChatCompletionTool[] = [
     {
         type: "function",
         function: {
             name: "routine_record_start",
-            description: "Routine kaydını başlat. Bundan sonra yaptığın EYLEMLER (spotify, steam, sistem, dosya vb.) bu routine'e otomatik kaydedilir. 'Kayıt başlat: Oyun Modu', 'Oyun Modu routine'i oluştur' gibi. Salt-okuma işlemleri (arama, ekran görüntüsü) kaydedilmez.",
+            description: "Start recording a routine. Any ACTIONS you take afterward (spotify, steam, system, file, etc.) are automatically recorded into this routine. Use for things like \"start recording: Game Mode\", \"create a Game Mode routine\". Read-only operations (search, screenshot) are not recorded.",
             parameters: {
                 type: "object",
-                properties: {name: {type: "string", description: "Routine adı, örn. 'Oyun Modu'"}},
+                properties: {name: {type: "string", description: "Routine name, e.g. 'Game Mode'"}},
                 required: ["name"],
                 additionalProperties: false,
             },
@@ -851,7 +851,7 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_record_stop",
-            description: "Aktif routine kaydını bitir ve kaydet. 'Kayıt bitir', 'Kaydı durdur'.",
+            description: "End the active routine recording and save it. \"Finish recording\", \"stop the recording\".",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -859,7 +859,7 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_record_cancel",
-            description: "Aktif routine kaydını KAYDETMEDEN iptal et. 'Kaydı iptal et', 'Vazgeç'.",
+            description: "Cancel the active routine recording WITHOUT saving it. \"Cancel the recording\", \"never mind\".",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -867,10 +867,10 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_run",
-            description: "Kayıtlı bir routine'i çalıştır — adımları sırayla deterministik olarak uygular. 'Oyun Modunu aç', 'Oyun Modu routine'ini çalıştır'.",
+            description: "Run a saved routine — applies its steps in order, deterministically. \"Turn on Game Mode\", \"run the Game Mode routine\".",
             parameters: {
                 type: "object",
-                properties: {name: {type: "string", description: "Routine adı (kısmi eşleşme yeterli)"}},
+                properties: {name: {type: "string", description: "Routine name (partial match is fine)"}},
                 required: ["name"],
                 additionalProperties: false,
             },
@@ -880,7 +880,7 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_list",
-            description: "Kayıtlı routine'leri listele.",
+            description: "List saved routines.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -888,10 +888,10 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_show",
-            description: "Bir routine'in adımlarını ayrıntılı göster (düzenleme öncesi incelemek için).",
+            description: "Show a routine's steps in detail (for reviewing before editing).",
             parameters: {
                 type: "object",
-                properties: {name: {type: "string", description: "Routine adı veya ID"}},
+                properties: {name: {type: "string", description: "Routine name or ID"}},
                 required: ["name"],
                 additionalProperties: false,
             },
@@ -901,10 +901,10 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_delete",
-            description: "Bir routine'i sil.",
+            description: "Delete a routine.",
             parameters: {
                 type: "object",
-                properties: {name: {type: "string", description: "Silinecek routine adı veya ID"}},
+                properties: {name: {type: "string", description: "Name or ID of the routine to delete"}},
                 required: ["name"],
                 additionalProperties: false,
             },
@@ -914,12 +914,12 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_rename",
-            description: "Bir routine'i yeniden adlandır.",
+            description: "Rename a routine.",
             parameters: {
                 type: "object",
                 properties: {
-                    name:     {type: "string", description: "Mevcut routine adı veya ID"},
-                    new_name: {type: "string", description: "Yeni ad"},
+                    name:     {type: "string", description: "Existing routine name or ID"},
+                    new_name: {type: "string", description: "New name"},
                 },
                 required: ["name", "new_name"],
                 additionalProperties: false,
@@ -930,12 +930,12 @@ export const routineSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "routine_delete_step",
-            description: "Bir routine'den belirli bir adımı çıkar (düzenleme). Adım numarasını 'routine_show' ile öğren.",
+            description: "Remove a specific step from a routine (editing). Find the step number with 'routine_show'.",
             parameters: {
                 type: "object",
                 properties: {
-                    name: {type: "string", description: "Routine adı veya ID"},
-                    step: {type: "string", description: "Çıkarılacak adımın numarası (1-tabanlı)"},
+                    name: {type: "string", description: "Routine name or ID"},
+                    step: {type: "string", description: "Number of the step to remove (1-based)"},
                 },
                 required: ["name", "step"],
                 additionalProperties: false,
@@ -949,12 +949,12 @@ export const agentSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "agent_run",
-            description: "Ajan modunu başlat: bir hedef ver, AEGIS araçları zincirleme kullanarak onu tamamlar. 'Şu klasördeki tüm .txt dosyalarını özetle', 'Sistemi optimize et' gibi karmaşık görevler için.",
+            description: "Start agent mode: give a goal, and AEGIS chains its tools together to complete it. For complex tasks like 'summarize all .txt files in this folder' or 'optimize the system'.",
             parameters: {
                 type: "object",
                 properties: {
-                    goal:      {type: "string", description: "Tamamlanacak hedef (açık ve net olsun)"},
-                    max_steps: {type: "string", description: "Maksimum adım sayısı (varsayılan 10, max 20)"},
+                    goal:      {type: "string", description: "The goal to complete (be clear and specific)"},
+                    max_steps: {type: "string", description: "Maximum number of steps (default 10, max 20)"},
                 },
                 required: ["goal"],
                 additionalProperties: false,
@@ -968,13 +968,13 @@ export const watchSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "watch_condition",
-            description: "Bir sistem metriğini izle ve eşik aşılınca bildirim ver. 'GPU %90 geçerse uyar', 'RAM %80 üstüne çıkarsa bildir' gibi.",
+            description: "Monitor a system metric and notify when a threshold is crossed. For example: 'alert me if GPU goes above 90%', 'notify me if RAM goes over 80%'.",
             parameters: {
                 type: "object",
                 properties: {
-                    metric:    {type: "string", description: "İzlenecek metrik: cpu, ram, gpu, disk"},
-                    threshold: {type: "string", description: "Eşik değeri (yüzde, 1-100)"},
-                    direction: {type: "string", description: "'above' (üstüne çıkarsa) veya 'below' (altına düşerse)"},
+                    metric:    {type: "string", description: "Metric to monitor: cpu, ram, gpu, disk"},
+                    threshold: {type: "string", description: "Threshold value (percent, 1-100)"},
+                    direction: {type: "string", description: "'above' (if it goes above) or 'below' (if it drops below)"},
                 },
                 required: ["metric", "threshold"],
                 additionalProperties: false,
@@ -985,7 +985,7 @@ export const watchSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "list_watch_conditions",
-            description: "Aktif eşik izlemelerini listele.",
+            description: "List active threshold watches.",
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
@@ -993,11 +993,11 @@ export const watchSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "remove_watch_condition",
-            description: "Bir eşik izlemesini kaldır.",
+            description: "Remove a threshold watch.",
             parameters: {
                 type: "object",
                 properties: {
-                    metric: {type: "string", description: "Kaldırılacak metrik: cpu, ram, gpu, disk"},
+                    metric: {type: "string", description: "Metric to remove: cpu, ram, gpu, disk"},
                 },
                 required: ["metric"],
                 additionalProperties: false,
@@ -1006,373 +1006,373 @@ export const watchSchemas: ChatCompletionTool[] = [
     },
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 19 Schemas
+// ───────────────────────────────────────────────────────────── Phase 19 Schemas
 export const soundSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"play_sound",description:"Bir ses dosyasını çal (.mp3/.wav). ~/.aegis/sounds/ klasöründeki dosyalar veya tam yol.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Ses dosyasının yolu (örn: notification.wav, ~/sounds/ding.mp3)"},volume:{type: "string",description:"Ses seviyesi 0-100 (varsayılan 50)"}},required:["file_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"ambient_start",description:"Arka plan ambient sesi başlat. Odaklanma, dinlenme veya çalışma müziği için.",parameters:{type:"object",properties:{category:{type:"string",description:"Ambient kategorisi: rain, forest, cafe, white, space, lofi"},volume:{type: "string",description:"Ses seviyesi 0-100 (varsayılan 30)"}},required:["category"],additionalProperties:false}}},
-    {type:"function",function:{name:"ambient_stop",description:"Çalan ambient sesi durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"list_sounds",description:"Mevcut ses dosyalarını ve ambient kategorilerini listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"play_sound",description:"Play a sound file (.mp3/.wav). Files in the ~/.aegis/sounds/ folder or a full path.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Path to the sound file (e.g. notification.wav, ~/sounds/ding.mp3)"},volume:{type: "string",description:"Volume level 0-100 (default 50)"}},required:["file_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"ambient_start",description:"Start a background ambient sound. For focus, relaxation, or work music.",parameters:{type:"object",properties:{category:{type:"string",description:"Ambient category: rain, forest, cafe, white, space, lofi"},volume:{type: "string",description:"Volume level 0-100 (default 30)"}},required:["category"],additionalProperties:false}}},
+    {type:"function",function:{name:"ambient_stop",description:"Stop the playing ambient sound.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"list_sounds",description:"List available sound files and ambient categories.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 20 Schemas
+// ───────────────────────────────────────────────────────────── Phase 20 Schemas
 export const codeToolSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"git_status",description:"Git repo durumunu göster: staged, unstaged, untracked dosyalar.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu (varsayılan: mevcut dizin)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_log",description:"Son commit'leri listele. Graph/tree görünümü destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},count:{type: "string",description:"Gösterilecek commit sayısı (varsayılan 10)"},graph:{type:"boolean",description:"true = ASCII branch grafiği göster"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_diff",description:"Staged veya unstaged değişiklikleri göster. Belirli dosya verilebilir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},staged:{type:"boolean",description:"true = staged değişiklikler, false = unstaged (varsayılan false)"},file:{type:"string",description:"Sadece bu dosyanın diff'ini göster (opsiyonel)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_add",description:"Dosyaları stage'e ekle (git add). '.' = tüm değişiklikler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},files:{type:"string",description:"Stage'e eklenecek dosya/desen. '.' = hepsi, veya spesifik dosya/klasör adı"}},required:["files"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_commit",description:"Staged değişiklikleri commit et. add_all=true ile önce tüm değişiklikleri stage'e alır.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},message:{type:"string",description:"Commit mesajı"},add_all:{type:"boolean",description:"true = önce git add . çalıştır, sonra commit et"}},required:["message"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_push",description:"Değişiklikleri remote'a gönder (git push).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},branch:{type:"string",description:"Branch adı (varsayılan: aktif branch)"},force:{type:"boolean",description:"true = --force-with-lease ile zorla it"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_pull",description:"Remote'dan değişiklikleri çek (git pull).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},remote:{type:"string",description:"Remote adı (varsayılan: origin)"},rebase:{type:"boolean",description:"true = --rebase ile çek"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_branch",description:"Branch oluştur, değiştir, sil veya listele. Görsel branch haritası için action=graph.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, create, switch, delete, graph (görsel ağaç)"},branch_name:{type:"string",description:"Branch adı (create/switch/delete için)"}},required:["action"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_stash",description:"Değişiklikleri geçici olarak sakla veya geri yükle.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"save, pop, list, drop, apply"},message:{type:"string",description:"Stash mesajı (save için opsiyonel)"},index:{type: "string",description:"Stash indeksi (drop/apply için, varsayılan 0)"}},required:["action"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_merge",description:"Branch merge et. fast-forward veya no-ff destekler.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},branch:{type:"string",description:"Merge edilecek branch"},no_ff:{type:"boolean",description:"true = --no-ff (merge commit oluştur)"}},required:["branch"],additionalProperties:false}}},
-    {type:"function",function:{name:"git_reset",description:"Staged dosyaları unstage et veya son commit'i geri al.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},mode:{type:"string",description:"soft (commit geri al, dosyalar staged kalır), mixed (varsayılan, staged temizle), hard (dikkat! tüm değişiklikleri sil)"},commits:{type: "string",description:"Kaç commit geri git (varsayılan 1)"},file:{type:"string",description:"Belirli dosyayı unstage et (mode yerine kullanılır)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"git_remote",description:"Remote URL'leri listele veya ekle/değiştir.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo yolu"},action:{type:"string",description:"list, add, set-url"},name:{type:"string",description:"Remote adı"},url:{type:"string",description:"Remote URL"}},required:["action"],additionalProperties:false}}},
-    {type:"function",function:{name:"run_and_analyze",description:"Bir komutu çalıştır ve çıktısını analiz et. Hata mesajlarını açıkla, çözüm öner.",parameters:{type:"object",properties:{command:{type:"string",description:"Çalıştırılacak komut"},context:{type:"string",description:"Ek bağlam (örn: bu bir Node.js projesi)"}},required:["command"],additionalProperties:false}}},
-    {type:"function",function:{name:"scaffold_project",description:"Hazır şablondan yeni proje oluştur. Örnek: 'Python FastAPI', 'React Tailwind', 'Node Express'.",parameters:{type:"object",properties:{template:{type:"string",description:"Şablon adı: python-fastapi, react-tailwind, node-express, electron-app, next-ts"},target_path:{type:"string",description:"Projenin oluşturulacağı dizin (varsayılan: Desktop)"}},required:["template"],additionalProperties:false}}},
-    {type:"function",function:{name:"list_templates",description:"Mevcut proje şablonlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"git_status",description:"Show Git repo status: staged, unstaged, untracked files.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path (default: current directory)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_log",description:"List recent commits. Supports a graph/tree view.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},count:{type: "string",description:"Number of commits to show (default 10)"},graph:{type:"boolean",description:"true = show an ASCII branch graph"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_diff",description:"Show staged or unstaged changes. A specific file can be given.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},staged:{type:"boolean",description:"true = staged changes, false = unstaged (default false)"},file:{type:"string",description:"Show the diff for only this file (optional)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_add",description:"Stage files (git add). '.' = all changes.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},files:{type:"string",description:"File/pattern to stage. '.' = everything, or a specific file/folder name"}},required:["files"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_commit",description:"Commit staged changes. With add_all=true, stages all changes first.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},message:{type:"string",description:"Commit message"},add_all:{type:"boolean",description:"true = run git add . first, then commit"}},required:["message"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_push",description:"Push changes to the remote (git push).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},remote:{type:"string",description:"Remote name (default: origin)"},branch:{type:"string",description:"Branch name (default: current branch)"},force:{type:"boolean",description:"true = force push with --force-with-lease"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_pull",description:"Pull changes from the remote (git pull).",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},remote:{type:"string",description:"Remote name (default: origin)"},rebase:{type:"boolean",description:"true = pull with --rebase"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_branch",description:"Create, switch, delete, or list branches. Use action=graph for a visual branch map.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},action:{type:"string",description:"list, create, switch, delete, graph (visual tree)"},branch_name:{type:"string",description:"Branch name (for create/switch/delete)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_stash",description:"Temporarily store changes or restore them.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},action:{type:"string",description:"save, pop, list, drop, apply"},message:{type:"string",description:"Stash message (optional for save)"},index:{type: "string",description:"Stash index (for drop/apply, default 0)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_merge",description:"Merge a branch. Supports fast-forward or no-ff.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},branch:{type:"string",description:"Branch to merge"},no_ff:{type:"boolean",description:"true = use --no-ff (create a merge commit)"}},required:["branch"],additionalProperties:false}}},
+    {type:"function",function:{name:"git_reset",description:"Unstage staged files or undo the last commit.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},mode:{type:"string",description:"soft (undo commit, files stay staged), mixed (default, clear staged), hard (warning! deletes all changes)"},commits:{type: "string",description:"How many commits to go back (default 1)"},file:{type:"string",description:"Unstage a specific file (used instead of mode)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"git_remote",description:"List or add/change remote URLs.",parameters:{type:"object",properties:{repo_path:{type:"string",description:"Repo path"},action:{type:"string",description:"list, add, set-url"},name:{type:"string",description:"Remote name"},url:{type:"string",description:"Remote URL"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"run_and_analyze",description:"Run a command and analyze its output. Explains error messages and suggests fixes.",parameters:{type:"object",properties:{command:{type:"string",description:"Command to run"},context:{type:"string",description:"Extra context (e.g. this is a Node.js project)"}},required:["command"],additionalProperties:false}}},
+    {type:"function",function:{name:"scaffold_project",description:"Create a new project from a ready-made template. Example: 'Python FastAPI', 'React Tailwind', 'Node Express'.",parameters:{type:"object",properties:{template:{type:"string",description:"Template name: python-fastapi, react-tailwind, node-express, electron-app, next-ts"},target_path:{type:"string",description:"Directory where the project will be created (default: Desktop)"}},required:["template"],additionalProperties:false}}},
+    {type:"function",function:{name:"list_templates",description:"List available project templates.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 21 Schemas
+// ───────────────────────────────────────────────────────────── Phase 21 Schemas
 export const timeSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"pomodoro_start",description:"Pomodoro zamanlayıcısını başlat. 25 dakika çalışma / 5 dakika mola döngüsü.",parameters:{type:"object",properties:{work_minutes:{type: "string",description:"Çalışma süresi dakika (varsayılan 25)"},break_minutes:{type: "string",description:"Mola süresi dakika (varsayılan 5)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"pomodoro_stop",description:"Çalışan pomodoro zamanlayıcısını durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"pomodoro_status",description:"Pomodoro durumunu döndür (UI widget'ı için makine-okunur): aktifse 'PHASE|kalanSaniye|oturum', değilse 'INACTIVE'.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"time_track_start",description:"Görev bazlı zaman takibini başlat.",parameters:{type:"object",properties:{task_name:{type:"string",description:"Takip edilecek görev adı"}},required:["task_name"],additionalProperties:false}}},
-    {type:"function",function:{name:"time_track_stop",description:"Zaman takibini durdur ve süreyi kaydet.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"time_track_report",description:"Günlük/haftalık zaman harcama raporunu göster.",parameters:{type:"object",properties:{period:{type:"string",description:"Dönem: today, week, month (varsayılan: today)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"calendar_get_events",description:"Windows Takvim'den etkinlikleri çek. Bugünkü veya belirtilen tarihteki etkinlikler.",parameters:{type:"object",properties:{date:{type:"string",description:"Tarih YYYY-MM-DD formatında (varsayılan: bugün)"},days_ahead:{type: "string",description:"Kaç gün ileri bak (varsayılan 1)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"calendar_add_event",description:"Windows Takvim'e etkinlik ekle.",parameters:{type:"object",properties:{title:{type:"string",description:"Etkinlik başlığı"},start_time:{type:"string",description:"Başlangıç zamanı (örn: 2024-01-15 14:00)"},duration_minutes:{type: "string",description:"Süre dakika (varsayılan 60)"},notes:{type:"string",description:"Notlar (opsiyonel)"}},required:["title","start_time"],additionalProperties:false}}},
+    {type:"function",function:{name:"pomodoro_start",description:"Start the Pomodoro timer. 25 minutes work / 5 minutes break cycle.",parameters:{type:"object",properties:{work_minutes:{type: "string",description:"Work duration in minutes (default 25)"},break_minutes:{type: "string",description:"Break duration in minutes (default 5)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"pomodoro_stop",description:"Stop the running Pomodoro timer.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"pomodoro_status",description:"Return Pomodoro status (machine-readable for the UI widget): 'PHASE|remainingSeconds|session' if active, otherwise 'INACTIVE'.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"time_track_start",description:"Start task-based time tracking.",parameters:{type:"object",properties:{task_name:{type:"string",description:"Name of the task to track"}},required:["task_name"],additionalProperties:false}}},
+    {type:"function",function:{name:"time_track_stop",description:"Stop time tracking and save the duration.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"time_track_report",description:"Show a daily/weekly time-spent report.",parameters:{type:"object",properties:{period:{type:"string",description:"Period: today, week, month (default: today)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_get_events",description:"Fetch events from Windows Calendar. Today's events or events on a specified date.",parameters:{type:"object",properties:{date:{type:"string",description:"Date in YYYY-MM-DD format (default: today)"},days_ahead:{type: "string",description:"How many days ahead to look (default 1)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_add_event",description:"Add an event to Windows Calendar.",parameters:{type:"object",properties:{title:{type:"string",description:"Event title"},start_time:{type:"string",description:"Start time (e.g. 2024-01-15 14:00)"},duration_minutes:{type: "string",description:"Duration in minutes (default 60)"},notes:{type:"string",description:"Notes (optional)"}},required:["title","start_time"],additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 22 Schemas
+// ───────────────────────────────────────────────────────────── Phase 22 Schemas
 export const mediaSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"organize_folder",description:"Klasörü tara ve dosyaları uzantı/tarihe göre alt klasörlere taşı.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Organize edilecek klasör yolu"},by:{type:"string",description:"Gruplama kriteri: extension (uzantı) veya date (tarih, varsayılan: extension)"}},required:["folder_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"find_duplicates",description:"Bir klasördeki yinelenen dosyaları hash karşılaştırmasıyla bul.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Taranacak klasör"},recursive:{type:"boolean",description:"Alt klasörleri de tara (varsayılan true)"}},required:["folder_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"bulk_rename",description:"Bir klasördeki dosyaları toplu yeniden adlandır.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Klasör yolu"},pattern:{type:"string",description:"Mevcut kalıp (regex veya sabit metin)"},replacement:{type:"string",description:"Yeni ad kalıbı ($1 = yakalama grubu, {n} = sıra numarası)"},extension:{type:"string",description:"Sadece bu uzantıya uygula (opsiyonel, örn: .jpg)"}},required:["folder_path","pattern","replacement"],additionalProperties:false}}},
-    {type:"function",function:{name:"analyze_image",description:"Yerel bir görüntü dosyasını vision modelle analiz et.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Görüntü dosyasının yolu"},question:{type:"string",description:"Görüntü hakkında soru (opsiyonel)"}},required:["image_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"resize_image",description:"Bir görüntüyü yeniden boyutlandır.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Görüntü yolu"},width:{type: "string",description:"Hedef genişlik (piksel)"},height:{type: "string",description:"Hedef yükseklik (piksel, opsiyonel — orantılı)"},output_path:{type:"string",description:"Çıktı yolu (opsiyonel, varsayılan: kaynak_resized.ext)"}},required:["image_path","width"],additionalProperties:false}}},
-    {type:"function",function:{name:"convert_image",description:"Bir görüntü dosyasını farklı formata çevir (PNG/JPEG/BMP/GIF).",parameters:{type:"object",properties:{image_path:{type:"string",description:"Kaynak görüntü yolu"},output_format:{type:"string",description:"Hedef format: png, jpg, bmp, gif"},output_path:{type:"string",description:"Çıktı yolu (opsiyonel)"}},required:["image_path","output_format"],additionalProperties:false}}},
-    {type:"function",function:{name:"pdf_to_text",description:"PDF dosyasından metin çıkar.",parameters:{type:"object",properties:{pdf_path:{type:"string",description:"PDF dosyasının yolu"},max_chars:{type: "string",description:"Maksimum karakter sayısı (varsayılan 10000)"}},required:["pdf_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"organize_folder",description:"Scan a folder and move files into subfolders by extension/date.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Folder path to organize"},by:{type:"string",description:"Grouping criteria: extension or date (default: extension)"}},required:["folder_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"find_duplicates",description:"Find duplicate files in a folder via hash comparison.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Folder to scan"},recursive:{type:"boolean",description:"Also scan subfolders (default true)"}},required:["folder_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"bulk_rename",description:"Bulk-rename files in a folder.",parameters:{type:"object",properties:{folder_path:{type:"string",description:"Folder path"},pattern:{type:"string",description:"Existing pattern (regex or literal text)"},replacement:{type:"string",description:"New name pattern ($1 = capture group, {n} = sequence number)"},extension:{type:"string",description:"Apply only to this extension (optional, e.g. .jpg)"}},required:["folder_path","pattern","replacement"],additionalProperties:false}}},
+    {type:"function",function:{name:"analyze_image",description:"Analyze a local image file with a vision model.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Path to the image file"},question:{type:"string",description:"Question about the image (optional)"}},required:["image_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"resize_image",description:"Resize an image.",parameters:{type:"object",properties:{image_path:{type:"string",description:"Image path"},width:{type: "string",description:"Target width (pixels)"},height:{type: "string",description:"Target height (pixels, optional — proportional)"},output_path:{type:"string",description:"Output path (optional, default: source_resized.ext)"}},required:["image_path","width"],additionalProperties:false}}},
+    {type:"function",function:{name:"convert_image",description:"Convert an image file to a different format (PNG/JPEG/BMP/GIF).",parameters:{type:"object",properties:{image_path:{type:"string",description:"Source image path"},output_format:{type:"string",description:"Target format: png, jpg, bmp, gif"},output_path:{type:"string",description:"Output path (optional)"}},required:["image_path","output_format"],additionalProperties:false}}},
+    {type:"function",function:{name:"pdf_to_text",description:"Extract text from a PDF file.",parameters:{type:"object",properties:{pdf_path:{type:"string",description:"Path to the PDF file"},max_chars:{type: "string",description:"Maximum character count (default 10000)"}},required:["pdf_path"],additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 23 Schemas
+// ───────────────────────────────────────────────────────────── Phase 23 Schemas
 export const personaSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"set_persona",description:"AEGIS'in aktif kişiliğini değiştir. Farklı modlar: resmi asistan, samimi arkadaş, sert koç, öğretmen.",parameters:{type:"object",properties:{name:{type:"string",description:"Persona adı: default, formal, friendly, coach, teacher veya özel persona adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"get_persona",description:"Şu an aktif olan kişiliği göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"list_personas",description:"Tüm mevcut kişilikleri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"add_persona",description:"Yeni özel kişilik ekle.",parameters:{type:"object",properties:{name:{type:"string",description:"Kişilik adı"},description:{type:"string",description:"Kısa açıklama"},system_prompt:{type:"string",description:"Bu kişilik için sistem talimatları"}},required:["name","system_prompt"],additionalProperties:false}}},
-    {type:"function",function:{name:"roleplay_start",description:"Belirli bir karakterde rol yapma modunu başlat.",parameters:{type:"object",properties:{character:{type:"string",description:"Karakter açıklaması (örn: 'deneyimli Python öğretmeni', 'startup CEO')"},scenario:{type:"string",description:"Senaryo bağlamı (opsiyonel)"}},required:["character"],additionalProperties:false}}},
-    {type:"function",function:{name:"roleplay_stop",description:"Rol yapma modundan çık, normal moda dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"set_persona",description:"Change AEGIS's active personality. Different modes: formal assistant, friendly companion, tough coach, teacher.",parameters:{type:"object",properties:{name:{type:"string",description:"Persona name: default, formal, friendly, coach, teacher, or a custom persona name"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"get_persona",description:"Show the currently active personality.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"list_personas",description:"List all available personalities.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"add_persona",description:"Add a new custom personality.",parameters:{type:"object",properties:{name:{type:"string",description:"Personality name"},description:{type:"string",description:"Short description"},system_prompt:{type:"string",description:"System instructions for this personality"}},required:["name","system_prompt"],additionalProperties:false}}},
+    {type:"function",function:{name:"roleplay_start",description:"Start roleplay mode as a specific character.",parameters:{type:"object",properties:{character:{type:"string",description:"Character description (e.g. 'experienced Python teacher', 'startup CEO')"},scenario:{type:"string",description:"Scenario context (optional)"}},required:["character"],additionalProperties:false}}},
+    {type:"function",function:{name:"roleplay_stop",description:"Exit roleplay mode and return to normal mode.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 24 Schemas
+// ───────────────────────────────────────────────────────────── Phase 24 Schemas
 export const networkSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"ping_host",description:"Bir host'a ping at, gecikme ve paket kaybını ölç.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host (IP veya domain)"},count:{type: "string",description:"Ping sayısı (varsayılan 4)"}},required:["host"],additionalProperties:false}}},
-    {type:"function",function:{name:"trace_route",description:"Bir host'a giden ağ yolunu izle.",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host"},max_hops:{type: "string",description:"Maksimum hop sayısı (varsayılan 30)"}},required:["host"],additionalProperties:false}}},
-    {type:"function",function:{name:"port_scan",description:"Bir host'un açık portlarını tara (yerel ağ, eğitim amaçlı).",parameters:{type:"object",properties:{host:{type:"string",description:"Hedef host (IP)"},ports:{type:"string",description:"Port aralığı (örn: 80,443,8080 veya 1-1024, varsayılan: 21,22,25,80,443,3306,8080)"}},required:["host"],additionalProperties:false}}},
-    {type:"function",function:{name:"dns_lookup",description:"Bir domain için DNS kayıtlarını sorgula (A, MX, TXT).",parameters:{type:"object",properties:{domain:{type:"string",description:"Sorgulancak domain"},type:{type:"string",description:"Kayıt tipi: A, MX, TXT, NS, CNAME (varsayılan A)"}},required:["domain"],additionalProperties:false}}},
-    {type:"function",function:{name:"ssh_run",description:"SSH ile uzak sunucuda komut çalıştır (önceden kaydedilmiş host).",parameters:{type:"object",properties:{host_alias:{type:"string",description:"~/.aegis/ssh-hosts.json'daki host takma adı"},command:{type:"string",description:"Çalıştırılacak komut"}},required:["host_alias","command"],additionalProperties:false}}},
-    {type:"function",function:{name:"ssh_add_host",description:"SSH host profili kaydet.",parameters:{type:"object",properties:{alias:{type:"string",description:"Takma ad"},hostname:{type:"string",description:"IP veya hostname"},username:{type:"string",description:"Kullanıcı adı"},port:{type: "string",description:"SSH portu (varsayılan 22)"},key_path:{type:"string",description:"Private key yolu (opsiyonel)"}},required:["alias","hostname","username"],additionalProperties:false}}},
-    {type:"function",function:{name:"docker_ps",description:"Çalışan Docker container'larını listele.",parameters:{type:"object",properties:{all:{type:"boolean",description:"Durdurulmuş container'ları da göster (varsayılan false)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"docker_start",description:"Bir Docker container'ını başlat.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"}},required:["container"],additionalProperties:false}}},
-    {type:"function",function:{name:"docker_stop",description:"Bir Docker container'ını durdur.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"}},required:["container"],additionalProperties:false}}},
-    {type:"function",function:{name:"docker_logs",description:"Docker container loglarını al.",parameters:{type:"object",properties:{container:{type:"string",description:"Container adı veya ID"},lines:{type: "string",description:"Son kaç satır (varsayılan 50)"}},required:["container"],additionalProperties:false}}},
+    {type:"function",function:{name:"ping_host",description:"Ping a host to measure latency and packet loss.",parameters:{type:"object",properties:{host:{type:"string",description:"Target host (IP or domain)"},count:{type: "string",description:"Number of pings (default 4)"}},required:["host"],additionalProperties:false}}},
+    {type:"function",function:{name:"trace_route",description:"Trace the network path to a host.",parameters:{type:"object",properties:{host:{type:"string",description:"Target host"},max_hops:{type: "string",description:"Maximum number of hops (default 30)"}},required:["host"],additionalProperties:false}}},
+    {type:"function",function:{name:"port_scan",description:"Scan a host's open ports (local network, for educational purposes).",parameters:{type:"object",properties:{host:{type:"string",description:"Target host (IP)"},ports:{type:"string",description:"Port range (e.g. 80,443,8080 or 1-1024, default: 21,22,25,80,443,3306,8080)"}},required:["host"],additionalProperties:false}}},
+    {type:"function",function:{name:"dns_lookup",description:"Query DNS records for a domain (A, MX, TXT).",parameters:{type:"object",properties:{domain:{type:"string",description:"Domain to query"},type:{type:"string",description:"Record type: A, MX, TXT, NS, CNAME (default A)"}},required:["domain"],additionalProperties:false}}},
+    {type:"function",function:{name:"ssh_run",description:"Run a command on a remote server over SSH (a previously saved host).",parameters:{type:"object",properties:{host_alias:{type:"string",description:"Host alias from ~/.aegis/ssh-hosts.json"},command:{type:"string",description:"Command to run"}},required:["host_alias","command"],additionalProperties:false}}},
+    {type:"function",function:{name:"ssh_add_host",description:"Save an SSH host profile.",parameters:{type:"object",properties:{alias:{type:"string",description:"Alias"},hostname:{type:"string",description:"IP or hostname"},username:{type:"string",description:"Username"},port:{type: "string",description:"SSH port (default 22)"},key_path:{type:"string",description:"Private key path (optional)"}},required:["alias","hostname","username"],additionalProperties:false}}},
+    {type:"function",function:{name:"docker_ps",description:"List running Docker containers.",parameters:{type:"object",properties:{all:{type:"boolean",description:"Also show stopped containers (default false)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"docker_start",description:"Start a Docker container.",parameters:{type:"object",properties:{container:{type:"string",description:"Container name or ID"}},required:["container"],additionalProperties:false}}},
+    {type:"function",function:{name:"docker_stop",description:"Stop a Docker container.",parameters:{type:"object",properties:{container:{type:"string",description:"Container name or ID"}},required:["container"],additionalProperties:false}}},
+    {type:"function",function:{name:"docker_logs",description:"Get Docker container logs.",parameters:{type:"object",properties:{container:{type:"string",description:"Container name or ID"},lines:{type: "string",description:"How many recent lines (default 50)"}},required:["container"],additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 25 Schemas
+// ───────────────────────────────────────────────────────────── Phase 25 Schemas
 export const vizSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"create_chart",description:"Veriden ASCII grafik oluştur. Sütun, çizgi veya pasta grafik. Feed'de gösterilir.",parameters:{type:"object",properties:{type:{type:"string",description:"Grafik tipi: bar, line, pie"},data:{type:"string",description:"JSON formatında veri: {labels:[...], values:[...]} veya [[label,value],...]"},title:{type:"string",description:"Grafik başlığı (opsiyonel)"}},required:["type","data"],additionalProperties:false}}},
-    {type:"function",function:{name:"system_report",description:"Sistem sağlık raporu oluştur: CPU, RAM, disk, GPU son 24 saatin özeti.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"create_chart",description:"Create an ASCII chart from data. Bar, line, or pie chart. Shown in the feed.",parameters:{type:"object",properties:{type:{type:"string",description:"Chart type: bar, line, pie"},data:{type:"string",description:"Data in JSON format: {labels:[...], values:[...]} or [[label,value],...]"},title:{type:"string",description:"Chart title (optional)"}},required:["type","data"],additionalProperties:false}}},
+    {type:"function",function:{name:"system_report",description:"Generate a system health report: a summary of CPU, RAM, disk, GPU over the last 24 hours.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 26 Schemas
+// ───────────────────────────────────────────────────────────── Phase 26 Schemas
 export const emailSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"email_send",description:"SMTP ile e-posta gönder. Kimlik bilgileri vault'ta saklanmalı.",parameters:{type:"object",properties:{to:{type:"string",description:"Alıcı e-posta adresi"},subject:{type:"string",description:"Konu"},body:{type:"string",description:"E-posta gövdesi"},from_alias:{type:"string",description:"Vault'taki SMTP profili takma adı (varsayılan: default)"}},required:["to","subject","body"],additionalProperties:false}}},
-    {type:"function",function:{name:"email_fetch",description:"IMAP ile gelen kutusunu oku.",parameters:{type:"object",properties:{count:{type: "string",description:"Son kaç e-posta (varsayılan 10)"},folder:{type:"string",description:"Klasör adı (varsayılan: INBOX)"},from_alias:{type:"string",description:"Vault'taki IMAP profili takma adı"}},additionalProperties:false}}},
-    {type:"function",function:{name:"email_draft",description:"Doğal dil açıklamasından profesyonel e-posta taslağı oluştur.",parameters:{type:"object",properties:{intent:{type:"string",description:"E-postanın amacı (örn: toplantı teklifi, şikayet, teşekkür)"},recipient:{type:"string",description:"Alıcının rolü/adı"},tone:{type:"string",description:"Ton: formal, friendly, assertive (varsayılan: formal)"},language:{type:"string",description:"Dil: tr, en (varsayılan: tr)"}},required:["intent"],additionalProperties:false}}},
-    {type:"function",function:{name:"email_setup_smtp",description:"SMTP/IMAP e-posta profili kaydet (şifreli vault'a).",parameters:{type:"object",properties:{alias:{type:"string",description:"Profil takma adı"},smtp_host:{type:"string",description:"SMTP sunucu"},smtp_port:{type: "string",description:"SMTP portu"},imap_host:{type:"string",description:"IMAP sunucu"},imap_port:{type: "string",description:"IMAP portu"},username:{type:"string",description:"Kullanıcı adı (e-posta)"},password:{type:"string",description:"Şifre (vault'a şifreli kaydedilir)"}},required:["alias","smtp_host","username","password"],additionalProperties:false}}},
+    {type:"function",function:{name:"email_send",description:"Send an email via SMTP. Credentials must be stored in the vault.",parameters:{type:"object",properties:{to:{type:"string",description:"Recipient email address"},subject:{type:"string",description:"Subject"},body:{type:"string",description:"Email body"},from_alias:{type:"string",description:"SMTP profile alias in the vault (default: default)"}},required:["to","subject","body"],additionalProperties:false}}},
+    {type:"function",function:{name:"email_fetch",description:"Read the inbox via IMAP.",parameters:{type:"object",properties:{count:{type: "string",description:"How many recent emails (default 10)"},folder:{type:"string",description:"Folder name (default: INBOX)"},from_alias:{type:"string",description:"IMAP profile alias in the vault"}},additionalProperties:false}}},
+    {type:"function",function:{name:"email_draft",description:"Generate a professional email draft from a natural-language description.",parameters:{type:"object",properties:{intent:{type:"string",description:"Purpose of the email (e.g. meeting proposal, complaint, thank-you)"},recipient:{type:"string",description:"Recipient's role/name"},tone:{type:"string",description:"Tone: formal, friendly, assertive (default: formal)"},language:{type:"string",description:"Language: tr, en (default: tr)"}},required:["intent"],additionalProperties:false}}},
+    {type:"function",function:{name:"email_setup_smtp",description:"Save an SMTP/IMAP email profile (encrypted, into the vault).",parameters:{type:"object",properties:{alias:{type:"string",description:"Profile alias"},smtp_host:{type:"string",description:"SMTP server"},smtp_port:{type: "string",description:"SMTP port"},imap_host:{type:"string",description:"IMAP server"},imap_port:{type: "string",description:"IMAP port"},username:{type:"string",description:"Username (email)"},password:{type:"string",description:"Password (saved encrypted in the vault)"}},required:["alias","smtp_host","username","password"],additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 27 Schemas
+// ───────────────────────────────────────────────────────────── Phase 27 Schemas
 export const learningSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"card_add",description:"Yeni flashcard ekle. Konu + cevap çifti.",parameters:{type:"object",properties:{front:{type:"string",description:"Soru veya konu"},back:{type:"string",description:"Cevap veya açıklama"},tags:{type:"string",description:"Etiketler virgülle ayrılmış (örn: python,programlama)"}},required:["front","back"],additionalProperties:false}}},
-    {type:"function",function:{name:"card_review",description:"Spaced repetition ile flashcard çalış. Bugünkü tekrar gereken kartları göster.",parameters:{type:"object",properties:{tag:{type:"string",description:"Belirli etikete göre filtrele (opsiyonel)"},count:{type: "string",description:"Kaç kart çalışılacak (varsayılan 5)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"reading_add",description:"Okuma listesine URL veya kitap ekle.",parameters:{type:"object",properties:{url_or_title:{type:"string",description:"Makale URL'i veya kitap adı"},notes:{type:"string",description:"Notlar (opsiyonel)"},priority:{type: "string",description:"Öncelik 1-5 (varsayılan 3)"}},required:["url_or_title"],additionalProperties:false}}},
-    {type:"function",function:{name:"reading_list",description:"Okuma listesini göster.",parameters:{type:"object",properties:{status:{type:"string",description:"Filtre: all, pending, done (varsayılan: pending)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"reading_summarize",description:"Bir URL'deki makaleyi çekip LLM ile özetle.",parameters:{type:"object",properties:{url:{type:"string",description:"Özetlenecek makale URL'i"},add_to_list:{type:"boolean",description:"Okuma listesine de ekle (varsayılan true)"}},required:["url"],additionalProperties:false}}},
-    {type:"function",function:{name:"goal_set",description:"Yeni hedef tanımla.",parameters:{type:"object",properties:{title:{type:"string",description:"Hedef başlığı"},deadline:{type:"string",description:"Son tarih YYYY-MM-DD (opsiyonel)"},steps:{type:"string",description:"Alt adımlar virgülle ayrılmış (opsiyonel)"}},required:["title"],additionalProperties:false}}},
-    {type:"function",function:{name:"goal_check_in",description:"Bir hedefin ilerlemesini güncelle.",parameters:{type:"object",properties:{goal_id_or_title:{type:"string",description:"Hedef ID veya başlığı"},progress:{type: "string",description:"Tamamlanma yüzdesi 0-100"},note:{type:"string",description:"İlerleme notu (opsiyonel)"}},required:["goal_id_or_title","progress"],additionalProperties:false}}},
-    {type:"function",function:{name:"goal_list",description:"Aktif hedefleri ve tamamlanma yüzdelerini göster.",parameters:{type:"object",properties:{status:{type:"string",description:"Filtre: all, active, done (varsayılan: active)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"card_add",description:"Add a new flashcard. A prompt + answer pair.",parameters:{type:"object",properties:{front:{type:"string",description:"Question or topic"},back:{type:"string",description:"Answer or explanation"},tags:{type:"string",description:"Comma-separated tags (e.g. python,programming)"}},required:["front","back"],additionalProperties:false}}},
+    {type:"function",function:{name:"card_review",description:"Study flashcards using spaced repetition. Shows cards due for review today.",parameters:{type:"object",properties:{tag:{type:"string",description:"Filter by a specific tag (optional)"},count:{type: "string",description:"How many cards to study (default 5)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"reading_add",description:"Add a URL or book to the reading list.",parameters:{type:"object",properties:{url_or_title:{type:"string",description:"Article URL or book title"},notes:{type:"string",description:"Notes (optional)"},priority:{type: "string",description:"Priority 1-5 (default 3)"}},required:["url_or_title"],additionalProperties:false}}},
+    {type:"function",function:{name:"reading_list",description:"Show the reading list.",parameters:{type:"object",properties:{status:{type:"string",description:"Filter: all, pending, done (default: pending)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"reading_summarize",description:"Fetch an article from a URL and summarize it with an LLM.",parameters:{type:"object",properties:{url:{type:"string",description:"URL of the article to summarize"},add_to_list:{type:"boolean",description:"Also add to the reading list (default true)"}},required:["url"],additionalProperties:false}}},
+    {type:"function",function:{name:"goal_set",description:"Define a new goal.",parameters:{type:"object",properties:{title:{type:"string",description:"Goal title"},deadline:{type:"string",description:"Deadline YYYY-MM-DD (optional)"},steps:{type:"string",description:"Comma-separated sub-steps (optional)"}},required:["title"],additionalProperties:false}}},
+    {type:"function",function:{name:"goal_check_in",description:"Update the progress of a goal.",parameters:{type:"object",properties:{goal_id_or_title:{type:"string",description:"Goal ID or title"},progress:{type: "string",description:"Completion percentage 0-100"},note:{type:"string",description:"Progress note (optional)"}},required:["goal_id_or_title","progress"],additionalProperties:false}}},
+    {type:"function",function:{name:"goal_list",description:"Show active goals and their completion percentages.",parameters:{type:"object",properties:{status:{type:"string",description:"Filter: all, active, done (default: active)"}},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 28 Schemas
+// ───────────────────────────────────────────────────────────── Phase 28 Schemas
 export const iotSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"list_bluetooth",description:"Bağlı ve eşleştirilmiş Bluetooth cihazlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"connect_bluetooth",description:"Bir Bluetooth cihazına bağlan.",parameters:{type:"object",properties:{device_name:{type:"string",description:"Cihaz adı (kısmi eşleşme desteklenir)"}},required:["device_name"],additionalProperties:false}}},
-    {type:"function",function:{name:"disconnect_bluetooth",description:"Bağlı Bluetooth cihazının bağlantısını kes.",parameters:{type:"object",properties:{device_name:{type:"string",description:"Cihaz adı"}},required:["device_name"],additionalProperties:false}}},
-    {type:"function",function:{name:"list_usb",description:"Bağlı USB cihazlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"list_printers",description:"Kurulu yazıcıları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"print_file",description:"Belirtilen dosyayı yazdır.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Yazdırılacak dosya yolu"},printer_name:{type:"string",description:"Yazıcı adı (opsiyonel, varsayılan: varsayılan yazıcı)"}},required:["file_path"],additionalProperties:false}}},
-    {type:"function",function:{name:"printer_status",description:"Yazıcı durumunu sorgula (kağıt, mürekkep, kuyruk).",parameters:{type:"object",properties:{printer_name:{type:"string",description:"Yazıcı adı (opsiyonel)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"weather_station",description:"Hava durumu: sıcaklık, nem, basınç, rüzgar. Konum belirtilmezse kullanıcının IP konumunu kullanır. API key gerektirmez.",parameters:{type:"object",properties:{location:{type:"string",description:"Şehir adı (örn: Ankara, Istanbul, London). Boş bırakılırsa kullanıcının konumu otomatik algılanır."}},additionalProperties:false}}},
+    {type:"function",function:{name:"list_bluetooth",description:"List connected and paired Bluetooth devices.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"connect_bluetooth",description:"Connect to a Bluetooth device.",parameters:{type:"object",properties:{device_name:{type:"string",description:"Device name (partial match supported)"}},required:["device_name"],additionalProperties:false}}},
+    {type:"function",function:{name:"disconnect_bluetooth",description:"Disconnect a connected Bluetooth device.",parameters:{type:"object",properties:{device_name:{type:"string",description:"Device name"}},required:["device_name"],additionalProperties:false}}},
+    {type:"function",function:{name:"list_usb",description:"List connected USB devices.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"list_printers",description:"List installed printers.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"print_file",description:"Print the specified file.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Path of the file to print"},printer_name:{type:"string",description:"Printer name (optional, default: default printer)"}},required:["file_path"],additionalProperties:false}}},
+    {type:"function",function:{name:"printer_status",description:"Query printer status (paper, ink, queue).",parameters:{type:"object",properties:{printer_name:{type:"string",description:"Printer name (optional)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"weather_station",description:"Weather: temperature, humidity, pressure, wind. Uses the user's IP location if none is given. No API key required.",parameters:{type:"object",properties:{location:{type:"string",description:"City name (e.g. Ankara, Istanbul, London). If left blank, the user's location is auto-detected."}},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────── Faz 62 — Akıllı Ev (Home Assistant)
-// Tek HA sunucusu arkasındaki tüm markaları (Hue/Tapo/Tuya/Matter/Zigbee) yönetir.
-// Akıllı: doğal dil ("salonu karart", "her şeyi kapat") entity'lere çözülür.
-// Kritik cihazlar (kilit/ısıtıcı/garaj/priz) onay ister (confirm:"true").
+// ───────────────────────────────────────── Phase 62 — Smart Home (Home Assistant)
+// Manages all brands (Hue/Tapo/Tuya/Matter/Zigbee) behind a single HA server.
+// Smart: natural language ("dim the living room", "turn everything off") resolves to entities.
+// Critical devices (lock/heater/garage/outlet) require confirmation (confirm:"true").
 export const smartHomeSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"smart_home_devices",description:"Akıllı ev cihazlarını listele (ışık, priz, kilit, termostat, panjur…) ve mevcut durumlarını göster. Home Assistant'a bağlanır.",parameters:{type:"object",properties:{area:{type:"string",description:"Sadece bu oda/alanı göster (opsiyonel, örn: salon, yatak odası, mutfak)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"smart_home_status",description:"Belirli bir akıllı ev cihazının veya odanın durumunu sorgula. 'Salon ışığı açık mı?', 'Termostat kaç derece?' gibi.",parameters:{type:"object",properties:{target:{type:"string",description:"Cihaz veya oda adı (örn: salon ışığı, yatak odası, ön kapı kilidi)"}},required:["target"],additionalProperties:false}}},
-    {type:"function",function:{name:"smart_home_control",description:"Akıllı ev cihazını kontrol et: aç/kapat, parlaklık ayarla, kilitle/aç, panjur aç/kapat. Doğal dil hedefini otomatik çözer ('salonu karart', 'her şeyi kapat', 'yatak odasını %30 yap'). Kritik cihazlarda (kilit, ısıtıcı, garaj, priz) önce onay ister; kullanıcı onaylayınca confirm:\"true\" ile tekrar çağır.",parameters:{type:"object",properties:{target:{type:"string",description:"Hedef cihaz/oda/grup (örn: salon, yatak odası lambası, ön kapı, tüm ışıklar, her şey)"},action:{type:"string",enum:["on","off","toggle","brightness","temperature","lock","unlock","open","close"],description:"on=aç, off=kapat, toggle=değiştir, brightness=parlaklık (value gerekir), temperature=sıcaklık (value gerekir), lock/unlock=kilitle/aç, open/close=panjur/garaj aç/kapat"},value:{type:"string",description:"brightness için 0-100 yüzde, temperature için derece (°C). Diğer aksiyonlarda boş."},confirm:{type:"string",description:"Kritik cihaz onayı. Kullanıcı 'evet/onayla' dediyse \"true\" gönder; yoksa boş bırak."}},required:["target","action"],additionalProperties:false}}},
-    {type:"function",function:{name:"smart_home_scene",description:"Bir akıllı ev sahnesini (scene) veya script'ini etkinleştir. 'Film modu', 'iyi geceler', 'sabah rutini' gibi önceden HA'da tanımlı sahneler.",parameters:{type:"object",properties:{name:{type:"string",description:"Sahne/script adı (örn: film modu, iyi geceler)"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"local_devices_scan",description:"Ev ağındaki (yerel WiFi/LAN) cihazları KEŞFET — Home Assistant GEREKMEZ. mDNS/Bonjour ve SSDP/UPnP yayınıyla Chromecast, akıllı TV, AirPlay, yazıcı, NAS, hoparlör, router gibi cihazları bulur. 'evdeki cihazları bul', 'ağda ne var', 'cihazları tara', 'yerel cihazlar' gibi isteklerde kullan.",parameters:{type:"object",properties:{duration_ms:{type:"string",description:"Tarama süresi ms (varsayılan 3000, 1000-6000 arası önerilir)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_devices",description:"List smart home devices (lights, outlets, locks, thermostats, blinds...) and show their current states. Connects to Home Assistant.",parameters:{type:"object",properties:{area:{type:"string",description:"Show only this room/area (optional, e.g. living room, bedroom, kitchen)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_status",description:"Query the status of a specific smart home device or room. For example: 'Is the living room light on?', 'What temperature is the thermostat set to?'.",parameters:{type:"object",properties:{target:{type:"string",description:"Device or room name (e.g. living room light, bedroom, front door lock)"}},required:["target"],additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_control",description:"Control a smart home device: turn on/off, set brightness, lock/unlock, open/close blinds. Automatically resolves the natural-language target ('dim the living room', 'turn everything off', 'set the bedroom to 30%'). For critical devices (lock, heater, garage, outlet) it asks for confirmation first; once the user confirms, call again with confirm:\"true\".",parameters:{type:"object",properties:{target:{type:"string",description:"Target device/room/group (e.g. living room, bedroom lamp, front door, all lights, everything)"},action:{type:"string",enum:["on","off","toggle","brightness","temperature","lock","unlock","open","close"],description:"on=turn on, off=turn off, toggle=switch, brightness=set brightness (needs value), temperature=set temperature (needs value), lock/unlock=lock/unlock, open/close=open/close blinds/garage"},value:{type:"string",description:"0-100 percent for brightness, degrees (°C) for temperature. Leave empty for other actions."},confirm:{type:"string",description:"Critical device confirmation. Send \"true\" if the user said 'yes/confirm'; otherwise leave empty."}},required:["target","action"],additionalProperties:false}}},
+    {type:"function",function:{name:"smart_home_scene",description:"Activate a smart home scene or script. Pre-defined scenes in HA like 'movie mode', 'good night', 'morning routine'.",parameters:{type:"object",properties:{name:{type:"string",description:"Scene/script name (e.g. movie mode, good night)"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"local_devices_scan",description:"DISCOVER devices on the home network (local WiFi/LAN) — Home Assistant is NOT required. Finds devices like Chromecast, smart TV, AirPlay, printer, NAS, speaker, router via mDNS/Bonjour and SSDP/UPnP broadcasts. Use for requests like 'find devices at home', 'what's on the network', 'scan for devices', 'local devices'.",parameters:{type:"object",properties:{duration_ms:{type:"string",description:"Scan duration in ms (default 3000, 1000-6000 recommended)"}},additionalProperties:false}}},
 ];
 
-// ───────────────────────────────────────────────────────────── Faz 29 Schemas
+// ───────────────────────────────────────────────────────────── Phase 29 Schemas
 export const multiModelSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"model_compare",description:"Aynı soruyu birden fazla modele gönder ve yanıtları karşılaştır.",parameters:{type:"object",properties:{prompt:{type:"string",description:"Karşılaştırılacak soru/görev"},models:{type:"string",description:"Karşılaştırılacak modeller virgülle (örn: groq:qwen3-32b,groq:llama-3.3-70b)"}},required:["prompt"],additionalProperties:false}}},
-    {type:"function",function:{name:"pipeline_run",description:"Adım adım prompt zinciri çalıştır. Her adımın çıktısı sonrakine aktarılır.",parameters:{type:"object",properties:{pipeline_name:{type:"string",description:"Kaydedilmiş pipeline adı"},input:{type:"string",description:"İlk adıma verilecek girdi"}},required:["pipeline_name","input"],additionalProperties:false}}},
-    {type:"function",function:{name:"pipeline_save",description:"Yeni prompt pipeline kaydet.",parameters:{type:"object",properties:{name:{type:"string",description:"Pipeline adı"},steps:{type:"string",description:"JSON array: [{\"prompt\":\"...\",\"model\":\"groq:qwen3-32b\"},{...}]"},description:{type:"string",description:"Pipeline açıklaması"}},required:["name","steps"],additionalProperties:false}}},
-    {type:"function",function:{name:"pipeline_list",description:"Kaydedilmiş pipeline'ları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"model_route_set",description:"Görev türüne göre model yönlendirme kuralı ekle.",parameters:{type:"object",properties:{task_type:{type:"string",description:"Görev türü (örn: code, vision, fast, creative)"},model:{type:"string",description:"Kullanılacak model (örn: groq:qwen3-32b, openai:gpt-4o)"},description:{type:"string",description:"Kural açıklaması"}},required:["task_type","model"],additionalProperties:false}}},
-    {type:"function",function:{name:"model_route_list",description:"Mevcut model yönlendirme kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"model_compare",description:"Send the same question to multiple models and compare their answers.",parameters:{type:"object",properties:{prompt:{type:"string",description:"Question/task to compare"},models:{type:"string",description:"Comma-separated models to compare (e.g. groq:qwen3-32b,groq:llama-3.3-70b)"}},required:["prompt"],additionalProperties:false}}},
+    {type:"function",function:{name:"pipeline_run",description:"Run a step-by-step prompt chain. Each step's output feeds into the next.",parameters:{type:"object",properties:{pipeline_name:{type:"string",description:"Saved pipeline name"},input:{type:"string",description:"Input for the first step"}},required:["pipeline_name","input"],additionalProperties:false}}},
+    {type:"function",function:{name:"pipeline_save",description:"Save a new prompt pipeline.",parameters:{type:"object",properties:{name:{type:"string",description:"Pipeline name"},steps:{type:"string",description:"JSON array: [{\"prompt\":\"...\",\"model\":\"groq:qwen3-32b\"},{...}]"},description:{type:"string",description:"Pipeline description"}},required:["name","steps"],additionalProperties:false}}},
+    {type:"function",function:{name:"pipeline_list",description:"List saved pipelines.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"model_route_set",description:"Add a model routing rule based on task type.",parameters:{type:"object",properties:{task_type:{type:"string",description:"Task type (e.g. code, vision, fast, creative)"},model:{type:"string",description:"Model to use (e.g. groq:qwen3-32b, openai:gpt-4o)"},description:{type:"string",description:"Rule description"}},required:["task_type","model"],additionalProperties:false}}},
+    {type:"function",function:{name:"model_route_list",description:"List existing model routing rules.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
-    // ── Faz 35: Sesli Çeviri ─────────────────────────────────────────────────
-    {type:"function",function:{name:"translation_start",description:"Gerçek zamanlı sesli çeviri modunu başlat. Kullanıcı konuştukça otomatik çeviri yapılır.",parameters:{type:"object",properties:{source_lang:{type:"string",description:"Kaynak dil kodu (tr, en, de, fr, es, ar, ru, zh...)"},target_lang:{type:"string",description:"Hedef dil kodu"}},required:["source_lang","target_lang"],additionalProperties:false}}},
-    {type:"function",function:{name:"translation_stop",description:"Gerçek zamanlı çeviri modunu durdur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"translate_text",description:"Verilen metni hedef dile çevir.",parameters:{type:"object",properties:{text:{type:"string",description:"Çevrilecek metin"},target_lang:{type:"string",description:"Hedef dil kodu (tr, en, de, fr, es...)"},tone:{type:"string",enum:["formal","casual","technical"],description:"Çeviri tonu"}},required:["text","target_lang"],additionalProperties:false}}},
-    {type:"function",function:{name:"translate_file",description:".txt veya .md dosyasını hedef dile çevir.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Çevrilecek dosya yolu"},target_lang:{type:"string",description:"Hedef dil kodu"}},required:["file_path","target_lang"],additionalProperties:false}}},
-    {type:"function",function:{name:"subtitle_toggle",description:"Ekran üstü altyazı overlay'ini aç veya kapat.",parameters:{type:"object",properties:{enable:{type:"boolean",description:"true=aç, false=kapat"}},required:["enable"],additionalProperties:false}}},
+    // ── Phase 35: Voice Translation ─────────────────────────────────────────────────
+    {type:"function",function:{name:"translation_start",description:"Start real-time voice translation mode. Automatically translates as the user speaks.",parameters:{type:"object",properties:{source_lang:{type:"string",description:"Source language code (tr, en, de, fr, es, ar, ru, zh...)"},target_lang:{type:"string",description:"Target language code"}},required:["source_lang","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"translation_stop",description:"Stop real-time translation mode.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"translate_text",description:"Translate the given text into the target language.",parameters:{type:"object",properties:{text:{type:"string",description:"Text to translate"},target_lang:{type:"string",description:"Target language code (tr, en, de, fr, es...)"},tone:{type:"string",enum:["formal","casual","technical"],description:"Translation tone"}},required:["text","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"translate_file",description:"Translate a .txt or .md file into the target language.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Path of the file to translate"},target_lang:{type:"string",description:"Target language code"}},required:["file_path","target_lang"],additionalProperties:false}}},
+    {type:"function",function:{name:"subtitle_toggle",description:"Turn the on-screen subtitle overlay on or off.",parameters:{type:"object",properties:{enable:{type:"boolean",description:"true=on, false=off"}},required:["enable"],additionalProperties:false}}},
 
-    // ── Faz 36: Bildirim Monitörü ────────────────────────────────────────────
-    {type:"function",function:{name:"notification_recent",description:"Son N Windows bildirimini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç bildirim (varsayılan 20, max 100)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"notification_history",description:"AEGIS'in kaydettiği bildirim geçmişini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç bildirim gösterilsin"}},additionalProperties:false}}},
-    {type:"function",function:{name:"notification_filter_set",description:"Belirli bir uygulamanın bildirimlerini göster veya gizle.",parameters:{type:"object",properties:{app:{type:"string",description:"Uygulama adı (örn: Spotify, WhatsApp, Teams)"},action:{type:"string",enum:["show","hide"],description:"show=göster, hide=gizle"}},required:["app","action"],additionalProperties:false}}},
-    {type:"function",function:{name:"notification_filter_list",description:"Kayıtlı bildirim filtre kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"do_not_disturb",description:"Rahatsız etme modunu belirtilen dakika boyunca etkinleştir.",parameters:{type:"object",properties:{minutes:{type: "string",description:"DND süresi (dakika)"},off:{type:"boolean",description:"true ise DND'yi kapat"}},additionalProperties:false}}},
+    // ── Phase 36: Notification Monitor ────────────────────────────────────────────
+    {type:"function",function:{name:"notification_recent",description:"Show the last N Windows notifications.",parameters:{type:"object",properties:{count:{type: "string",description:"How many notifications (default 20, max 100)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_history",description:"Show the notification history recorded by AEGIS.",parameters:{type:"object",properties:{count:{type: "string",description:"How many notifications to show"}},additionalProperties:false}}},
+    {type:"function",function:{name:"notification_filter_set",description:"Show or hide notifications from a specific app.",parameters:{type:"object",properties:{app:{type:"string",description:"App name (e.g. Spotify, WhatsApp, Teams)"},action:{type:"string",enum:["show","hide"],description:"show=display, hide=suppress"}},required:["app","action"],additionalProperties:false}}},
+    {type:"function",function:{name:"notification_filter_list",description:"List saved notification filter rules.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"do_not_disturb",description:"Enable Do Not Disturb mode for the specified number of minutes.",parameters:{type:"object",properties:{minutes:{type: "string",description:"DND duration (minutes)"},off:{type:"boolean",description:"true to turn off DND"}},additionalProperties:false}}},
 
-    // ── Faz 37: Kod Derleyici & Test Koşucusu ───────────────────────────────
-    {type:"function",function:{name:"project_detect",description:"Klasördeki proje tipini tespit et (Node.js, Rust, Python, Go, Java vb.)",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
-    {type:"function",function:{name:"build_project",description:"Projeyi derle/build et. Hataları analiz eder ve öneriler sunar.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
-    {type:"function",function:{name:"run_tests",description:"Proje testlerini koştur. Sonuçları özetler.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"},test_file:{type:"string",description:"Belirli bir test dosyası (opsiyonel)"}},required:["dir"],additionalProperties:false}}},
-    {type:"function",function:{name:"lint_project",description:"Proje lint kontrolü yap.",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
-    {type:"function",function:{name:"format_code",description:"Kodu otomatik formatla (prettier, black, rustfmt, gofmt).",parameters:{type:"object",properties:{dir:{type:"string",description:"Proje klasörü"}},required:["dir"],additionalProperties:false}}},
+    // ── Phase 37: Code Builder & Test Runner ───────────────────────────────
+    {type:"function",function:{name:"project_detect",description:"Detect the project type in a folder (Node.js, Rust, Python, Go, Java, etc.)",parameters:{type:"object",properties:{dir:{type:"string",description:"Project folder"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"build_project",description:"Build the project. Analyzes errors and suggests fixes.",parameters:{type:"object",properties:{dir:{type:"string",description:"Project folder"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"run_tests",description:"Run project tests. Summarizes the results.",parameters:{type:"object",properties:{dir:{type:"string",description:"Project folder"},test_file:{type:"string",description:"A specific test file (optional)"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"lint_project",description:"Run project lint checks.",parameters:{type:"object",properties:{dir:{type:"string",description:"Project folder"}},required:["dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"format_code",description:"Automatically format code (prettier, black, rustfmt, gofmt).",parameters:{type:"object",properties:{dir:{type:"string",description:"Project folder"}},required:["dir"],additionalProperties:false}}},
 
-    // ── Faz 38: Haber & Fiyat Takibi ─────────────────────────────────────────
-    {type:"function",function:{name:"rss_add",description:"RSS/Atom feed ekle.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL"},label:{type:"string",description:"Feed etiketi"}},required:["url"],additionalProperties:false}}},
-    {type:"function",function:{name:"rss_remove",description:"Feed kaldır.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL veya etiketi"}},required:["url"],additionalProperties:false}}},
-    {type:"function",function:{name:"rss_list",description:"Kayıtlı feed'leri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"rss_fetch",description:"Kayıtlı feed'lerden son haberleri çek ve özetle.",parameters:{type:"object",properties:{count:{type: "string",description:"Toplam haber sayısı (varsayılan 10)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"price_get",description:"Hisse senedi veya döviz fiyatı al (Yahoo Finance). Örn: AAPL, GOOG, BIST:THYAO",parameters:{type:"object",properties:{symbols:{type:"string",description:"Virgülle ayrılmış semboller (örn: AAPL,TSLA)"}},required:["symbols"],additionalProperties:false}}},
-    {type:"function",function:{name:"crypto_price",description:"Kripto para fiyatı al (CoinGecko). USD ve TRY cinsinden.",parameters:{type:"object",properties:{coins:{type:"string",description:"Virgülle ayrılmış coin adları (örn: bitcoin,ethereum,solana)"}},required:["coins"],additionalProperties:false}}},
-    {type:"function",function:{name:"fx_rate",description:"Döviz kuru al (exchangerate-api). Örn: USD/TRY, EUR/USD",parameters:{type:"object",properties:{pairs:{type:"string",description:"Virgülle ayrılmış döviz çiftleri (örn: USD/TRY,EUR/TRY)"}},required:["pairs"],additionalProperties:false}}},
-    {type:"function",function:{name:"price_alert_set",description:"Fiyat aleti kur. Belirtilen fiyata ulaşınca bildirim gelir.",parameters:{type:"object",properties:{symbol:{type:"string",description:"Sembol (örn: bitcoin, AAPL, USD/TRY)"},type:{type:"string",enum:["crypto","stock","fx"]},above:{type: "string",description:"Bu fiyatın üstüne çıkarsa uyar"},below:{type: "string",description:"Bu fiyatın altına düşerse uyar"}},required:["symbol","type"],additionalProperties:false}}},
+    // ── Phase 38: News & Price Tracking ─────────────────────────────────────────
+    {type:"function",function:{name:"rss_add",description:"Add an RSS/Atom feed.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL"},label:{type:"string",description:"Feed label"}},required:["url"],additionalProperties:false}}},
+    {type:"function",function:{name:"rss_remove",description:"Remove a feed.",parameters:{type:"object",properties:{url:{type:"string",description:"Feed URL or label"}},required:["url"],additionalProperties:false}}},
+    {type:"function",function:{name:"rss_list",description:"List saved feeds.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"rss_fetch",description:"Fetch and summarize recent news from saved feeds.",parameters:{type:"object",properties:{count:{type: "string",description:"Total number of news items (default 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"price_get",description:"Get stock or currency prices (Yahoo Finance). E.g. AAPL, GOOG, BIST:THYAO",parameters:{type:"object",properties:{symbols:{type:"string",description:"Comma-separated symbols (e.g. AAPL,TSLA)"}},required:["symbols"],additionalProperties:false}}},
+    {type:"function",function:{name:"crypto_price",description:"Get cryptocurrency prices (CoinGecko). In USD and TRY.",parameters:{type:"object",properties:{coins:{type:"string",description:"Comma-separated coin names (e.g. bitcoin,ethereum,solana)"}},required:["coins"],additionalProperties:false}}},
+    {type:"function",function:{name:"fx_rate",description:"Get exchange rates (exchangerate-api). E.g. USD/TRY, EUR/USD",parameters:{type:"object",properties:{pairs:{type:"string",description:"Comma-separated currency pairs (e.g. USD/TRY,EUR/TRY)"}},required:["pairs"],additionalProperties:false}}},
+    {type:"function",function:{name:"price_alert_set",description:"Set a price alert. Sends a notification once the specified price is reached.",parameters:{type:"object",properties:{symbol:{type:"string",description:"Symbol (e.g. bitcoin, AAPL, USD/TRY)"},type:{type:"string",enum:["crypto","stock","fx"]},above:{type: "string",description:"Alert if it rises above this price"},below:{type: "string",description:"Alert if it drops below this price"}},required:["symbol","type"],additionalProperties:false}}},
 
-    // ── Faz 39: Sesli Toplantı Asistanı ─────────────────────────────────────
-    {type:"function",function:{name:"meeting_start",description:"Toplantı kaydını başlat. Konuşmalar transkript edilir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"meeting_stop",description:"Toplantı kaydını durdur ve kaydet.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"meeting_list",description:"Kaydedilmiş toplantıları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"meeting_summarize",description:"Toplantıyı özetle: kararlar, eylem maddeleri, katılımcılar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID (boş bırakılırsa son toplantı)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"meeting_export",description:"Toplantıyı .md dosyası olarak dışa aktar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"meeting_action_items",description:"Toplantıdan eylem maddelerini çıkar.",parameters:{type:"object",properties:{id:{type:"string",description:"Toplantı ID"}},required:["id"],additionalProperties:false}}},
+    // ── Phase 39: Voice Meeting Assistant ─────────────────────────────────────
+    {type:"function",function:{name:"meeting_start",description:"Start recording a meeting. Speech is transcribed.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_stop",description:"Stop and save the meeting recording.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_list",description:"List recorded meetings.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_summarize",description:"Summarize a meeting: decisions, action items, participants.",parameters:{type:"object",properties:{id:{type:"string",description:"Meeting ID (defaults to the latest meeting if left blank)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_export",description:"Export the meeting as a .md file.",parameters:{type:"object",properties:{id:{type:"string",description:"Meeting ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"meeting_action_items",description:"Extract action items from a meeting.",parameters:{type:"object",properties:{id:{type:"string",description:"Meeting ID"}},required:["id"],additionalProperties:false}}},
 
-    // ── Faz 40: Bağlam-Duyarlı Eylemler ─────────────────────────────────────
-    {type:"function",function:{name:"get_active_context",description:"Aktif uygulamayı ve bağlamı tespit et. Önerilen araçları göster.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"context_rule_set",description:"Belirli bir uygulama açıkken özel öneri veya otomatik eylem tanımla.",parameters:{type:"object",properties:{app_pattern:{type:"string",description:"Uygulama adı veya pencere başlığında aranacak desen"},suggestion:{type:"string",description:"Öneri metni"},auto_action:{type:"string",description:"Otomatik çalıştırılacak araç (opsiyonel)"}},required:["app_pattern","suggestion"],additionalProperties:false}}},
-    {type:"function",function:{name:"context_rule_list",description:"Bağlam kurallarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"clipboard_watch",description:"Panodaki içeriği analiz et ve öneriler sun.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"clipboard_history",description:"Pano geçmişini göster.",parameters:{type:"object",properties:{count:{type: "string",description:"Kaç giriş gösterilsin (varsayılan 10)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"clipboard_search",description:"Pano geçmişinde arama yap.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak metin"}},required:["query"],additionalProperties:false}}},
+    // ── Phase 40: Context-Aware Actions ─────────────────────────────────────
+    {type:"function",function:{name:"get_active_context",description:"Detect the active app and context. Shows suggested tools.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"context_rule_set",description:"Define a custom suggestion or automatic action for when a specific app is open.",parameters:{type:"object",properties:{app_pattern:{type:"string",description:"Pattern to search for in the app name or window title"},suggestion:{type:"string",description:"Suggestion text"},auto_action:{type:"string",description:"Tool to run automatically (optional)"}},required:["app_pattern","suggestion"],additionalProperties:false}}},
+    {type:"function",function:{name:"context_rule_list",description:"List context rules.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_watch",description:"Analyze clipboard content and offer suggestions.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_history",description:"Show clipboard history.",parameters:{type:"object",properties:{count:{type: "string",description:"How many entries to show (default 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"clipboard_search",description:"Search the clipboard history.",parameters:{type:"object",properties:{query:{type:"string",description:"Text to search for"}},required:["query"],additionalProperties:false}}},
 
-    // ── Faz 41: Güçlü Yerel Arama ──────────────────────────────────────────
-    {type:"function",function:{name:"file_search",description:"Dosya sisteminde dosya adına göre ara (Everything veya PowerShell).",parameters:{type:"object",properties:{query:{type:"string",description:"Dosya adı veya deseni"},dir:{type:"string",description:"Aranacak klasör (opsiyonel, varsayılan: ev dizini)"}},required:["query"],additionalProperties:false}}},
-    {type:"function",function:{name:"content_search",description:"Klasördeki dosyaların içeriğinde metin ara. Satır numarasıyla sonuç döner.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak metin veya regex"},dir:{type:"string",description:"Aranacak klasör"},extension:{type:"string",description:"Dosya uzantısı filtresi (örn: ts, py, md)"}},required:["query","dir"],additionalProperties:false}}},
-    {type:"function",function:{name:"app_search",description:"Uygulama ara ve gerekirse başlat. Fuzzy arama destekler.",parameters:{type:"object",properties:{query:{type:"string",description:"Uygulama adı (kısmi yazılabilir, örn: 'chr' için Chrome)"},launch:{type:"boolean",description:"true ise en iyi eşleşmeyi başlat"}},required:["query"],additionalProperties:false}}},
+    // ── Phase 41: Powerful Local Search ──────────────────────────────────────────
+    {type:"function",function:{name:"file_search",description:"Search the file system by file name (Everything or PowerShell).",parameters:{type:"object",properties:{query:{type:"string",description:"File name or pattern"},dir:{type:"string",description:"Folder to search (optional, default: home directory)"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"content_search",description:"Search for text inside files in a folder. Returns results with line numbers.",parameters:{type:"object",properties:{query:{type:"string",description:"Text or regex to search for"},dir:{type:"string",description:"Folder to search"},extension:{type:"string",description:"File extension filter (e.g. ts, py, md)"}},required:["query","dir"],additionalProperties:false}}},
+    {type:"function",function:{name:"app_search",description:"Search for an app and launch it if needed. Supports fuzzy search.",parameters:{type:"object",properties:{query:{type:"string",description:"App name (partial is fine, e.g. 'chr' for Chrome)"},launch:{type:"boolean",description:"true to launch the best match"}},required:["query"],additionalProperties:false}}},
 
-    // ── Faz 42: Sistem Optimizasyonu ─────────────────────────────────────────
-    {type:"function",function:{name:"kill_heavy_process",description:"En fazla CPU/RAM tüketen prosesleri listele ve isteğe bağlı kapat.",parameters:{type:"object",properties:{top_n:{type: "string",description:"Kaç proses listele (varsayılan 3)"},confirm:{type:"boolean",description:"true ise prosesleri gerçekten kapat"}},additionalProperties:false}}},
-    {type:"function",function:{name:"suspend_process",description:"Prosesin önceliğini Idle'a düşür (duraklatmaya benzer, RAM'den atmaz).",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"resume_process",description:"Prosesin önceliğini Normal'e döndür.",parameters:{type:"object",properties:{name:{type:"string",description:"Proses adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"clear_temp",description:"Windows temp klasörlerini temizle ve boşaltılan alanı raporla.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"flush_dns",description:"DNS önbelleğini temizle.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"startup_manager",description:"Windows başlangıç uygulamalarını listele veya devre dışı bırak.",parameters:{type:"object",properties:{action:{type:"string",enum:["list","disable"],description:"list=listele, disable=devre dışı bırak"},name:{type:"string",description:"Devre dışı bırakılacak uygulama adı (disable için)"}},required:["action"],additionalProperties:false}}},
-    {type:"function",function:{name:"perf_mode_start",description:"Performans modunu başlat: güç planı Yüksek Performans, arka plan uygulamaları yavaşlatılır.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"perf_mode_stop",description:"Performans modunu durdur, normal moda geri dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Phase 42: System Optimization ─────────────────────────────────────────
+    {type:"function",function:{name:"kill_heavy_process",description:"List the heaviest CPU/RAM-consuming processes and optionally kill them.",parameters:{type:"object",properties:{top_n:{type: "string",description:"How many processes to list (default 3)"},confirm:{type:"boolean",description:"true to actually kill the processes"}},additionalProperties:false}}},
+    {type:"function",function:{name:"suspend_process",description:"Lower a process's priority to Idle (similar to pausing it, doesn't free RAM).",parameters:{type:"object",properties:{name:{type:"string",description:"Process name"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"resume_process",description:"Restore a process's priority to Normal.",parameters:{type:"object",properties:{name:{type:"string",description:"Process name"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"clear_temp",description:"Clean Windows temp folders and report the freed space.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"flush_dns",description:"Clear the DNS cache.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"startup_manager",description:"List or disable Windows startup apps.",parameters:{type:"object",properties:{action:{type:"string",enum:["list","disable"],description:"list=show, disable=disable"},name:{type:"string",description:"App name to disable (for disable)"}},required:["action"],additionalProperties:false}}},
+    {type:"function",function:{name:"perf_mode_start",description:"Start performance mode: power plan set to High Performance, background apps throttled.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"perf_mode_stop",description:"Stop performance mode and return to normal.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
-    // ── Faz 43: Workspace Sistemi ─────────────────────────────────────────────
-    {type:"function",function:{name:"workspace_create",description:"İsimli çalışma alanı oluştur. Kendi system promptu, modeli ve geçmişiyle izole.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace adı"},description:{type:"string",description:"Workspace açıklaması"},system_prompt:{type:"string",description:"Bu workspace'e özel system prompt"},model:{type:"string",description:"Varsayılan model (örn: groq:qwen3-32b)"},working_dir:{type:"string",description:"Bu workspace'in çalışma dizini"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"workspace_switch",description:"Farklı bir workspace'e geç.",parameters:{type:"object",properties:{name:{type:"string",description:"Geçilecek workspace adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"workspace_list",description:"Mevcut workspace'leri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"workspace_delete",description:"Workspace'i sil.",parameters:{type:"object",properties:{name:{type:"string",description:"Silinecek workspace adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"workspace_export",description:"Workspace'i JSON dosyası olarak dışa aktar.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace adı"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"workspace_import",description:"JSON dosyasından workspace içe aktar.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Export JSON dosyası yolu"}},required:["file_path"],additionalProperties:false}}},
+    // ── Phase 43: Workspace System ─────────────────────────────────────────────
+    {type:"function",function:{name:"workspace_create",description:"Create a named workspace. Isolated with its own system prompt, model, and history.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace name"},description:{type:"string",description:"Workspace description"},system_prompt:{type:"string",description:"System prompt specific to this workspace"},model:{type:"string",description:"Default model (e.g. groq:qwen3-32b)"},working_dir:{type:"string",description:"Working directory for this workspace"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_switch",description:"Switch to a different workspace.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace name to switch to"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_list",description:"List available workspaces.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_delete",description:"Delete a workspace.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace name to delete"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_export",description:"Export a workspace as a JSON file.",parameters:{type:"object",properties:{name:{type:"string",description:"Workspace name"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"workspace_import",description:"Import a workspace from a JSON file.",parameters:{type:"object",properties:{file_path:{type:"string",description:"Path to the exported JSON file"}},required:["file_path"],additionalProperties:false}}},
 
-    // ── Faz 44: Rapor & Analitik ──────────────────────────────────────────────
-    {type:"function",function:{name:"daily_report",description:"Bugünkü aktivite raporunu oluştur: araç kullanımı, zaman takibi, hedef ilerlemesi.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"weekly_report",description:"Son 7 günün haftalık aktivite raporunu oluştur.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"productivity_insights",description:"Kişisel verimlilik analizi: güçlü yönler, gelişim alanları ve öneriler.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Phase 44: Reports & Analytics ──────────────────────────────────────────────
+    {type:"function",function:{name:"daily_report",description:"Generate today's activity report: tool usage, time tracking, goal progress.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"weekly_report",description:"Generate a weekly activity report for the last 7 days.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"productivity_insights",description:"Personal productivity analysis: strengths, areas for improvement, and suggestions.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ── Faz 46: Spotify ──────────────────────────────────────────────────────────
+// ── Phase 46: Spotify ──────────────────────────────────────────────────────────
 export const spotifySchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"spotify_authorize",description:"Spotify hesabını AEGIS'e bağla (ilk kullanımda bir kez yapılır). Tarayıcıda Spotify login sayfası açılır.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_play",description:"Spotify'da müziği başlat / devam ettir. Belirli bir şarkı/sanatçı istenirse 'query' ver (ör: 'play killshot', 'change it to X', 'X çal') → o şarkı aranıp çalınır. Boş bırakılırsa duraklatılmış müziği devam ettirir.",parameters:{type:"object",properties:{query:{type:"string",description:"İsteğe bağlı: çalınacak şarkı/sanatçı adı. Verilmezse mevcut müzik devam eder."}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_pause",description:"Spotify'da çalan müziği duraklat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_next",description:"Spotify'da sonraki parçaya geç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_prev",description:"Spotify'da önceki parçaya dön.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_volume",description:"Spotify ses seviyesini ayarla (0-100). Örnek: 20",parameters:{type:"object",properties:{level:{type: "string",description:"Ses seviyesi 0-100 (rakam, örn: 50)"}},required:["level"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_now_playing",description:"Spotify'da şu an ne çaldığını göster (şarkı, sanatçı, albüm, süre).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_open",description:"Spotify uygulamasını aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_search",description:"Spotify'da şarkı/sanatçı/albüm ara ve çal.",parameters:{type:"object",properties:{query:{type:"string",description:"Arama terimi (şarkı adı, sanatçı, albüm)"}},required:["query"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_playlists",description:"Kullanıcının Spotify playlistlerini listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_play_playlist",description:"Belirtilen Spotify playlistini çal (ad veya ID ile).",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist adı (kısmi eşleşir) veya Spotify playlist ID"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_like",description:"Şu an çalan şarkıyı beğen (Liked Songs'a ekle).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_queue",description:"Şarkıyı sıraya ekle.",parameters:{type:"object",properties:{query:{type:"string",description:"Sıraya eklenecek şarkı adı veya sanatçı"}},required:["query"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_devices",description:"Mevcut Spotify cihazlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_transfer",description:"Müziği başka bir cihaza aktar (telefon, TV, bilgisayar).",parameters:{type:"object",properties:{device:{type:"string",description:"Cihaz adı veya ID"}},required:["device"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_shuffle",description:"Karıştır modunu aç/kapat.",parameters:{type:"object",properties:{enabled:{type:"boolean",description:"true = aç, false = kapat"}},required:["enabled"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_repeat",description:"Tekrar modunu ayarla.",parameters:{type:"object",properties:{mode:{type:"string",enum:["off","track","context"],description:"off=kapalı, track=şarkı tekrar, context=liste tekrar"}},required:["mode"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_authorize",description:"Connect a Spotify account to AEGIS (done once on first use). Opens the Spotify login page in a browser.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_play",description:"Start/resume music on Spotify. If a specific song/artist is requested, give a 'query' (e.g. 'play killshot', 'change it to X', 'play X') → that song is searched and played. If left empty, resumes paused music.",parameters:{type:"object",properties:{query:{type:"string",description:"Optional: name of the song/artist to play. If not given, current music resumes."}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_pause",description:"Pause the music playing on Spotify.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_next",description:"Skip to the next track on Spotify.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_prev",description:"Go back to the previous track on Spotify.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_volume",description:"Set the Spotify volume level (0-100). Example: 20",parameters:{type:"object",properties:{level:{type: "string",description:"Volume level 0-100 (number, e.g. 50)"}},required:["level"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_now_playing",description:"Show what's currently playing on Spotify (track, artist, album, duration).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_open",description:"Open the Spotify app.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_search",description:"Search for and play a song/artist/album on Spotify.",parameters:{type:"object",properties:{query:{type:"string",description:"Search term (song name, artist, album)"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlists",description:"List the user's Spotify playlists.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_play_playlist",description:"Play the specified Spotify playlist (by name or ID).",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist name (partial match) or Spotify playlist ID"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_like",description:"Like the currently playing song (add to Liked Songs).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_queue",description:"Add a song to the queue.",parameters:{type:"object",properties:{query:{type:"string",description:"Song name or artist to queue"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_devices",description:"List available Spotify devices.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_transfer",description:"Transfer playback to another device (phone, TV, computer).",parameters:{type:"object",properties:{device:{type:"string",description:"Device name or ID"}},required:["device"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_shuffle",description:"Turn shuffle mode on/off.",parameters:{type:"object",properties:{enabled:{type:"boolean",description:"true = on, false = off"}},required:["enabled"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_repeat",description:"Set repeat mode.",parameters:{type:"object",properties:{mode:{type:"string",enum:["off","track","context"],description:"off=off, track=repeat track, context=repeat playlist"}},required:["mode"],additionalProperties:false}}},
 
     // Player extras
-    {type:"function",function:{name:"spotify_seek",description:"Çalan şarkıda belirli bir konuma git (milisaniye cinsinden).",parameters:{type:"object",properties:{position_ms:{type: "string",description:"Gidilecek konum (ms). Örnek: 60000 = 1. dakika"}},required:["position_ms"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_recently_played",description:"Son dinlenen şarkıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_get_queue",description:"Spotify çalma kuyruğunu göster — şu an çalan + sıradaki şarkılar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_seek",description:"Seek to a specific position in the playing song (in milliseconds).",parameters:{type:"object",properties:{position_ms:{type: "string",description:"Position to seek to (ms). Example: 60000 = 1 minute"}},required:["position_ms"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recently_played",description:"List recently played songs.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many songs (max 50, default 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_queue",description:"Show the Spotify play queue — currently playing + up-next songs.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
     // Albums
-    {type:"function",function:{name:"spotify_get_album",description:"Albüm detaylarını getir (ad, sanatçı, çıkış tarihi, şarkı sayısı). ID gerekir — isim verildiyse önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_album_tracks",description:"Albümdeki tüm şarkıları listele. ID gerekir — isim verildiyse önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_albums",description:"Kütüphanedeki kayıtlı albümleri listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç albüm (max 50, varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_save_album",description:"Albümü kütüphaneye kaydet. ID gerekir — isim varsa önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_remove_album",description:"Albümü kütüphaneden kaldır. ID gerekir — isim varsa önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify albüm ID'si. İsim varsa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_album",description:"Get album details (name, artist, release date, track count). Requires an ID — if a name is given, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify album ID. If you have a name, call spotify_search first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_album_tracks",description:"List all tracks on an album. Requires an ID — if a name is given, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify album ID. If you have a name, call spotify_search first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_albums",description:"List saved albums in the library.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many albums (max 50, default 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_save_album",description:"Save an album to the library. Requires an ID — if you have a name, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify album ID. If you have a name, call spotify_search first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_remove_album",description:"Remove an album from the library. Requires an ID — if you have a name, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify album ID. If you have a name, call spotify_search first."}},required:["id"],additionalProperties:false}}},
 
     // Artists
-    {type:"function",function:{name:"spotify_get_artist",description:"Sanatçı bilgilerini getir (takipçi, popülerlik, türler). Sanatçı adı veya Spotify ID'si ile çalışır — isim verirsen otomatik arar.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı (ör: 'Radiohead') veya Spotify ID'si (22 karakter)"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_artist_top_tracks",description:"Sanatçının en popüler şarkılarını listele. Sanatçı adı veya ID kabul eder — isim verince otomatik arar.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı (ör: 'Thom Yorke') veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_artist_albums",description:"Sanatçının albümlerini ve single'larını listele. Sanatçı adı veya ID kabul eder.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_related_artists",description:"Bir sanatçıya benzer sanatçıları bul. Sanatçı adı veya ID kabul eder.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_artist",description:"Get artist info (followers, popularity, genres). Works with either an artist name or a Spotify ID — a name is searched automatically.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name (e.g. 'Radiohead') or Spotify ID (22 characters)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_artist_top_tracks",description:"List an artist's most popular tracks. Accepts an artist name or ID — a name is searched automatically.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name (e.g. 'Thom Yorke') or Spotify ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_artist_albums",description:"List an artist's albums and singles. Accepts an artist name or ID.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name or Spotify ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_related_artists",description:"Find artists similar to a given artist. Accepts an artist name or ID.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name or Spotify ID"}},required:["id"],additionalProperties:false}}},
 
     // Tracks
-    {type:"function",function:{name:"spotify_get_track",description:"Şarkı detaylarını getir (albüm, süre, popülerlik, URI). Şarkı ID'si gerekir — isim verildiyse önce spotify_search ile ara ve track_id al.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si. İsim verildiyse önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_audio_features",description:"Şarkının müzikal özelliklerini getir: tempo (BPM), enerji, neşe (valence), dans edilebilirlik, akustiklik, ton. Çalan şarkı için önce spotify_now_playing ile track_id al; belirli şarkı için önce spotify_search çağır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify şarkı ID'si. Çalan şarkıysa önce spotify_now_playing, belirli şarkıysa önce spotify_search çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_recommendations",description:"Şarkı/sanatçı/tür tohumlarına göre öneriler üret. EN İYİ AKIŞ: önce spotify_recently_played veya spotify_now_playing ile track ID'leri al, seed_tracks'e virgülle ekle. Tür bazlı öneri için seed_genres kullan (ID gerektirmez). seed_artists+seed_tracks+seed_genres toplamı max 5 olmalı.",parameters:{type:"object",properties:{seed_artists:{type:"string",description:"Virgülle ayrılmış sanatçı ID'leri. ID yoksa spotify_search ile al."},seed_tracks:{type:"string",description:"Virgülle ayrılmış şarkı ID'leri. Son dinlenenler için önce spotify_recently_played çağır."},seed_genres:{type:"string",description:"Virgülle ayrılmış Spotify tür adları (ör: pop,rock,jazz,indie). ID gerektirmez, doğrudan kullan."},limit:{type: "string",description:"Öneri sayısı (max 20, varsayılan 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_track",description:"Get track details (album, duration, popularity, URI). Requires a track ID — if a name is given, call spotify_search first to get the track_id.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify track ID. If you have a name, call spotify_search first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_audio_features",description:"Get a track's musical features: tempo (BPM), energy, valence (mood), danceability, acousticness, key. For the currently playing track, get the track_id from spotify_now_playing first; for a specific track, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify track ID. For the currently playing track, call spotify_now_playing first; for a specific track, call spotify_search first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_recommendations",description:"Generate recommendations based on track/artist/genre seeds. BEST FLOW: first get track IDs via spotify_recently_played or spotify_now_playing, add them to seed_tracks comma-separated. For genre-based recommendations use seed_genres (no ID needed). seed_artists+seed_tracks+seed_genres combined must total at most 5.",parameters:{type:"object",properties:{seed_artists:{type:"string",description:"Comma-separated artist IDs. If you don't have an ID, get one via spotify_search."},seed_tracks:{type:"string",description:"Comma-separated track IDs. For recently played, call spotify_recently_played first."},seed_genres:{type:"string",description:"Comma-separated Spotify genre names (e.g. pop,rock,jazz,indie). No ID needed, use directly."},limit:{type: "string",description:"Number of recommendations (max 20, default 10)"}},additionalProperties:false}}},
 
     // Playlists extended
-    {type:"function",function:{name:"spotify_get_playlist",description:"Playlist detaylarını getir (sahibi, şarkı sayısı, URI). ID gerekir — kendi playlist'lerin için önce spotify_playlists çağır, yabancı playlist için önce spotify_search ile ara.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si. Kendi playlist'lerin için önce spotify_playlists çağır."}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_playlist_tracks",description:"Playlist içindeki şarkıları listele. ID gerekir — kendi playlist'lerin için önce spotify_playlists çağır.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID'si. Kendi playlist'lerin için önce spotify_playlists çağır."},limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_create_playlist",description:"Yeni Spotify playlist oluştur.",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist adı"},public:{type:"boolean",description:"Herkese açık mı? (varsayılan false)"},description:{type:"string",description:"Playlist açıklaması"}},required:["name"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_playlist_add",description:"Playlist'e şarkı ekle (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Eklenecek spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_playlist_remove",description:"Playlist'ten şarkı kaldır (URI listesi ile).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID'si"},uris:{type:"array",items:{type:"string"},description:"Kaldırılacak spotify:track:xxx URI'ları"}},required:["playlist_id","uris"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_featured_playlists",description:"Spotify'ın öne çıkardığı/önerdiği playlistleri listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_playlist",description:"Get playlist details (owner, track count, URI). Requires an ID — for your own playlists, call spotify_playlists first; for someone else's playlist, call spotify_search first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID. For your own playlists, call spotify_playlists first."}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_tracks",description:"List the tracks in a playlist. Requires an ID — for your own playlists, call spotify_playlists first.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify playlist ID. For your own playlists, call spotify_playlists first."},limit:{type: "string",description:"How many tracks (max 50, default 20)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_create_playlist",description:"Create a new Spotify playlist.",parameters:{type:"object",properties:{name:{type:"string",description:"Playlist name"},public:{type:"boolean",description:"Public? (default false)"},description:{type:"string",description:"Playlist description"}},required:["name"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_add",description:"Add songs to a playlist (with a list of URIs).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID"},uris:{type:"array",items:{type:"string"},description:"spotify:track:xxx URIs to add"}},required:["playlist_id","uris"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_playlist_remove",description:"Remove songs from a playlist (with a list of URIs).",parameters:{type:"object",properties:{playlist_id:{type:"string",description:"Spotify playlist ID"},uris:{type:"array",items:{type:"string"},description:"spotify:track:xxx URIs to remove"}},required:["playlist_id","uris"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_featured_playlists",description:"List Spotify's featured/recommended playlists.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
     // Library
-    {type:"function",function:{name:"spotify_saved_tracks",description:"Beğenilen (Liked Songs) şarkıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç şarkı (max 50, varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_check_saved_tracks",description:"Belirtilen şarkıların beğenilmiş olup olmadığını kontrol et.",parameters:{type:"object",properties:{ids:{type:"array",items:{type:"string"},description:"Şarkı ID listesi"}},required:["ids"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_shows",description:"Kütüphanedeki kayıtlı podcastleri listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç podcast (varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_episodes",description:"Kütüphanedeki kayıtlı podcast bölümlerini listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç bölüm (varsayılan 20)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_saved_audiobooks",description:"Kütüphanedeki kayıtlı sesli kitapları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sesli kitap (varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_tracks",description:"List liked songs (Liked Songs).",parameters:{type:"object",properties:{limit:{type: "string",description:"How many songs (max 50, default 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_check_saved_tracks",description:"Check whether the specified songs are liked.",parameters:{type:"object",properties:{ids:{type:"array",items:{type:"string"},description:"List of track IDs"}},required:["ids"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_shows",description:"List saved podcasts in the library.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many podcasts (default 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_episodes",description:"List saved podcast episodes in the library.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many episodes (default 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_saved_audiobooks",description:"List saved audiobooks in the library.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many audiobooks (default 20)"}},additionalProperties:false}}},
 
     // User
-    {type:"function",function:{name:"spotify_me",description:"Bağlı Spotify hesabının profil bilgilerini getir (ad, e-posta, ülke, plan, takipçi).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_top_items",description:"En çok dinlenen sanatçıları veya şarkıları getir.",parameters:{type:"object",properties:{type:{type:"string",enum:["artists","tracks"],description:"artists = sanatçılar, tracks = şarkılar"},time_range:{type:"string",enum:["short_term","medium_term","long_term"],description:"short_term=son 4 hafta, medium_term=son 6 ay, long_term=tüm zamanlar"},limit:{type: "string",description:"Kaç sonuç (max 50, varsayılan 10)"}},required:["type"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_me",description:"Get profile info for the connected Spotify account (name, email, country, plan, followers).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_top_items",description:"Get the most-listened artists or tracks.",parameters:{type:"object",properties:{type:{type:"string",enum:["artists","tracks"],description:"artists = artists, tracks = tracks"},time_range:{type:"string",enum:["short_term","medium_term","long_term"],description:"short_term=last 4 weeks, medium_term=last 6 months, long_term=all time"},limit:{type: "string",description:"How many results (max 50, default 10)"}},required:["type"],additionalProperties:false}}},
 
     // Follow
-    {type:"function",function:{name:"spotify_follow_artist",description:"Bir sanatçıyı takip et. Sanatçı adı veya Spotify ID'si ile çalışır — isim verince otomatik arar.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı (ör: 'Portishead') veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_unfollow_artist",description:"Bir sanatçıyı takipten çıkar. Sanatçı adı veya Spotify ID'si kabul eder.",parameters:{type:"object",properties:{id:{type:"string",description:"Sanatçı adı veya Spotify ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_followed_artists",description:"Takip edilen sanatçıları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sanatçı (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_follow_artist",description:"Follow an artist. Works with either an artist name or a Spotify ID — a name is searched automatically.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name (e.g. 'Portishead') or Spotify ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_unfollow_artist",description:"Unfollow an artist. Accepts an artist name or Spotify ID.",parameters:{type:"object",properties:{id:{type:"string",description:"Artist name or Spotify ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_followed_artists",description:"List followed artists.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many artists (max 50, default 20)"}},additionalProperties:false}}},
 
     // Browse
-    {type:"function",function:{name:"spotify_new_releases",description:"Spotify'daki yeni çıkan albüm ve single'ları listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç sonuç (max 50, varsayılan 10)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_categories",description:"Spotify müzik kategorilerini (türlerini) listele.",parameters:{type:"object",properties:{limit:{type: "string",description:"Kaç kategori (max 50, varsayılan 20)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_new_releases",description:"List new album and single releases on Spotify.",parameters:{type:"object",properties:{limit:{type: "string",description:"How many results (max 50, default 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_categories",description:"List Spotify music categories (genres).",parameters:{type:"object",properties:{limit:{type: "string",description:"How many categories (max 50, default 20)"}},additionalProperties:false}}},
 
     // Shows / Episodes / Audiobooks
-    {type:"function",function:{name:"spotify_get_show",description:"Podcast detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_show_episodes",description:"Bir podcast'in bölümlerini listele.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID'si"},limit:{type: "string",description:"Kaç bölüm (max 50, varsayılan 10)"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_get_episode",description:"Podcast bölümü detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify episode ID'si"}},required:["id"],additionalProperties:false}}},
-    {type:"function",function:{name:"spotify_get_audiobook",description:"Sesli kitap detaylarını getir.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify audiobook ID'si"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_show",description:"Get podcast details.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_show_episodes",description:"List a podcast's episodes.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify show/podcast ID"},limit:{type: "string",description:"How many episodes (max 50, default 10)"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_episode",description:"Get podcast episode details.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify episode ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"spotify_get_audiobook",description:"Get audiobook details.",parameters:{type:"object",properties:{id:{type:"string",description:"Spotify audiobook ID"}},required:["id"],additionalProperties:false}}},
 ];
 
-// ── Faz 46: Steam ────────────────────────────────────────────────────────────
+// ── Phase 46: Steam ────────────────────────────────────────────────────────────
 export const steamSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"steam_launch",description:"Steam oyunu başlat. Kullanıcı bir Steam oyunu açmak istediğinde DAIMA bu tool'u kullan, run_command KULLANMA. Oyun adı veya AppID ver. Steam kapalıysa açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı (ör: 'Cyberpunk 2077', 'Dead by Daylight', 'dbd') veya Steam AppID (ör: '1091500')"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_list",description:"Bilgisayarda yüklü Steam oyunlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open",description:"Steam uygulamasını aç ve öne getir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_close",description:"Steam'i kapat.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_running",description:"Şu an Steam üzerinden çalışan oyun var mı, varsa hangisi?",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_launch",description:"Launch a Steam game. ALWAYS use this tool when the user wants to open a Steam game, do NOT use run_command. Give a game name or AppID. Opens Steam if it's closed.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name (e.g. 'Cyberpunk 2077', 'Dead by Daylight', 'dbd') or Steam AppID (e.g. '1091500')"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_list",description:"List Steam games installed on this computer.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open",description:"Open the Steam app and bring it to the front.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_close",description:"Close Steam.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_running",description:"Is a game currently running via Steam, and if so, which one?",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
-    // ── Grup A: Local / steam:// protokolü (key gerekmez) ──
-    {type:"function",function:{name:"steam_restart",description:"Steam'i yeniden başlat (kapat, tekrar aç).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_close_game",description:"Şu an çalışan Steam oyununu kapat.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı (opsiyonel; verilmezse çalışan oyunu kapatır)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_restart_game",description:"Bir Steam oyununu kapatıp tekrar başlat.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_list_running_games",description:"Şu an çalışan tüm Steam oyunlarını listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_is_game_running",description:"Belirli bir oyunun şu an açık olup olmadığını kontrol et.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_install_game",description:"Bir Steam oyununun kurulumunu başlat (Steam kurulum penceresini açar).",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_uninstall_game",description:"Bir Steam oyununu kaldır (Steam kaldırma penceresini açar).",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_verify_game_files",description:"Bir oyunun dosya bütünlüğünü doğrula (Steam validate).",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_update_game",description:"Bir oyunun güncellemesini kontrol et / başlat.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_download_status",description:"Steam'de aktif indirme/güncelleme var mı göster ve indirme yöneticisini aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open_store_page",description:"Bir oyunun Steam mağaza sayfasını aç.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open_screenshots",description:"Steam ekran görüntüleri yöneticisini aç.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_show_storage_usage",description:"Yüklü Steam oyunlarının disk kullanımını göster (en büyükten).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_locate_installation",description:"Bir oyunun kurulu olduğu klasör yolunu göster.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open_game_folder",description:"Bir oyunun kurulum klasörünü Gezgin'de aç.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_last_played_game",description:"En son oynanan oyunu getir (Web API).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Group A: Local / steam:// protocol (no key required) ──
+    {type:"function",function:{name:"steam_restart",description:"Restart Steam (close and reopen).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_close_game",description:"Close the currently running Steam game.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name (optional; if omitted, closes the running game)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_restart_game",description:"Close and relaunch a Steam game.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_list_running_games",description:"List all currently running Steam games.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_is_game_running",description:"Check whether a specific game is currently running.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_install_game",description:"Start installing a Steam game (opens the Steam install dialog).",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_uninstall_game",description:"Uninstall a Steam game (opens the Steam uninstall dialog).",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_verify_game_files",description:"Verify the integrity of a game's files (Steam validate).",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_update_game",description:"Check for / start an update for a game.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_download_status",description:"Show whether there's an active download/update on Steam, and open the download manager.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open_store_page",description:"Open a game's Steam store page.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open_screenshots",description:"Open the Steam screenshot manager.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_show_storage_usage",description:"Show disk usage of installed Steam games (largest first).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_locate_installation",description:"Show the folder path where a game is installed.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open_game_folder",description:"Open a game's install folder in Explorer.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_last_played_game",description:"Get the most recently played game (Web API).",parameters:{type:"object",properties:{},additionalProperties:false}}},
 
-    // ── Grup C: Storefront (key gerekmez) ──
-    {type:"function",function:{name:"steam_search_store",description:"Steam mağazasında oyun ara.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak oyun adı"}},required:["query"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_details",description:"Bir oyunun mağaza detaylarını getir (açıklama, tür, çıkış, fiyat).",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_price",description:"Bir oyunun güncel mağaza fiyatını/indirimini getir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_discounted_games",description:"Steam mağazasında öne çıkan indirimli oyunları listele.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_news",description:"Bir oyunun son haberlerini getir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
+    // ── Group C: Storefront (no key required) ──
+    {type:"function",function:{name:"steam_search_store",description:"Search for a game in the Steam store.",parameters:{type:"object",properties:{query:{type:"string",description:"Game name to search for"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_details",description:"Get a game's store details (description, genre, release, price).",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_price",description:"Get a game's current store price/discount.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_discounted_games",description:"List featured discounted games in the Steam store.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_news",description:"Get recent news for a game.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
 
-    // ── Grup B: Web API (Steam API key + SteamID64 gerekir) ──
-    {type:"function",function:{name:"steam_owned_games",description:"Sahip olunan tüm Steam oyunlarını oynama süresiyle listele. Steam API key + SteamID gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_search_owned_games",description:"Kütüphanede isimle oyun ara. Steam API key gerekir.",parameters:{type:"object",properties:{query:{type:"string",description:"Aranacak oyun adı"}},required:["query"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_recent_games",description:"Son 2 haftada oynanan oyunları getir. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_most_played_games",description:"En çok oynanan oyunları getir. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_playtime",description:"Bir oyunun toplam oynanma süresini getir. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_total_playtime",description:"Tüm oyunlardaki toplam Steam oynama süresini hesapla. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_suggest_game",description:"Kütüphaneye göre oynanacak bir oyun öner. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_game_achievements",description:"Bir oyunun başarımlarını ve hangilerinin açık olduğunu getir. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_achievement_progress",description:"Bir oyunun başarım ilerlemesini yüzdeyle göster. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_player_stats",description:"Bir oyundaki oyuncu istatistiklerini getir. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_profile_summary",description:"Steam profil özetini getir (ad, durum, oynanan oyun). Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_level",description:"Steam seviyeni getir. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_friend_list",description:"Steam arkadaş listeni getir. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_online_friends",description:"Çevrimiçi Steam arkadaşlarını listele. Steam API key gerekir.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_friend_current_game",description:"Bir arkadaşın şu an oynadığı oyunu göster. Steam API key gerekir.",parameters:{type:"object",properties:{friend:{type:"string",description:"Arkadaş adı veya SteamID64"}},required:["friend"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_who_is_playing",description:"Belirli bir oyunu oynayan arkadaşları listele. Steam API key gerekir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı"}},required:["game"],additionalProperties:false}}},
+    // ── Group B: Web API (requires Steam API key + SteamID64) ──
+    {type:"function",function:{name:"steam_owned_games",description:"List all owned Steam games with playtime. Requires Steam API key + SteamID.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_search_owned_games",description:"Search the library by game name. Requires Steam API key.",parameters:{type:"object",properties:{query:{type:"string",description:"Game name to search for"}},required:["query"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_recent_games",description:"Get games played in the last 2 weeks. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_most_played_games",description:"Get the most-played games. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_playtime",description:"Get total playtime for a game. Requires Steam API key.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_total_playtime",description:"Calculate total Steam playtime across all games. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_suggest_game",description:"Suggest a game to play based on the library. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_game_achievements",description:"Get a game's achievements and which ones are unlocked. Requires Steam API key.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_achievement_progress",description:"Show achievement progress for a game as a percentage. Requires Steam API key.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_player_stats",description:"Get player stats for a game. Requires Steam API key.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_profile_summary",description:"Get a Steam profile summary (name, status, currently played game). Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_level",description:"Get your Steam level. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_friend_list",description:"Get your Steam friends list. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_online_friends",description:"List online Steam friends. Requires Steam API key.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_friend_current_game",description:"Show what game a friend is currently playing. Requires Steam API key.",parameters:{type:"object",properties:{friend:{type:"string",description:"Friend name or SteamID64"}},required:["friend"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_who_is_playing",description:"List friends playing a specific game. Requires Steam API key.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name"}},required:["game"],additionalProperties:false}}},
 
-    // ── Grup D: Deneysel — Steam dışarıdan tam kontrol vermez, sayfa/diyalog açar ──
-    {type:"function",function:{name:"steam_wishlist_add",description:"[DENEYSEL] Bir oyunu istek listesine ekle. Mağaza sayfasını açar ve computer-use ile '+ İstek Listesine Ekle' butonuna otomatik tıklamayı dener (Steam sessiz API vermediği için). Kırılgandır; başarısızsa sayfa açık kalır, elle eklenebilir.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_wishlist_remove",description:"[DENEYSEL] Bir oyunu istek listesinden çıkar. Mağaza sayfasını açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_wishlist_list",description:"[DENEYSEL] İstek listeni göster (profil herkese açıksa).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_pause_download",description:"[DENEYSEL] İndirmeyi duraklat — indirme yöneticisini açar (Steam dışarıdan tekil kontrol vermez).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_resume_download",description:"[DENEYSEL] İndirmeyi devam ettir — indirme yöneticisini açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_cancel_download",description:"[DENEYSEL] İndirmeyi iptal et — indirme yöneticisini açar.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open_workshop",description:"[DENEYSEL] Bir oyunun Steam Workshop sayfasını aç.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID (opsiyonel)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_subscribe_workshop",description:"[DENEYSEL] Bir workshop öğesine abone ol — öğe sayfasını açar.",parameters:{type:"object",properties:{item_id:{type:"string",description:"Workshop öğe ID'si"}},required:["item_id"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_unsubscribe_workshop",description:"[DENEYSEL] Bir workshop aboneliğini kaldır — öğe sayfasını açar.",parameters:{type:"object",properties:{item_id:{type:"string",description:"Workshop öğe ID'si"}},required:["item_id"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_list_workshop_subscriptions",description:"[DENEYSEL] Yerel olarak indirilmiş workshop aboneliklerini listele.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı/AppID (opsiyonel filtre)"}},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_open_chat",description:"[DENEYSEL] Bir arkadaşla Steam sohbet penceresini aç.",parameters:{type:"object",properties:{friend_id:{type:"string",description:"Arkadaşın SteamID64'ü"}},required:["friend_id"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_send_message",description:"[DENEYSEL] Bir arkadaşa mesaj — sohbet penceresini açar (Steam dışarıdan otomatik mesaj göndermez).",parameters:{type:"object",properties:{friend_id:{type:"string",description:"Arkadaşın SteamID64'ü"},message:{type:"string",description:"Mesaj metni"}},required:["friend_id"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_backup_game",description:"[DENEYSEL] Bir oyunun yedeğini oluştur — Steam yedekleme sihirbazını açar.",parameters:{type:"object",properties:{game:{type:"string",description:"Oyun adı veya AppID"}},required:["game"],additionalProperties:false}}},
-    {type:"function",function:{name:"steam_restore_backup",description:"[DENEYSEL] Bir Steam yedeğini geri yükle — Steam'i açar (geri yükleme menüden yapılır).",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_take_screenshot",description:"[DENEYSEL] Steam ekran görüntüsü al (oyun içi F12). Genel ekran görüntüsü için 'ekran görüntüsü al' tool'unu tercih et.",parameters:{type:"object",properties:{},additionalProperties:false}}},
-    {type:"function",function:{name:"steam_repeat_last_action",description:"[DENEYSEL] En son yapılan Steam işlemini tekrarla.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    // ── Group D: Experimental — Steam doesn't give full external control, opens a page/dialog ──
+    {type:"function",function:{name:"steam_wishlist_add",description:"[EXPERIMENTAL] Add a game to the wishlist. Opens the store page and tries to auto-click the '+ Add to Wishlist' button via computer-use (since Steam has no silent API for this). Fragile; if it fails, the page stays open and can be added manually.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_wishlist_remove",description:"[EXPERIMENTAL] Remove a game from the wishlist. Opens the store page.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_wishlist_list",description:"[EXPERIMENTAL] Show your wishlist (if the profile is public).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_pause_download",description:"[EXPERIMENTAL] Pause a download — opens the download manager (Steam doesn't allow individual external control).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_resume_download",description:"[EXPERIMENTAL] Resume a download — opens the download manager.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_cancel_download",description:"[EXPERIMENTAL] Cancel a download — opens the download manager.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open_workshop",description:"[EXPERIMENTAL] Open a game's Steam Workshop page.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID (optional)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_subscribe_workshop",description:"[EXPERIMENTAL] Subscribe to a Workshop item — opens the item page.",parameters:{type:"object",properties:{item_id:{type:"string",description:"Workshop item ID"}},required:["item_id"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_unsubscribe_workshop",description:"[EXPERIMENTAL] Unsubscribe from a Workshop item — opens the item page.",parameters:{type:"object",properties:{item_id:{type:"string",description:"Workshop item ID"}},required:["item_id"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_list_workshop_subscriptions",description:"[EXPERIMENTAL] List locally downloaded Workshop subscriptions.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name/AppID (optional filter)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_open_chat",description:"[EXPERIMENTAL] Open a Steam chat window with a friend.",parameters:{type:"object",properties:{friend_id:{type:"string",description:"Friend's SteamID64"}},required:["friend_id"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_send_message",description:"[EXPERIMENTAL] Message a friend — opens the chat window (Steam doesn't allow automatic external messaging).",parameters:{type:"object",properties:{friend_id:{type:"string",description:"Friend's SteamID64"},message:{type:"string",description:"Message text"}},required:["friend_id"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_backup_game",description:"[EXPERIMENTAL] Back up a game — opens the Steam backup wizard.",parameters:{type:"object",properties:{game:{type:"string",description:"Game name or AppID"}},required:["game"],additionalProperties:false}}},
+    {type:"function",function:{name:"steam_restore_backup",description:"[EXPERIMENTAL] Restore a Steam backup — opens Steam (restore is done from the menu).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_take_screenshot",description:"[EXPERIMENTAL] Take a Steam screenshot (in-game F12). For a general screenshot, prefer the 'take screenshot' tool.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"steam_repeat_last_action",description:"[EXPERIMENTAL] Repeat the last Steam action performed.",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
-// ── Faz 47: Computer Use ─────────────────────────────────────────────────
+// ── Phase 47: Computer Use ─────────────────────────────────────────────────
 export const computerUseSchemas: ChatCompletionTool[] = [
-    {type:"function",function:{name:"mouse_move",description:"Fare imlecini ekranda (x,y) koordinatına taşı.",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_click",description:"Fare tıklaması yap. Tıklamadan önce otomatik o konuma gider. button: left/right/middle. double: çift tıklama. verify='true' verilirse tıklama sonrası ekranın değişip değişmediği doğrulanır (kör tıklama kontrolü).",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"},verify:{type:"string",description:"'true' ise tıklama sonrası ekran değişimi doğrulanır"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_scroll",description:"Fare tekerleği ile kaydır. direction: up/down. amount: kaç adım (varsayılan 3).",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},direction:{type:"string",enum:["up","down"]},amount:{type: "string"}},required:["x","y"],additionalProperties:false}}},
-    {type:"function",function:{name:"mouse_drag",description:"Bir noktadan diğerine sürükle bırak.",parameters:{type:"object",properties:{x1:{type: "string"},y1:{type: "string"},x2:{type: "string"},y2:{type: "string"}},required:["x1","y1","x2","y2"],additionalProperties:false}}},
-    {type:"function",function:{name:"key_press",description:"Klavye tuşuna veya kısayoluna bas. Örnekler: 'ctrl+c', 'alt+tab', 'win+d', 'enter', 'esc', 'f5'.",parameters:{type:"object",properties:{keys:{type:"string",description:"Tuş kombinasyonu, '+' ile ayır (ör: 'ctrl+shift+t')"}},required:["keys"],additionalProperties:false}}},
-    {type:"function",function:{name:"type_text",description:"Aktif alana metin yaz (klavyeden yazılıyormuş gibi).",parameters:{type:"object",properties:{text:{type:"string",description:"Yazılacak metin"}},required:["text"],additionalProperties:false}}},
-    {type:"function",function:{name:"computer_use",description:"Ekran görüntüsü alıp AI ile analiz ederek hedefi gerçekleştir. Mouse+klavye ile bilgisayarı kullanır. 'Spotify'da şu şarkıyı çal', 'Chrome'da şu siteyi aç', 'Şu dosyayı bul ve sil' gibi serbest komutlar.",parameters:{type:"object",properties:{goal:{type:"string",description:"Ne yapmak istediğin (serbest dil, ör: 'Chrome aç ve youtube.com git')"},max_steps:{type: "string",description:"Maksimum adım sayısı (varsayılan 10)"}},required:["goal"],additionalProperties:false}}},
-    {type:"function",function:{name:"screen_size",description:"Ekran çözünürlüğünü öğren (mouse_click koordinatları için gerekebilir).",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_move",description:"Move the mouse cursor to (x,y) on screen.",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_click",description:"Perform a mouse click. Automatically moves to the position before clicking. button: left/right/middle. double: double-click. If verify='true', checks whether the screen changed after the click (blind-click check).",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},button:{type:"string",enum:["left","right","middle"]},double:{type:"boolean"},verify:{type:"string",description:"'true' verifies the screen changed after the click"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_scroll",description:"Scroll with the mouse wheel. direction: up/down. amount: number of steps (default 3).",parameters:{type:"object",properties:{x:{type: "string"},y:{type: "string"},direction:{type:"string",enum:["up","down"]},amount:{type: "string"}},required:["x","y"],additionalProperties:false}}},
+    {type:"function",function:{name:"mouse_drag",description:"Drag and drop from one point to another.",parameters:{type:"object",properties:{x1:{type: "string"},y1:{type: "string"},x2:{type: "string"},y2:{type: "string"}},required:["x1","y1","x2","y2"],additionalProperties:false}}},
+    {type:"function",function:{name:"key_press",description:"Press a key or keyboard shortcut. Examples: 'ctrl+c', 'alt+tab', 'win+d', 'enter', 'esc', 'f5'.",parameters:{type:"object",properties:{keys:{type:"string",description:"Key combination, separated by '+' (e.g. 'ctrl+shift+t')"}},required:["keys"],additionalProperties:false}}},
+    {type:"function",function:{name:"type_text",description:"Type text into the active field (as if typed on a keyboard).",parameters:{type:"object",properties:{text:{type:"string",description:"Text to type"}},required:["text"],additionalProperties:false}}},
+    {type:"function",function:{name:"computer_use",description:"Accomplish a goal by taking screenshots and analyzing them with AI. Uses the mouse+keyboard to operate the computer. For free-form commands like 'play this song on Spotify', 'open this site in Chrome', 'find and delete this file'.",parameters:{type:"object",properties:{goal:{type:"string",description:"What you want to do (free-form language, e.g. 'open Chrome and go to youtube.com')"},max_steps:{type: "string",description:"Maximum number of steps (default 10)"}},required:["goal"],additionalProperties:false}}},
+    {type:"function",function:{name:"screen_size",description:"Get the screen resolution (may be needed for mouse_click coordinates).",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
 export const extraSchemas: ChatCompletionTool[] = [];
