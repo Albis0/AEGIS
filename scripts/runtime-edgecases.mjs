@@ -30,19 +30,19 @@ async function main() {
     // ---- CONTRACT 1: dispatch layer — unknown tool ----
     {
         const r = await exec("this_tool_does_not_exist", {});
-        rec("dispatch", "unknown tool name", /tanımlı değil/.test(r), r);
+        rec("dispatch", "unknown tool name", /not defined|tanımlı değil/.test(r), r);
     }
     // ---- CONTRACT 2: malformed JSON args never throws ----
     {
         const r = await exec("read_file", "{not valid json");
-        rec("dispatch", "malformed JSON args", /geçersiz format/.test(r), r);
+        rec("dispatch", "malformed JSON args", /invalid format|geçersiz format/.test(r), r);
     }
     // ---- CONTRACT 3: reachability — curated SAFE subset (no network/PowerShell/timer side effects). ----
     // Full 263-tool reachability is proven statically by the trio validator; here we only runtime-probe
     // tools that are read-only or self-guard when _fullPcAccess is false, to avoid real side effects.
     const SAFE_PROBE = [
         "quit_self",          // setTimeout only, callback is null in this harness -> no-op
-        "delete_file",        // guarded: ENGELLENDI when fullPcAccess off
+        "delete_file",        // guarded: BLOCKED when fullPcAccess off
         "move_file",          // guarded
         "list_facts", "list_habits", "list_macros", "list_automations",
         "list_personas", "list_scheduled_tasks", "list_indexed_files",
@@ -53,7 +53,7 @@ async function main() {
         if (!schemaNames.includes(name)) { dispatchableFail++; rec("dispatchable", name, false, "no schema"); continue; }
         try {
             const r = await exec(name, {});
-            if (/Bu araç tanımlı değil/.test(r)) { dispatchableFail++; rec("dispatchable", name, false, r); }
+            if (/This tool is not defined|Bu araç tanımlı değil/.test(r)) { dispatchableFail++; rec("dispatchable", name, false, r); }
         } catch (e) {
             dispatchableFail++;
             rec("dispatchable", name, false, "THREW: " + e.message);
@@ -89,7 +89,7 @@ async function main() {
         rec("edge-empty", "read_file path=''", typeof r === "string", r);
     }
     // ---- EDGE: name-vs-ID resolution (Spotify artist tools — recent fix area) ----
-    // No live auth → expect an auth/connect error string, NOT a crash and NOT 'tanımlı değil'.
+    // No live auth → expect an auth/connect error string, NOT a crash and NOT 'not defined'.
     // NOTE: follow/unfollow omitted — they mutate the user's library. Only read-only resolves here.
     // Schema param is `id` but its description says it ALSO accepts a name (resolveArtistId searches).
     // So a correct model sends {id: "<name>"} — that is what we test (name-vs-id resolution).
@@ -98,7 +98,7 @@ async function main() {
         try {
             const r = await exec(tool, {id: "Tarkan"}); // NAME passed in the id field, per schema
             // success = resolved to real data (no error/crash); auth failure also acceptable (no live token).
-            const resolved = typeof r === "string" && !/Bu araç tanımlı değil|adı veya ID gerekli|is not a function|cannot read/i.test(r);
+            const resolved = typeof r === "string" && !/This tool is not defined|Bu araç tanımlı değil|name or ID is required|adı veya ID gerekli|is not a function|cannot read/i.test(r);
             rec("edge-name-vs-id", `${tool} id="Tarkan" (name)`, resolved, r);
         } catch (e) {
             rec("edge-name-vs-id", `${tool} id="Tarkan" (name)`, false, "THREW: " + e.message);
@@ -107,7 +107,7 @@ async function main() {
     // ---- EDGE: destructive guard active when fullPcAccess off ----
     {
         const r = await exec("run_command", {command: "format C: /q"});
-        rec("edge-guard", "run_command dangerous blocked", /ENGELLENDI/.test(r) || typeof r === "string", r);
+        rec("edge-guard", "run_command dangerous blocked", /BLOCKED|ENGELLENDI/.test(r) || typeof r === "string", r);
     }
 
     // ---- Report ----

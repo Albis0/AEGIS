@@ -1,5 +1,5 @@
-// GUI test: gerçek App.tsx render edilir, window.jarvis stub'lanır, güncelleme
-// toast'ı tüm durumlardan geçirilip screenshot alınır. Vite 5173'te çalışıyor olmalı.
+// GUI test: renders the real App.tsx, stubs window.jarvis, drives the update
+// toast through all states and takes screenshots. Vite must be running on 5173.
 import {chromium} from "playwright";
 import fs from "fs";
 import path from "path";
@@ -18,17 +18,17 @@ const logs = [];
 page.on("console", (m) => logs.push(`[console.${m.type()}] ${m.text()}`));
 page.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`));
 
-// window.jarvis stub'ını uygulama JS'inden ÖNCE enjekte et — App.tsx'in
-// window.jarvis.on(...) çağrıları bu stub'a bağlanır.
+// Inject the window.jarvis stub BEFORE the app JS runs — App.tsx's
+// window.jarvis.on(...) calls bind to this stub.
 await page.addInitScript(() => {
     const listeners = {};
     const emit = (ch, payload) => (listeners[ch] || []).forEach((cb) => cb(payload));
-    // test sürücüsü pencereye event göndersin diye global aç
+    // expose globally so the test driver can dispatch events to the page
     window.__emit = emit;
     const noop = async () => {};
     window.jarvis = new Proxy({
         on: (ch, cb) => { (listeners[ch] ||= []).push(cb); return () => { listeners[ch] = (listeners[ch] || []).filter((x) => x !== cb); }; },
-        // App.tsx'in mount sırasında çağırdığı muhtemel metodlar — hepsi güvenli no-op/boş
+        // Methods App.tsx is likely to call on mount — all safe no-ops/empty
         getAppVersion: async () => "1.4.4",
         getTelemetry: async () => ({}),
         weather: async () => ({}),
@@ -39,7 +39,7 @@ await page.addInitScript(() => {
         getSettings: async () => ({}),
         sendChat: () => {},
     }, {
-        // tanımsız her metod çağrısını PROMISE döndüren no-op yap — App .then() çağırınca patlamasın
+        // Turn any undefined method call into a no-op returning a Promise — so App .then() calls don't throw
         get(target, prop) {
             if (prop in target) return target[prop];
             return (..._a) => Promise.resolve(undefined);
@@ -55,11 +55,11 @@ await page.screenshot({path: path.join(OUT, ".gui-0-loaded.png")});
 async function shot(name) { await page.screenshot({path: path.join(OUT, `.gui-${name}.png`)}); }
 async function emit(ch, payload) { await page.evaluate(([c, p]) => window.__emit(c, p), [ch, payload]); }
 
-// 1) update-available → toast "Yeni sürüm var — indir"
+// 1) update-available → toast "New version available — download"
 await emit("update-available", {version: "1.4.5"});
 await wait(500); await shot("1-available");
 
-// 2) user 'indir' → downloading; progress events → bar + %
+// 2) user clicks download → downloading; progress events → bar + %
 await emit("update-progress", {percent: 18});
 await wait(400);
 await emit("update-progress", {percent: 56});
@@ -67,7 +67,7 @@ await wait(400);
 await emit("update-progress", {percent: 91});
 await wait(500); await shot("2-downloading");
 
-// 3) downloaded → "indirildi — yeniden başlat"
+// 3) downloaded → "downloaded — restart"
 await emit("update-downloaded", {version: "1.4.5"});
 await wait(500); await shot("3-ready");
 
@@ -77,10 +77,10 @@ await wait(200);
 await emit("update-error", {message: "net::ERR_CONNECTION_RESET"});
 await wait(500); await shot("4-error");
 
-// toast'ın gerçekten DOM'da olduğunu metinle doğrula
+// Verify the toast is actually in the DOM by checking its text
 const errText = await page.evaluate(() => document.body.innerText);
 const checks = {
-    available_has_indir: /Yeni sürüm var/i.test(errText) || true, // son durum error; sadece son ekranı kontrol
+    available_has_indir: /Yeni sürüm var/i.test(errText) || true, // last state is error; only checking the final screen
     error_visible: /İndirme başarısız|ERR_CONNECTION_RESET|tekrar dene/i.test(errText),
 };
 

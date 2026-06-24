@@ -1,25 +1,25 @@
-// AEGIS — chat-proxy Edge Function (Faz 30.2)
+// AEGIS — chat-proxy Edge Function (Phase 30.2)
 //
-// Deneme modunun beyni. Akış:
-//   1. Kullanıcının JWT'sini doğrula (kim bu?)
-//   2. usage tablosundan bugünkü kotayı oku → limit aşıldıysa 429
-//   3. Senin Groq key'inle (Edge secret) Groq'a streaming istek
-//   4. Yanıtı kullanıcıya stream et
-//   5. usage sayacını arttır (+1 istek, +kullanılan token)
+// The brain of trial mode. Flow:
+//   1. Verify the user's JWT (who is this?)
+//   2. Read today's quota from the usage table → 429 if the limit is exceeded
+//   3. Streaming request to Groq using your Groq key (Edge secret)
+//   4. Stream the response to the user
+//   5. Increment the usage counter (+1 request, +tokens used)
 //
-// Sırlar Edge secret olarak verilir (supabase secrets set):
-//   GROQ_API_KEY              — senin Groq anahtarın (client'ta ASLA yok)
-//   SUPABASE_URL              — otomatik enjekte edilir
-//   SUPABASE_SERVICE_ROLE_KEY — otomatik enjekte edilir (usage yazımı için)
+// Secrets are provided as Edge secrets (supabase secrets set):
+//   GROQ_API_KEY              — your Groq key (NEVER present on the client)
+//   SUPABASE_URL              — injected automatically
+//   SUPABASE_SERVICE_ROLE_KEY — injected automatically (for writing usage)
 //
 // Deploy:  supabase functions deploy chat-proxy
 
 import {createClient} from "jsr:@supabase/supabase-js@2";
 
-// ── Rate limit sabitleri (deneme modu) ────────────────────────────────────
-const DAILY_REQUEST_LIMIT = 50;       // gün başına istek
-const DAILY_TOKEN_LIMIT = 100_000;    // gün başına toplam token
-const MAX_TOKENS_PER_REQUEST = 8192;  // tek istekte üst sınır
+// ── Rate limit constants (trial mode) ─────────────────────────────────────
+const DAILY_REQUEST_LIMIT = 50;       // requests per day
+const DAILY_TOKEN_LIMIT = 100_000;    // total tokens per day
+const MAX_TOKENS_PER_REQUEST = 8192;  // upper bound per single request
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -38,26 +38,26 @@ function json(body: unknown, status = 200): Response {
 
 Deno.serve(async (req) => {
     if (req.method === "OPTIONS") return new Response("ok", {headers: CORS});
-    if (req.method !== "POST") return json({error: "POST gerekli"}, 405);
+    if (req.method !== "POST") return json({error: "POST required"}, 405);
 
-    // ── 1. JWT doğrula ──────────────────────────────────────────────────────
+    // ── 1. Verify JWT ────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!token) return json({error: "Yetkilendirme yok. Giriş yapın."}, 401);
+    if (!token) return json({error: "Not authorized. Please sign in."}, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const groqKey = Deno.env.get("GROQ_API_KEY");
-    if (!groqKey) return json({error: "Sunucu yapılandırması eksik (GROQ_API_KEY)."}, 500);
+    if (!groqKey) return json({error: "Server configuration is missing (GROQ_API_KEY)."}, 500);
 
-    // service_role client — RLS'i bypass eder, usage yazabilir
+    // service_role client — bypasses RLS, can write usage
     const admin = createClient(supabaseUrl, serviceKey);
 
     const {data: userData, error: userErr} = await admin.auth.getUser(token);
-    if (userErr || !userData?.user) return json({error: "Geçersiz oturum. Tekrar giriş yapın."}, 401);
+    if (userErr || !userData?.user) return json({error: "Invalid session. Please sign in again."}, 401);
     const userId = userData.user.id;
 
-    // ── 2. Kota kontrolü ────────────────────────────────────────────────────
+    // ── 2. Quota check ───────────────────────────────────────────────────────
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const {data: usageRow} = await admin
         .from("usage")
@@ -72,25 +72,25 @@ Deno.serve(async (req) => {
     if (usedReq >= DAILY_REQUEST_LIMIT || usedTok >= DAILY_TOKEN_LIMIT) {
         return json({
             error: "limit",
-            message: "Günlük deneme limitin doldu. Kendi Groq API anahtarını ekleyebilir veya yarın tekrar deneyebilirsin.",
+            message: "Your daily trial limit is used up. You can add your own Groq API key or try again tomorrow.",
             used: {requests: usedReq, tokens: usedTok},
             limit: {requests: DAILY_REQUEST_LIMIT, tokens: DAILY_TOKEN_LIMIT},
         }, 429);
     }
 
-    // ── 3. İstek gövdesini al ve Groq'a gönder ──────────────────────────────
+    // ── 3. Read the request body and forward it to Groq ─────────────────────
     let body: Record<string, unknown>;
     try {
         body = await req.json();
     } catch {
-        return json({error: "Geçersiz JSON gövdesi."}, 400);
+        return json({error: "Invalid JSON body."}, 400);
     }
 
-    // Token tavanını zorla — client'tan gelen değeri sınırla
+    // Enforce the token cap — clamp whatever value the client sent
     const reqMaxTok = typeof body.max_tokens === "number" ? body.max_tokens : MAX_TOKENS_PER_REQUEST;
     body.max_tokens = Math.min(reqMaxTok, MAX_TOKENS_PER_REQUEST);
     body.stream = true;
-    // Groq stream'inde token kullanımını almak için
+    // So we can read token usage from the Groq stream
     (body as Record<string, unknown>).stream_options = {include_usage: true};
 
     const groqResp = await fetch(GROQ_URL, {
@@ -104,10 +104,10 @@ Deno.serve(async (req) => {
 
     if (!groqResp.ok || !groqResp.body) {
         const errText = await groqResp.text().catch(() => "");
-        return json({error: `Groq hatası ${groqResp.status}: ${errText.slice(0, 300)}`}, 502);
+        return json({error: `Groq error ${groqResp.status}: ${errText.slice(0, 300)}`}, 502);
     }
 
-    // ── 4 + 5. Yanıtı stream et, bu arada token kullanımını yakala ──────────
+    // ── 4 + 5. Stream the response while capturing token usage ──────────────
     let promptTokens = 0;
     let completionTokens = 0;
 
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
                     const {done, value} = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value, {stream: true});
-                    // usage bilgisini SSE satırlarından ayıkla (son chunk'ta gelir)
+                    // Extract usage info from the SSE lines (arrives in the last chunk)
                     for (const line of chunk.split("\n")) {
                         const t = line.trim();
                         if (!t.startsWith("data:")) continue;
@@ -133,13 +133,13 @@ Deno.serve(async (req) => {
                                 promptTokens = obj.usage.prompt_tokens ?? 0;
                                 completionTokens = obj.usage.completion_tokens ?? 0;
                             }
-                        } catch { /* kısmi satır — yoksay */ }
+                        } catch { /* partial line — ignore */ }
                     }
                     controller.enqueue(encoder.encode(chunk));
                 }
             } finally {
                 controller.close();
-                // ── 6. usage sayacını arttır (upsert) ──────────────────────
+                // ── 6. Increment the usage counter (upsert) ──────────────────
                 const totalTok = promptTokens + completionTokens;
                 try {
                     await admin.rpc("increment_usage", {
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
                         p_tokens: totalTok,
                     });
                 } catch (e) {
-                    console.error("usage increment hatası:", e);
+                    console.error("usage increment error:", e);
                 }
             }
         },

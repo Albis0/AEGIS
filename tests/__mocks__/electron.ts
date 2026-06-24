@@ -1,5 +1,5 @@
-// Minimal Electron mock — test ortamında gerçek Electron çalıştırmadan
-// electron modülünü import eden dosyaları test etmek için.
+// Minimal Electron mock — lets us test files that import the electron module
+// without running real Electron in the test environment.
 export const app = {
     getPath: (_name: string) => "/tmp/aegis-test",
     quit: () => {},

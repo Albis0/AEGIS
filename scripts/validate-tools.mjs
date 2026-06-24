@@ -7,13 +7,13 @@ import {fileURLToPath} from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, "..", "dist-electron");
-// Şemalar artık tools/schemas.js'te (Faz: modülerleştirme), executor'lar tools.js'te.
-// İkisini birleştirip analiz et — schema↔executor senkronu her iki dosyayı kapsar.
+// Schemas now live in tools/schemas.js (Phase: modularization), executors in tools.js.
+// Merge both and analyze — the schema<->executor sync check covers both files.
 const TOOLS_JS = path.join(DIST, "tools.js");
 const SCHEMAS_JS = path.join(DIST, "tools", "schemas.js");
 const schemaSrc = fs.existsSync(SCHEMAS_JS) ? fs.readFileSync(SCHEMAS_JS, "utf-8") : "";
 const execSrc = fs.readFileSync(TOOLS_JS, "utf-8");
-// Şema çıkarımı her iki dosyadan; executor çıkarımı yalnız tools.js'ten.
+// Schema extraction comes from both files; executor extraction only from tools.js.
 const src = schemaSrc + "\n" + execSrc;
 
 // ---------- Extract schemas: every `function: { name: "x", description, parameters }` ----------
