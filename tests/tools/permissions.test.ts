@@ -7,31 +7,32 @@ import {
 } from "../../electron/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 54 — Yıkıcı eylem izin kapısı. Model tek yanlış argümanla geri dönülmez
-// hasar verebilir. Bu modül her tool'u risk seviyesine atar + "her zaman izin ver"
-// kararlarını ~/.aegis/permissions.json'da kalıcı tutar. Salt-okuma ASLA sormaz.
+// Phase 54 — Destructive action permission gate. The model could cause
+// irreversible damage with a single wrong argument. This module assigns each
+// tool a risk level and persists "always allow" decisions in
+// ~/.aegis/permissions.json. Read-only tools NEVER prompt.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STORE = path.join(os.homedir(), ".aegis", "permissions.json");
-function cleanup() { try { fs.rmSync(STORE, {force: true}); } catch { /* yok */ } }
+function cleanup() { try { fs.rmSync(STORE, {force: true}); } catch { /* none */ } }
 beforeEach(() => { cleanup(); _resetCache(); });
 afterEach(cleanup);
 
-describe("risk sınıflandırma", () => {
-    it("salt-okuma tool'lar safe (kapı sormaz)", () => {
+describe("risk classification", () => {
+    it("read-only tools are safe (no gate prompt)", () => {
         for (const t of ["get_telemetry", "list_files", "web_search", "spotify_play", "read_clipboard"]) {
             expect(classifyRisk(t, {}), t).toBe("safe");
             expect(needsApproval(t, {})).toBe(false);
         }
     });
 
-    it("sabit yıkıcı tool'lar destructive", () => {
+    it("fixed destructive tools are destructive", () => {
         for (const t of ["delete_file", "move_file", "kill_heavy_process", "bulk_rename", "clear_old_data"]) {
             expect(classifyRisk(t, {}), t).toBe("destructive");
         }
     });
 
-    it("run_command: zararsız komut safe", () => {
+    it("run_command: harmless command is safe", () => {
         expect(classifyRisk("run_command", {command: "Get-Date"})).toBe("safe");
         expect(classifyRisk("run_command", {command: "echo merhaba"})).toBe("safe");
     });
@@ -50,28 +51,28 @@ describe("risk sınıflandırma", () => {
     });
 });
 
-describe("kalıcı izin store", () => {
-    it("grantAlways sonrası needsApproval false döner", () => {
+describe("persistent permission store", () => {
+    it("needsApproval returns false after grantAlways", () => {
         expect(needsApproval("delete_file", {})).toBe(true);
         grantAlways("delete_file");
         expect(isAlwaysAllowed("delete_file")).toBe(true);
         expect(needsApproval("delete_file", {})).toBe(false);
     });
 
-    it("izin diske kalıcı yazılır (yeni cache okumasında da geçerli)", () => {
+    it("permission is persisted to disk (also valid on a fresh cache read)", () => {
         grantAlways("kill_heavy_process");
-        _resetCache(); // diskten yeniden yükle
+        _resetCache(); // reload from disk
         expect(isAlwaysAllowed("kill_heavy_process")).toBe(true);
     });
 
-    it("revokeAlways izni geri alır", () => {
+    it("revokeAlways revokes the permission", () => {
         grantAlways("move_file");
         revokeAlways("move_file");
         expect(isAlwaysAllowed("move_file")).toBe(false);
         expect(needsApproval("move_file", {})).toBe(true);
     });
 
-    it("aynı tool iki kez grantAlways → tek kayıt (duplicate yok)", () => {
+    it("calling grantAlways twice on the same tool → single record (no duplicate)", () => {
         grantAlways("delete_file");
         grantAlways("delete_file");
         const raw = JSON.parse(fs.readFileSync(STORE, "utf-8"));
@@ -84,8 +85,8 @@ describe("kalıcı izin store", () => {
     });
 });
 
-describe("bozuk store dosyası", () => {
-    it("geçersiz JSON → boş izin listesi (çökmeme)", () => {
+describe("corrupted store file", () => {
+    it("invalid JSON → empty permission list (no crash)", () => {
         fs.mkdirSync(path.dirname(STORE), {recursive: true});
         fs.writeFileSync(STORE, "{bozuk", "utf-8");
         _resetCache();

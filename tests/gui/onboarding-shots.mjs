@@ -1,5 +1,5 @@
-// Tek seferlik görsel doğrulama: onboarding ekranlarının screenshot'ı.
-// window.jarvis stub'lanır (preload yok). vite preview :4399 çalışıyor olmalı.
+// One-off visual check: screenshots of the onboarding screens.
+// window.jarvis is stubbed (no preload). vite preview :4399 must be running.
 import {chromium} from "playwright-core";
 import {fileURLToPath} from "url";
 import {dirname, join} from "path";
@@ -34,14 +34,14 @@ async function shot(name) {
 await page.goto("http://127.0.0.1:4399/?setup=1");
 await shot("1-lang");
 
-// dil seç → mode
+// select language → mode
 await page.getByText("Türkçe").click();
 await shot("2-mode");
 
-// gelişmiş kurulum → setup
+// advanced setup → setup
 await page.getByText("Gelişmiş Kurulum").click();
 await shot("3-setup");
-// gelişmiş akordeon aç
+// expand advanced accordion
 await page.getByText("Gelişmiş (opsiyonel)").click();
 await shot("4-setup-expanded");
 

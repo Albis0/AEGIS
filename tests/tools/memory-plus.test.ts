@@ -156,16 +156,16 @@ describe("listHabits", () => {
 
 // ─── Morning Summary ───────────────────────────────────────────────────────
 describe("shouldShowMorningSummary", () => {
-    it("dosya yoksa true döner", () => {
+    it("returns true when the file does not exist", () => {
         expect(shouldShowMorningSummary()).toBe(true);
     });
 
-    it("bugün gösterilmişse false döner", () => {
+    it("returns false if already shown today", () => {
         markMorningSummaryShown();
         expect(shouldShowMorningSummary()).toBe(false);
     });
 
-    it("dün gösterilmişse true döner", () => {
+    it("returns true if shown yesterday", () => {
         const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
         fs.mkdirSync(BASE, {recursive: true});
         fs.writeFileSync(MORNING_PATH, JSON.stringify({date: yesterday}), "utf-8");
@@ -238,13 +238,13 @@ describe("Phase 61 — proactive learning (I/O)", () => {
         expect(raw[0]).toHaveProperty("ts");
     });
 
-    it("opt-in KAPALI iken öneri null (varsayılan — spam yok)", () => {
+    it("suggestion is null while opt-in is OFF (default — no spam)", () => {
         for (let i = 0; i < 5; i++) recordToolUsage("spotify_play");
         expect(getProactiveSuggestion(false)).toBeNull();
     });
 
-    it("getProactivePatterns ham veriyi döndürür (opt-in'den bağımsız)", () => {
-        // tek oturum → days=1, örüntü oluşmaz; ama API çökmeden dönmeli
+    it("getProactivePatterns returns raw data (independent of opt-in)", () => {
+        // single session → days=1, no pattern forms; but the API must still return without crashing
         recordToolUsage("git_status");
         expect(Array.isArray(getProactivePatterns())).toBe(true);
     });

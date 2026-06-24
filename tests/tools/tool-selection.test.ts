@@ -3,9 +3,10 @@ import {getAllToolSchemas, setDisabledTools, extraSchemas} from "../../electron/
 import {stmClear, stmRecord} from "../../electron/short-term-memory";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getAllToolSchemas tool seçim mantığının regresyon kalkanı. "Bi çalışıyor bi
-// çalışmıyor" şikayetinin kök nedenleri buradaydı: 64-limit kırpması, eşleşmeyen
-// kökler, sticky-context kaybı, chatter'da fazla tool. Her birini kilitliyoruz.
+// Regression shield for getAllToolSchemas tool-selection logic. The root causes
+// of the "works sometimes, doesn't other times" complaint were here: 64-tool
+// limit truncation, mismatched roots, sticky-context loss, too many tools on
+// chatter. We lock each one down.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function toolNames(provider: string, ctx?: string): string[] {
@@ -18,151 +19,152 @@ beforeEach(() => {
     extraSchemas.length = 0;
 });
 
-describe("Groq 64-tool limiti", () => {
-    it("hiçbir bağlamda 64'ü aşmaz", () => {
+describe("Groq 64-tool limit", () => {
+    it("never exceeds 64 in any context", () => {
         expect(getAllToolSchemas("groq", "spotify aç ve şarkı çal").length).toBeLessThanOrEqual(64);
         expect(getAllToolSchemas("groq", "steam aç cs çalıştır").length).toBeLessThanOrEqual(64);
     });
 
-    it("ajan modu (bağlamsız) da limite uyar", () => {
+    it("agent mode (no context) also respects the limit", () => {
         expect(getAllToolSchemas("groq").length).toBeLessThanOrEqual(64);
     });
 });
 
-describe("Bağlama göre domain tool'ları öne gelir (kırpılmaz)", () => {
-    it("spotify isteğinde spotify tool'ları seçilir", () => {
+describe("Domain tools come forward based on context (not truncated)", () => {
+    it("spotify request selects spotify tools", () => {
         const names = toolNames("groq", "spotify aç ve müzik çal");
         expect(names.some((n) => n.startsWith("spotify_"))).toBe(true);
     });
 
-    it("steam isteğinde steam tool'ları seçilir", () => {
+    it("steam request selects steam tools", () => {
         const names = toolNames("groq", "steam aç ve oyun başlat");
         expect(names.some((n) => n.startsWith("steam_"))).toBe(true);
     });
 
-    it("akıllı ev isteğinde smart_home tool'ları seçilir", () => {
+    it("smart home request selects smart_home tools", () => {
         const names = toolNames("groq", "salon ışığını aç");
         expect(names.some((n) => n.startsWith("smart_home_"))).toBe(true);
     });
 
-    it("yerel ağ keşfi isteğinde local_devices_scan gelir", () => {
+    it("local network discovery request includes local_devices_scan", () => {
         const names = toolNames("groq", "evdeki cihazları tara ağda ne var");
         expect(names).toContain("local_devices_scan");
     });
 });
 
-describe("Sohbet/chatter → tool gönderme", () => {
-    it("teşekkür mesajında tool yok", () => {
+describe("Chatter → no tools sent", () => {
+    it("no tools on a thank-you message", () => {
         expect(getAllToolSchemas("groq", "teşekkürler").length).toBe(0);
     });
 
-    it("selam mesajında tool yok", () => {
+    it("no tools on a greeting message", () => {
         expect(getAllToolSchemas("groq", "nasılsın").length).toBe(0);
     });
 
-    it("'tamam' gibi onay mesajında tool yok", () => {
+    it("no tools on an acknowledgment like 'tamam' (ok)", () => {
         expect(getAllToolSchemas("groq", "tamam").length).toBe(0);
     });
 });
 
-describe("Aksiyon sinyali çekirdek tool'ları getirir", () => {
-    it("komut çalıştırma isteğinde run_command gelir", () => {
+describe("Action signal brings core tools", () => {
+    it("command execution request includes run_command", () => {
         const names = toolNames("groq", "bir powershell komutu çalıştır");
         expect(names).toContain("run_command");
     });
 
-    it("dosya okuma isteğinde read_file gelir", () => {
+    it("file read request includes read_file", () => {
         const names = toolNames("groq", "dosyayı oku");
         expect(names).toContain("read_file");
     });
 });
 
-describe("Sticky context (referans turnleri)", () => {
-    it("önceki tool bir domain grubundaysa kök taşımayan devam mesajı o grubu korur", () => {
-        // Önce spotify tool'u çalışmış gibi STM'e kaydet
+describe("Sticky context (reference turns)", () => {
+    it("a follow-up message without a root keyword keeps the prior domain group if the last tool belonged to it", () => {
+        // First record as if a spotify tool already ran, priming STM
         stmRecord("spotify_play", "{}", "ok", true, "llm");
-        // Kök taşımayan İngilizce devam mesajı ("change it to jazz")
+        // English follow-up message with no root keyword ("change it to jazz")
         const names = toolNames("groq", "change it to jazz");
         expect(names.some((n) => n.startsWith("spotify_"))).toBe(true);
     });
 });
 
-describe("disabledTools filtresi", () => {
-    it("devre dışı bırakılan tool listede gelmez", () => {
+describe("disabledTools filter", () => {
+    it("a disabled tool is not included in the list", () => {
         setDisabledTools(["run_command"]);
         const names = toolNames("groq", "bir komut çalıştır");
         expect(names).not.toContain("run_command");
     });
 });
 
-describe("Provider limitleri", () => {
-    // Her sağlayıcı kendi tool limitine uyar: groq/anthropic/mistral/xai/deepseek/ollama=64,
-    // openai/gemini=128 (bu API'ler daha fazla tool kabul eder).
-    it("anthropic 64 limitine uyar", () => {
+describe("Provider limits", () => {
+    // Each provider respects its own tool limit: groq/anthropic/mistral/xai/deepseek/ollama=64,
+    // openai/gemini=128 (these APIs accept more tools).
+    it("anthropic respects the 64 limit", () => {
         expect(getAllToolSchemas("anthropic", "spotify çal ve steam aç").length).toBeLessThanOrEqual(64);
     });
 
-    it("openai 128 limitine uyar (64'ten fazlasına izin verir)", () => {
+    it("openai respects the 128 limit (allows more than 64)", () => {
         expect(getAllToolSchemas("openai", "steam aç spotify çal").length).toBeLessThanOrEqual(128);
     });
 
-    it("bilinmeyen sağlayıcı varsayılan 64'e düşer", () => {
+    it("unknown provider falls back to the default 64", () => {
         expect(getAllToolSchemas("bilinmeyen-provider", "spotify çal").length).toBeLessThanOrEqual(64);
     });
 });
 
-describe("Memoization (ajan modu sıcak yolu)", () => {
-    it("aynı plugin durumunda tekrar çağrı tutarlı sonuç verir", () => {
+describe("Memoization (agent mode hot path)", () => {
+    it("repeat call with the same plugin state returns a consistent result", () => {
         const a = getAllToolSchemas("groq");
         const b = getAllToolSchemas("groq");
         expect(a.map((t) => t.function?.name)).toEqual(b.map((t) => t.function?.name));
     });
 
-    it("plugin (extraSchemas) eklenince yeni tool görünür", () => {
-        const before = getAllToolSchemas("ollama").length; // ollama 64 limit; ama bağlamsız hepsi
+    it("a new tool appears once a plugin (extraSchemas) is added", () => {
+        const before = getAllToolSchemas("ollama").length; // ollama 64 limit; but everything without context
         extraSchemas.push({
             type: "function",
             function: {name: "test_plugin_tool", description: "x", parameters: {type: "object", properties: {}, additionalProperties: false}},
         });
         const names = getAllToolSchemas("ollama").map((t) => t.function?.name);
-        // limit altındaysa görünür; değilse en azından memo invalidate olup farklı içerik üretmeli
+        // visible if under the limit; otherwise the memo should at least invalidate and produce different content
         expect(names.length).toBeGreaterThanOrEqual(0);
         extraSchemas.length = 0;
         const after = getAllToolSchemas("ollama").length;
-        expect(after).toBe(before); // temizlenince eski sayıya döner (invalidation çalışıyor)
+        expect(after).toBe(before); // returns to the old count once cleared (invalidation works)
     });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 55 — eval harness ile bulunan tool-seçim açıklarının regresyon kalkanı.
-// Bu mesajlarda doğru tool 64-limitte kırpılıyordu; köklerle/öncelikle düzeltildi.
+// Phase 55 — regression shield for tool-selection gaps found via the eval harness.
+// The correct tool used to get truncated at the 64-tool limit for these messages;
+// fixed via roots/priority.
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Faz 55 — tool-seçim açık düzeltmeleri", () => {
-    it("'cpu kullanımı' → system_report teklif edilir", () => {
+describe("Phase 55 — tool-selection gap fixes", () => {
+    it("'cpu kullanımı' (cpu usage) offers system_report", () => {
         expect(toolNames("groq", "cpu kullanımı ne durumda")).toContain("system_report");
     });
-    it("'bugün hava nasıl' → weather_station teklif edilir", () => {
+    it("'bugün hava nasıl' (what's the weather today) offers weather_station", () => {
         expect(toolNames("groq", "bugün hava nasıl")).toContain("weather_station");
     });
-    it("'e-posta gönder' → email_send teklif edilir", () => {
+    it("'e-posta gönder' (send an email) offers email_send", () => {
         expect(toolNames("groq", "e-posta gönder")).toContain("email_send");
     });
-    it("'sistem sesini 30 yap' → set_volume (priorityCore, kırpılmaz)", () => {
+    it("'sistem sesini 30 yap' (set system volume to 30) offers set_volume (priorityCore, never truncated)", () => {
         expect(toolNames("groq", "sistem sesini 30 yap")).toContain("set_volume");
     });
-    it("'10 dakika sonra hatırlat' → remind_in (scheduler grubu başı)", () => {
+    it("'10 dakika sonra hatırlat' (remind me in 10 minutes) offers remind_in (head of the scheduler group)", () => {
         expect(toolNames("groq", "10 dakika sonra hatırlat")).toContain("remind_in");
     });
-    it("'şu siteyi özetle <url>' → fetch_url (knowledge grubu başı)", () => {
+    it("'şu siteyi özetle <url>' (summarize this site) offers fetch_url (head of the knowledge group)", () => {
         expect(toolNames("groq", "şu siteyi özetle https://x.com")).toContain("fetch_url");
     });
-    it("düzeltmeler 64-limitini bozmaz", () => {
+    it("the fixes do not break the 64-tool limit", () => {
         for (const m of ["cpu kullanımı", "hava nasıl", "10 dakika sonra hatırlat", "şu siteyi özetle https://x.com"]) {
             expect(getAllToolSchemas("groq", m).length).toBeLessThanOrEqual(64);
         }
     });
-    it("priorityCore büyük domain grubunu kuyruktan düşürmez (Spotify/Steam korunur)", () => {
-        // 'yeni çıkanları göster' Spotify (~50 tool) çeker; new_releases hâlâ gelmeli
+    it("priorityCore does not drop a large domain group from the queue (Spotify/Steam preserved)", () => {
+        // 'yeni çıkanları göster' (show new releases) pulls in Spotify (~50 tools); new_releases must still come through
         expect(toolNames("groq", "yeni çıkanları göster")).toContain("spotify_new_releases");
     });
 });

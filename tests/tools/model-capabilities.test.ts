@@ -26,7 +26,7 @@ describe("groq", () => {
         expect(c.supportsTools).toBe(false);
     });
 
-    it("bilinmeyen groq modeli — tool var (güvenli default)", () => {
+    it("unknown groq model — tool present (safe default)", () => {
         const c = getModelCapabilities("groq", "unknown-model-xyz");
         expect(c.supportsTools).toBe(true);
         expect(c.contextWindow).toBe(131 * 1024);
@@ -44,7 +44,7 @@ describe("openai", () => {
         expect(c.reasoning).toBe(true);
     });
 
-    it("o1-preview — aynı kısıtlamalar", () => {
+    it("o1-preview — same restrictions", () => {
         const c = getModelCapabilities("openai", "o1-preview");
         expect(c.supportsTools).toBe(false);
         expect(c.supportsSystemPrompt).toBe(false);
@@ -98,7 +98,7 @@ describe("anthropic", () => {
         expect(c.contextWindow).toBe(1000 * 1024);
     });
 
-    it("bilinmeyen claude — güvenli 8K", () => {
+    it("unknown claude — safe 8K", () => {
         const c = getModelCapabilities("anthropic", "claude-future-xyz");
         expect(c.maxOutputTokens).toBe(8 * 1024);
         expect(c.supportsTools).toBe(true);
@@ -126,7 +126,7 @@ describe("gemini", () => {
         expect(c.supportsTools).toBe(false);
     });
 
-    it("gemini-3-flash — reasoning + vision + tool + 1M ctx, 64K çıktı", () => {
+    it("gemini-3-flash — reasoning + vision + tool + 1M ctx, 64K output", () => {
         const c = getModelCapabilities("gemini", "gemini-3-flash");
         expect(c.supportsTools).toBe(true);
         expect(c.supportsVision).toBe(true);
@@ -135,7 +135,7 @@ describe("gemini", () => {
         expect(c.maxOutputTokens).toBe(64 * 1024);
     });
 
-    it("gemini-3.5-flash — yeni nesil de yakalanır (8K'ya düşmez)", () => {
+    it("gemini-3.5-flash — next generation is also caught (doesn't fall back to 8K)", () => {
         const c = getModelCapabilities("gemini", "gemini-3.5-flash");
         expect(c.maxOutputTokens).toBe(64 * 1024);
         expect(c.reasoning).toBe(true);
@@ -215,7 +215,7 @@ describe("ollama", () => {
         expect(c.supportsTools).toBe(true);
     });
 
-    it("bilinmeyen ollama — tool YOK (güvenli default)", () => {
+    it("unknown ollama — NO tool (safe default)", () => {
         const c = getModelCapabilities("ollama", "tinydolphin", 2048);
         expect(c.supportsTools).toBe(false);
     });
@@ -244,45 +244,45 @@ describe("mistral", () => {
     });
 });
 
-// ─── Bilinmeyen provider ───────────────────────────────────────────────────
+// ─── Unknown provider ───────────────────────────────────────────────────────
 describe("unknown provider", () => {
-    it("güvenli default döner", () => {
+    it("returns a safe default", () => {
         const c = getModelCapabilities("unknown-provider", "some-model");
         expect(c.supportsTools).toBe(true);
         expect(c.maxOutputTokens).toBe(8 * 1024);
     });
 });
 
-// ─── Yardımcı fonksiyonlar ─────────────────────────────────────────────────
+// ─── Helper functions ────────────────────────────────────────────────────────
 describe("clampMaxTokens", () => {
-    it("talep > maxOutputTokens ise kırpar", () => {
+    it("clamps when the request exceeds maxOutputTokens", () => {
         const caps = getModelCapabilities("anthropic", "claude-3-haiku-20240307"); // 4096
         expect(clampMaxTokens(99999, caps)).toBe(4096);
     });
 
-    it("talep < maxOutputTokens ise olduğu gibi döner", () => {
+    it("returns as-is when the request is below maxOutputTokens", () => {
         const caps = getModelCapabilities("groq", "llama-3.3-70b-versatile"); // 32K
         expect(clampMaxTokens(2048, caps)).toBe(2048);
     });
 
-    it("talep ≤0 → 1024 default", () => {
+    it("request ≤0 → 1024 default", () => {
         const caps = getModelCapabilities("groq", "llama-3.3-70b-versatile");
         expect(clampMaxTokens(0, caps)).toBe(1024);
     });
 });
 
 describe("resolveTemperature", () => {
-    it("temperature desteklemeyende undefined döner", () => {
+    it("returns undefined when temperature is not supported", () => {
         const caps = getModelCapabilities("openai", "o1-mini");
         expect(resolveTemperature(0.7, caps)).toBeUndefined();
     });
 
-    it("maxTemperature'ı aşan değer kırpılır", () => {
+    it("clamps a value exceeding maxTemperature", () => {
         const caps = getModelCapabilities("anthropic", "claude-3-haiku-20240307"); // maxTemp=1
         expect(resolveTemperature(1.5, caps)).toBe(1);
     });
 
-    it("normal değer aynen döner", () => {
+    it("returns a normal value as-is", () => {
         const caps = getModelCapabilities("groq", "llama-3.3-70b-versatile"); // maxTemp=2
         expect(resolveTemperature(0.7, caps)).toBe(0.7);
     });

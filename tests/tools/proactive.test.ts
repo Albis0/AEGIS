@@ -2,22 +2,22 @@ import {describe, it, expect} from "vitest";
 import {detectPatterns, buildProactiveSuggestion, type UsageRecord} from "../../electron/proactive";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 61 — Proaktif örüntü öğrenme (opt-in). Proaktiflik güven tabanı kurulmadan
-// ters teper → varsayılan KAPALI, spam'i eşikler önler. Bir örüntü "gerçek
-// alışkanlık" sayılması için çok GÜN + çok TEKRAR gerekir; bunu kilitliyoruz.
+// Phase 61 — Proactive pattern learning (opt-in). Proactivity backfires
+// without a trust foundation → default OFF, thresholds prevent spam. A pattern
+// must span many DAYS + many REPEATS to count as a "real habit"; we lock that in.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DAY = 24 * 60 * 60 * 1000;
 const base = Date.parse("2026-06-01T09:00:00");
 
-/** N ayrı günde, verilen saatte tool kullanımı üretir. */
+/** Generates tool usage on N separate days, at the given hour. */
 function across(tool: string, hour: number, days: number): UsageRecord[] {
     return Array.from({length: days}, (_, i) => ({tool, hour, ts: base + i * DAY}));
 }
 
 describe("detectPatterns — real habit", () => {
     it("usage repeated across many days → pattern", () => {
-        const recs = across("spotify_play", 9, 4); // 4 ayrı gün, sabah 9
+        const recs = across("spotify_play", 9, 4); // 4 separate days, 9am
         const p = detectPatterns(recs);
         expect(p.length).toBe(1);
         expect(p[0].tool).toBe("spotify_play");

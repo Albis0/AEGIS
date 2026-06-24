@@ -1,4 +1,4 @@
-// state="error" görünümü — HUD ne kadar kırmızıya dönüyor?
+// state="error" view — how red does the HUD turn?
 import {chromium} from "playwright-core";
 import {fileURLToPath} from "url";
 import {dirname, join} from "path";
@@ -30,8 +30,8 @@ const page = await browser.newPage({viewport: {width: 1280, height: 800}, device
 await page.addInitScript(stub);
 await page.goto("http://127.0.0.1:4399/");
 await page.waitForTimeout(1200);
-// input'a yaz ve gönder → reqId iç ref, ama biz chat-error'u reqId eşleşmeden tetikliyoruz.
-// Bunun yerine doğrudan input+enter ile gerçek akışı kullan:
+// type into the input and submit → reqId is an internal ref, but we trigger
+// chat-error without matching the reqId. Instead use the real flow directly via input+enter:
 await page.fill("input", "merhaba");
 await page.keyboard.press("Enter");
 await page.waitForTimeout(800);

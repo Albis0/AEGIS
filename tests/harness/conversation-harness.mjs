@@ -9,7 +9,7 @@
 //   - tool result    (via real executeTool, side-effect-safe subset)
 //   - STM state      (after stmRecord, the short-term memory snapshot)
 //
-// Reference-resolution steps ("tekrar yap", "biraz azalt", "geri al") declare
+// Reference-resolution steps ("do it again", "lower it a bit", "undo") declare
 // what prior state the model must see; the harness verifies that state is present
 // in the injected STM prompt block BEFORE the step, then applies the resolved call.
 //
@@ -43,7 +43,7 @@ const VERBOSE = process.argv.includes("--verbose") || process.argv.includes("-v"
 const SAFE_TO_EXECUTE = new Set([
     "spotify_volume", "spotify_now_playing", "spotify_pause", "spotify_next",
     "spotify_prev", "spotify_play", "spotify_shuffle", "spotify_repeat",
-    "delete_file", "move_file",            // guarded: ENGELLENDI when fullPcAccess off
+    "delete_file", "move_file",            // guarded: BLOCKED when fullPcAccess off
     "list_facts", "list_macros", "list_automations", "list_scheduled_tasks",
     "list_personas", "vault_list", "list_watch_conditions",
     "steam_list", "steam_game_running",
@@ -79,30 +79,30 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
         if (!r) {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                 assert: "RESOLVER-NULL",
-                detail: `Resolver "${step.user}" için null döndü → bu bir referans ifadesi olarak tanınmadı (LLM'e düşerdi).`});
+                detail: `Resolver returned null for "${step.user}" → not recognized as a reference expression (would fall through to the LLM).`});
             return {log, ok: false};
         }
         if (r.kind !== "action") {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                 assert: "RESOLVER-CLARIFY",
-                detail: `Resolver netleştirme istedi (confidence ${r.confidence}): "${r.question}" — aksiyon bekleniyordu.`});
+                detail: `Resolver asked for clarification (confidence ${r.confidence}): "${r.question}" — an action was expected.`});
             return {log, ok: false};
         }
         if (r.tool !== step.tool) {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                 assert: "RESOLVER-TOOL",
-                detail: `Resolver tool "${r.tool}" üretti, beklenen "${step.tool}".`, resolverArgs: r.args});
+                detail: `Resolver produced tool "${r.tool}", expected "${step.tool}".`, resolverArgs: r.args});
             return {log, ok: false};
         }
         if (step.args && JSON.stringify(r.args) !== JSON.stringify(step.args)) {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                 assert: "RESOLVER-ARGS",
-                detail: `Resolver args ${JSON.stringify(r.args)} üretti, beklenen ${JSON.stringify(step.args)}.`});
+                detail: `Resolver produced args ${JSON.stringify(r.args)}, expected ${JSON.stringify(step.args)}.`});
             return {log, ok: false};
         }
         if (r.source !== "resolver") {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
-                assert: "RESOLVER-SOURCE", detail: `source="${r.source}", "resolver" bekleniyordu.`});
+                assert: "RESOLVER-SOURCE", detail: `source="${r.source}", expected "resolver".`});
             return {log, ok: false};
         }
         // record exactly like main.ts does for the resolver path
@@ -120,7 +120,7 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
                 if (!match) {
                     failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                         assert: "STM-STATE",
-                        detail: `STM.${k} beklenen ${v instanceof RegExp ? v : JSON.stringify(v)}, gerçek ${JSON.stringify(actual)}`,
+                        detail: `STM.${k} expected ${v instanceof RegExp ? v : JSON.stringify(v)}, actual ${JSON.stringify(actual)}`,
                         stm: snap});
                     return {log, ok: false};
                 }
@@ -136,7 +136,7 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
             if (!block.includes(needle)) {
                 failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                     assert: "REF-AVAILABILITY",
-                    detail: `Referans çözümleme için gereken state STM bloğunda YOK: "${needle}"`,
+                    detail: `State required for reference resolution is MISSING from the STM block: "${needle}"`,
                     injectedBlock: block.slice(0, 400)});
                 return {log, ok: false};
             }
@@ -148,9 +148,9 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
     if (!offered.has(step.tool)) {
         failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
             assert: "TOOL-NOT-OFFERED",
-            detail: `Beklenen tool "${step.tool}" bu mesaj için TEKLIF EDİLMEDİ. ` +
-                    `getAllToolSchemas('${PROVIDER}', "${step.user}") bu tool'u içermiyor → ` +
-                    `LLM bu tool'u hiç seçemez (kök/grup eşleşme açığı).`,
+            detail: `Expected tool "${step.tool}" was NOT OFFERED for this message. ` +
+                    `getAllToolSchemas('${PROVIDER}', "${step.user}") does not include this tool → ` +
+                    `the LLM could never select it (root/group matching gap).`,
             offeredSample: [...offered].slice(0, 12)});
         return {log, ok: false};
     }
@@ -168,7 +168,7 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
     } else {
         // dispatch-only: confirm an executor exists by probing schema/exec map indirectly.
         // (trio validator already proves 263/263; here we just record intended result.)
-        result = step.mockResult ?? `(simüle: ${step.tool} çağrıldı)`;
+        result = step.mockResult ?? `(simulated: ${step.tool} called)`;
     }
     log.result = String(result).slice(0, 120);
 
@@ -185,7 +185,7 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
             if (!match) {
                 failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
                     assert: "STM-STATE",
-                    detail: `STM.${k} beklenen ${v instanceof RegExp ? v : JSON.stringify(v)}, gerçek ${JSON.stringify(actual)}`,
+                    detail: `STM.${k} expected ${v instanceof RegExp ? v : JSON.stringify(v)}, actual ${JSON.stringify(actual)}`,
                     stm: snap});
                 return {log, ok: false};
             }
@@ -197,7 +197,7 @@ async function runStepDeterministic(step, stepIdx, scenarioName, failures) {
         const re = step.expectResult instanceof RegExp ? step.expectResult : new RegExp(step.expectResult);
         if (!re.test(String(result))) {
             failures.push({scenario: scenarioName, step: stepIdx, user: step.user,
-                assert: "RESULT", detail: `Sonuç ${re} ile eşleşmedi`, result: String(result).slice(0, 200)});
+                assert: "RESULT", detail: `Result did not match ${re}`, result: String(result).slice(0, 200)});
             return {log, ok: false};
         }
     }
@@ -247,26 +247,26 @@ async function main() {
     const failed = scenarioResults.length - passed;
 
     if (failures.length) {
-        console.log("\nFAILURE DETAYLARI (zincirin kırıldığı adım):");
+        console.log("\nFAILURE DETAILS (step where the chain broke):");
         for (const f of failures) {
-            console.log(`\n  ✗ [${f.scenario}]  ADIM ${f.step}  →  ${f.assert}`);
-            console.log(`     mesaj : "${f.user}"`);
-            console.log(`     neden : ${f.detail}`);
-            if (f.offeredSample) console.log(`     teklif örn.: ${f.offeredSample.join(", ")}`);
-            if (f.injectedBlock) console.log(`     STM blok  : ${f.injectedBlock.replace(/\n/g, " | ")}`);
+            console.log(`\n  ✗ [${f.scenario}]  STEP ${f.step}  →  ${f.assert}`);
+            console.log(`     message : "${f.user}"`);
+            console.log(`     reason  : ${f.detail}`);
+            if (f.offeredSample) console.log(`     offered sample: ${f.offeredSample.join(", ")}`);
+            if (f.injectedBlock) console.log(`     STM block     : ${f.injectedBlock.replace(/\n/g, " | ")}`);
         }
     }
 
     console.log("\n" + "=".repeat(78));
-    console.log(`SONUÇ:  ${passed} PASS  /  ${failed} FAIL   (${scenarioResults.length} senaryo)`);
+    console.log(`RESULT:  ${passed} PASS  /  ${failed} FAIL   (${scenarioResults.length} scenarios)`);
     const totalSteps = SCENARIOS.reduce((a, s) => a + s.steps.length, 0);
-    console.log(`Toplam adım: ${totalSteps}   Kırılan zincir: ${failed}`);
+    console.log(`Total steps: ${totalSteps}   Broken chains: ${failed}`);
 
     fs.writeFileSync(path.join(__dirname, "harness-report.json"),
         JSON.stringify({provider: PROVIDER, passed, failed, failures, scenarioResults}, null, 2));
 
     if (LIVE) {
-        console.log("\n--live verildi → Phase 2 (Groq) için scripts/conversation-live.mjs çalıştırın.");
+        console.log("\n--live given → run scripts/conversation-live.mjs for Phase 2 (Groq).");
     }
 
     process.exit(failed > 0 ? 1 : 0);

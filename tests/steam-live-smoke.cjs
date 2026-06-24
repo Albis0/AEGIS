@@ -1,5 +1,5 @@
-// Grup C (storefront, key gerekmez) CANLI smoke testi — gerçek Steam API'sine gider.
-// Ağ yoksa SKIP eder (CI'ı kırmaz). Amaç: parse ettiğimiz JSON şekli gerçekle uyuşuyor mu?
+// Group C (storefront, no key required) LIVE smoke test — hits the real Steam API.
+// SKIPs if there's no network (won't break CI). Goal: does the JSON shape we parse match reality?
 const steam = require("../dist-electron/steam.js");
 
 const tests = [
@@ -11,14 +11,14 @@ const tests = [
 ];
 
 (async () => {
-    // ağ var mı kontrol
+    // check if network is available
     let online = false;
     try {
         const r = await Promise.race([fetch("https://store.steampowered.com/api/storesearch/?term=a&cc=TR&l=turkish"), new Promise((_, x) => setTimeout(() => x(0), 8000))]);
         online = r.ok;
     } catch { online = false; }
     if (!online) {
-        console.log("SKIP — Steam storefront'a ulaşılamıyor (ağ yok). Grup C canlı testi atlandı.");
+        console.log("SKIP — Steam storefront unreachable (no network). Group C live test skipped.");
         process.exit(0);
     }
 
@@ -35,6 +35,6 @@ const tests = [
             fail++;
         }
     }
-    console.log(`\n=== STOREFRONT (Grup C) CANLI: ${pass} PASS / ${fail} FAIL ===`);
+    console.log(`\n=== STOREFRONT (Group C) LIVE: ${pass} PASS / ${fail} FAIL ===`);
     process.exit(fail > 0 ? 1 : 0);
 })();

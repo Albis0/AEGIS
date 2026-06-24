@@ -3,16 +3,16 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-// scheduler.ts'de TASKS_PATH = os.homedir()/.aegis/scheduled-tasks.json
-// os.homedir() modül yüklenirken sabitlenir — override çalışmaz.
-// Gerçek kullanıcı dizinini kullanıyor; test temizliği buraya göre yapılır.
+// In scheduler.ts, TASKS_PATH = os.homedir()/.aegis/scheduled-tasks.json
+// os.homedir() is fixed when the module loads — overriding it won't work.
+// It uses the real user directory; test cleanup is done against this path.
 const TASKS_PATH = path.join(os.homedir(), ".aegis", "scheduled-tasks.json");
 const TASKS_DIR = path.dirname(TASKS_PATH);
 
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, loadTasks, startScheduler, stopScheduler} from "../../electron/scheduler";
 
 function clearTasks(): void {
-    try { fs.writeFileSync(TASKS_PATH, "[]", "utf-8"); } catch { /* ilk çalıştırmada yok */ }
+    try { fs.writeFileSync(TASKS_PATH, "[]", "utf-8"); } catch { /* doesn't exist on first run */ }
 }
 
 beforeEach(() => {

@@ -32,7 +32,7 @@ try {
 } catch { /* no .env */ }
 
 const KEY = process.env.GROQ_API_KEY;
-if (!KEY) { console.error("GROQ_API_KEY yok — live mod atlanıyor (deterministik testler etkilenmez)."); process.exit(0); }
+if (!KEY) { console.error("GROQ_API_KEY missing — skipping live mode (deterministic tests are unaffected)."); process.exit(0); }
 
 const Groq = (await import("groq-sdk")).default;
 const groq = new Groq({apiKey: KEY});
@@ -52,7 +52,7 @@ let total = 0, match = 0, toolDev = 0, argDev = 0, noCall = 0, apiErr = 0;
 const deviations = [];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const THROTTLE_MS = Number(process.env.HARNESS_THROTTLE_MS || 2500); // free-tier RPM dostu
+const THROTTLE_MS = Number(process.env.HARNESS_THROTTLE_MS || 2500); // friendly to free-tier RPM limits
 
 async function askModel(message, offeredTools, attempt = 0) {
     const stmBlock = stm.stmBuildPromptBlock();
@@ -71,7 +71,7 @@ async function askModel(message, offeredTools, attempt = 0) {
             max_tokens: 300,
         });
     } catch (e) {
-        // 429 rate-limit → bekle ve bir kez tekrar dene (en fazla 3 deneme)
+        // 429 rate-limit → wait and retry once (up to 3 attempts)
         if ((e.status === 429 || /rate limit/i.test(e.message)) && attempt < 3) {
             const wait = Number(e.headers?.["retry-after"]) * 1000 || (5000 * (attempt + 1));
             await sleep(wait);
@@ -102,7 +102,7 @@ for (const scn of SCENARIOS.slice(0, LIMIT_SCN)) {
             picked = await askModel(step.user, offered);
         } catch (e) {
             apiErr++;
-            console.log(`  [API-ERR] ${scn.name} adım ${i+1}: ${e.message?.slice(0,80)}`);
+            console.log(`  [API-ERR] ${scn.name} step ${i+1}: ${e.message?.slice(0,80)}`);
             continue;
         }
 
@@ -117,29 +117,29 @@ for (const scn of SCENARIOS.slice(0, LIMIT_SCN)) {
             else if (String(got).toLowerCase() !== String(v).toLowerCase() && !String(got).toLowerCase().includes(String(v).toLowerCase())) { /* tolerate */ }
         }
 
-        if (!picked.tool) { noCall++; deviations.push({scn: scn.name, step: i+1, user: step.user, expected: step.tool, got: "(çağrı yok)"}); }
+        if (!picked.tool) { noCall++; deviations.push({scn: scn.name, step: i+1, user: step.user, expected: step.tool, got: "(no call)"}); }
         else if (!toolOk) { toolDev++; deviations.push({scn: scn.name, step: i+1, user: step.user, expected: step.tool, got: picked.tool, args: picked.args}); }
         else if (!argOk)  { argDev++; deviations.push({scn: scn.name, step: i+1, user: step.user, expected: `${step.tool}(${JSON.stringify(step.args)})`, got: `${picked.tool}(${JSON.stringify(picked.args)})`, argOnly: true}); }
         else { match++; }
 
         // advance STM with the EXPECTED call so reference chain stays coherent
         stm.stmRecord(step.tool, JSON.stringify(step.args ?? {}), step.mockResult ?? "OK", true);
-        await sleep(THROTTLE_MS); // free-tier RPM limitini aşmamak için
+        await sleep(THROTTLE_MS); // avoid exceeding the free-tier RPM limit
     }
     process.stdout.write(".");
 }
 
 console.log("\n" + "=".repeat(78));
-console.log(`Adım: ${total}  |  tam eşleşme: ${match}  |  tool sapması: ${toolDev}  |  arg sapması: ${argDev}  |  çağrı yok: ${noCall}  |  API hatası: ${apiErr}`);
+console.log(`Steps: ${total}  |  exact match: ${match}  |  tool deviation: ${toolDev}  |  arg deviation: ${argDev}  |  no call: ${noCall}  |  API error: ${apiErr}`);
 if (deviations.length) {
-    console.log("\nSAPMALAR (LLM beklenenden farklı seçti — bilgilendirme amaçlı, CI'yı fail ETMEZ):");
+    console.log("\nDEVIATIONS (LLM picked differently than expected — informational only, does NOT fail CI):");
     for (const d of deviations.slice(0, 40)) {
         console.log(`  • [${d.scn} #${d.step}] "${d.user}"`);
-        console.log(`      beklenen: ${d.expected}   |   LLM: ${d.got}${d.args ? " " + JSON.stringify(d.args) : ""}`);
+        console.log(`      expected: ${d.expected}   |   LLM: ${d.got}${d.args ? " " + JSON.stringify(d.args) : ""}`);
     }
-    if (deviations.length > 40) console.log(`  ... +${deviations.length - 40} sapma daha`);
+    if (deviations.length > 40) console.log(`  ... +${deviations.length - 40} more deviations`);
 }
 const accuracy = total ? ((match / total) * 100).toFixed(1) : "0";
-console.log(`\nLLM doğruluk: %${accuracy}  (tam eşleşme / toplam adım)`);
+console.log(`\nLLM accuracy: %${accuracy}  (exact match / total steps)`);
 fs.writeFileSync(path.join(__dirname, "live-report.json"), JSON.stringify({model: MODEL, total, match, toolDev, argDev, noCall, apiErr, deviations}, null, 2));
 process.exit(0); // live mode never fails CI

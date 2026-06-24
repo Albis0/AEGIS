@@ -5,14 +5,15 @@ import * as os from "os";
 import {initVault, vaultStore, vaultGet, vaultList, vaultDelete} from "../../electron/vault";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vault — API key/şifre gibi sırların şifreli saklanması (SMTP şifresi bug fix'i
-// bunu kullanıyor). Gerçek ~/.aegis/vault.enc.json dosyasıyla test edilir;
-// safeStorage yerine deterministik bir sahte enjekte edilir (base64 round-trip).
+// Vault — encrypted storage of secrets like API keys/passwords (the SMTP
+// password bug fix relies on this). Tested against the real
+// ~/.aegis/vault.enc.json file; a deterministic fake is injected in place of
+// safeStorage (base64 round-trip).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const VAULT_PATH = path.join(os.homedir(), ".aegis", "vault.enc.json");
 
-// Deterministik sahte safeStorage — gerçek DPAPI yerine base64 ile round-trip.
+// Deterministic fake safeStorage — base64 round-trip instead of real DPAPI.
 const fakeSafeStorage = {
     isEncryptionAvailable: () => true,
     encryptString: (s: string) => Buffer.from("enc:" + s, "utf-8"),
@@ -20,7 +21,7 @@ const fakeSafeStorage = {
 };
 
 function cleanup() {
-    try { fs.rmSync(VAULT_PATH, {force: true}); } catch { /* yok */ }
+    try { fs.rmSync(VAULT_PATH, {force: true}); } catch { /* none */ }
 }
 
 beforeEach(() => { cleanup(); initVault(fakeSafeStorage); });

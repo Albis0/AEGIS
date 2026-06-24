@@ -14,7 +14,7 @@ import {
 
 function clearFiles(): void {
     for (const p of [POMODORO, TIMELOG]) {
-        try { fs.unlinkSync(p); } catch { /* yok */ }
+        try { fs.unlinkSync(p); } catch { /* none */ }
     }
 }
 
@@ -23,8 +23,8 @@ beforeEach(() => {
     clearFiles();
 });
 afterEach(() => {
-    // aktif pomodoro varsa timer'ı temizle (test sızıntısını önle)
-    try { pomodoroStop(); } catch { /* yok */ }
+    // Clean up the timer if a pomodoro is active (avoid test leakage)
+    try { pomodoroStop(); } catch { /* none */ }
     clearFiles();
 });
 
@@ -74,7 +74,7 @@ describe("pomodoroStop", () => {
     });
 });
 
-// ─── Zaman Takibi ────────────────────────────────────────────────────────────
+// ─── Time Tracking ───────────────────────────────────────────────────────────
 describe("timeTrackStart", () => {
     it("starts tracking", () => {
         const msg = timeTrackStart("Kod yaz");
@@ -93,8 +93,8 @@ describe("timeTrackStart", () => {
         const msg = timeTrackStart("Görev B");
         expect(msg).toContain("stopped");
         const log = JSON.parse(fs.readFileSync(TIMELOG, "utf-8"));
-        expect(log[0].stoppedAt).toBeDefined();   // A durdu
-        expect(log[1].stoppedAt).toBeUndefined();  // B aktif
+        expect(log[0].stoppedAt).toBeDefined();   // A stopped
+        expect(log[1].stoppedAt).toBeUndefined();  // B active
     });
 });
 
@@ -119,7 +119,7 @@ describe("timeTrackReport", () => {
     });
 
     it("aggregates and reports completed tasks", () => {
-        // Geçmiş tamamlanmış kayıt enjekte et
+        // Inject a past completed record
         const now = Date.now();
         const log = [
             {task: "Tasarım", startedAt: now - 3_600_000, stoppedAt: now - 3_000_000, durationMs: 600_000},
@@ -130,7 +130,7 @@ describe("timeTrackReport", () => {
         const out = timeTrackReport("today");
         expect(out).toContain("Tasarım");
         expect(out).toContain("Toplantı");
-        // Tasarım: 900_000ms = 15dk, en üstte (azalan sıra)
+        // Tasarım: 900_000ms = 15min, on top (descending order)
         expect(out.indexOf("Tasarım")).toBeLessThan(out.indexOf("Toplantı"));
         expect(out).toContain("Total");
     });

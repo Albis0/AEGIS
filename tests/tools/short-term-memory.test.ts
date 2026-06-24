@@ -5,15 +5,15 @@ import {
 } from "../../electron/short-term-memory";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Kısa süreli bellek (STM) — referans çözümlemenin ("onu kapat", "tekrar çal",
-// "son oynadığım") temeli. Her tool çalışınca güncellenir; bu bağlam yanlışsa
-// referanslar yanlış hedefe gider. Davranışı kilitliyoruz.
+// Short-term memory (STM) — the foundation of reference resolution ("turn it off",
+// "play it again", "what I last played"). Updated whenever a tool runs; if this
+// context is wrong, references go to the wrong target. Locking down the behavior.
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => stmClear());
 
-describe("stmRecord temel", () => {
-    it("son tool/args/result yakalanır", () => {
+describe("stmRecord basics", () => {
+    it("captures the last tool/args/result", () => {
         stmRecord("run_command", '{"command":"notepad"}', "açıldı", true);
         const ctx = stmGet();
         expect(ctx.lastTool).toBe("run_command");
@@ -21,21 +21,21 @@ describe("stmRecord temel", () => {
         expect(ctx.lastResult).toContain("açıldı");
     });
 
-    it("bozuk JSON args boş obje olarak ele alınır (throw etmez)", () => {
+    it("malformed JSON args are treated as an empty object (does not throw)", () => {
         stmRecord("x", "{bozuk", "r", true);
         expect(stmGet().lastArgs).toEqual({});
     });
 
-    it("recentTools MAX_ENTRIES (20) ile sınırlı", () => {
+    it("recentTools is capped at MAX_ENTRIES (20)", () => {
         for (let i = 0; i < 30; i++) stmRecord("t", `{"i":${i}}`, "ok", true);
         expect(stmGet().recentTools.length).toBe(20);
-        // en eski düşmüş olmalı (i=10 ilk eleman)
+        // the oldest entries should have been dropped (i=10 is the first element)
         expect(stmGet().recentTools[0].args.i).toBe(10);
     });
 });
 
-describe("entity çıkarımı (lastEntity)", () => {
-    it("steam_ tool'undan oyun adı", () => {
+describe("entity extraction (lastEntity)", () => {
+    it("game name from a steam_ tool", () => {
         stmRecord("steam_launch", '{"game":"Dota 2"}', "başlatıldı", true);
         expect(stmGet().lastEntity).toBe("Dota 2");
     });
@@ -50,7 +50,7 @@ describe("entity çıkarımı (lastEntity)", () => {
         expect(stmGet().lastEntity).toBe("~/notes.txt");
     });
 
-    it("run_command Start-Process'ten uygulama adı", () => {
+    it("app name from run_command Start-Process", () => {
         stmRecord("run_command", '{"command":"Start-Process chrome"}', "ok", true);
         expect(stmGet().lastEntity).toBe("chrome");
     });
@@ -67,14 +67,14 @@ describe("domain hedefleri", () => {
         expect(stmGet().lastSpotifyContext).toBe("spotify:playlist:p1");
     });
 
-    it("now_playing sonucundaki track URI yakalanır", () => {
+    it("captures the track URI from the now_playing result", () => {
         stmRecord("spotify_now_playing", "{}", "Çalıyor: spotify:track:fromResult", true);
         expect(stmGet().lastSpotifyTrack).toBe("spotify:track:fromResult");
     });
 });
 
 describe("stmClear", () => {
-    it("her şeyi sıfırlar", () => {
+    it("resets everything", () => {
         stmRecord("t", "{}", "r", true);
         stmClear();
         const ctx = stmGet();
@@ -84,7 +84,7 @@ describe("stmClear", () => {
 });
 
 describe("stmBuildPromptBlock", () => {
-    it("boş bellekte boş string (ilk turda prompt temiz)", () => {
+    it("empty string for an empty memory (prompt is clean on the first turn)", () => {
         expect(stmBuildPromptBlock()).toBe("");
     });
 
@@ -98,7 +98,7 @@ describe("stmBuildPromptBlock", () => {
 });
 
 describe("stmLastByToolPrefix / stmLastWhere", () => {
-    it("prefix'e göre en son eşleşen tool", () => {
+    it("the most recent tool matching a prefix", () => {
         stmRecord("run_command", "{}", "ok", true);
         stmRecord("spotify_play", '{"uri":"u1"}', "ok", true);
         stmRecord("spotify_pause", "{}", "ok", true);
@@ -106,12 +106,12 @@ describe("stmLastByToolPrefix / stmLastWhere", () => {
         expect(last?.tool).toBe("spotify_pause");
     });
 
-    it("prefix eşleşmesi yoksa null", () => {
+    it("null when there is no prefix match", () => {
         stmRecord("run_command", "{}", "ok", true);
         expect(stmLastByToolPrefix("steam_")).toBeNull();
     });
 
-    it("stmLastWhere predikatına göre en son eşleşen", () => {
+    it("the most recent match per the stmLastWhere predicate", () => {
         stmRecord("steam_launch", '{"game":"A"}', "ok", true);
         stmRecord("steam_close", '{"game":"B"}', "ok", false);
         const lastOk = stmLastWhere((e) => e.success);

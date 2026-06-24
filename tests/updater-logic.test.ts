@@ -1,6 +1,6 @@
-// Updater akış testi — "Please check update first" bug'ının kökü kapandı mı?
-// Bug: indirme, updater check'i çalışmadan tetikleniyordu. Fix: performDownload
-// indirmeden ÖNCE checkForUpdates çağırır. Burada autoUpdater'ı stub'layıp kanıtlıyoruz.
+// Updater flow test — is the root cause of the "Please check update first" bug fixed?
+// Bug: the download was triggered before the updater check ran. Fix: performDownload
+// calls checkForUpdates BEFORE downloading. Here we stub autoUpdater and prove it.
 import {describe, it, expect, vi} from "vitest";
 import {performCheck, performDownload, type UpdaterLike} from "../electron/updater-logic";
 

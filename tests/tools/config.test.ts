@@ -16,7 +16,7 @@ const FULL: AegisConfig = {
     homeAssistantToken: "ha_token",
 };
 
-// applyConfig'in yazdığı env anahtarları — test sonrası temizlik için
+// env keys written by applyConfig — for post-test cleanup
 const ENV_KEYS = [
     "GROQ_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "TAVILY_API_KEY",
     "SERPER_API_KEY", "ELEVENLABS_API_KEY", "STEAM_API_KEY", "STEAM_ID64",
@@ -29,28 +29,28 @@ function clearEnv(): void {
 
 beforeEach(() => {
     fs.mkdirSync(path.dirname(CONFIG_PATH), {recursive: true});
-    try { fs.unlinkSync(CONFIG_PATH); } catch { /* yok */ }
+    try { fs.unlinkSync(CONFIG_PATH); } catch { /* none */ }
     clearEnv();
 });
 afterEach(() => {
-    try { fs.unlinkSync(CONFIG_PATH); } catch { /* yok */ }
+    try { fs.unlinkSync(CONFIG_PATH); } catch { /* none */ }
     clearEnv();
 });
 
 // ─── load/save ───────────────────────────────────────────────────────────────
 describe("loadConfig", () => {
-    it("dosya yokken null", () => {
+    it("returns null when the file doesn't exist", () => {
         expect(loadConfig()).toBeNull();
     });
 
-    it("kaydedileni geri okur (roundtrip)", () => {
+    it("reads back what was saved (roundtrip)", () => {
         saveConfig(FULL);
         const c = loadConfig();
         expect(c?.groqApiKey).toBe("gsk_test");
         expect(c?.homeAssistantUrl).toBe("http://ha.local:8123");
     });
 
-    it("bozuk JSON null döner (crash yok)", () => {
+    it("returns null for malformed JSON (no crash)", () => {
         fs.writeFileSync(CONFIG_PATH, "{bozuk json", "utf-8");
         expect(loadConfig()).toBeNull();
     });
@@ -58,22 +58,22 @@ describe("loadConfig", () => {
 
 // ─── loadConfigStrict ────────────────────────────────────────────────────────
 describe("loadConfigStrict", () => {
-    it("tam config geçerli", () => {
+    it("valid when config is complete", () => {
         saveConfig(FULL);
         expect(loadConfigStrict()).not.toBeNull();
     });
 
-    it("groqApiKey eksikse null", () => {
+    it("null when groqApiKey is missing", () => {
         saveConfig({...FULL, groqApiKey: ""});
         expect(loadConfigStrict()).toBeNull();
     });
 
-    it("supabaseUrl eksikse null", () => {
+    it("null when supabaseUrl is missing", () => {
         saveConfig({...FULL, supabaseUrl: ""});
         expect(loadConfigStrict()).toBeNull();
     });
 
-    it("supabaseServiceKey eksikse null", () => {
+    it("null when supabaseServiceKey is missing", () => {
         saveConfig({...FULL, supabaseServiceKey: ""});
         expect(loadConfigStrict()).toBeNull();
     });
@@ -81,7 +81,7 @@ describe("loadConfigStrict", () => {
 
 // ─── applyConfig ─────────────────────────────────────────────────────────────
 describe("applyConfig", () => {
-    it("dolu alanları process.env'e yazar", () => {
+    it("writes populated fields to process.env", () => {
         applyConfig(FULL);
         expect(process.env.GROQ_API_KEY).toBe("gsk_test");
         expect(process.env.SUPABASE_URL).toBe("https://test.supabase.co");
@@ -90,7 +90,7 @@ describe("applyConfig", () => {
         expect(process.env.HOME_ASSISTANT_TOKEN).toBe("ha_token");
     });
 
-    it("boş/eksik opsiyonel alanlar env'e yazılmaz", () => {
+    it("empty/missing optional fields are not written to env", () => {
         applyConfig({groqApiKey: "g", supabaseUrl: "u", supabaseServiceKey: "s"});
         expect(process.env.GROQ_API_KEY).toBe("g");
         expect(process.env.TAVILY_API_KEY).toBeUndefined();

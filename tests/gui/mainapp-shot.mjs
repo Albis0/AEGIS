@@ -1,4 +1,4 @@
-// İlk açılış ana app screenshot'ı — "kırmızı geliyor" şikayetini doğrulamak için.
+// First-launch main app screenshot — to verify the "comes up red" complaint.
 import {chromium} from "playwright-core";
 import {fileURLToPath} from "url";
 import {dirname, join} from "path";

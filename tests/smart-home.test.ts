@@ -4,7 +4,7 @@ import {
     type HAEntity,
 } from "../electron/smart-home";
 
-// Test fixture'ı — tipik bir akıllı ev kurulumu.
+// Test fixture — a typical smart home setup.
 function ent(entity_id: string, state: string, friendly_name: string, attributes: Record<string, unknown> = {}): HAEntity {
     return {entity_id, state, friendly_name, attributes, domain: entity_id.split(".")[0]};
 }
@@ -15,11 +15,11 @@ const HOME: HAEntity[] = [
     ent("light.yatak_odasi", "on", "Yatak Odası Lambası", {brightness: 128}),
     ent("light.mutfak", "off", "Mutfak Işığı"),
     ent("switch.kahve_makinesi", "off", "Kahve Makinesi"),
-    ent("switch.salon_isitici", "off", "Salon Isıtıcı"),       // kritik (isim ipucu)
-    ent("lock.on_kapi", "locked", "Ön Kapı Kilidi"),           // kritik (domain)
-    ent("cover.garaj", "closed", "Garaj Kapısı"),              // kritik (domain)
-    ent("climate.salon", "heat", "Salon Termostat", {current_temperature: 21, temperature: 23}), // kritik
-    ent("sensor.salon_nem", "45", "Salon Nem", {unit_of_measurement: "%"}), // kontrol edilemez
+    ent("switch.salon_isitici", "off", "Salon Isıtıcı"),       // critical (name hint)
+    ent("lock.on_kapi", "locked", "Ön Kapı Kilidi"),           // critical (domain)
+    ent("cover.garaj", "closed", "Garaj Kapısı"),              // critical (domain)
+    ent("climate.salon", "heat", "Salon Termostat", {current_temperature: 21, temperature: 23}), // critical
+    ent("sensor.salon_nem", "45", "Salon Nem", {unit_of_measurement: "%"}), // not controllable
 ];
 
 describe("normalize", () => {
@@ -35,14 +35,14 @@ describe("resolveEntities — natural language resolution", () => {
         const ids = matches.map((m) => m.entity_id);
         expect(ids).toContain("light.salon_lamba");
         expect(ids).toContain("light.salon_spot");
-        // ışık varsa ışıkları önceler → ısıtıcı/termostat değil
+        // prioritizes lights when present → not the heater/thermostat
         expect(ids).not.toContain("switch.salon_isitici");
     });
 
     it("'everything' covers all safe devices, not exclude criticals — only safe domain", () => {
         const {matches, scope} = resolveEntities("her şeyi kapat", HOME);
         expect(scope).toBe("all devices");
-        // safe domain (light/switch) dahil, lock/cover/climate hariç
+        // includes safe domain (light/switch), excludes lock/cover/climate
         expect(matches.some((m) => m.domain === "light")).toBe(true);
         expect(matches.some((m) => m.domain === "lock")).toBe(false);
         expect(matches.some((m) => m.domain === "climate")).toBe(false);

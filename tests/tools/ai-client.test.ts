@@ -16,10 +16,11 @@ import {getModelCapabilities} from "../../electron/model-capabilities";
 import type {AppSettings} from "../../electron/settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// callAI'yi provider dispatch davranışı için test ediyoruz: her sağlayıcının
-// DOĞRU endpoint'e, DOĞRU auth başlığıyla, DOĞRU gövde formatıyla istek attığını
-// kanıtlıyoruz. Gerçek ağ yok — global.fetch'i mock'layıp gönderilen isteği
-// yakalıyoruz. Bu, 8 sağlayıcının "tam teşekküllü" çalıştığının regresyon kalkanı.
+// We test callAI for provider dispatch behavior: we prove that each provider
+// sends a request to the CORRECT endpoint, with the CORRECT auth header, in the
+// CORRECT body format. No real network — we mock global.fetch and capture the
+// outgoing request. This is the regression shield proving all 8 providers work
+// "fully fledged".
 // ─────────────────────────────────────────────────────────────────────────────
 
 const baseSettings: AppSettings = {
@@ -70,7 +71,7 @@ function settings(over: Partial<AppSettings>): AppSettings {
     return {...baseSettings, ...over};
 }
 
-// fetch mock yardımcısı — son çağrının url/opts'unu yakalar.
+// fetch mock helper — captures the url/opts of the last call.
 interface Captured {url: string; opts: RequestInit; body: any; headers: Record<string, string>}
 let captured: Captured | null = null;
 
@@ -99,7 +100,7 @@ const SIMPLE_MSGS: OAIMessage[] = [
     {role: "user", content: "Merhaba"},
 ];
 
-// Groq SDK'sı için sahte: stream:true ile bir async iterator döndürür.
+// Fake for the Groq SDK: returns an async iterator with stream:true.
 function fakeGroq(deltas: string[], toolCalls: {name: string; args: string}[] = []): any {
     return {
         chat: {
@@ -135,21 +136,21 @@ afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); });
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 describe("ai-client helpers", () => {
-    it("extractTextContent: string ve parça dizisi", () => {
+    it("extractTextContent: string and array of parts", () => {
         expect(extractTextContent("abc")).toBe("abc");
         expect(extractTextContent([{type: "text", text: "a"}, {type: "text", text: "b"}])).toBe("a\nb");
         expect(extractTextContent(null)).toBe("");
     });
 
-    it("getProviderKey: groq env'den, diğerleri providerKeys'ten", () => {
+    it("getProviderKey: groq from env, others from providerKeys", () => {
         process.env.GROQ_API_KEY = "groq-env-key";
         expect(getProviderKey("groq", baseSettings)).toBe("groq-env-key");
         expect(getProviderKey("openai", settings({providerKeys: {openai: "oa"}}))).toBe("oa");
-        // providerKeys yoksa aiApiKey'e düşer
+        // falls back to aiApiKey when providerKeys is absent
         expect(getProviderKey("xai", settings({aiApiKey: "legacy"}))).toBe("legacy");
     });
 
-    it("findToolName: tool_call_id'den tool adını bulur", () => {
+    it("findToolName: finds the tool name from tool_call_id", () => {
         const msgs: OAIMessage[] = [
             {role: "assistant", content: null, tool_calls: [{id: "x1", type: "function", function: {name: "run_command", arguments: "{}"}}]},
         ];
@@ -157,7 +158,7 @@ describe("ai-client helpers", () => {
         expect(findToolName(msgs, "yok")).toBe("result");
     });
 
-    it("toAnthropicContent: data-url görüntüyü base64 image bloğuna çevirir", () => {
+    it("toAnthropicContent: converts a data-url image to a base64 image block", () => {
         const out = toAnthropicContent([
             {type: "text", text: "bak"},
             {type: "image_url", image_url: {url: "data:image/png;base64,AAAA"}},
@@ -167,7 +168,7 @@ describe("ai-client helpers", () => {
         expect(out[1].source).toEqual({type: "base64", media_type: "image/png", data: "AAAA"});
     });
 
-    it("toGeminiParts: data-url görüntüyü inline_data'ya çevirir", () => {
+    it("toGeminiParts: converts a data-url image to inline_data", () => {
         const out = toGeminiParts([
             {type: "text", text: "bak"},
             {type: "image_url", image_url: {url: "data:image/jpeg;base64,BBBB"}},
@@ -177,10 +178,10 @@ describe("ai-client helpers", () => {
     });
 });
 
-// ─── Mesaj ön-işleme (caps'e göre) ───────────────────────────────────────────
-describe("ai-client mesaj ön-işleme", () => {
-    it("stripImagesIfNeeded: vision desteklemeyen modelde görüntü çıkarılır", () => {
-        const caps = getModelCapabilities("groq", "llama-3.3-70b-versatile"); // vision yok
+// ─── Message preprocessing (based on caps) ──────────────────────────────────
+describe("ai-client message preprocessing", () => {
+    it("stripImagesIfNeeded: image is removed for a model without vision support", () => {
+        const caps = getModelCapabilities("groq", "llama-3.3-70b-versatile"); // no vision
         const msgs: OAIMessage[] = [{role: "user", content: [
             {type: "text", text: "ne var"},
             {type: "image_url", image_url: {url: "data:image/png;base64,AAAA"}},
@@ -191,7 +192,7 @@ describe("ai-client mesaj ön-işleme", () => {
         expect(parts.some((p) => p.type === "text")).toBe(true);
     });
 
-    it("stripImagesIfNeeded: vision destekli modelde görüntü korunur", () => {
+    it("stripImagesIfNeeded: image is kept for a model with vision support", () => {
         const caps = getModelCapabilities("openai", "gpt-4o");
         const msgs: OAIMessage[] = [{role: "user", content: [
             {type: "image_url", image_url: {url: "data:image/png;base64,AAAA"}},
@@ -200,8 +201,8 @@ describe("ai-client mesaj ön-işleme", () => {
         expect((out[0].content as any[]).some((p) => p.type === "image_url")).toBe(true);
     });
 
-    it("mergeSystemIfNeeded: system desteklemeyen modelde system user'a karışır", () => {
-        const caps = getModelCapabilities("openai", "o1-mini"); // system yok
+    it("mergeSystemIfNeeded: system gets merged into user for a model without system support", () => {
+        const caps = getModelCapabilities("openai", "o1-mini"); // no system
         const msgs: OAIMessage[] = [
             {role: "system", content: "kural"},
             {role: "user", content: "soru"},
@@ -211,7 +212,7 @@ describe("ai-client mesaj ön-işleme", () => {
         expect(extractTextContent(out[0].content)).toContain("kural");
     });
 
-    it("trimToBudget: çok uzun geçmiş bağlam penceresine sığacak şekilde kırpılır", () => {
+    it("trimToBudget: very long history is trimmed to fit the context window", () => {
         const caps = getModelCapabilities("groq", "gemma2-9b-it"); // 8K ctx
         const big = "x".repeat(200_000);
         const msgs: OAIMessage[] = [
@@ -219,7 +220,7 @@ describe("ai-client mesaj ön-işleme", () => {
             ...Array.from({length: 20}, (_, i) => ({role: "user" as const, content: big + i})),
         ];
         const out = trimToBudget(msgs, caps, 1024);
-        // system her zaman korunur, toplam mesaj sayısı azalır
+        // system is always preserved, total message count decreases
         expect(out.find((m) => m.role === "system")).toBeDefined();
         expect(out.length).toBeLessThan(msgs.length);
     });
@@ -238,7 +239,7 @@ describe("friendlyHttpError", () => {
         expect(msg.toLowerCase()).toContain("api key");
     });
 
-    it("400 + model bulunamadı → model mesajı", async () => {
+    it("400 + model not found → model message", async () => {
         const msg = await friendlyHttpError("Groq", mkResp(400, {error: {message: "model does not exist"}}));
         expect(msg.toLowerCase()).toContain("model");
     });
@@ -248,7 +249,7 @@ describe("friendlyHttpError", () => {
 describe("callAI provider dispatch", () => {
     beforeEach(() => { process.env.GROQ_API_KEY = "groq-test"; });
 
-    it("groq: SDK stream'i kullanır, onDelta ile metin akar", async () => {
+    it("groq: uses the SDK stream, text flows via onDelta", async () => {
         const groq = fakeGroq(["Mer", "haba"]);
         const deltas: string[] = [];
         const res = await callAI(SIMPLE_MSGS, (t) => deltas.push(t), undefined, settings({aiProvider: "groq"}), "llama-3.3-70b-versatile", groq);
@@ -256,7 +257,7 @@ describe("callAI provider dispatch", () => {
         expect(res.choices[0].message.content).toBe("Merhaba");
     });
 
-    it("groq: tool_call stream parçaları birleştirilir", async () => {
+    it("groq: tool_call stream chunks are merged", async () => {
         const groq = fakeGroq([], [{name: "run_command", args: '{"command":"ls"}'}]);
         const res = await callAI(SIMPLE_MSGS, undefined, undefined, settings({aiProvider: "groq"}), "llama-3.3-70b-versatile", groq);
         const tc = res.choices[0].message.tool_calls!;
@@ -264,7 +265,7 @@ describe("callAI provider dispatch", () => {
         expect(JSON.parse(tc[0].function.arguments).command).toBe("ls");
     });
 
-    it("anthropic: /v1/messages'a x-api-key + anthropic-version ile gider, system ayrı alan", async () => {
+    it("anthropic: goes to /v1/messages with x-api-key + anthropic-version, system is a separate field", async () => {
         mockFetch({content: [{type: "text", text: "selam"}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "anthropic", providerKeys: {anthropic: "ant-key"}}), "claude-3-5-sonnet", {} as any);
         expect(captured!.url).toBe("https://api.anthropic.com/v1/messages");
@@ -274,7 +275,7 @@ describe("callAI provider dispatch", () => {
         expect(captured!.body.messages.find((m: any) => m.role === "system")).toBeUndefined();
     });
 
-    it("gemini: anahtar x-goog-api-key BAŞLIĞINDA, URL'de DEĞİL (güvenlik)", async () => {
+    it("gemini: key is in the x-goog-api-key HEADER, NOT in the URL (security)", async () => {
         mockFetch({candidates: [{content: {parts: [{text: "selam"}]}}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "gemini", providerKeys: {gemini: "gem-key"}}), "gemini-2.5-flash", {} as any);
         expect(captured!.headers["x-goog-api-key"]).toBe("gem-key");
@@ -285,7 +286,7 @@ describe("callAI provider dispatch", () => {
         expect(captured!.body.systemInstruction.parts[0].text).toBe("Sen bir asistansın.");
     });
 
-    it("openai: /chat/completions'a Bearer ile gider, max_tokens kullanır", async () => {
+    it("openai: goes to /chat/completions with Bearer, uses max_tokens", async () => {
         mockFetch({choices: [{message: {content: "selam"}}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "openai", providerKeys: {openai: "oa-key"}}), "gpt-4o", {} as any);
         expect(captured!.url).toBe("https://api.openai.com/v1/chat/completions");
@@ -294,7 +295,7 @@ describe("callAI provider dispatch", () => {
         expect(captured!.body.max_completion_tokens).toBeUndefined();
     });
 
-    it("openai o1: reasoning modeli max_completion_tokens kullanır, temperature göndermez", async () => {
+    it("openai o1: reasoning model uses max_completion_tokens, does not send temperature", async () => {
         mockFetch({choices: [{message: {content: "selam"}}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "openai", providerKeys: {openai: "oa"}}), "o1", {} as any);
         expect(captured!.body.max_completion_tokens).toBeGreaterThan(0);
@@ -302,7 +303,7 @@ describe("callAI provider dispatch", () => {
         expect(captured!.body.temperature).toBeUndefined();
     });
 
-    it("mistral: doğru endpoint + safe_prompt ayarı uygulanır", async () => {
+    it("mistral: correct endpoint + safe_prompt setting is applied", async () => {
         mockFetch({choices: [{message: {content: "selam"}}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "mistral", providerKeys: {mistral: "ms"}, mistralSafeMode: true}), "mistral-large-latest", {} as any);
         expect(captured!.url).toBe("https://api.mistral.ai/v1/chat/completions");
@@ -323,14 +324,14 @@ describe("callAI provider dispatch", () => {
         expect(captured!.headers["authorization"]).toBe("Bearer dk");
     });
 
-    it("ollama: ayarlardaki url + /v1/chat/completions kullanır, num_ctx geçer", async () => {
+    it("ollama: uses the configured url + /v1/chat/completions, passes num_ctx", async () => {
         mockFetch({choices: [{message: {content: "selam"}}]});
         await callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "ollama", ollamaUrl: "http://localhost:11434", ollamaNumCtx: 8192}), "llama3.1", {} as any);
         expect(captured!.url).toBe("http://localhost:11434/v1/chat/completions");
         expect(captured!.body.options.num_ctx).toBe(8192);
     });
 
-    it("anahtar eksik olan provider anlamlı hata fırlatır", async () => {
+    it("a provider with a missing key throws a meaningful error", async () => {
         await expect(
             callAI(SIMPLE_MSGS, undefined, [], settings({aiProvider: "gemini", providerKeys: {}}), "gemini-2.5-flash", {} as any),
         ).rejects.toThrow(/key|anahtar/i);

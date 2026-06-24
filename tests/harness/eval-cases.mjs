@@ -1,17 +1,17 @@
 // ============================================================================
-// Faz 55 — Tool-Seçim Eval Vakaları (etiketli, skorlanabilir)
+// Phase 55 — Tool-Selection Eval Cases (labeled, scorable)
 //
-// Her vaka: { user, expect, kind }
-//   user   - gerçek kullanıcı girdisi
-//   expect - bu girdi için DOĞRU tool (getAllToolSchemas teklif etmeli +
-//            resolver vakalarında reference-resolver tam bunu üretmeli)
-//   kind   - "offer"    : tool teklif listesinde bulunmalı (LLM seçebilsin)
-//            "resolver" : deterministik resolver tam bu tool'u üretmeli
-//            "negative" : bu girdi için HİÇBİR tool seçilmemeli (sohbet/selam)
-//   args   - (resolver/negative için) beklenen argümanlar (opsiyonel)
-//   seed   - (resolver vakaları) önce STM'i hazırlayan önceki çağrılar
+// Each case: { user, expect, kind }
+//   user   - the real user input
+//   expect - the CORRECT tool for this input (getAllToolSchemas must offer it +
+//            for resolver cases, reference-resolver must produce exactly this)
+//   kind   - "offer"    : must be present in the offered-tools list (so the LLM can pick it)
+//            "resolver" : the deterministic resolver must produce exactly this tool
+//            "negative" : NO tool should be selected for this input (chitchat/greeting)
+//   args   - (for resolver/negative) expected arguments (optional)
+//   seed   - (resolver cases) prior calls that prime STM beforehand
 //
-// Skorlama: doğru/yanlış ikili. Çıktı = tool-seçim doğruluk %'si. Eşik altı → uyarı.
+// Scoring: pass/fail binary. Output = tool-selection accuracy %. Below threshold → warning.
 // ============================================================================
 
 export const EVAL_CASES = [
@@ -27,52 +27,52 @@ export const EVAL_CASES = [
   {user: "CS2 oyununu başlat",               expect: "steam_launch",     kind: "offer"},
   {user: "steam oyunlarımı listele",         expect: "steam_list",       kind: "offer"},
 
-  // ── Dosya ──────────────────────────────────────────────────────────────
+  // ── File ───────────────────────────────────────────────────────────────
   {user: "masaüstüne not.txt dosyası oluştur", expect: "write_file",     kind: "offer"},
   {user: "not.txt dosyasını oku",            expect: "read_file",        kind: "offer"},
   {user: "şu dosyayı sil",                   expect: "delete_file",      kind: "offer"},
   {user: "klasördeki dosyaları listele",     expect: "list_directory",   kind: "offer"},
 
-  // ── Sistem ─────────────────────────────────────────────────────────────
+  // ── System ─────────────────────────────────────────────────────────────
   {user: "ekran parlaklığını 70 yap",        expect: "set_brightness",   kind: "offer"},
   {user: "sistem sesini 30 yap",             expect: "set_volume",       kind: "offer"},
   {user: "ekran görüntüsü al",               expect: "screenshot",       kind: "offer"},
   {user: "panoya kopyaladığımı oku",         expect: "read_clipboard",   kind: "offer"},
   {user: "cpu kullanımı ne durumda",         expect: "system_report",    kind: "offer"},
 
-  // ── Web & bilgi ─────────────────────────────────────────────────────────
+  // ── Web & knowledge ──────────────────────────────────────────────────────
   {user: "internette react hooks ara",       expect: "web_search",       kind: "offer"},
   {user: "şu siteyi özetle https://x.com",   expect: "fetch_url",        kind: "offer"},
   {user: "bugün hava nasıl",                 expect: "weather_station",  kind: "offer"},
 
-  // ── Hafıza & profil ─────────────────────────────────────────────────────
+  // ── Memory & profile ─────────────────────────────────────────────────────
   {user: "şunu hatırla: doğum günüm 5 mayıs", expect: "remember_fact",   kind: "offer"},
   {user: "kaydettiğim bilgileri göster",     expect: "list_facts",       kind: "offer"},
   {user: "bana not al: süt almayı unutma",   expect: "save_note",        kind: "offer"},
 
-  // ── Ağ ──────────────────────────────────────────────────────────────────
+  // ── Network ────────────────────────────────────────────────────────────
   {user: "google.com'a ping at",             expect: "ping_host",        kind: "offer"},
   {user: "ağdaki cihazları tara",            expect: "local_devices_scan", kind: "offer"},
 
-  // ── Git & geliştirme ────────────────────────────────────────────────────
+  // ── Git & development ────────────────────────────────────────────────────
   {user: "git durumunu göster",              expect: "git_status",       kind: "offer"},
   {user: "son commitleri göster",            expect: "git_log",          kind: "offer"},
 
-  // ── Akıllı ev ───────────────────────────────────────────────────────────
+  // ── Smart home ────────────────────────────────────────────────────────────
   {user: "salonun ışığını aç",               expect: "smart_home_control", kind: "offer"},
   {user: "evdeki cihazları göster",          expect: "smart_home_devices", kind: "offer"},
 
-  // ── Zaman & hatırlatıcı ─────────────────────────────────────────────────
+  // ── Time & reminders ──────────────────────────────────────────────────────
   {user: "10 dakika sonra hatırlat",         expect: "remind_in",        kind: "offer"},
   {user: "pomodoro başlat",                  expect: "pomodoro_start",   kind: "offer"},
 
-  // ── E-posta ─────────────────────────────────────────────────────────────
+  // ── Email ────────────────────────────────────────────────────────────────
   {user: "e-posta gönder",                   expect: "email_send",       kind: "offer"},
 
-  // ── Bildirim ────────────────────────────────────────────────────────────
+  // ── Notification ─────────────────────────────────────────────────────────
   {user: "bildirim göster başlık merhaba",   expect: "show_notification", kind: "offer"},
 
-  // ── Resolver vakaları (deterministik, LLM'siz) ──────────────────────────
+  // ── Resolver cases (deterministic, no LLM) ──────────────────────────────
   {
     user: "onu tekrar yap", expect: "spotify_volume", kind: "resolver", args: {level: 50},
     seed: [{tool: "spotify_volume", args: {level: 50}, result: "OK"}],
@@ -86,7 +86,7 @@ export const EVAL_CASES = [
     seed: [{tool: "spotify_pause", args: {}, result: "OK"}],
   },
 
-  // ── Negatif vakalar (tool seçilmemeli — saf sohbet) ─────────────────────
+  // ── Negative cases (no tool should be selected — pure chitchat) ─────────
   {user: "merhaba nasılsın",                 expect: null,               kind: "negative"},
   {user: "teşekkür ederim",                  expect: null,               kind: "negative"},
   {user: "bana bir fıkra anlat",             expect: null,               kind: "negative"},

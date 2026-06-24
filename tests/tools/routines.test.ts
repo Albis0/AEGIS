@@ -22,10 +22,10 @@ describe("routine recording", () => {
     it("captures only action tools, not read-only ones", () => {
         r.startRecording("Oyun Modu");
         r.captureStep("steam_launch", {game: "Dota 2"});
-        r.captureStep("web_search", {query: "haberler"});   // read-only → atlanmalı
-        r.captureStep("screenshot", {});                     // read-only → atlanmalı
+        r.captureStep("web_search", {query: "haberler"});   // read-only → should be skipped
+        r.captureStep("screenshot", {});                     // read-only → should be skipped
         r.captureStep("spotify_volume", {volume: 30});
-        r.captureStep("list_windows", {});                   // read-only → atlanmalı
+        r.captureStep("list_windows", {});                   // read-only → should be skipped
         const msg = r.stopRecording();
         expect(msg).toContain("2 steps");
     });
@@ -90,7 +90,7 @@ describe("routine CRUD", () => {
         const msg = r.stopRecording();
         expect(msg).toContain("updated");
         const after = r.getRoutine("Oyun Modu")!;
-        expect(after.id).toBe(id1);           // aynı routine, yeni adımlar
+        expect(after.id).toBe(id1);           // same routine, new steps
         expect(after.steps).toHaveLength(1);
     });
 

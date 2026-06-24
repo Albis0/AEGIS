@@ -18,7 +18,7 @@
 export const SCENARIOS = [
   // ── 1. The canonical example from the brief ──────────────────────────────
   {
-    name: "Spotify aç → ses 50 → biraz azalt → tekrar yap",
+    name: "Open Spotify → volume 50 → lower a bit → do it again",
     steps: [
       {user: "Spotify aç", intent: "Spotify aç", tool: "spotify_open", args: {}, expectSTM: {lastTool: "spotify_open"}},
       {user: "Sesini 50 yap", intent: "ses ayarla", tool: "spotify_volume", args: {level: 50}, expectSTM: {lastTool: "spotify_volume"}},
@@ -28,7 +28,7 @@ export const SCENARIOS = [
   },
   // ── 2. Volume up/down chain ──────────────────────────────────────────────
   {
-    name: "Müzik çal → sesi artır → biraz daha → çok oldu azalt",
+    name: "Play music → raise volume → a bit more → too much, lower it",
     steps: [
       {user: "müzik çal", intent: "çal", tool: "spotify_play", args: {}, expectSTM: {lastTool: "spotify_play"}},
       {user: "sesi artır", intent: "ses artır", tool: "spotify_volume", args: {level: 70}},
@@ -38,17 +38,17 @@ export const SCENARIOS = [
   },
   // ── 3. Steam game by full name ───────────────────────────────────────────
   {
-    name: "Dead by Daylight oyununu aç → kapat → tekrar aç",
+    name: "Open Dead by Daylight → close it → reopen it",
     steps: [
-      // Gerçek kullanım: kullanıcı oyun adıyla birlikte "oyun" der ya da bağlam steam'dir.
+      // Real usage: the user says "oyun" (game) along with the game name, or context is steam.
       {user: "Dead by Daylight oyununu aç", intent: "oyun başlat", tool: "steam_launch", args: {game: "Dead by Daylight"}, mockResult: "Başlatıldı: Dead by Daylight"},
       {user: "oyunu kapat", intent: "oyun kapat", tool: "steam_close", args: {}, ref: "steam_launch", mockResult: "Steam kapatıldı"},
       {user: "az önce açtığım oyunu tekrar aç", intent: "tekrar başlat (ref)", tool: "steam_launch", args: {game: "Dead by Daylight"}, ref: "steam_launch", mockResult: "Başlatıldı"},
     ],
   },
-  // ── 4. Cyberpunk başlat ──────────────────────────────────────────────────
+  // ── 4. Launch Cyberpunk ───────────────────────────────────────────────────
   {
-    name: "Cyberpunk oyununu başlat → çalışan oyun?",
+    name: "Launch Cyberpunk → which game is running?",
     steps: [
       {user: "Cyberpunk oyununu başlat", intent: "oyun başlat", tool: "steam_launch", args: {game: "Cyberpunk 2077"}, mockResult: "Başlatıldı"},
       {user: "şu an hangi oyun çalışıyor", intent: "çalışan oyun", tool: "steam_game_running", args: {}},
@@ -56,7 +56,7 @@ export const SCENARIOS = [
   },
   // ── 5. Brightness ────────────────────────────────────────────────────────
   {
-    name: "Parlaklığı arttır → biraz daha → yarıya indir",
+    name: "Increase brightness → a bit more → lower it to half",
     steps: [
       {user: "parlaklığı arttır", intent: "parlaklık artır", tool: "set_brightness", args: {level: 80}, mockResult: "Parlaklık %80"},
       {user: "biraz daha", intent: "parlaklık artır (ref)", tool: "set_brightness", args: {level: 100}, ref: "set_brightness"},
@@ -65,7 +65,7 @@ export const SCENARIOS = [
   },
   // ── 6. Spotify search + play + like ──────────────────────────────────────
   {
-    name: "Şarkı ara çal → beğen → sıraya ekle",
+    name: "Search and play a song → like it → add another to the queue",
     steps: [
       {user: "Tarkan Kuzu Kuzu çal", intent: "ara ve çal", tool: "spotify_search", args: {query: "Tarkan Kuzu Kuzu"}, mockResult: "Çalınıyor: Kuzu Kuzu"},
       {user: "bu şarkıyı beğen", intent: "beğen (ref)", tool: "spotify_like", args: {}, ref: "spotify_search"},
@@ -74,7 +74,7 @@ export const SCENARIOS = [
   },
   // ── 7. Now playing → audio features ──────────────────────────────────────
   {
-    name: "Ne çalıyor → bu şarkının özellikleri",
+    name: "What's playing now → this song's audio features",
     steps: [
       {user: "şu an ne çalıyor", intent: "now playing", tool: "spotify_now_playing", args: {}},
       {user: "bu şarkının tempo ve enerjisi ne", intent: "audio features (ref)", tool: "spotify_audio_features", args: {id: "track123"}, ref: "spotify_now_playing"},
@@ -82,7 +82,7 @@ export const SCENARIOS = [
   },
   // ── 8. Next/prev navigation ──────────────────────────────────────────────
   {
-    name: "Çal → sonraki → önceki → tekrar sonraki",
+    name: "Play → next → previous → next again",
     steps: [
       {user: "spotify çal", intent: "çal", tool: "spotify_play", args: {}},
       {user: "sonraki şarkı", intent: "next", tool: "spotify_next", args: {}, expectSTM: {lastTool: "spotify_next"}},
@@ -92,7 +92,7 @@ export const SCENARIOS = [
   },
   // ── 9. Shuffle + repeat ──────────────────────────────────────────────────
   {
-    name: "Karıştır aç → tekrar moduna al → karıştırmayı kapat",
+    name: "Turn on shuffle → switch to repeat mode → turn off shuffle",
     steps: [
       {user: "karıştır", intent: "shuffle on", tool: "spotify_shuffle", args: {state: "true"}},
       {user: "tekrar moduna al", intent: "repeat", tool: "spotify_repeat", args: {state: "context"}},
@@ -101,7 +101,7 @@ export const SCENARIOS = [
   },
   // ── 10. File create → read → delete (guarded) ────────────────────────────
   {
-    name: "Dosya oluştur → oku → sil",
+    name: "Create a file → read it → delete it",
     steps: [
       {user: "masaüstüne notlar.txt diye dosya oluştur içine merhaba yaz", intent: "dosya yaz", tool: "write_file", args: {path: "~/Desktop/notlar.txt", content: "merhaba"}, mockResult: "Yazıldı"},
       {user: "az önce oluşturduğun dosyayı oku", intent: "oku (ref)", tool: "read_file", args: {path: "~/Desktop/notlar.txt"}, ref: "write_file", mockResult: "merhaba"},
@@ -109,14 +109,15 @@ export const SCENARIOS = [
     ],
   },
   // ── 11. EN "play X on spotify" → spotify_play(query) (failed_generation fix) ──
-  // Eskiden spotify_play hiç argüman almıyordu; model İngilizce "play killshot" deyince
-  // argüman tıkıştırıp Groq'tan failed_generation alıyordu ("Model yanıt üretemedi").
-  // Artık opsiyonel query kabul eder; verilirse ara+çal, verilmezse devam ettir.
+  // spotify_play used to take no arguments at all; when the model said the English
+  // "play killshot", it would cram in an argument and get a failed_generation error
+  // from Groq ("Model could not produce a response"). It now accepts an optional
+  // query; if given, it searches+plays, otherwise it just continues playback.
   {
     name: "EN: play killshot on spotify → change it to X (sticky escape)",
     steps: [
       {user: "play killshot on spotify", intent: "ara ve çal", tool: "spotify_play", args: {query: "killshot"}, mockResult: "Çalınıyor: Killshot", expectSTM: {lastTool: "spotify_play"}},
-      // "change it to X": hiçbir kök yok → sticky escape ile önceki spotify grubu yine teklif edilir.
+      // "change it to X": no root keyword at all → sticky escape re-offers the previous spotify group.
       {user: "change it to Magdalena Bay", intent: "değiştir", tool: "spotify_play", args: {query: "Magdalena Bay"}, mockResult: "Çalınıyor: Magdalena Bay"},
     ],
   },
@@ -129,47 +130,47 @@ export const SCENARIOS = [
 // turns (asserted offered + recorded with source "llm" implicitly).
 const REFERENCE_SCENARIOS = [
   {
-    name: "REF: Spotify aç → sesi 50 → biraz azalt → tekrar yap",
+    name: "REF: Open Spotify → volume 50 → lower a bit → do it again",
     steps: [
       {user: "Spotify aç", intent: "Spotify aç", tool: "spotify_open", args: {}, mockResult: "Açıldı", expectSTM: {lastTool: "spotify_open"}},
       {user: "sesini 50 yap", intent: "ses ayarla", tool: "spotify_volume", args: {level: "50"}, mockResult: "Ses %50", expectSTM: {lastTool: "spotify_volume"}},
-      // "biraz azalt" → resolver: 50 - 5 = 45 (biraz = ±5)
+      // "biraz azalt" (lower it a bit) → resolver: 50 - 5 = 45 (a bit = ±5)
       {user: "biraz azalt", intent: "biraz azalt", tool: "spotify_volume", args: {level: "45"}, resolver: true, mockResult: "Ses %45", expectSTM: {lastTool: "spotify_volume"}},
-      // "tekrar yap" → resolver: replay last (spotify_volume level=45)
+      // "tekrar yap" (do it again) → resolver: replay last (spotify_volume level=45)
       {user: "az önce yaptığını tekrar yap", intent: "son işlemi tekrarla", tool: "spotify_volume", args: {level: "45"}, resolver: true, mockResult: "Ses %45"},
     ],
   },
   {
-    name: "REF: DBD aç → onu kapat",
+    name: "REF: Open DBD → close it",
     steps: [
       {user: "Dead by Daylight oyununu aç", intent: "oyun başlat", tool: "steam_launch", args: {game: "Dead by Daylight"}, mockResult: "Başlatıldı: Dead by Daylight", expectSTM: {lastEntity: "Dead by Daylight"}},
-      // "onu kapat" → resolver: steam_* → steam_close
+      // "onu kapat" (close it) → resolver: steam_* → steam_close
       {user: "onu kapat", intent: "onu kapat", tool: "steam_close", args: {}, resolver: true, mockResult: "Steam kapatıldı"},
     ],
   },
   {
-    name: "REF: CS2 aç → son açtığımı tekrar aç",
+    name: "REF: Open CS2 → reopen the last thing I opened",
     steps: [
       {user: "CS2 oyununu aç", intent: "oyun başlat", tool: "steam_launch", args: {game: "CS2"}, mockResult: "Başlatıldı: CS2", expectSTM: {lastEntity: "CS2"}},
-      // "son açtığımı tekrar aç" → resolver: re-launch via same tool/args
+      // "son açtığımı tekrar aç" (reopen the last thing I opened) → resolver: re-launch via same tool/args
       {user: "son açtığımı tekrar aç", intent: "son açtığımı aç", tool: "steam_launch", args: {game: "CS2"}, resolver: true, mockResult: "Başlatıldı: CS2"},
     ],
   },
   {
-    name: "REF: Discord aç → aynısını yap",
+    name: "REF: Open Discord → do the same thing",
     steps: [
-      // Discord'un özel tool'u yok → uygulama başlatma run_command ile (normal LLM turn).
+      // Discord has no dedicated tool → launched via run_command (normal LLM turn).
       {user: "Discord'u aç", intent: "uygulama aç", tool: "run_command", args: {command: 'Start-Process "Discord"'}, mockResult: "Başlatıldı", expectSTM: {lastEntity: "Discord"}},
-      // "aynısını yap" → resolver: replay last (run_command)
+      // "aynısını yap" (do the same thing) → resolver: replay last (run_command)
       {user: "aynısını yap", intent: "aynısını yap", tool: "run_command", args: {command: 'Start-Process "Discord"'}, resolver: true, mockResult: "Başlatıldı"},
     ],
   },
   {
-    name: "REF: oyun aç → başka iş → son oynadığım oyunu aç",
+    name: "REF: Open a game → do something else → open the last game I played",
     steps: [
       {user: "Cyberpunk oyununu başlat", intent: "oyun başlat", tool: "steam_launch", args: {game: "Cyberpunk 2077"}, mockResult: "Başlatıldı"},
       {user: "şu an ne çalıyor", intent: "now playing", tool: "spotify_now_playing", args: {}},
-      // araya başka iş girdi; "son oynadığım oyunu aç" yine doğru oyunu bulmalı
+      // another action happens in between; "open the last game I played" must still find the right game
       {user: "son oynadığım oyunu aç", intent: "son oynadığım oyunu aç", tool: "steam_launch", args: {game: "Cyberpunk 2077"}, resolver: true, mockResult: "Başlatıldı"},
     ],
   },
@@ -229,14 +230,16 @@ const MORE = [
 
 for (const [user, tool, args, root] of MORE) {
   SCENARIOS.push({
-    name: `tekil: ${user}`,
+    name: `single: ${user}`,
     steps: [{user, intent: tool, tool, args, mockResult: "OK"}],
   });
 }
 
-// ── Çok dilli kapsam (EN/DE/FR/ES) — TR sağlam, diğer diller de tool görmeli ──
-// Her satır aynı niyetin 4 dildeki ifadesi; hepsi DOĞRU tool'u TEKLIF ettirmeli.
-// (Referans çözümleme TR'de; burada normal LLM turn'lerinin tool-offering'i test edilir.)
+// ── Multilingual coverage (EN/DE/FR/ES) — TR is the solid baseline, but the
+// other languages must also surface the tool ──
+// Each row is the same intent expressed in 4 languages; all of them must OFFER
+// the CORRECT tool.
+// (Reference resolution is TR-only; here we test normal LLM-turn tool-offering.)
 // Format: [tool, args, {en, de, fr, es}]
 const MULTILANG = [
   ["spotify_open",   {},                  {en:"open Spotify", de:"Spotify öffnen", fr:"ouvre Spotify", es:"abre Spotify"}],
