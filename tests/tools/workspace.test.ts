@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-// os.homedir() sabitlenir — gerçek workspace dizinini kullanıp her test öncesi temizle
+// os.homedir() is pinned — uses the real workspace directory, clean before each test
 const WORKSPACES_DIR = path.join(os.homedir(), ".aegis", "workspaces");
 const ACTIVE_WS_PATH = path.join(os.homedir(), ".aegis", "active-workspace.json");
 

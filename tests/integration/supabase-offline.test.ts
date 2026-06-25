@@ -6,7 +6,7 @@ import * as path from "path";
 const TEST_HOME = path.join(os.tmpdir(), `aegis-test-supabase-offline-${Date.now()}`);
 process.env.HOME = TEST_HOME;
 process.env.USERPROFILE = TEST_HOME;
-// Supabase yok — db.ts hasDb() false döner, chat akışı devam etmeli
+// No Supabase — db.ts hasDb() returns false, chat flow should still continue
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_KEY;
 

@@ -23,7 +23,7 @@ export function Shell({
     children, step, totalSteps, onClose,
 }: {
     children: ReactNode;
-    step?: number;        // 0-indexli; verilirse alt-ortada nokta göstergesi
+    step?: number;        // 0-indexed; shows a dot indicator at the bottom-center when provided
     totalSteps?: number;
     onClose?: () => void;
 }) {
