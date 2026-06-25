@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
+import {encryptValue, decryptValue} from "./secret-storage";
 
 export interface AegisConfig {
     groqApiKey: string;
@@ -21,13 +23,33 @@ function ensureDir(): void {
     fs.mkdirSync(path.dirname(CONFIG_PATH), {recursive: true});
 }
 
+const SECRET_FIELDS: (keyof AegisConfig)[] = [
+    "groqApiKey", "supabaseServiceKey", "tavilyApiKey", "serperApiKey",
+    "elevenlabsApiKey", "steamApiKey", "homeAssistantToken",
+];
+
 export function loadConfig(): AegisConfig | null {
+    let raw: string;
     try {
-        const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-        return JSON.parse(raw) as AegisConfig;
+        raw = fs.readFileSync(CONFIG_PATH, "utf-8");
     } catch {
+        return null; // file doesn't exist — first run, not corruption
+    }
+    let parsed: AegisConfig;
+    try {
+        parsed = JSON.parse(raw) as AegisConfig;
+    } catch {
+        reportCorruptedFile("API keys (config.json)");
+        try {
+            fs.copyFileSync(CONFIG_PATH, CONFIG_PATH + ".bak");
+        } catch { /* best-effort backup */ }
         return null;
     }
+    for (const f of SECRET_FIELDS) {
+        const v = parsed[f] as string | undefined;
+        if (v !== undefined) (parsed as unknown as Record<string, unknown>)[f] = decryptValue(v);
+    }
+    return parsed;
 }
 
 export function loadConfigStrict(): AegisConfig | null {
@@ -38,7 +60,12 @@ export function loadConfigStrict(): AegisConfig | null {
 
 export function saveConfig(config: AegisConfig): void {
     ensureDir();
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8");
+    const out: AegisConfig = {...config};
+    for (const f of SECRET_FIELDS) {
+        const v = out[f] as string | undefined;
+        if (v !== undefined) (out as unknown as Record<string, unknown>)[f] = encryptValue(v);
+    }
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(out, null, 2), "utf-8");
 }
 
 export function applyConfig(config: AegisConfig): void {

@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
 
 export interface Macro {
     id: string;
@@ -16,7 +17,13 @@ function ensureDir(): void {
 }
 
 function loadMacros(): Macro[] {
-    try { return JSON.parse(fs.readFileSync(MACROS_PATH, "utf-8")); } catch { return []; }
+    let raw: string;
+    try { raw = fs.readFileSync(MACROS_PATH, "utf-8"); } catch { return []; }
+    try { return JSON.parse(raw); } catch {
+        reportCorruptedFile("macros (macros.json)");
+        try { fs.copyFileSync(MACROS_PATH, MACROS_PATH + ".bak"); } catch { /* best-effort backup */ }
+        return [];
+    }
 }
 
 function saveMacros(macros: Macro[]): void {

@@ -11,6 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
 
 const INDEX_DIR = path.join(os.homedir(), ".aegis", "index");
 const CHUNK_SIZE = 800;
@@ -38,7 +39,13 @@ function ensureDir(): void {
 }
 
 function loadMeta(): IndexMeta[] {
-    try { return JSON.parse(fs.readFileSync(META_PATH, "utf-8")); } catch { return []; }
+    let raw: string;
+    try { raw = fs.readFileSync(META_PATH, "utf-8"); } catch { return []; }
+    try { return JSON.parse(raw); } catch {
+        reportCorruptedFile("knowledge index (index/_meta.json)");
+        try { fs.copyFileSync(META_PATH, META_PATH + ".bak"); } catch { /* best-effort backup */ }
+        return [];
+    }
 }
 
 function saveMeta(meta: IndexMeta[]): void {
@@ -67,9 +74,15 @@ function chunkText(text: string, source: string): Chunk[] {
     return chunks;
 }
 
+const INDEX_FILE_MAX_BYTES = 25 * 1024 * 1024; // 25MB — readFileSync loads it all into memory at once
+
 function readTextFile(filePath: string): string {
     const ext = path.extname(filePath).toLowerCase();
     if ([".txt", ".md", ".ts", ".js", ".py", ".json", ".csv", ".html", ".xml"].includes(ext)) {
+        const size = fs.statSync(filePath).size;
+        if (size > INDEX_FILE_MAX_BYTES) {
+            throw new Error(`File too large to index (${(size / 1024 / 1024).toFixed(1)}MB, limit ${INDEX_FILE_MAX_BYTES / 1024 / 1024}MB).`);
+        }
         return fs.readFileSync(filePath, "utf-8");
     }
     throw new Error(`Unsupported file type: ${ext}. Supported: .txt, .md, .ts, .js, .py, .json, .csv`);

@@ -60,10 +60,19 @@ export function KeyField({
 }: {value: string; placeholder: string; onSave: (v: string) => void; accent: string; type?: "password" | "text"}) {
     const [val, setVal] = React.useState(value);
     const [show, setShow] = React.useState(false);
-    const changed = val !== value;
+    // Compare trimmed — a key saved with stray leading/trailing whitespace (common
+    // with copy-paste) looks identical in the field but fails auth on first use,
+    // and the user has no way to tell why just by looking at it.
+    const trimmedVal = val.trim();
+    const changed = trimmedVal !== value;
     const ac = `rgb(${accent})`;
 
     React.useEffect(() => { setVal(value); }, [value]);
+
+    function save() {
+        onSave(trimmedVal);
+        setVal(trimmedVal);
+    }
 
     return (
         <div className="flex gap-2">
@@ -71,7 +80,7 @@ export function KeyField({
                 type={show || type === "text" ? "text" : "password"}
                 value={val}
                 onChange={(e) => setVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && changed) onSave(val); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && changed) save(); }}
                 placeholder={placeholder}
                 className="flex-1 min-w-0 bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
                 style={{borderColor: changed ? `rgba(${accent},0.5)` : `rgba(${accent},0.1)`, color: ac}}
@@ -84,7 +93,7 @@ export function KeyField({
                 </button>
             )}
             {changed && (
-                <button onClick={() => onSave(val)}
+                <button onClick={save}
                     className="px-3 rounded-lg border text-[9px] tracking-widest transition hover:brightness-125 shrink-0"
                     style={{borderColor: `rgba(${accent},0.4)`, background: `rgba(${accent},0.12)`, color: ac}}>
                     ✓

@@ -20,6 +20,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
 
 export interface RoutineStep {
     tool: string;
@@ -43,10 +44,18 @@ function ensureDir(): void {
 }
 
 function loadRoutines(): Routine[] {
+    let raw: string;
     try {
-        const data = JSON.parse(fs.readFileSync(ROUTINES_PATH, "utf-8"));
+        raw = fs.readFileSync(ROUTINES_PATH, "utf-8");
+    } catch {
+        return [];
+    }
+    try {
+        const data = JSON.parse(raw);
         return Array.isArray(data) ? data : [];
     } catch {
+        reportCorruptedFile("routines (routines.json)");
+        try { fs.copyFileSync(ROUTINES_PATH, ROUTINES_PATH + ".bak"); } catch { /* best-effort backup */ }
         return [];
     }
 }

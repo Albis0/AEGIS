@@ -349,6 +349,10 @@ export default function App() {
                 });
             }),
 
+            window.jarvis.on("system-notice", ({message}: {message: string}) => {
+                setFeed((prev) => [...prev, {id: uid(), kind: "error", text: message}]);
+            }),
+
             window.jarvis.on("reminder-fired", ({message}: {message: string}) => {
                 const id = uid();
                 const reminderText = `Hatırlatıcı: ${message}`;

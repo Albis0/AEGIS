@@ -7,7 +7,14 @@ function ps(script: string, timeoutMs = 10000): Promise<string> {
             {timeout: timeoutMs, windowsHide: true},
             (err, stdout, stderr) => {
                 const out = (stdout ?? "").trim();
-                if (err && !out) resolve(`ERROR: ${err.message}${stderr ? "\n" + stderr.trim() : ""}`);
+                if (err && !out) {
+                    const detail = `${err.message}${stderr ? "\n" + stderr.trim() : ""}`;
+                    if (/access is denied|access denied|unauthorized/i.test(detail)) {
+                        resolve(`ERROR: Permission denied. Windows blocked this action — try running AEGIS as Administrator if you need this.`);
+                    } else {
+                        resolve(`ERROR: ${detail}`);
+                    }
+                }
                 else resolve(out || "(ok)");
             }
         );
@@ -81,8 +88,21 @@ public class WinInput {
 "@ -ErrorAction SilentlyContinue
 `;
 
+// ── Coordinate bounds check ───────────────────────────────────────────────────
+// The model picks (x, y) from a screenshot it interpreted — it can be wrong about
+// what's there. We can't know if a coordinate is "a delete button" vs "a save
+// button", but we CAN refuse coordinates that aren't even on a screen, which
+// catches the most common failure mode (hallucinated/stale coordinates from a
+// previous, differently-sized screenshot).
+let _screenBoundsCache: {width: number; height: number} | null = null;
+async function isWithinScreenBounds(x: number, y: number): Promise<boolean> {
+    if (!_screenBoundsCache) _screenBoundsCache = await getScreenSize();
+    return x >= 0 && y >= 0 && x <= _screenBoundsCache.width && y <= _screenBoundsCache.height;
+}
+
 // ── Mouse move ───────────────────────────────────────────────────────────────
 export async function mouseMove(x: number, y: number): Promise<string> {
+    if (!(await isWithinScreenBounds(x, y))) return `ERROR: Coordinate (${Math.round(x)}, ${Math.round(y)}) is outside the screen bounds.`;
     await ps(`${WIN_API_CODE}
 [WinInput]::SetCursorPos(${Math.round(x)}, ${Math.round(y)})`);
     return `Mouse moved to (${Math.round(x)}, ${Math.round(y)}).`;
@@ -100,6 +120,7 @@ export async function mouseClick(
         right:  ["MOUSEEVENTF_RIGHTDOWN",  "MOUSEEVENTF_RIGHTUP"],
         middle: ["MOUSEEVENTF_MIDDLEDOWN", "MOUSEEVENTF_MIDDLEUP"],
     };
+    if (!(await isWithinScreenBounds(x, y))) return `ERROR: Coordinate (${Math.round(x)}, ${Math.round(y)}) is outside the screen bounds.`;
     const [dn, up] = flags[button] ?? flags.left;
     const clicks = double ? 2 : 1;
     await ps(`${WIN_API_CODE}
@@ -119,6 +140,7 @@ export async function mouseScroll(
     direction: "up" | "down" = "down",
     amount = 3
 ): Promise<string> {
+    if (!(await isWithinScreenBounds(x, y))) return `ERROR: Coordinate (${Math.round(x)}, ${Math.round(y)}) is outside the screen bounds.`;
     const delta = direction === "up" ? 120 * amount : -120 * amount;
     await ps(`${WIN_API_CODE}
 [WinInput]::SetCursorPos(${Math.round(x)}, ${Math.round(y)})
@@ -136,6 +158,9 @@ export async function mouseDrag(
     x1: number, y1: number,
     x2: number, y2: number
 ): Promise<string> {
+    if (!(await isWithinScreenBounds(x1, y1)) || !(await isWithinScreenBounds(x2, y2))) {
+        return `ERROR: Drag coordinates are outside the screen bounds.`;
+    }
     await ps(`${WIN_API_CODE}
 [WinInput]::SetCursorPos(${Math.round(x1)}, ${Math.round(y1)})
 Start-Sleep -Milliseconds 60

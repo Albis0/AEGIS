@@ -1,4 +1,4 @@
-import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification, Tray, Menu, nativeImage, dialog} from "electron";
+import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification, Tray, Menu, nativeImage, dialog, safeStorage} from "electron";
 import * as zlib from "zlib";
 import * as path from "path";
 import * as os from "os";
@@ -24,6 +24,8 @@ import {getSessions, getSessionMessages} from "./db";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
 import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
+import {initSecretStorage} from "./secret-storage";
+import {getCorruptedFiles} from "./corrupted-file-tracker";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
@@ -40,22 +42,44 @@ import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./refer
 // .env (dev environment) — load if present; dotenv isn't bundled in production
 try { require("dotenv").config({path: path.join(__dirname, "../.env")}); } catch { /* production build */ }
 
+// Try to wire up DPAPI encryption before the first read — safeStorage is backed by
+// Windows DPAPI and is available without waiting for app.whenReady() in practice;
+// if it ever isn't, config.ts/settings.ts fall back to treating values as plaintext.
+try { initSecretStorage(safeStorage); } catch { /* safeStorage not ready yet — falls back to plaintext */ }
+
 // config.json varsa env'yi override et
 const savedConfig = loadConfig();
 if (savedConfig) applyConfig(savedConfig);
 
 let groq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
 let currentSettings = loadSettings();
+// If config.json/settings.json/facts.json/etc. existed but failed to parse, the
+// loader already fell back to defaults and backed up the broken file as ".bak" —
+// but the user would otherwise never learn their API keys/data just vanished.
+const _corruptedFilesAtStartup = getCorruptedFiles();
 let MODEL = currentSettings.model;
 setFullPcAccess(currentSettings.fullPcAccess ?? false);
 setDisabledTools(currentSettings.disabledTools ?? []);
 
 // Cloud sync debounce — batch consecutive settings changes into a single push (3s).
 let _cloudPushTimer: NodeJS.Timeout | null = null;
+let _cloudPushFailureNotified = false;
 function scheduleCloudPush(): void {
     if (_cloudPushTimer) clearTimeout(_cloudPushTimer);
     _cloudPushTimer = setTimeout(() => {
-        pushToCloud().catch((e) => console.error("[cloud-push]", e.message)); // no-op if not signed in / sync disabled
+        pushToCloud().then((res) => {
+            // "sync disabled" / "not signed in" are expected, silent no-ops.
+            // A real error (network/server) means the change never reached the
+            // cloud — tell the user once instead of failing invisibly forever.
+            if (!res.ok && res.error !== "sync disabled" && res.error !== "not signed in" && !_cloudPushFailureNotified) {
+                _cloudPushFailureNotified = true;
+                sendToRenderer("system-notice", {
+                    message: `Could not sync your settings to the cloud (${res.error}). Your change is saved locally; it will retry on the next edit.`,
+                });
+            } else if (res.ok) {
+                _cloudPushFailureNotified = false;
+            }
+        }).catch((e) => console.error("[cloud-push]", e.message));
     }, 3000);
 }
 
@@ -309,6 +333,16 @@ function createWindow(): void {
         shell.openExternal(url);
         return {action: "deny"};
     });
+
+    // Surface "your data was reset" once, after the renderer can show it — otherwise
+    // a corrupted ~/.aegis/*.json silently resets to defaults with no trace.
+    if (_corruptedFilesAtStartup.length > 0) {
+        mainWindow.webContents.once("did-finish-load", () => {
+            sendToRenderer("system-notice", {
+                message: `The following data was corrupted and has been reset to defaults: ${_corruptedFilesAtStartup.join(", ")}. A backup of each broken file was saved as ".bak" in ~/.aegis/.`,
+            });
+        });
+    }
 
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
@@ -815,11 +849,11 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
         ? `\n\nROUTINE RECORDING ACTIVE: "${routineRecordingName()}". Apply the user's commands with tools as normal — your actions are being recorded automatically. If the user says "stop/end recording", call routine_record_stop.`
         : "";
     const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock() + routineNote;
-    // History trimming is now done INSIDE callAI based on the MODEL (context window
-    // token budget + boundary correction). Here we only set a coarse upper bound to
-    // prevent unbounded memory growth; the actual trimming is determined by model capability.
-    const trimmedHistory = history.length > 60 ? history.slice(-60) : history;
-    const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...trimmedHistory];
+    // History trimming happens INSIDE callAI (ai-client.ts trimToBudget), based on the
+    // MODEL's actual context window in tokens. A second, message-count-based trim here
+    // was redundant and could disagree with it (e.g. 60 short messages vs 60 huge ones
+    // get the same treatment) — token budget is the single source of truth.
+    const messages: OAIMessage[] = [{role: "system", content: systemContent}, ...history];
     const send = (channel: string, payload: object) => {
         sendToRenderer(channel, {reqId, ...payload});
         if (channel === "chat-delta") broadcastFeedEvent("delta", payload);
@@ -1077,6 +1111,10 @@ async function bootApp(): Promise<void> {
 
     registerScreenshotCallback(async () => {
         try {
+            // Visible notice every time the screen is captured — without this, a user
+            // who enabled computer-use once and forgot has no way to know AEGIS just
+            // looked at whatever was on screen (passwords, card numbers, etc).
+            sendToRenderer("system-notice", {message: "📸 AEGIS just captured your screen."});
             // Hide AEGIS window so it doesn't appear in the screenshot
             const wasVisible = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
             if (wasVisible) mainWindow!.hide();
@@ -1539,12 +1577,16 @@ async function bootApp(): Promise<void> {
 
     // ── Auto-update (production only) ────────────────────────────────────────
     if (process.env.NODE_ENV !== "development") {
+        // `private: true` + an empty token makes every GitHub API call fail (401/404)
+        // with no visible error — which is exactly what happens for a normal public
+        // user, since AEGIS_GITHUB_TOKEN is only set in CI for maintainers testing
+        // against a not-yet-public repo. Only request private-repo auth when a token
+        // is actually present; otherwise hit the (now public) repo with no auth at all.
         autoUpdater.setFeedURL({
             provider: "github",
             owner: "Albis0",
             repo: "AEGIS",
-            private: true,
-            token: AEGIS_GITHUB_TOKEN,
+            ...(AEGIS_GITHUB_TOKEN ? {private: true, token: AEGIS_GITHUB_TOKEN} : {}),
         });
         // DOWNLOAD IS FULLY MANUAL. Automatic check ONLY gives a "new version available"
         // notification; download ONLY starts when the user clicks DOWNLOAD (update-download IPC).
@@ -1688,6 +1730,27 @@ ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
 // ── Settings IPC — must also be accessible before onboarding ────────────────
 // These handlers live here, not inside bootApp(); the onboarding flow picks a
 // language and calls settingsSet, and bootApp hasn't run yet at that point.
+// Full PC Access removes the per-action approval dialog entirely (see
+// askDestructiveApproval above) — if the user enables it to try one thing and
+// forgets, every future destructive tool call runs unattended. Auto-revoke it
+// after 30 minutes of being on so a forgotten toggle can't stay open forever.
+const FULL_PC_ACCESS_TIMEOUT_MS = 30 * 60 * 1000;
+let _fullPcAccessTimer: NodeJS.Timeout | null = null;
+function scheduleFullPcAccessExpiry(): void {
+    if (_fullPcAccessTimer) clearTimeout(_fullPcAccessTimer);
+    if (!currentSettings.fullPcAccess) return;
+    _fullPcAccessTimer = setTimeout(() => {
+        currentSettings = {...currentSettings, fullPcAccess: false};
+        setFullPcAccess(false);
+        saveSettings(currentSettings);
+        sendToRenderer("system-notice", {
+            message: "Full PC Access was automatically turned off after 30 minutes. Re-enable it in Settings if you still need it.",
+        });
+    }, FULL_PC_ACCESS_TIMEOUT_MS);
+}
+
+scheduleFullPcAccessExpiry(); // in case it was already on from a previous session
+
 ipcMain.handle("settings-get", () => currentSettings);
 ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
     const langChanged = patch.language && patch.language !== currentSettings.language;
@@ -1698,6 +1761,7 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
     MODEL = currentSettings.model;
     setFullPcAccess(currentSettings.fullPcAccess ?? false);
     setDisabledTools(currentSettings.disabledTools ?? []);
+    if (patch.fullPcAccess !== undefined) scheduleFullPcAccessExpiry();
     saveSettings(currentSettings);
     if (patch.autoLaunch !== undefined) {
         app.setLoginItemSettings({openAtLogin: patch.autoLaunch});
@@ -1734,11 +1798,26 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
 });
 
 // ── Global error handlers — log silent crashes ───────────────────────────────
+// Previously these only logged — the renderer (and thus the user) had no idea
+// anything went wrong, so a background failure looked identical to "the app
+// quietly froze" with no actionable information.
 process.on("unhandledRejection", (reason) => {
     console.error("[AEGIS] Unhandled rejection:", reason);
+    sendToRenderer("system-notice", {message: `A background error occurred: ${(reason as Error)?.message ?? String(reason)}`});
 });
 process.on("uncaughtException", (err) => {
     console.error("[AEGIS] Uncaught exception:", err.message, err.stack);
+    sendToRenderer("system-notice", {message: `An unexpected error occurred: ${err.message}`});
+});
+
+// Renderer crash (OOM, GPU crash) — without this the window just goes blank/unresponsive
+// with zero indication of why; recreate it so the user isn't stuck with a dead window.
+app.on("render-process-gone", (_e, wc, details) => {
+    console.error("[AEGIS] Renderer process gone:", details.reason);
+    if (details.reason === "clean-exit") return;
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents === wc) {
+        createWindow();
+    }
 });
 
 app.whenReady().then(async () => {

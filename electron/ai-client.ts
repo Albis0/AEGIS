@@ -235,7 +235,7 @@ export async function callProxy(
                 temperature: opts.temperature,
                 max_tokens: opts.max_tokens,
             }),
-        }, 90_000);
+        }, 45_000);
     } catch (e) {
         if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.");
         throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.");
@@ -448,7 +448,7 @@ export async function callAI(
 
     // ── Gemini ────────────────────────────────────────────────────────────────
     if (provider === "gemini") {
-        if (!key) throw new Error("Gemini API key is missing. Enter it in the model settings.");
+        if (!key) throw new Error("Gemini API key is missing. Add it in Settings → Model.");
         const sysMsg = messages.find((m) => m.role === "system");
         const turns = messages.filter((m) => m.role !== "system");
 
@@ -542,7 +542,7 @@ export async function callAI(
                 }),
             }, 60_000);
         } catch {
-            throw new Error("Ollama connection error. Is Ollama running? (ollama serve)");
+            throw new Error("Cannot reach Ollama. Make sure it is running (ollama serve) or pick a different provider in Settings → Model.");
         }
         if (!resp.ok) {
             const txt = await resp.text().catch(() => "");
@@ -553,7 +553,7 @@ export async function callAI(
 
     // ── xAI (Grok) ───────────────────────────────────────────────────────────
     if (provider === "xai") {
-        if (!key) throw new Error("xAI API key is missing. Enter it in the model settings.");
+        if (!key) throw new Error("xAI API key is missing. Add it in Settings → Model.");
         const body: Record<string, unknown> = {model, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;
@@ -571,7 +571,7 @@ export async function callAI(
 
     // ── DeepSeek ─────────────────────────────────────────────────────────────
     if (provider === "deepseek") {
-        if (!key) throw new Error("DeepSeek API key is missing. Enter it in the model settings.");
+        if (!key) throw new Error("DeepSeek API key is missing. Add it in Settings → Model.");
         const body: Record<string, unknown> = {model, messages, stream: false, max_tokens: maxTok};
         if (activeSchemas.length > 0) body.tools = activeSchemas;
         if (sendTemp !== undefined) body.temperature = sendTemp;
@@ -588,6 +588,7 @@ export async function callAI(
     }
 
     // ── OpenAI / Mistral ──────────────────────────────────────────────────────
+    if (!key) throw new Error(`${provider.toUpperCase()} API key is missing. Add it in Settings → Model.`);
     const endpoints: Record<string, string> = {
         openai:  "https://api.openai.com/v1/chat/completions",
         mistral: "https://api.mistral.ai/v1/chat/completions",

@@ -67,6 +67,11 @@ function syncEnabled(): boolean {
     return s.cloudSync !== false; // on by default (if signed in)
 }
 
+// Tracks the timestamp of this device's last successful push, so a later pull
+// racing against an in-flight push doesn't overwrite a newer local edit with a
+// stale cloud row (see the updated_at check in pullFromCloud).
+let _lastLocalPushAt: number | null = null;
+
 // Write local settings + keys to the cloud (called debounced).
 export async function pushToCloud(): Promise<{ok: boolean; error?: string}> {
     if (!syncEnabled()) return {ok: false, error: "sync disabled"};
@@ -77,6 +82,7 @@ export async function pushToCloud(): Promise<{ok: boolean; error?: string}> {
     const settingsJson = pickSyncedSettings(s);
     const keysPlain = JSON.stringify({providerKeys: s.providerKeys ?? {}, aiApiKey: s.aiApiKey ?? ""});
     const encrypted = encrypt(keysPlain, user.userId);
+    const now = new Date().toISOString();
 
     const {error} = await getAuthClient()
         .from("user_configs")
@@ -84,9 +90,11 @@ export async function pushToCloud(): Promise<{ok: boolean; error?: string}> {
             user_id: user.userId,
             settings: settingsJson,
             encrypted_keys: encrypted,
-            updated_at: new Date().toISOString(),
+            updated_at: now,
         });
-    return error ? {ok: false, error: error.message} : {ok: true};
+    if (error) return {ok: false, error: error.message};
+    _lastLocalPushAt = new Date(now).getTime();
+    return {ok: true};
 }
 
 // Pull from the cloud, merge with local (updated_at drives last-writer-wins).
@@ -106,6 +114,12 @@ export async function pullFromCloud(): Promise<{ok: boolean; applied: boolean; e
     if (!data) return {ok: true, applied: false}; // no record in the cloud (first time)
 
     const local = loadSettings();
+    // Last-writer-wins by updated_at: if THIS device pushed more recently than the
+    // cloud row says, the local edit is newer (still in flight to the server) and
+    // must not be clobbered by a pull that raced ahead of it.
+    if (_lastLocalPushAt && data.updated_at && new Date(data.updated_at).getTime() < _lastLocalPushAt) {
+        return {ok: true, applied: false};
+    }
     // Check that data.settings is safe — don't let corrupt cloud data overwrite local
     let cloudSettings: Partial<AppSettings> = {};
     if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {

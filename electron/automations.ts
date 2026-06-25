@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
 
 export interface Automation {
     id: string;
@@ -18,7 +19,13 @@ function ensureDir(): void {
 }
 
 export function loadAutomations(): Automation[] {
-    try { return JSON.parse(fs.readFileSync(PATH, "utf-8")); } catch { return []; }
+    let raw: string;
+    try { raw = fs.readFileSync(PATH, "utf-8"); } catch { return []; }
+    try { return JSON.parse(raw); } catch {
+        reportCorruptedFile("automations (automations.json)");
+        try { fs.copyFileSync(PATH, PATH + ".bak"); } catch { /* best-effort backup */ }
+        return [];
+    }
 }
 
 function saveAutomations(list: Automation[]): void {

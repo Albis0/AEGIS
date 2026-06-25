@@ -31,6 +31,11 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
 
     async function handleSignOut() {
         await window.jarvis.authSignOut();
+        // Trial-mode users never typed their own key — anything in providerKeys
+        // got there via cloud sync. On a shared/public machine, "sign out" should
+        // mean those keys leave too, not stay readable in settings.json forever.
+        // "Advanced" users typed their own key on purpose, so we leave it alone.
+        if (isTrial) onApply({providerKeys: {}, aiApiKey: ""});
         setUser(null);
         setUsage(null);
     }

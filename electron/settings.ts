@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
+import {encryptValue, decryptValue} from "./secret-storage";
 
 export type TelemetryWidget =
     | "cpu" | "ram" | "disk" | "battery" | "network"
@@ -133,8 +135,13 @@ function normalizeAccent(color: string | undefined): string {
 }
 
 export function loadSettings(): AppSettings {
+    let raw: string;
     try {
-        const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
+        raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
+    } catch {
+        return {...DEFAULTS}; // file doesn't exist — first run, not corruption
+    }
+    try {
         const saved = JSON.parse(raw) as Partial<AppSettings>;
         const merged: AppSettings = {...DEFAULTS, ...saved};
         // Migrate old aiApiKey to providerKeys
@@ -146,13 +153,34 @@ export function loadSettings(): AppSettings {
         }
         // Normalize accentColor: hex → "r,g,b"
         merged.accentColor = normalizeAccent(merged.accentColor);
+        // Decrypt API keys at rest (DPAPI via secret-storage.ts) — see saveSettings.
+        if (merged.aiApiKey) merged.aiApiKey = decryptValue(merged.aiApiKey) ?? "";
+        if (merged.providerKeys) {
+            merged.providerKeys = Object.fromEntries(
+                Object.entries(merged.providerKeys).map(([k, v]) => [k, decryptValue(v) ?? ""]),
+            );
+        }
         return merged;
     } catch {
+        reportCorruptedFile("settings (settings.json)");
+        try {
+            fs.copyFileSync(SETTINGS_PATH, SETTINGS_PATH + ".bak");
+        } catch { /* best-effort backup */ }
         return {...DEFAULTS};
     }
 }
 
 export function saveSettings(settings: AppSettings): void {
     ensureDir();
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf-8");
+    // Provider API keys were previously written to settings.json as plain JSON —
+    // readable by any other process/malware with file access. Encrypt them at rest
+    // (Windows DPAPI via safeStorage); decrypted again on load, above.
+    const out: AppSettings = {...settings};
+    if (out.aiApiKey) out.aiApiKey = encryptValue(out.aiApiKey);
+    if (out.providerKeys) {
+        out.providerKeys = Object.fromEntries(
+            Object.entries(out.providerKeys).map(([k, v]) => [k, encryptValue(v)]),
+        );
+    }
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(out, null, 2), "utf-8");
 }

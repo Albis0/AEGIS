@@ -11,6 +11,7 @@ import * as path from "path";
 import * as os from "os";
 import {searchFacts, inferFacts, reconcileFact, subjectOf} from "./adaptive-memory";
 import {detectPatterns, buildProactiveSuggestion, type UsageRecord} from "./proactive";
+import {reportCorruptedFile} from "./corrupted-file-tracker";
 
 const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH  = path.join(BASE, "facts.json");
@@ -30,7 +31,13 @@ export interface Fact {
 }
 
 function loadFacts(): Fact[] {
-    try { return JSON.parse(fs.readFileSync(FACTS_PATH, "utf-8")); } catch { return []; }
+    let raw: string;
+    try { raw = fs.readFileSync(FACTS_PATH, "utf-8"); } catch { return []; }
+    try { return JSON.parse(raw); } catch {
+        reportCorruptedFile("saved facts (facts.json)");
+        try { fs.copyFileSync(FACTS_PATH, FACTS_PATH + ".bak"); } catch { /* best-effort backup */ }
+        return [];
+    }
 }
 
 function saveFacts(facts: Fact[]): void {

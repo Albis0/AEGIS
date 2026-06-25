@@ -32,10 +32,10 @@ export default function AuthScreen({t, step, totalSteps, onAuthed, onSkip, onBac
             const res = mode === "signup"
                 ? await window.jarvis.authSignUp(email.trim(), password)
                 : await window.jarvis.authSignIn(email.trim(), password);
-            if (!res.ok) { setError(res.error ?? "Bir hata oluştu."); setBusy(false); return; }
+            if (!res.ok) { setError(res.error ?? "An error occurred. Please try again."); setBusy(false); return; }
             onAuthed();
-        } catch (e) {
-            setError((e as Error).message ?? "Bilinmeyen hata.");
+        } catch {
+            setError("Cannot reach the server. Check your internet connection and try again.");
             setBusy(false);
         }
     }

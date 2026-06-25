@@ -113,8 +113,8 @@ export default function KeysTab({config, accent, ac, onApplyConfig, s}: Props) {
             <div className="rounded-xl p-4 space-y-2" style={{background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.1)`}}>
                 <p className="text-[11px] font-medium" style={{color: `rgba(${accent},0.6)`}}>Güvenlik notu</p>
                 <p className="text-[11px] leading-relaxed" style={{color: `rgba(${accent},0.35)`}}>
-                    Tüm API key'ler şifreli olarak <code style={{color: `rgba(${accent},0.55)`}}>~/.aegis/config.json</code> dosyasında saklanır.
-                    Ağ üzerinden iletilmez.
+                    API key'ler Windows DPAPI (safeStorage) ile şifrelenip <code style={{color: `rgba(${accent},0.55)`}}>~/.aegis/</code> altındaki dosyalarda saklanır;
+                    sadece bu Windows kullanıcı hesabıyla açılabilir. Ağ üzerinden iletilmez.
                 </p>
             </div>
 
