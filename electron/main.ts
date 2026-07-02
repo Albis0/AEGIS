@@ -36,6 +36,7 @@ import {stmRecord, stmClear, stmBuildPromptBlock, stmGet} from "./short-term-mem
 import {LoopGuard} from "./loop-guard";
 import {diagnose} from "./self-healing";
 import {needsApproval, grantAlways} from "./permissions";
+import {recordTaintFromTool, taintRequiresApproval, taintSource, clearTaint} from "./taint";
 import {buildPlanPrompt, classifyError} from "./goal-executor";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 
@@ -794,14 +795,22 @@ let profileCachedAt = 0;
 // ---- Agentic streaming chat ----
 // Phase 54 — Destructive action approval dialog. Native modal (not renderer-dependent).
 // Return: "allow" (once), "always" (permanent permission), "deny" (cancel).
-async function askDestructiveApproval(tool: string, argsJson: string): Promise<"allow" | "always" | "deny"> {
+async function askDestructiveApproval(tool: string, argsJson: string, taintGated = false): Promise<"allow" | "always" | "deny"> {
     // If Full PC Access is on, the user already granted full authority — skip asking.
-    if (currentSettings.fullPcAccess) return "allow";
+    // EXCEPT under taint (audit A3): external content in the context means the model
+    // may be following injected instructions, so a human click is always required.
+    if (currentSettings.fullPcAccess && !taintGated) return "allow";
     const lang = currentSettings.language ?? "tr";
     const detailArgs = argsJson && argsJson !== "{}" ? `\n\n${argsJson.slice(0, 300)}` : "";
+    const src = taintSource();
+    const taintNote = taintGated
+        ? (lang === "tr"
+            ? `\n\nBu konuşma dış kaynaklı içerik barındırıyor (${src ?? "web içeriği"}) — bu tür içerik gizli talimat içerebileceği için onayınız gerekiyor.`
+            : `\n\nThis conversation contains content from an external source (${src ?? "web content"}) — such content can carry hidden instructions, so your approval is required.`)
+        : "";
     const L = lang === "tr"
-        ? {title: "Yıkıcı eylem onayı", msg: `AEGIS geri alınamaz olabilecek bir işlem yapmak istiyor:\n\n${tool}${detailArgs}`, buttons: ["İptal", "İzin ver", "Her zaman izin ver"]}
-        : {title: "Destructive action", msg: `AEGIS wants to run a potentially irreversible action:\n\n${tool}${detailArgs}`, buttons: ["Cancel", "Allow once", "Always allow"]};
+        ? {title: "Yıkıcı eylem onayı", msg: `AEGIS geri alınamaz olabilecek bir işlem yapmak istiyor:\n\n${tool}${detailArgs}${taintNote}`, buttons: ["İptal", "İzin ver", "Her zaman izin ver"]}
+        : {title: "Destructive action", msg: `AEGIS wants to run a potentially irreversible action:\n\n${tool}${detailArgs}${taintNote}`, buttons: ["Cancel", "Allow once", "Always allow"]};
     try {
         const {response} = await dialog.showMessageBox(mainWindow ?? undefined as never, {
             type: "warning",
@@ -891,6 +900,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
             let result: string;
             try {
                 result = String(await executeTool(resolved.tool, argsJson));
+                recordTaintFromTool(resolved.tool, resolved.args); // A3
             } catch (e) {
                 result = `Tool error: ${(e as Error).message ?? String(e)}`;
             }
@@ -952,20 +962,28 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
                     return {id: call.id, content: blockMsg};
                 }
                 // Phase 54 — Destructive action approval gate: ask the user if risky + no permanent permission.
+                // Audit A3 — taint escalation: once the conversation ingested external content
+                // (web/RSS/clipboard/foreign files), destructive tools ALWAYS require a click —
+                // "always allow" grants, subagent status and Full PC Access don't bypass it,
+                // because the model may be executing instructions injected by that content.
                 const pArgs = (parsedArgs && typeof parsedArgs === "object") ? parsedArgs as Record<string, unknown> : {};
-                if (!isSubAgent && needsApproval(name, pArgs)) {
-                    const decision = await askDestructiveApproval(name, argsJson);
+                const taintGated = taintRequiresApproval(name);
+                if (taintGated || (!isSubAgent && needsApproval(name, pArgs))) {
+                    const decision = await askDestructiveApproval(name, argsJson, taintGated);
                     if (decision === "deny") {
                         const denyMsg = `BLOCKED (user denied approval): "${name}" is a destructive action and the user did not allow it.`;
                         send("tool-event", {phase: "done", name, result: denyMsg});
                         stmRecord(name, argsJson, denyMsg, false, "llm");
                         return {id: call.id, content: denyMsg};
                     }
-                    if (decision === "always") grantAlways(name);
+                    // Under taint, "always" only applies to this call — a persistent grant
+                    // would let the next injected instruction run without any human in the loop.
+                    if (decision === "always" && !taintGated) grantAlways(name);
                 }
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const result = await executeTool(name, argsJson);
+                recordTaintFromTool(name, pArgs); // A3 — external content entered the context
                 // Phase 56 — classify the result into the error taxonomy: record success/
                 // failure correctly, and on error add a brief steer to the model to prevent blind retries.
                 const ev = classifyError(String(result));
@@ -1506,6 +1524,7 @@ async function bootApp(): Promise<void> {
         await summarizeAndSave().catch(() => {});
         sessionHistory = [];
         stmClear();
+        clearTaint(); // A3 — external content left the context with the session
         await startSession().catch(() => {});
     });
 
