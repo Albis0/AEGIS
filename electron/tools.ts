@@ -88,20 +88,49 @@ const SYSTEM_DESTROY_PATTERNS: {pattern: RegExp; reason: string}[] = [
 ];
 
 let _quitCallback: (() => void) | null = null;
-export function registerQuitCallback(cb: () => void): void { _quitCallback = cb; }
-
 let _setLanguageCallback: ((lang: string) => void) | null = null;
-export function registerSetLanguageCallback(cb: (lang: string) => void): void { _setLanguageCallback = cb; }
-
-// screenshot: () => Promise<{ base64: string; width: number; height: number } | { error: string }>
-// analyzeScreen: (base64, prompt) => Promise<string>
 let _screenshotCallback: (() => Promise<{base64: string; width: number; height: number} | {error: string}>) | null = null;
 let _analyzeScreenCallback: ((base64: string, prompt: string) => Promise<string>) | null = null;
-export function registerScreenshotCallback(cb: typeof _screenshotCallback): void { _screenshotCallback = cb; }
-export function registerAnalyzeScreenCallback(cb: typeof _analyzeScreenCallback): void { _analyzeScreenCallback = cb; }
-
 let _remindCallback: ((message: string) => void) | null = null;
-export function registerRemindCallback(cb: (message: string) => void): void { _remindCallback = cb; }
+
+/**
+ * Audit C3 — single typed wiring point for everything executors need from the
+ * host (main.ts). The old per-callback registerX functions made wiring order
+ * implicit: a forgotten registration compiled fine and failed only at runtime.
+ * One context object with required fields turns missing wiring into a compile error.
+ */
+export interface ToolHostContext {
+    /** quit_app tool */
+    quit: () => void;
+    /** set_language tool → updates settings + notifies renderer */
+    setLanguage: (lang: string) => void;
+    /** vision tools — capture the primary display */
+    screenshot: () => Promise<{base64: string; width: number; height: number} | {error: string}>;
+    /** vision tools — describe a screenshot with the active vision model */
+    analyzeScreen: (base64: string, prompt: string) => Promise<string>;
+    /** remind_in tool → OS notification later */
+    remind: (message: string) => void;
+    /** immediate OS notification */
+    notify: (title: string, body: string) => void;
+    /** agent tool → spawns a sub-agent run */
+    runAgent: (goal: string, maxSteps: number) => void;
+    /** macro_run tool → replays recorded chat commands */
+    runMacro: (steps: string[]) => void;
+    /** plugin_reload tool */
+    reloadPlugins: () => Promise<string>;
+}
+
+export function initToolHost(ctx: ToolHostContext): void {
+    _quitCallback = ctx.quit;
+    _setLanguageCallback = ctx.setLanguage;
+    _screenshotCallback = ctx.screenshot;
+    _analyzeScreenCallback = ctx.analyzeScreen;
+    _remindCallback = ctx.remind;
+    _notificationCallback = ctx.notify;
+    _agentCallback = ctx.runAgent;
+    _macroRunCallback = ctx.runMacro;
+    _reloadPluginsCallback = ctx.reloadPlugins;
+}
 
 let _fullPcAccess = false;
 export function setFullPcAccess(enabled: boolean): void { _fullPcAccess = enabled; }
@@ -139,7 +168,6 @@ export function isWidgetSafeTool(name: string): boolean {
 }
 
 let _notificationCallback: ((title: string, body: string) => void) | null = null;
-export function registerNotificationCallback(cb: (title: string, body: string) => void): void { _notificationCallback = cb; }
 
 // Plugin infrastructure — populated by main.ts after loadPlugins()
 const _pluginExecutors: Record<string, (args: Record<string, string>) => Promise<ToolResult>> = {};
@@ -443,17 +471,14 @@ let _pluginList: {name: string; tools: string[]}[] = [];
 export function setPluginList(list: {name: string; tools: string[]}[]): void { _pluginList = list; }
 
 let _reloadPluginsCallback: (() => Promise<string>) | null = null;
-export function registerReloadPluginsCallback(cb: () => Promise<string>): void { _reloadPluginsCallback = cb; }
 
 // ---- Agent mode callback ----
 type AgentCallback = (goal: string, maxSteps: number) => void;
 let _agentCallback: AgentCallback | null = null;
-export function registerAgentCallback(cb: AgentCallback): void { _agentCallback = cb; }
 
 // ---- Macro run callback ----
 type MacroRunCallback = (steps: string[]) => void;
 let _macroRunCallback: MacroRunCallback | null = null;
-export function registerMacroRunCallback(cb: MacroRunCallback): void { _macroRunCallback = cb; }
 
 // ---- Watch conditions (threshold alerts) ----
 interface WatchCondition {threshold: number; direction: "above" | "below"}

@@ -5,7 +5,7 @@ import * as os from "os";
 import {exec} from "child_process";
 // @ts-ignore
 import Groq from "groq-sdk";
-import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
+import {executeTool, initToolHost, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, checkWatchConditions, _watchConditions, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
 import {getAccessToken} from "./auth";
 import {AEGIS_GITHUB_TOKEN} from "./aegis-config";
@@ -953,22 +953,11 @@ async function bootApp(): Promise<void> {
         }
     } catch { /* sync is optional — failure doesn't stop the app */ }
 
-    registerQuitCallback(() => app.quit());
-
-    registerRemindCallback((message) => {
-        sendToRenderer("reminder-fired", {message});
-    });
-
-    registerNotificationCallback((title, body) => {
-        if (ElectronNotification.isSupported()) {
-            new ElectronNotification({title, body}).show();
-        }
-    });
-
     activatePlugins();
-    registerReloadPluginsCallback(async () => activatePlugins());
 
-    registerScreenshotCallback(async () => {
+    // Audit C3 — executor host hooks are wired in ONE typed initToolHost call
+    // further below; the two larger implementations are defined here first.
+    const captureScreen = async (): Promise<{base64: string; width: number; height: number} | {error: string}> => {
         try {
             // Visible notice every time the screen is captured — without this, a user
             // who enabled computer-use once and forgot has no way to know AEGIS just
@@ -998,9 +987,9 @@ async function bootApp(): Promise<void> {
         } catch (e) {
             return {error: (e as Error).message ?? String(e)};
         }
-    });
+    };
 
-    registerAnalyzeScreenCallback(async (base64: string, prompt: string) => {
+    const analyzeScreenWithModel = async (base64: string, prompt: string): Promise<string> => {
         const provider = currentSettings.aiProvider;
         const key = getProviderKey(provider, currentSettings);
         const imgUrl = `data:image/png;base64,${base64}`;
@@ -1112,14 +1101,43 @@ async function bootApp(): Promise<void> {
             max_tokens: 1024,
         } as any);
         return (resp as any).choices[0]?.message?.content ?? "(no response received)";
+    };
+
+    // One typed wiring point (audit C3): a missing field here is a COMPILE error,
+    // unlike the old registerXCallback calls where forgetting one failed at runtime.
+    initToolHost({
+        quit: () => app.quit(),
+        setLanguage: (lang) => {
+            const voice = LANG_DEFAULT_VOICE[lang] ?? LANG_DEFAULT_VOICE.tr;
+            currentSettings = {...currentSettings, language: lang as AppSettings["language"], ttsVoice: voice};
+            saveSettings(currentSettings);
+            sendToRenderer("language-changed", {language: lang, ttsVoice: voice});
+        },
+        screenshot: captureScreen,
+        analyzeScreen: analyzeScreenWithModel,
+        remind: (message) => sendToRenderer("reminder-fired", {message}),
+        notify: (title, body) => {
+            if (ElectronNotification.isSupported()) {
+                new ElectronNotification({title, body}).show();
+            }
+        },
+        runAgent: (goal, maxSteps) => {
+            const reqId = `agent-${Date.now()}`;
+            // Phase 56 — plan-based agent prompt (plan → execute → verify → stop when stuck).
+            const agentPrompt = buildPlanPrompt(goal, maxSteps);
+            const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
+            saveMessage("user", agentPrompt).catch(() => {});
+            runAgent(messages, reqId, true).catch(() => {});
+        },
+        runMacro: async (steps) => {
+            for (const step of steps) {
+                sendToRenderer("chat-stream-inject", {command: step});
+                await new Promise<void>((r) => setTimeout(r, 3000));
+            }
+        },
+        reloadPlugins: async () => activatePlugins(),
     });
 
-    registerSetLanguageCallback((lang) => {
-        const voice = LANG_DEFAULT_VOICE[lang] ?? LANG_DEFAULT_VOICE.tr;
-        currentSettings = {...currentSettings, language: lang as AppSettings["language"], ttsVoice: voice};
-        saveSettings(currentSettings);
-        sendToRenderer("language-changed", {language: lang, ttsVoice: voice});
-    });
     await startSession().catch((e) => console.error("[startSession]", e.message));
 
     // Load previous session summaries + pending reminders into system prompt context
@@ -1138,22 +1156,6 @@ async function bootApp(): Promise<void> {
             memorySummaries += `\n\nPENDING REMINDERS (notify user):\n${noteLines}`;
         }
     } catch {}
-
-    registerAgentCallback((goal, maxSteps) => {
-        const reqId = `agent-${Date.now()}`;
-        // Phase 56 — plan-based agent prompt (plan → execute → verify → stop when stuck).
-        const agentPrompt = buildPlanPrompt(goal, maxSteps);
-        const messages = [...sessionHistory, {role: "user", content: agentPrompt}];
-        saveMessage("user", agentPrompt).catch(() => {});
-        runAgent(messages, reqId, true).catch(() => {});
-    });
-
-    registerMacroRunCallback(async (steps) => {
-        for (const step of steps) {
-            sendToRenderer("chat-stream-inject", {command: step});
-            await new Promise<void>((r) => setTimeout(r, 3000));
-        }
-    });
 
     // Single-shot LLM call for pipeline_run / model_compare (no tools, no streaming).
     registerLLMCallback(async (prompt, model) => {
