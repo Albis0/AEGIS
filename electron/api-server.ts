@@ -18,6 +18,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import {encryptValue, decryptValue} from "./secret-storage";
 
 const TOKEN_PATH = path.join(os.homedir(), ".aegis", "api-token.txt");
 const DEFAULT_PORT = 7331;
@@ -26,15 +27,35 @@ function ensureDir(): void {
     fs.mkdirSync(path.dirname(TOKEN_PATH), {recursive: true});
 }
 
+// Token is DPAPI-encrypted at rest (audit A4). Legacy plaintext files are
+// upgraded in place on first read; if a stored token can't be decrypted
+// (different Windows account), it is rotated rather than served broken.
 export function loadToken(): string {
-    try { return fs.readFileSync(TOKEN_PATH, "utf-8").trim(); } catch { return generateToken(); }
+    let raw: string;
+    try { raw = fs.readFileSync(TOKEN_PATH, "utf-8").trim(); } catch { return generateToken(); }
+    const dec = decryptValue(raw);
+    if (dec === undefined || !dec) return generateToken();
+    if (dec === raw) {
+        // plaintext legacy file — re-persist encrypted (no-op if DPAPI unavailable)
+        try { fs.writeFileSync(TOKEN_PATH, encryptValue(dec), "utf-8"); } catch { /* keep serving */ }
+    }
+    return dec;
 }
 
 export function generateToken(): string {
     const token = crypto.randomBytes(24).toString("hex");
     ensureDir();
-    fs.writeFileSync(TOKEN_PATH, token, "utf-8");
+    fs.writeFileSync(TOKEN_PATH, encryptValue(token), "utf-8");
     return token;
+}
+
+/** Constant-time token comparison — a char-by-char !== leaks match length via timing. */
+export function tokenMatches(provided: string, expected: string): boolean {
+    if (!provided || !expected) return false;
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
 }
 
 function getLocalIP(): string {
@@ -58,9 +79,12 @@ function parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> 
     });
 }
 
+// No CORS headers anywhere (audit A4): this is not a browser API — the bundled
+// web UI is same-origin and phone clients are native. Allowing cross-origin
+// only lets arbitrary websites the user visits script requests at localhost.
 function send(res: http.ServerResponse, status: number, body: unknown): void {
     const json = JSON.stringify(body);
-    res.writeHead(status, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"});
+    res.writeHead(status, {"Content-Type": "application/json"});
     res.end(json);
 }
 
@@ -182,9 +206,10 @@ export function startApiServer(port = DEFAULT_PORT): string {
     const ip    = getLocalIP();
 
     server = http.createServer(async (req, res) => {
-        // CORS preflight
+        // Preflights get an empty 204 with NO CORS allow headers — cross-origin
+        // browser access is intentionally impossible (see note on send()).
         if (req.method === "OPTIONS") {
-            res.writeHead(204, {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization,Content-Type", "Access-Control-Allow-Methods": "GET,POST"});
+            res.writeHead(204);
             res.end(); return;
         }
 
@@ -205,12 +230,11 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // SSE — auth via query param (browsers can't set headers on EventSource)
         if (url === "/events" && req.method === "GET") {
             const t = query.get("token") ?? "";
-            if (t !== token) { send(res, 401, {error: "Unauthorized."}); return; }
+            if (!tokenMatches(t, token)) { send(res, 401, {error: "Unauthorized."}); return; }
             res.writeHead(200, {
                 "Content-Type": "text/event-stream",
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
             });
             res.write(": connected\n\n");
             sseClients.add(res);
@@ -221,7 +245,7 @@ export function startApiServer(port = DEFAULT_PORT): string {
         // Auth
         const authHeader = req.headers["authorization"] ?? "";
         const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-        if (provided !== token) { send(res, 401, {error: "Unauthorized. A valid token is required."}); return; }
+        if (!tokenMatches(provided, token)) { send(res, 401, {error: "Unauthorized. A valid token is required."}); return; }
 
         // POST /api/ask
         if (url === "/api/ask" && req.method === "POST") {
