@@ -23,7 +23,7 @@ import {loadPlugins} from "./plugins";
 import {getSessions, getSessionMessages} from "./db";
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
-import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
+import {loadConfig, saveConfig, applyConfig, maskedConfig, sanitizeConfigPatch, type AegisConfig} from "./config";
 import {initSecretStorage} from "./secret-storage";
 import {getCorruptedFiles} from "./corrupted-file-tracker";
 import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
@@ -1468,16 +1468,24 @@ async function bootApp(): Promise<void> {
         return getModelCapabilities(provider, model, currentSettings.ollamaNumCtx ?? 4096);
     });
 
+    // Security (audit A2): the renderer only ever receives MASKED key values —
+    // it renders LLM output + user CSS, so raw keys over IPC = one XSS away from
+    // full credential exfiltration. Full config (all fields, not just the 5 env
+    // ones) is loaded so optional keys display their set-state too.
     ipcMain.handle("config-get", () => {
-        return {
+        const full: AegisConfig = {
             groqApiKey: process.env.GROQ_API_KEY ?? "",
             supabaseUrl: process.env.SUPABASE_URL ?? "",
             supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
             tavilyApiKey: process.env.TAVILY_API_KEY ?? "",
             serperApiKey: process.env.SERPER_API_KEY ?? "",
+            ...(loadConfig() ?? {}),
         };
+        return maskedConfig(full);
     });
-    ipcMain.handle("config-set", (_e, patch: Partial<AegisConfig>) => {
+    ipcMain.handle("config-set", (_e, rawPatch: Partial<AegisConfig>) => {
+        // Drop masked values echoed back by the UI — only genuinely new input lands.
+        const patch = sanitizeConfigPatch(rawPatch);
         const existing = loadConfig() ?? {
             groqApiKey: process.env.GROQ_API_KEY ?? "",
             supabaseUrl: process.env.SUPABASE_URL ?? "",

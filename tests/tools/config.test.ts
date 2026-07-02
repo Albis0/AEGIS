@@ -97,3 +97,67 @@ describe("applyConfig", () => {
         expect(process.env.HOME_ASSISTANT_URL).toBeUndefined();
     });
 });
+
+// ─── masking (audit A2) ──────────────────────────────────────────────────────
+import {maskSecret, isMaskedValue, maskedConfig, sanitizeConfigPatch} from "../../electron/config";
+
+describe("maskSecret / isMaskedValue", () => {
+    it("empty stays empty, short keys are fully stubbed", () => {
+        expect(maskSecret("")).toBe("");
+        expect(maskSecret(undefined)).toBe("");
+        expect(maskSecret("gsk_short")).toBe("••••••••");
+    });
+
+    it("long keys keep only 4+4 chars and are recognized as masked", () => {
+        const m = maskSecret("gsk_1234567890abcdefghij");
+        expect(m).toBe("gsk_…ghij");
+        expect(m).not.toContain("1234567890");
+        expect(isMaskedValue(m)).toBe(true);
+        expect(isMaskedValue("gsk_freshly_typed_key")).toBe(false);
+    });
+});
+
+describe("maskedConfig", () => {
+    it("contains no raw secret material; service key is fully stubbed", () => {
+        const cfg: AegisConfig = {
+            groqApiKey: "gsk_1234567890abcdefghij",
+            supabaseUrl: "https://test.supabase.co",
+            supabaseServiceKey: "eyJservice_role_key_very_secret_value",
+            tavilyApiKey: "tvly_1234567890abcdef",
+            homeAssistantToken: "ha_long_lived_token_123456",
+        };
+        const m = maskedConfig(cfg);
+        const json = JSON.stringify(m);
+        expect(json).not.toContain("1234567890abcdefghij");
+        expect(json).not.toContain("service_role_key");
+        expect(m.supabaseServiceKey).toBe("••••••••"); // not even a prefix
+        expect(m.supabaseUrl).toBe("https://test.supabase.co"); // non-secret untouched
+        expect(isMaskedValue(m.groqApiKey)).toBe(true);
+    });
+
+    it("does not mutate the input config", () => {
+        const cfg: AegisConfig = {groqApiKey: "gsk_1234567890abcdefghij", supabaseUrl: "u", supabaseServiceKey: "s"};
+        maskedConfig(cfg);
+        expect(cfg.groqApiKey).toBe("gsk_1234567890abcdefghij");
+    });
+});
+
+describe("sanitizeConfigPatch", () => {
+    it("drops masked round-trips, keeps fresh input and non-secrets", () => {
+        const patch = sanitizeConfigPatch({
+            groqApiKey: "gsk_…ghij",              // masked echo → dropped
+            supabaseServiceKey: "••••••••",        // stub echo → dropped
+            tavilyApiKey: "tvly_new_real_key_42",  // fresh input → kept
+            supabaseUrl: "https://new.supabase.co", // non-secret → kept
+        });
+        expect(patch.groqApiKey).toBeUndefined();
+        expect(patch.supabaseServiceKey).toBeUndefined();
+        expect(patch.tavilyApiKey).toBe("tvly_new_real_key_42");
+        expect(patch.supabaseUrl).toBe("https://new.supabase.co");
+    });
+
+    it("keeps explicit empty-string clears", () => {
+        const patch = sanitizeConfigPatch({tavilyApiKey: ""});
+        expect(patch.tavilyApiKey).toBe("");
+    });
+});

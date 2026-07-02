@@ -68,6 +68,46 @@ export function saveConfig(config: AegisConfig): void {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(out, null, 2), "utf-8");
 }
 
+// ── Renderer-facing masking (audit A2) ────────────────────────────────────────
+// Raw key material must never cross the IPC bridge: the renderer renders LLM
+// output and user CSS, so any XSS there would exfiltrate every key. The settings
+// UI only needs "is it set" + a recognizable stub; a newly typed key never
+// contains the mask marker, so masked round-trips are filtered in the setter.
+
+const MASK_STUB = "••••••••";
+
+export function maskSecret(v: string | undefined): string {
+    if (!v) return "";
+    if (v.length <= 12) return MASK_STUB;
+    return v.slice(0, 4) + "…" + v.slice(-4);
+}
+
+export function isMaskedValue(v: string): boolean {
+    return v.includes("…") || v.includes("•");
+}
+
+/** Copy of the config safe to hand to the renderer: secrets masked, the
+ *  service-role key fully stubbed (it bypasses RLS — never leak even a prefix). */
+export function maskedConfig(c: AegisConfig): AegisConfig {
+    const out: AegisConfig = {...c};
+    for (const f of SECRET_FIELDS) {
+        const v = out[f] as string | undefined;
+        if (v !== undefined) (out as unknown as Record<string, unknown>)[f] = maskSecret(v);
+    }
+    if (out.supabaseServiceKey) out.supabaseServiceKey = MASK_STUB;
+    return out;
+}
+
+/** Drop masked values the UI may echo back — only genuinely new input survives. */
+export function sanitizeConfigPatch(patch: Partial<AegisConfig>): Partial<AegisConfig> {
+    const out: Partial<AegisConfig> = {...patch};
+    for (const f of SECRET_FIELDS) {
+        const v = out[f];
+        if (typeof v === "string" && isMaskedValue(v)) delete out[f];
+    }
+    return out;
+}
+
 export function applyConfig(config: AegisConfig): void {
     if (config.groqApiKey) process.env.GROQ_API_KEY = config.groqApiKey;
     if (config.supabaseUrl) process.env.SUPABASE_URL = config.supabaseUrl;
