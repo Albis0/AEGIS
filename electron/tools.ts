@@ -123,6 +123,35 @@ export function setFullPcAccess(enabled: boolean): void { _fullPcAccess = enable
 let _disabledTools: Set<string> = new Set();
 export function setDisabledTools(names: string[]): void { _disabledTools = new Set(names); }
 
+// Security (audit A1) — the ONLY tools the renderer may invoke through the generic
+// "run-tool" IPC channel. The agent loop has its own approval gate (needsApproval in
+// main.ts), but "run-tool" used to reach executeTool directly, so a compromised
+// renderer (e.g. via the custom-CSS feature) had ungated access to run_command /
+// delete_file. Widgets only need read-only/state tools + a few scoped row actions —
+// enforce that as an allowlist, not a convention. Keep in sync with runTool() call
+// sites under src/components/.
+export const WIDGET_SAFE_TOOLS: ReadonlySet<string> = new Set([
+    // DomainPanel (Command Center tabs)
+    "list_scheduled_tasks", "list_watch_conditions", "cancel_scheduled_task",
+    "list_indexed_files", "search_knowledge",
+    "list_automations", "list_macros", "routine_list",
+    "goal_list", "reading_list",
+    "get_persona", "list_personas",
+    "list_plugins", "plugin_search",
+    // MemoryModal
+    "list_facts", "search_memory", "forget_fact",
+    // PomodoroWidget
+    "pomodoro_status", "pomodoro_stop",
+    // SmartHomeWidget
+    "smart_home_devices", "smart_home_control",
+    // SteamWidget
+    "steam_game_running", "steam_close_game",
+]);
+
+export function isWidgetSafeTool(name: string): boolean {
+    return WIDGET_SAFE_TOOLS.has(name);
+}
+
 let _notificationCallback: ((title: string, body: string) => void) | null = null;
 export function registerNotificationCallback(cb: (title: string, body: string) => void): void { _notificationCallback = cb; }
 

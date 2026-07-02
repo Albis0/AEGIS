@@ -5,7 +5,7 @@ import * as os from "os";
 import {exec} from "child_process";
 // @ts-ignore
 import Groq from "groq-sdk";
-import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
+import {executeTool, isWidgetSafeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
 import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
 import {AEGIS_GITHUB_TOKEN} from "./aegis-config";
@@ -1336,10 +1336,14 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("weather", () => getWeather());
 
     // Phase 63 — Generic tool call (for UI widgets/modals). Domain widgets pull
-    // live data from here. Destructive actions still hit executeTool's own BLOCKED
-    // logic (delete_file etc. stop when fullPcAccess is off); widgets only ever call
-    // read-only/safe-state tools anyway.
+    // live data from here. Security (audit A1): this channel bypasses the agent
+    // loop's approval gate, so it is restricted to an explicit allowlist — a
+    // compromised renderer must not reach run_command/delete_file through here.
     ipcMain.handle("run-tool", async (_e, {name, args}: {name: string; args?: Record<string, unknown>}) => {
+        if (!isWidgetSafeTool(name)) {
+            console.warn(`[run-tool] blocked non-allowlisted tool from renderer: "${name}"`);
+            return `BLOCKED: tool "${name}" is not allowed from UI widgets.`;
+        }
         try {
             return await executeTool(name, JSON.stringify(args ?? {}));
         } catch (e) {
