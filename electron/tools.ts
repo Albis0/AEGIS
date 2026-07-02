@@ -28,23 +28,9 @@ import {fileSearch, contentSearch, appSearch} from "./search-plus";
 import {killHeavyProcesses, suspendProcess, resumeProcess, clearTemp, flushDns, startupManager, perfModeStart, perfModeStop} from "./sys-optimizer";
 import {workspaceCreate, workspaceSwitch, workspaceList, workspaceDelete, workspaceExport, workspaceImport} from "./workspace";
 import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
-import {spotifyAuthorizeCmd, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume, spotifyGetState, spotifyOpen, spotifySearchPlay, spotifyListPlaylists, spotifyPlayPlaylist, spotifyLikeTrack, spotifyAddToQueue, spotifyListDevices, spotifyTransferDevice, spotifySetShuffle, spotifySetRepeat, spotifySeek, spotifyGetRecentlyPlayed, spotifyGetQueue, spotifyGetAlbum, spotifyGetAlbumTracks, spotifyGetSavedAlbums, spotifySaveAlbum, spotifyRemoveSavedAlbum, spotifyGetArtist, spotifyGetArtistTopTracks, spotifyGetArtistAlbums, spotifyGetRelatedArtists, spotifyGetTrack, spotifyGetAudioFeatures, spotifyGetRecommendations, spotifyGetPlaylist, spotifyGetPlaylistItems, spotifyCreatePlaylist, spotifyPlaylistAdd, spotifyPlaylistRemove, spotifyGetFeaturedPlaylists, spotifyGetSavedTracks, spotifyCheckSavedTracks, spotifyGetSavedShows, spotifyGetSavedEpisodes, spotifyGetSavedAudiobooks, spotifyGetCurrentUser, spotifyGetTopItems, spotifyFollowArtist, spotifyUnfollowArtist, spotifyGetFollowedArtists, spotifyGetNewReleases, spotifyGetCategories, spotifyGetShow, spotifyGetShowEpisodes, spotifyGetEpisode, spotifyGetAudiobook} from "./spotify";
-import {
-    steamLaunchGame, steamListGames, steamOpen, steamClose, steamGameRunning,
-    steamRestart, steamCloseGame, steamRestartGame, steamListRunningGames, steamIsGameRunning,
-    steamInstallGame, steamUninstallGame, steamVerifyGameFiles, steamUpdateGame,
-    steamDownloadStatus, steamPauseResumeCancel,
-    steamOpenStorePage, steamOpenWorkshop, steamWorkshopSubscribe, steamListWorkshopSubs,
-    steamOpenScreenshots, steamShowStorageUsage, steamLocateInstallation, steamOpenGameFolder,
-    steamBackupGame, steamRestoreBackup, steamOpenChat, steamSendMessage, steamRepeatLastAction,
-    steamWishlistAdd, steamWishlistList, steamTakeScreenshot,
-    steamGetOwnedGames, steamSearchOwnedGames, steamGetRecentGames, steamGetMostPlayed,
-    steamGetGamePlaytime, steamGetTotalPlaytime, steamSuggestGame,
-    steamGetGameAchievements, steamGetAchievementProgress, steamGetPlayerStats,
-    steamGetProfileSummary, steamGetLevel, steamGetFriendList, steamGetOnlineFriends,
-    steamGetFriendCurrentGame, steamWhoIsPlaying, steamGetLastPlayed,
-    steamSearchStore, steamGetGameDetails, steamGetGamePrice, steamGetDiscountedGames, steamGetGameNews,
-} from "./steam";
+import {steamWishlistAdd} from "./steam";
+import {spotifyExecutors} from "./tools/exec-spotify";
+import {steamExecutors} from "./tools/exec-steam";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {actWithVerification} from "./action-verifier";
 import {stmGet} from "./short-term-memory";
@@ -1983,150 +1969,11 @@ else{
         return productivityInsights();
     },
 
-    // ── Faz 46: Spotify ──────────────────────────────────────────────────────
-    async spotify_authorize() { return spotifyAuthorizeCmd(); },
-    async spotify_play({query}: {query?: unknown} = {}) {
-        const q = typeof query === "string" ? query.trim() : "";
-        return q ? spotifySearchPlay(q) : spotifyPlay();
-    },
-    async spotify_pause() { return spotifyPause(); },
-    async spotify_next() { return spotifyNext(); },
-    async spotify_prev() { return spotifyPrev(); },
-    async spotify_volume({level}: {level?: unknown}) { return spotifySetVolume(Number(level ?? 50)); },
-    async spotify_now_playing() { return spotifyGetState(); },
-    async spotify_open() { return spotifyOpen(); },
-    async spotify_search({query}: {query?: unknown}) { return spotifySearchPlay(String(query ?? "")); },
-    async spotify_playlists() { return spotifyListPlaylists(); },
-    async spotify_play_playlist({name}: {name?: unknown}) { return spotifyPlayPlaylist(String(name ?? "")); },
-    async spotify_like() { return spotifyLikeTrack(); },
-    async spotify_queue({query}: {query?: unknown}) { return spotifyAddToQueue(String(query ?? "")); },
-    async spotify_devices() { return spotifyListDevices(); },
-    async spotify_transfer({device}: {device?: unknown}) { return spotifyTransferDevice(String(device ?? "")); },
-    async spotify_shuffle({enabled}: {enabled?: unknown}) { return spotifySetShuffle(String(enabled) === "true"); },
-    async spotify_repeat({mode}: {mode?: unknown}) { return spotifySetRepeat((mode as "off" | "track" | "context") ?? "off"); },
-
-    // Player extras
-    async spotify_seek({position_ms}: {position_ms?: unknown}) { return spotifySeek(Number(position_ms ?? 0)); },
-    async spotify_recently_played({limit}: {limit?: unknown}) { return spotifyGetRecentlyPlayed(Number(limit ?? 20)); },
-    async spotify_get_queue() { return spotifyGetQueue(); },
-
-    // Albums
-    async spotify_get_album({id}: {id?: unknown}) { return spotifyGetAlbum(String(id ?? "")); },
-    async spotify_album_tracks({id}: {id?: unknown}) { return spotifyGetAlbumTracks(String(id ?? "")); },
-    async spotify_saved_albums({limit}: {limit?: unknown}) { return spotifyGetSavedAlbums(Number(limit ?? 20)); },
-    async spotify_save_album({id}: {id?: unknown}) { return spotifySaveAlbum(String(id ?? "")); },
-    async spotify_remove_album({id}: {id?: unknown}) { return spotifyRemoveSavedAlbum(String(id ?? "")); },
-
-    // Artists
-    async spotify_get_artist({id}: {id?: unknown}) { return spotifyGetArtist(String(id ?? "")); },
-    async spotify_artist_top_tracks({id}: {id?: unknown}) { return spotifyGetArtistTopTracks(String(id ?? "")); },
-    async spotify_artist_albums({id}: {id?: unknown}) { return spotifyGetArtistAlbums(String(id ?? "")); },
-    async spotify_related_artists({id}: {id?: unknown}) { return spotifyGetRelatedArtists(String(id ?? "")); },
-
-    // Tracks
-    async spotify_get_track({id}: {id?: unknown}) { return spotifyGetTrack(String(id ?? "")); },
-    async spotify_audio_features({id}: {id?: unknown}) { return spotifyGetAudioFeatures(String(id ?? "")); },
-    async spotify_recommendations({seed_artists, seed_tracks, seed_genres, limit}: {seed_artists?: unknown; seed_tracks?: unknown; seed_genres?: unknown; limit?: unknown}) {
-        return spotifyGetRecommendations({
-            seed_artists: seed_artists ? String(seed_artists) : undefined,
-            seed_tracks:  seed_tracks  ? String(seed_tracks)  : undefined,
-            seed_genres:  seed_genres  ? String(seed_genres)  : undefined,
-            limit: limit ? Number(limit) : undefined,
-        });
-    },
-
-    // Playlists extended
-    async spotify_get_playlist({id}: {id?: unknown}) { return spotifyGetPlaylist(String(id ?? "")); },
-    async spotify_playlist_tracks({id, limit}: {id?: unknown; limit?: unknown}) { return spotifyGetPlaylistItems(String(id ?? ""), Number(limit ?? 20)); },
-    async spotify_create_playlist({name, public: pub, description}: {name?: unknown; public?: unknown; description?: unknown}) {
-        return spotifyCreatePlaylist(String(name ?? ""), Boolean(pub), String(description ?? ""));
-    },
-    async spotify_playlist_add({playlist_id, uris}: {playlist_id?: unknown; uris?: unknown}) {
-        return spotifyPlaylistAdd(String(playlist_id ?? ""), Array.isArray(uris) ? uris.map(String) : []);
-    },
-    async spotify_playlist_remove({playlist_id, uris}: {playlist_id?: unknown; uris?: unknown}) {
-        return spotifyPlaylistRemove(String(playlist_id ?? ""), Array.isArray(uris) ? uris.map(String) : []);
-    },
-    async spotify_featured_playlists() { return spotifyGetFeaturedPlaylists(); },
-
-    // Library
-    async spotify_saved_tracks({limit}: {limit?: unknown}) { return spotifyGetSavedTracks(Number(limit ?? 20)); },
-    async spotify_check_saved_tracks({ids}: {ids?: unknown}) { return spotifyCheckSavedTracks(Array.isArray(ids) ? ids.map(String) : []); },
-    async spotify_saved_shows({limit}: {limit?: unknown}) { return spotifyGetSavedShows(Number(limit ?? 20)); },
-    async spotify_saved_episodes({limit}: {limit?: unknown}) { return spotifyGetSavedEpisodes(Number(limit ?? 20)); },
-    async spotify_saved_audiobooks({limit}: {limit?: unknown}) { return spotifyGetSavedAudiobooks(Number(limit ?? 20)); },
-
-    // User
-    async spotify_me() { return spotifyGetCurrentUser(); },
-    async spotify_top_items({type, time_range, limit}: {type?: unknown; time_range?: unknown; limit?: unknown}) {
-        return spotifyGetTopItems(
-            (type as "artists" | "tracks") ?? "tracks",
-            (time_range as "short_term" | "medium_term" | "long_term") ?? "medium_term",
-            Number(limit ?? 10),
-        );
-    },
-
-    // Follow
-    async spotify_follow_artist({id}: {id?: unknown}) { return spotifyFollowArtist(String(id ?? "")); },
-    async spotify_unfollow_artist({id}: {id?: unknown}) { return spotifyUnfollowArtist(String(id ?? "")); },
-    async spotify_followed_artists({limit}: {limit?: unknown}) { return spotifyGetFollowedArtists(Number(limit ?? 20)); },
-
-    // Browse
-    async spotify_new_releases({limit}: {limit?: unknown}) { return spotifyGetNewReleases(Number(limit ?? 10)); },
-    async spotify_categories({limit}: {limit?: unknown}) { return spotifyGetCategories(Number(limit ?? 20)); },
-
-    // Shows / Episodes / Audiobooks
-    async spotify_get_show({id}: {id?: unknown}) { return spotifyGetShow(String(id ?? "")); },
-    async spotify_show_episodes({id, limit}: {id?: unknown; limit?: unknown}) { return spotifyGetShowEpisodes(String(id ?? ""), Number(limit ?? 10)); },
-    async spotify_get_episode({id}: {id?: unknown}) { return spotifyGetEpisode(String(id ?? "")); },
-    async spotify_get_audiobook({id}: {id?: unknown}) { return spotifyGetAudiobook(String(id ?? "")); },
-
-    // ── Faz 46: Steam ────────────────────────────────────────────────────────
-    async steam_launch({game}: {game?: unknown}) { return steamLaunchGame(String(game ?? "")); },
-    async steam_list() { return steamListGames(); },
-    async steam_open() { return steamOpen(); },
-    async steam_close() { return steamClose(); },
-    async steam_game_running() { return steamGameRunning(); },
-    // Grup A — local/protokol
-    async steam_restart() { return steamRestart(); },
-    async steam_close_game({game}: {game?: unknown}) { return steamCloseGame(game != null ? String(game) : undefined); },
-    async steam_restart_game({game}: {game?: unknown}) { return steamRestartGame(String(game ?? "")); },
-    async steam_list_running_games() { return steamListRunningGames(); },
-    async steam_is_game_running({game}: {game?: unknown}) { return steamIsGameRunning(String(game ?? "")); },
-    async steam_install_game({game}: {game?: unknown}) { return steamInstallGame(String(game ?? "")); },
-    async steam_uninstall_game({game}: {game?: unknown}) { return steamUninstallGame(String(game ?? "")); },
-    async steam_verify_game_files({game}: {game?: unknown}) { return steamVerifyGameFiles(String(game ?? "")); },
-    async steam_update_game({game}: {game?: unknown}) { return steamUpdateGame(String(game ?? "")); },
-    async steam_download_status() { return steamDownloadStatus(); },
-    async steam_open_store_page({game}: {game?: unknown}) { return steamOpenStorePage(String(game ?? "")); },
-    async steam_open_screenshots() { return steamOpenScreenshots(); },
-    async steam_show_storage_usage() { return steamShowStorageUsage(); },
-    async steam_locate_installation({game}: {game?: unknown}) { return steamLocateInstallation(String(game ?? "")); },
-    async steam_open_game_folder({game}: {game?: unknown}) { return steamOpenGameFolder(String(game ?? "")); },
-    async steam_last_played_game() { return steamGetLastPlayed(); },
-    // Grup C — storefront
-    async steam_search_store({query}: {query?: unknown}) { return steamSearchStore(String(query ?? "")); },
-    async steam_game_details({game}: {game?: unknown}) { return steamGetGameDetails(String(game ?? "")); },
-    async steam_game_price({game}: {game?: unknown}) { return steamGetGamePrice(String(game ?? "")); },
-    async steam_discounted_games() { return steamGetDiscountedGames(); },
-    async steam_game_news({game}: {game?: unknown}) { return steamGetGameNews(String(game ?? "")); },
-    // Grup B — Web API
-    async steam_owned_games() { return steamGetOwnedGames(); },
-    async steam_search_owned_games({query}: {query?: unknown}) { return steamSearchOwnedGames(String(query ?? "")); },
-    async steam_recent_games() { return steamGetRecentGames(); },
-    async steam_most_played_games() { return steamGetMostPlayed(); },
-    async steam_game_playtime({game}: {game?: unknown}) { return steamGetGamePlaytime(String(game ?? "")); },
-    async steam_total_playtime() { return steamGetTotalPlaytime(); },
-    async steam_suggest_game() { return steamSuggestGame(); },
-    async steam_game_achievements({game}: {game?: unknown}) { return steamGetGameAchievements(String(game ?? "")); },
-    async steam_achievement_progress({game}: {game?: unknown}) { return steamGetAchievementProgress(String(game ?? "")); },
-    async steam_player_stats({game}: {game?: unknown}) { return steamGetPlayerStats(String(game ?? "")); },
-    async steam_profile_summary() { return steamGetProfileSummary(); },
-    async steam_level() { return steamGetLevel(); },
-    async steam_friend_list() { return steamGetFriendList(); },
-    async steam_online_friends() { return steamGetOnlineFriends(); },
-    async steam_friend_current_game({friend}: {friend?: unknown}) { return steamGetFriendCurrentGame(String(friend ?? "")); },
-    async steam_who_is_playing({game}: {game?: unknown}) { return steamWhoIsPlaying(String(game ?? "")); },
+    // ── Faz 46: Spotify & Steam — moved to tools/exec-spotify.ts / exec-steam.ts (audit C2)
+    ...spotifyExecutors,
+    ...steamExecutors,
+    // steam_wishlist_add stays here: it drives the computer_use executor and the
+    // screenshot/analyze callbacks that live in this module.
     // Grup D — deneysel
     async steam_wishlist_add({game}: {game?: unknown}) {
         // 1) Open the store page (AppID gets resolved). Steam doesn't give 3rd parties a
@@ -2149,21 +1996,6 @@ else{
         const cuResult = await executors.computer_use({goal, max_steps: "6"});
         return `${opened}\n\nAutomatic add attempt:\n${cuResult}\n\n(Computer-use is fragile; if it wasn't added, click '+ Add to your wishlist' manually from the page.)`;
     },
-    async steam_wishlist_remove({game}: {game?: unknown}) { return steamWishlistAdd(String(game ?? ""), false); },
-    async steam_wishlist_list() { return steamWishlistList(); },
-    async steam_pause_download() { return steamPauseResumeCancel("pause"); },
-    async steam_resume_download() { return steamPauseResumeCancel("resume"); },
-    async steam_cancel_download() { return steamPauseResumeCancel("cancel"); },
-    async steam_open_workshop({game}: {game?: unknown}) { return steamOpenWorkshop(game != null ? String(game) : undefined); },
-    async steam_subscribe_workshop({item_id}: {item_id?: unknown}) { return steamWorkshopSubscribe(String(item_id ?? ""), true); },
-    async steam_unsubscribe_workshop({item_id}: {item_id?: unknown}) { return steamWorkshopSubscribe(String(item_id ?? ""), false); },
-    async steam_list_workshop_subscriptions({game}: {game?: unknown}) { return steamListWorkshopSubs(game != null ? String(game) : undefined); },
-    async steam_open_chat({friend_id}: {friend_id?: unknown}) { return steamOpenChat(String(friend_id ?? "")); },
-    async steam_send_message({friend_id, message}: {friend_id?: unknown; message?: unknown}) { return steamSendMessage(String(friend_id ?? ""), String(message ?? "")); },
-    async steam_backup_game({game}: {game?: unknown}) { return steamBackupGame(String(game ?? "")); },
-    async steam_restore_backup() { return steamRestoreBackup(); },
-    async steam_take_screenshot() { return steamTakeScreenshot(); },
-    async steam_repeat_last_action() { return steamRepeatLastAction(); },
 
     // ── Phase 47: Computer Use ───────────────────────────────────────────────
     async mouse_move({x, y}: {x?: unknown; y?: unknown}) {
