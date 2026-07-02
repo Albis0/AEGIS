@@ -11,6 +11,7 @@
  * pass through the gate.
  */
 
+import {writeJsonAtomic} from "./json-store";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -92,7 +93,7 @@ function save(s: PermStore): void {
     _cache = s;
     try {
         fs.mkdirSync(path.dirname(STORE_PATH), {recursive: true});
-        fs.writeFileSync(STORE_PATH, JSON.stringify(s, null, 2), "utf-8");
+        writeJsonAtomic(STORE_PATH, s);
     } catch (e) {
         console.error("[permissions] could not save:", (e as Error).message);
     }

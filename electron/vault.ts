@@ -9,6 +9,7 @@
  * 17.3 Automatic deletion: clear conversations older than X days
  */
 
+import {writeJsonAtomic} from "./json-store";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -36,7 +37,7 @@ function loadVault(): VaultData {
 
 function saveVaultData(data: VaultData): void {
     fs.mkdirSync(BASE, {recursive: true});
-    fs.writeFileSync(VAULT_PATH, JSON.stringify(data, null, 2), "utf-8");
+    writeJsonAtomic(VAULT_PATH, data);
 }
 
 export function vaultStore(key: string, value: string): string {

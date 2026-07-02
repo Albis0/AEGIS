@@ -7,6 +7,7 @@
  *  - chat_with_file: load the file, pass the question to the LLM as context
  */
 
+import {writeJsonAtomic} from "./json-store";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -50,7 +51,7 @@ function loadMeta(): IndexMeta[] {
 
 function saveMeta(meta: IndexMeta[]): void {
     ensureDir();
-    fs.writeFileSync(META_PATH, JSON.stringify(meta, null, 2), "utf-8");
+    writeJsonAtomic(META_PATH, meta);
 }
 
 function fileHash(content: string): string {

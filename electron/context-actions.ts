@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import {exec as execCb} from "child_process";
+import {writeJsonAtomic} from "./json-store";
 
 const RULES_PATH = path.join(os.homedir(), ".aegis", "context-rules.json");
 const CLIPBOARD_HIST_PATH = path.join(os.homedir(), ".aegis", "clipboard-history.json");
@@ -22,8 +23,7 @@ function load<T>(p: string, def: T): T {
     try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return def; }
 }
 function save(p: string, data: unknown): void {
-    fs.mkdirSync(path.dirname(p), {recursive: true});
-    fs.writeFileSync(p, JSON.stringify(data, null, 2));
+    writeJsonAtomic(p, data); // D1 - torn writes were the corruption source
 }
 function runPs(script: string): Promise<string> {
     return new Promise((res) => {

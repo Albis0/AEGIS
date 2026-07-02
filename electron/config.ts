@@ -1,3 +1,4 @@
+import {writeJsonAtomic} from "./json-store";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -65,7 +66,7 @@ export function saveConfig(config: AegisConfig): void {
         const v = out[f] as string | undefined;
         if (v !== undefined) (out as unknown as Record<string, unknown>)[f] = encryptValue(v);
     }
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(out, null, 2), "utf-8");
+    writeJsonAtomic(CONFIG_PATH, out);
 }
 
 // ── Renderer-facing masking (audit A2) ────────────────────────────────────────

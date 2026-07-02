@@ -1,3 +1,4 @@
+import {writeJsonAtomic} from "./json-store";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -182,5 +183,5 @@ export function saveSettings(settings: AppSettings): void {
             Object.entries(out.providerKeys).map(([k, v]) => [k, encryptValue(v)]),
         );
     }
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(out, null, 2), "utf-8");
+    writeJsonAtomic(SETTINGS_PATH, out);
 }

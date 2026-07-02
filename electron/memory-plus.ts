@@ -12,6 +12,7 @@ import * as os from "os";
 import {searchFacts, inferFacts, reconcileFact, subjectOf} from "./adaptive-memory";
 import {detectPatterns, buildProactiveSuggestion, type UsageRecord} from "./proactive";
 import {reportCorruptedFile} from "./corrupted-file-tracker";
+import {writeJsonAtomic} from "./json-store";
 
 const BASE = path.join(os.homedir(), ".aegis");
 const FACTS_PATH  = path.join(BASE, "facts.json");
@@ -42,7 +43,7 @@ function loadFacts(): Fact[] {
 
 function saveFacts(facts: Fact[]): void {
     ensureDir();
-    fs.writeFileSync(FACTS_PATH, JSON.stringify(facts, null, 2), "utf-8");
+    writeJsonAtomic(FACTS_PATH, facts);
 }
 
 export function addFact(content: string, source: "manual" | "auto" = "manual", tags: string[] = []): string {
@@ -162,7 +163,7 @@ function loadHabits(): HabitEntry[] {
 
 function saveHabits(habits: HabitEntry[]): void {
     ensureDir();
-    fs.writeFileSync(HABITS_PATH, JSON.stringify(habits, null, 2), "utf-8");
+    writeJsonAtomic(HABITS_PATH, habits);
 }
 
 export function recordToolUsage(toolName: string): void {
@@ -191,7 +192,7 @@ function recordUsageTimestamped(tool: string): void {
     const now = new Date();
     log.push({tool, hour: now.getHours(), ts: now.getTime()});
     if (log.length > MAX_USAGE_LOG) log.splice(0, log.length - MAX_USAGE_LOG);
-    try { ensureDir(); fs.writeFileSync(USAGE_LOG_PATH, JSON.stringify(log), "utf-8"); }
+    try { writeJsonAtomic(USAGE_LOG_PATH, log, false); }
     catch (e) { console.error("[usage-log]", (e as Error).message); }
 }
 
@@ -238,7 +239,7 @@ export function shouldShowMorningSummary(): boolean {
 export function markMorningSummaryShown(): void {
     ensureDir();
     const today = new Date().toISOString().slice(0, 10);
-    fs.writeFileSync(MORNING_CHECK_PATH, JSON.stringify({date: today}), "utf-8");
+    writeJsonAtomic(MORNING_CHECK_PATH, {date: today});
 }
 
 export function buildMorningSummaryPrompt(): string {
