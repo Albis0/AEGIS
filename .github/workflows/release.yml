@@ -34,6 +34,11 @@ jobs:
           fi
           node scripts/check-version.mjs
 
+      # Audit D2 — a new transitive dep of the Kokoro/sharp tree that isn't in
+      # build.files ships a broken portable exe; fail the release build instead.
+      - name: Packaged-deps coverage
+        run: node scripts/check-packaged-deps.mjs
+
       - name: Verify Kokoro native binaries present
         shell: bash
         run: |

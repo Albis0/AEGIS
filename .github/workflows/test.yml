@@ -31,6 +31,9 @@ jobs:
       - name: Version consistency (docs vs package.json)
         run: node scripts/check-version.mjs
 
+      - name: Packaged-deps coverage (build.files vs real dependency tree)
+        run: node scripts/check-packaged-deps.mjs
+
       - name: TypeScript — electron (strict)
         run: bunx tsc --noEmit -p tsconfig.electron.json
 

@@ -71,6 +71,7 @@
       "node_modules/@huggingface/jinja/**/*",
       "node_modules/@huggingface/transformers/**/*",
       "node_modules/@img/colour/**/*",
+      "node_modules/@img/sharp-win32-x64/**/*",
       "node_modules/@protobufjs/aspromise/**/*",
       "node_modules/@protobufjs/base64/**/*",
       "node_modules/@protobufjs/codegen/**/*",
