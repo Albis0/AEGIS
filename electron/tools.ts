@@ -931,7 +931,7 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         for (let i = 0; i < r.steps.length; i++) {
             const {tool, args} = r.steps[i];
             const res = await executeTool(tool, JSON.stringify(args ?? {}));
-            log.push(`  ${i + 1}. ${tool} → ${String(res).slice(0, 100)}`);
+            log.push(`  ${i + 1}. ${tool} ${res.ok ? "→" : "✗"} ${res.content.slice(0, 100)}`);
         }
         return `Routine "${r.name}" executed (${r.steps.length} steps):\n${log.join("\n")}`;
     },
@@ -2445,25 +2445,50 @@ function describeAction(action: string, value?: string): string {
     }
 }
 
-export async function executeTool(name: string, argsJson: string): Promise<ToolResult> {
-    if (_disabledTools.has(name)) return `BLOCKED: tool "${name}" has been disabled in settings.`;
+// ── Structured tool results (audit C1) ────────────────────────────────────────
+// Executors still return plain strings (they're written for the model), but the
+// success/failure decision used to be re-derived by prefix regexes scattered
+// across call sites — flaky and easy to forget. executeTool now returns a
+// {ok, content} envelope; the ONE remaining prefix sniff for legacy string
+// executors lives here, nowhere else. classifyError (goal-executor.ts) stays
+// the error-KIND taxonomy on top of this.
+
+export interface ToolOutcome {
+    ok: boolean;
+    content: string;
+}
+
+/** Single, centralized legacy sniff: executors signal failure via these prefixes. */
+const ERROR_TEXT_RE = /^(ERROR|HATA|BLOCKED|ENGELLENDI)\b|^Tool error|This tool is not defined|Bu araç tanımlı değil/;
+
+export function outcomeFromText(text: string): ToolOutcome {
+    return {ok: !ERROR_TEXT_RE.test(text), content: text};
+}
+
+export async function executeTool(name: string, argsJson: string): Promise<ToolOutcome> {
+    if (_disabledTools.has(name)) return {ok: false, content: `BLOCKED: tool "${name}" has been disabled in settings.`};
     const fn = executors[name] ?? _pluginExecutors[name];
     if (!fn) {
         console.error(`[executeTool] Unknown tool: "${name}"`);
-        return `This tool is not defined: "${name}". The model may be generating an incorrect tool name — refresh the conversation.`;
+        return {ok: false, content: `This tool is not defined: "${name}". The model may be generating an incorrect tool name — refresh the conversation.`};
     }
     let args: Record<string, string> = {};
     try {
         args = argsJson ? JSON.parse(argsJson) : {};
     } catch {
         console.error(`[executeTool] JSON parse error — tool: ${name}, args: ${argsJson}`);
-        return `Tool arguments contain invalid format. Try again.`;
+        return {ok: false, content: `Tool arguments contain invalid format. Try again.`};
     }
     try {
-        return await fn(args);
+        return outcomeFromText(String(await fn(args)));
     } catch (e) {
         const msg = (e as Error).message ?? String(e);
         console.error(`[executeTool] error while running "${name}":`, msg);
-        return `An error occurred while running tool "${name}": ${msg}`;
+        return {ok: false, content: `An error occurred while running tool "${name}": ${msg}`};
     }
+}
+
+/** Legacy string form for call sites that only forward text (widgets, routines). */
+export async function executeToolText(name: string, argsJson: string): Promise<string> {
+    return (await executeTool(name, argsJson)).content;
 }

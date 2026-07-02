@@ -41,7 +41,7 @@ function makeDeps(
         getToolSchemas: () => [],
         executeTool: async (name, argsJson) => {
             rec.executed.push({name, argsJson});
-            return `ok: ${name}`;
+            return {ok: true, content: `ok: ${name}`};
         },
         askApproval: async (tool, _argsJson, taintGated) => {
             rec.approvals.push({tool, taintGated});

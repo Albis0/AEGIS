@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest";
-import {WIDGET_SAFE_TOOLS, isWidgetSafeTool, executeTool} from "../../electron/tools";
+import {WIDGET_SAFE_TOOLS, isWidgetSafeTool, executeTool, outcomeFromText} from "../../electron/tools";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -60,9 +60,21 @@ describe("widget allowlist — stays in sync with src/", () => {
 });
 
 describe("executeTool still enforces its own guards behind the allowlist", () => {
-    it("unknown tool name returns a not-defined message (never throws)", async () => {
+    it("unknown tool name returns ok:false with a not-defined message (never throws)", async () => {
         const res = await executeTool("definitely_not_a_tool", "{}");
-        expect(typeof res).toBe("string");
-        expect(res).toMatch(/not defined/i);
+        expect(res.ok).toBe(false);
+        expect(res.content).toMatch(/not defined/i);
+    });
+});
+
+describe("outcomeFromText — the single legacy prefix sniff (audit C1)", () => {
+    it("flags error-prefixed executor strings, passes normal text", () => {
+        expect(outcomeFromText("ERROR: boom").ok).toBe(false);
+        expect(outcomeFromText("HATA: patladı").ok).toBe(false);
+        expect(outcomeFromText("BLOCKED: nope").ok).toBe(false);
+        expect(outcomeFromText("Tool error: x").ok).toBe(false);
+        expect(outcomeFromText("File written successfully.").ok).toBe(true);
+        // prefix only — an ERROR mentioned mid-text is not a failure signal
+        expect(outcomeFromText("The log contains ERROR lines.").ok).toBe(true);
     });
 });

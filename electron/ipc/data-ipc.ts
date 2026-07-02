@@ -6,7 +6,7 @@
 import {ipcMain} from "electron";
 import type {AppSettings} from "../settings";
 import {loadConfig, saveConfig, applyConfig, maskedConfig, sanitizeConfigPatch, type AegisConfig} from "../config";
-import {executeTool, isWidgetSafeTool} from "../tools";
+import {executeToolText, isWidgetSafeTool} from "../tools";
 import {getSessions, getSessionMessages} from "../db";
 import {fetchModels} from "../models";
 import {getModelCapabilities} from "../model-capabilities";
@@ -37,7 +37,7 @@ export function registerDataIpc(deps: DataIpcDeps): void {
             return `BLOCKED: tool "${name}" is not allowed from UI widgets.`;
         }
         try {
-            return await executeTool(name, JSON.stringify(args ?? {}));
+            return await executeToolText(name, JSON.stringify(args ?? {}));
         } catch (e) {
             return `ERROR: ${(e as Error).message ?? String(e)}`;
         }

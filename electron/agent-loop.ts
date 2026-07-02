@@ -10,6 +10,7 @@
  */
 
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
+import type {ToolOutcome} from "./tools";
 import {extractTextContent, type MsgPart, type OAIMessage, type OAICompletion} from "./ai-client";
 import {resolveReference, explainResolution, CONFIDENCE_THRESHOLD} from "./reference-resolver";
 import {LoopGuard} from "./loop-guard";
@@ -31,7 +32,7 @@ export interface AgentDeps {
     callModel: (messages: OAIMessage[], onDelta: (text: string) => void, tools: ChatCompletionTool[]) => Promise<OAICompletion>;
     /** Tool schemas for this conversation context (provider limits applied). */
     getToolSchemas: (context: string) => ChatCompletionTool[];
-    executeTool: (name: string, argsJson: string) => Promise<string>;
+    executeTool: (name: string, argsJson: string) => Promise<ToolOutcome>;
     /** Destructive-action dialog. taintGated=true must never auto-allow. */
     askApproval: (tool: string, argsJson: string, taintGated: boolean) => Promise<"allow" | "always" | "deny">;
     saveMessage: (role: "user" | "assistant" | "tool", content: string, toolName?: string) => Promise<void>;
@@ -77,15 +78,16 @@ export async function runAgentLoop(history: {role: string; content: string | Msg
             const argsJson = JSON.stringify(resolved.args);
             send("tool-event", {phase: "start", name: resolved.tool, args: argsJson});
             recordToolUsage(resolved.tool);
-            let result: string;
+            let outcome: ToolOutcome;
             try {
-                result = String(await deps.executeTool(resolved.tool, argsJson));
+                outcome = await deps.executeTool(resolved.tool, argsJson);
                 recordTaintFromTool(resolved.tool, resolved.args); // A3
             } catch (e) {
-                result = `Tool error: ${(e as Error).message ?? String(e)}`;
+                outcome = {ok: false, content: `Tool error: ${(e as Error).message ?? String(e)}`};
             }
-            const ok = !/^ERROR|^HATA|^BLOCKED|^ENGELLENDI|Unknown tool|Bu araç tanımlı/.test(result);
-            stmRecord(resolved.tool, argsJson, result, ok, "resolver");
+            const result = outcome.content;
+            // C1 — success comes from the outcome envelope, not a local prefix regex.
+            stmRecord(resolved.tool, argsJson, result, outcome.ok, "resolver");
             send("tool-event", {phase: "done", name: resolved.tool, result: result.slice(0, 400)});
             await deps.saveMessage("tool", result.slice(0, 1000), resolved.tool).catch((e) => console.error("[saveMessage]", e.message));
 
@@ -162,17 +164,18 @@ export async function runAgentLoop(history: {role: string; content: string | Msg
                 }
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
-                const result = await deps.executeTool(name, argsJson);
+                const outcome = await deps.executeTool(name, argsJson);
                 recordTaintFromTool(name, pArgs); // A3 — external content entered the context
-                // Phase 56 — classify the result into the error taxonomy: record success/
-                // failure correctly, and on error add a brief steer to the model to prevent blind retries.
-                const ev = classifyError(String(result));
-                stmRecord(name, argsJson, String(result), !ev.isError, "llm");
+                // Phase 56 — classify the result into the error taxonomy for the model steer;
+                // C1 — the success/failure DECISION comes from the outcome envelope (the
+                // taxonomy can still flag semantic errors inside an ok-shaped text).
+                const ev = classifyError(outcome.content);
+                stmRecord(name, argsJson, outcome.content, outcome.ok && !ev.isError, "llm");
                 // Phase 52 — if routine recording is active, capture this action (for deterministic replay)
                 try { routineCaptureStep(name, JSON.parse(argsJson || "{}")); } catch { /* parse failed → skip */ }
-                send("tool-event", {phase: "done", name, result: String(result).slice(0, 400)});
-                await deps.saveMessage("tool", String(result).slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
-                const forModel = String(result);
+                send("tool-event", {phase: "done", name, result: outcome.content.slice(0, 400)});
+                await deps.saveMessage("tool", outcome.content.slice(0, 1000), name).catch((e) => console.error("[saveMessage]", e.message));
+                const forModel = outcome.content;
                 let clipped = forModel.length > 6000
                     ? forModel.slice(0, 6000) + `\n\n[...truncated, ${forModel.length} characters total]`
                     : forModel;
