@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Version consistency (docs vs package.json)
+        run: node scripts/check-version.mjs
+
       - name: TypeScript — electron (strict)
         run: bunx tsc --noEmit -p tsconfig.electron.json
 

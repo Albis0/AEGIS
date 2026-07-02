@@ -2,7 +2,8 @@
 
 > Kişisel AI asistan. Dinler, düşünür, yapar.
 
-**Özet (v1.9.0):** 332 tool · 8 AI provider · 16 skin · 5 dil · 511 test (35 dosya) ·
+**Özet:** 332 tool · 8 AI provider · 16 skin · 5 dil · 539 test (39 dosya) ·
+_(güncel sürüm numarası tek kaynaktan gelir: `package.json` — CI `scripts/check-version.mjs` ile doğrular)_
 **Faz 1–63 TAMAMLANDI** — Güvenilirlik Sürümü (53–61) + Domain UI bileşenleri (63) dahil.
 
 ---
@@ -1140,7 +1141,7 @@ _"10 saat açık bırakınca çöküyor mu?" sorusunun cevabı burada._
 - ✅ Benchmark sadece `main` push'unda çalışır, sonuçlar artifact olarak upload edilir
 - ✅ Test başarısız → CI job fail → merge engellenir
 
-> **Güncel test durumu (v1.7.1):** 213 test / 15 dosya geçiyor. Faz 45'ten bu yana
+> **Test durumu (tarihsel not, sürüm 1.7.1):** 213 test / 15 dosya geçiyor. Faz 45'ten bu yana
 > eklenenler: routines, model-capabilities, memory-plus, macros, automations,
 > reference-resolver, smart-home, updater-logic, update-state birim testleri +
 > konuşma harness'i (`tests/harness/`, 60 senaryo).
