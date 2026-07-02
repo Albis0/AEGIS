@@ -5,12 +5,11 @@ import * as os from "os";
 import {exec} from "child_process";
 // @ts-ignore
 import Groq from "groq-sdk";
-import {executeTool, isWidgetSafeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
+import {executeTool, registerQuitCallback, registerSetLanguageCallback, registerScreenshotCallback, registerAnalyzeScreenCallback, registerRemindCallback, registerNotificationCallback, registerPluginExecutors, extraSchemas, getAllToolSchemas, setPluginList, registerReloadPluginsCallback, checkWatchConditions, _watchConditions, registerAgentCallback, registerMacroRunCallback, setFullPcAccess, setDisabledTools} from "./tools";
 import {registerLLMCallback} from "./model-router";
-import {getAccessToken, signUp, signIn, signOut, getCurrentUser, getUsage} from "./auth";
+import {getAccessToken} from "./auth";
 import {AEGIS_GITHUB_TOKEN} from "./aegis-config";
-import {fetchModels} from "./models";
-import {getModelCapabilities} from "./model-capabilities";
+
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
@@ -18,19 +17,17 @@ import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorni
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
-import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, getApiInfo, broadcastFeedEvent, setApiServerWindow} from "./api-server";
+import {startApiServer, stopApiServer, registerAskHandler, registerTtsHandler, broadcastFeedEvent, setApiServerWindow} from "./api-server";
 import {loadPlugins} from "./plugins";
-import {getSessions, getSessionMessages} from "./db";
+
 import {startSession, saveMessage, getUserProfile, saveSessionSummary, getRecentSummaries, getPendingNotes} from "./db";
 import {loadSettings, saveSettings, type AppSettings} from "./settings";
-import {loadConfig, saveConfig, applyConfig, maskedConfig, sanitizeConfigPatch, type AegisConfig} from "./config";
+import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {initSecretStorage} from "./secret-storage";
 import {getCorruptedFiles} from "./corrupted-file-tracker";
-import {spotifyAuthorizeCmd, spotifyGetState, spotifyPlay, spotifyPause, spotifyNext, spotifyPrev, spotifySetVolume} from "./spotify";
 import {autoUpdater} from "electron-updater";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
-import {performCheck, performDownload} from "./updater-logic";
-import {generateTts, warmupKokoro, isKokoroInstalled, loadKokoro, setKokoroModelDir, deleteKokoroModel} from "./tts";
+import {generateTts, warmupKokoro, setKokoroModelDir} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
 import {stmClear, stmBuildPromptBlock} from "./short-term-memory";
 
@@ -40,6 +37,10 @@ import {taintSource, clearTaint} from "./taint";
 import {buildPlanPrompt} from "./goal-executor";
 
 import {runAgentLoop} from "./agent-loop";
+import {registerMediaIpc} from "./ipc/media-ipc";
+import {registerAuthIpc} from "./ipc/auth-ipc";
+import {registerWindowIpc} from "./ipc/window-ipc";
+import {registerDataIpc} from "./ipc/data-ipc";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
 
 // .env (dev environment) — load if present; dotenv isn't bundled in production
@@ -1191,199 +1192,28 @@ async function bootApp(): Promise<void> {
         }
     });
 
-    ipcMain.handle("weather", () => getWeather());
-
-    // Phase 63 — Generic tool call (for UI widgets/modals). Domain widgets pull
-    // live data from here. Security (audit A1): this channel bypasses the agent
-    // loop's approval gate, so it is restricted to an explicit allowlist — a
-    // compromised renderer must not reach run_command/delete_file through here.
-    ipcMain.handle("run-tool", async (_e, {name, args}: {name: string; args?: Record<string, unknown>}) => {
-        if (!isWidgetSafeTool(name)) {
-            console.warn(`[run-tool] blocked non-allowlisted tool from renderer: "${name}"`);
-            return `BLOCKED: tool "${name}" is not allowed from UI widgets.`;
-        }
-        try {
-            return await executeTool(name, JSON.stringify(args ?? {}));
-        } catch (e) {
-            return `ERROR: ${(e as Error).message ?? String(e)}`;
-        }
-    });
-
-    ipcMain.handle("spotify-now-playing", () => spotifyGetState());
-    ipcMain.handle("spotify-control", (_e, {action, value}: {action: string; value?: number}) => {
-        if (action === "play")   return spotifyPlay();
-        if (action === "pause")  return spotifyPause();
-        if (action === "next")   return spotifyNext();
-        if (action === "prev")   return spotifyPrev();
-        if (action === "volume") return spotifySetVolume(Number(value ?? 50));
-        return "Unknown action";
-    });
-
-    ipcMain.handle("transcribe", async (_e, audioBuffer: ArrayBuffer) => {
-        try {
-            const buffer = Buffer.from(audioBuffer);
-            const tmpPath = path.join(os.tmpdir(), `jarvis-audio-${Date.now()}.webm`);
-            const fs = await import("fs");
-            fs.writeFileSync(tmpPath, buffer);
-            const whisperLang = currentSettings.language ?? "tr";
-            const whisperPrompts: Record<string, string> = {
-                tr: "Türkçe konuşma. Steam, Discord, YouTube, PowerShell gibi teknik kelimeler içerebilir.",
-                en: "English speech. May contain technical terms like Steam, Discord, YouTube, PowerShell.",
-                de: "Deutsche Sprache. Kann technische Begriffe wie Steam, Discord, YouTube, PowerShell enthalten.",
-                fr: "Discours français. Peut contenir des termes techniques comme Steam, Discord, YouTube, PowerShell.",
-                es: "Habla en español. Puede contener términos técnicos como Steam, Discord, YouTube, PowerShell.",
-            };
-            const result = await groq.audio.transcriptions.create({
-                file: Object.assign(fs.createReadStream(tmpPath), {name: "audio.webm"}),
-                model: "whisper-large-v3-turbo",
-                language: whisperLang,
-                prompt: whisperPrompts[whisperLang] ?? whisperPrompts.tr,
-                response_format: "json",
-            });
-            fs.unlinkSync(tmpPath);
-            return {text: result.text};
-        } catch (e) {
-            return {error: (e as Error).message ?? String(e)};
-        }
-    });
-
-    ipcMain.handle("tts", async (_e, text: string) => {
-        try {
-            const cfg = loadConfig();
-            const buffer = await generateTts(text, {
-                provider: currentSettings.ttsProvider,
-                voice: currentSettings.ttsVoice,
-                rate: currentSettings.ttsRate ?? 1.0,
-                elevenlabsKey: cfg?.elevenlabsApiKey ?? process.env.ELEVENLABS_API_KEY ?? "",
-            });
-            return {buffer};
-        } catch (e) {
-            return {error: (e as Error).message ?? String(e)};
-        }
-    });
-
     // Kokoro model weights land in the WRITABLE userData folder (asar/node_modules
     // are read-only). The kokoro-js library is bundled into the build; at runtime ONLY
     // the ~900MB ONNX weights are downloaded. NO cmd.exe/bun spawn.
     setKokoroModelDir(path.join(app.getPath("userData"), "kokoro-models"));
 
-    ipcMain.handle("tts-kokoro-installed", () => isKokoroInstalled());
-
-    let _kokoroInstalling = false;
-    ipcMain.handle("kokoro-install", async () => {
-        if (_kokoroInstalling) return;
-        _kokoroInstalling = true;
-        sendToRenderer("kokoro-install-progress", {phase: "model", percent: 0, label: "Downloading model…"});
-        try {
-            // Single stage: download the ONNX model weights via from_pretrained (into a writable cacheDir).
-            await loadKokoro((info) => {
-                if (info.status === "progress") {
-                    sendToRenderer("kokoro-install-progress", {
-                        phase: "model",
-                        file: info.file ?? "",
-                        percent: Math.round(info.progress ?? 0),
-                        loaded: info.loaded ?? 0,
-                        total: info.total ?? 0,
-                        label: info.file ?? "",
-                    });
-                } else if (info.status === "done") {
-                    sendToRenderer("kokoro-install-progress", {phase: "model", file: info.file ?? "", percent: 100, label: info.file ?? ""});
-                }
-            });
-            // Did it actually download? Verify on disk — don't send a fake "ready".
-            if (!isKokoroInstalled()) throw new Error("Model files could not be downloaded (disk verification failed).");
-            sendToRenderer("kokoro-install-progress", {phase: "ready"});
-        } catch (e) {
-            const msg = (e as Error)?.message === "KOKORO_NOT_INSTALLED"
-                ? "The kokoro-js library is not included in this version. Please update the app."
-                : String((e as Error)?.message ?? e);
-            sendToRenderer("kokoro-install-progress", {phase: "error", label: msg});
-        } finally {
-            _kokoroInstalling = false;
-        }
+    // IPC handlers live in electron/ipc/* (audit B3) — main.ts only binds state.
+    registerMediaIpc({
+        getSettings: () => currentSettings,
+        getGroq: () => groq,
+        sendToRenderer,
     });
-
-    // Delete the model — actual deletion + disk verification; NO fake UI change.
-    ipcMain.handle("kokoro-uninstall", async () => {
-        const {deleted, freedBytes} = deleteKokoroModel();
-        const stillInstalled = isKokoroInstalled();
-        return {deleted, freedMB: Math.round(freedBytes / 1048576), installed: stillInstalled};
-    });
-
-    ipcMain.handle("auth-sign-out", () => signOut());
-    ipcMain.handle("auth-current-user", () => getCurrentUser());
-    ipcMain.handle("usage-get", () => getUsage());
-
-    // Live model list — from the provider's official endpoint (fixes the made-up-ID problem).
-    ipcMain.handle("models-list", async (_e, {provider, key}: {provider: string; key?: string}) => {
-        const useKey = (key ?? "").trim() || getProviderKey(provider, currentSettings);
-        return fetchModels(provider, useKey, currentSettings.ollamaUrl);
-    });
-
-    // Capabilities of the selected model (tool/vision/reasoning/limit) — shown as
-    // badges in the Model tab. The user sees clearly what the model can and can't do.
-    ipcMain.handle("caps-get", (_e, {provider, model}: {provider: string; model: string}) => {
-        return getModelCapabilities(provider, model, currentSettings.ollamaNumCtx ?? 4096);
-    });
-
-    // Security (audit A2): the renderer only ever receives MASKED key values —
-    // it renders LLM output + user CSS, so raw keys over IPC = one XSS away from
-    // full credential exfiltration. Full config (all fields, not just the 5 env
-    // ones) is loaded so optional keys display their set-state too.
-    ipcMain.handle("config-get", () => {
-        const full: AegisConfig = {
-            groqApiKey: process.env.GROQ_API_KEY ?? "",
-            supabaseUrl: process.env.SUPABASE_URL ?? "",
-            supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
-            tavilyApiKey: process.env.TAVILY_API_KEY ?? "",
-            serperApiKey: process.env.SERPER_API_KEY ?? "",
-            ...(loadConfig() ?? {}),
-        };
-        return maskedConfig(full);
-    });
-    ipcMain.handle("config-set", (_e, rawPatch: Partial<AegisConfig>) => {
-        // Drop masked values echoed back by the UI — only genuinely new input lands.
-        const patch = sanitizeConfigPatch(rawPatch);
-        const existing = loadConfig() ?? {
-            groqApiKey: process.env.GROQ_API_KEY ?? "",
-            supabaseUrl: process.env.SUPABASE_URL ?? "",
-            supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
-        };
-        const updated: AegisConfig = {...existing, ...patch};
-        saveConfig(updated);
-        applyConfig(updated);
-        groq = new Groq({apiKey: updated.groqApiKey});
-    });
-
-
-    ipcMain.handle("sessions-list", async () => getSessions(25).catch(() => []));
-    ipcMain.handle("session-messages", async (_e, {sessionId}: {sessionId: string}) =>
-        getSessionMessages(sessionId).catch(() => []),
-    );
-    ipcMain.handle("new-chat", async () => {
-        await summarizeAndSave().catch(() => {});
-        sessionHistory = [];
-        stmClear();
-        clearTaint(); // A3 — external content left the context with the session
-        await startSession().catch(() => {});
-    });
-
-    ipcMain.on("win-minimize", () => mainWindow?.minimize());
-    ipcMain.on("win-close", () => {
-        if (currentSettings.minimizeToTray && tray) {
-            mainWindow?.hide();
-        } else {
-            mainWindow?.close();
-        }
-    });
-    ipcMain.on("win-fullscreen", () => {
-        if (!mainWindow) return;
-        mainWindow.setFullScreen(!mainWindow.isFullScreen());
-    });
-    ipcMain.on("win-maximize", () => {
-        if (!mainWindow) return;
-        if (mainWindow.isMaximized()) mainWindow.unmaximize();
-        else mainWindow.maximize();
+    registerDataIpc({
+        getSettings: () => currentSettings,
+        getWeather,
+        onConfigApplied: (updated) => { groq = new Groq({apiKey: updated.groqApiKey}); },
+        resetSession: async () => {
+            await summarizeAndSave().catch(() => {});
+            sessionHistory = [];
+            stmClear();
+            clearTaint(); // A3 — external content left the context with the session
+            await startSession().catch(() => {});
+        },
     });
 
     // Mobil API — ask handler: single-turn LLM call (no streaming)
@@ -1408,12 +1238,6 @@ async function bootApp(): Promise<void> {
     });
 
     if (currentSettings.apiServerEnabled) startApiServer();
-
-    ipcMain.handle("api-info", () => getApiInfo());
-    ipcMain.handle("api-server-toggle", (_e, enable: boolean) => {
-        if (enable) return startApiServer();
-        stopApiServer(); return "API server stopped.";
-    });
 
     createWindow();
     setApiServerWindow(mainWindow);
@@ -1498,17 +1322,12 @@ async function bootApp(): Promise<void> {
         setInterval(() => autoUpdater.checkForUpdates().catch((e) => console.error("[updater]", e.message)), 4 * 60 * 60 * 1000);
     }
 
-    ipcMain.handle("update-install", () => autoUpdater.quitAndInstall());
-    // Download ONLY starts from here — when the user clicks DOWNLOAD. If there's an
-    // error it's forwarded to the renderer so "downloading…" doesn't hang forever.
-    // Download ONLY starts from here. BEFORE downloading, the updater's own check runs —
-    // otherwise downloadUpdate() would throw "Please check update first" (since the manual
-    // button did a raw GitHub fetch without feeding the updater's state). Logic: electron/updater-logic.ts.
-    ipcMain.handle("update-download", () =>
-        performDownload(autoUpdater, app.getVersion(), (msg) => sendToRenderer("update-error", {message: msg})));
-    ipcMain.handle("check-for-updates", async () => {
-        if (process.env.NODE_ENV === "development") return {dev: true, current: app.getVersion()};
-        return performCheck(autoUpdater, app.getVersion());
+    registerWindowIpc({
+        getMainWindow: () => mainWindow,
+        getTray: () => tray,
+        getSettings: () => currentSettings,
+        autoUpdater,
+        sendToRenderer,
     });
 }
 
@@ -1593,10 +1412,8 @@ ipcMain.handle("get-app-version", () => app.getVersion());
 
 // ── Auth & Spotify IPC — also needed during onboarding ──────────────────────
 // the trial-auth step calls sign-in/sign-up, the spotify-connect step calls spotify-authorize;
-// bootApp hasn't run yet at that point.
-ipcMain.handle("auth-sign-up", (_e, {email, password}: {email: string; password: string}) => signUp(email, password));
-ipcMain.handle("auth-sign-in", (_e, {email, password}: {email: string; password: string}) => signIn(email, password));
-ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
+// bootApp hasn't run yet at that point. Registered at module scope for that reason.
+registerAuthIpc();
 
 // ── Settings IPC — must also be accessible before onboarding ────────────────
 // These handlers live here, not inside bootApp(); the onboarding flow picks a
