@@ -237,8 +237,8 @@ export async function callProxy(
             }),
         }, 45_000);
     } catch (e) {
-        if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.");
-        throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.");
+        if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.", {cause: e});
+        throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.", {cause: e});
     }
 
     if (resp.status === 429) {
@@ -400,7 +400,7 @@ export async function callAI(
                     await new Promise((r) => setTimeout(r, 3000));
                     continue;
                 }
-                throw new Error(friendlyGroqError(e));
+                throw new Error(friendlyGroqError(e), {cause: e});
             }
         }
         return {choices: [{message: {content: null, tool_calls: undefined}}]};

@@ -147,7 +147,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                             <span>v{latestVersion} mevcut{status === "downloading" ? " — indiriliyor…" : ""}</span>
                             {status === "available" && (
                                 <button
-                                    onClick={() => { setStatus("downloading"); window.jarvis.updateDownload(); }}
+                                    onClick={() => { setStatus("downloading"); void window.jarvis.updateDownload(); }}
                                     className="flex items-center gap-1.5 px-3 py-1 rounded-lg transition hover:brightness-125"
                                     style={{background: `rgba(${a},0.15)`, border: `1px solid rgba(${a},0.35)`, color: ac}}>
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

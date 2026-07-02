@@ -39,7 +39,7 @@ export default function SettingsPanel({
 
     useEffect(() => {
         if (open) {
-            Promise.all([window.jarvis.settingsGet(), window.jarvis.configGet()])
+            void Promise.all([window.jarvis.settingsGet(), window.jarvis.configGet()])
                 .then(([s, c]) => { setSettings(s); setConfig(c); });
             setSaved(false);
         }

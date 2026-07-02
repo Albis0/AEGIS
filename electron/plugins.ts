@@ -58,7 +58,7 @@ export function loadPlugins(): {
             // Clear require cache so reload works correctly
             const resolvedIndex = require.resolve(indexPath);
             if (require.cache[resolvedIndex]) delete require.cache[resolvedIndex];
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
+             
             const pluginModule = require(indexPath) as Record<string, unknown>;
 
             const toolNames: string[] = [];

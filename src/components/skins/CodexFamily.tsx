@@ -5,7 +5,7 @@
 // high contrast — a code editor / technical document feel. Deliberately
 // entirely different from the HUD (neon) and Nebula (soft bubble) families.
 
-import React, {useState} from "react";
+import React from "react";
 import {useClock} from "../../hooks/useClock";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
@@ -98,7 +98,7 @@ function CdxInput({input, setInput, attachments, setAttachments, state, streamin
                     <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                         onChange={(e) => {
                             const files = Array.from(e.target.files ?? []);
-                            Promise.all(files.map((f) => new Promise<{name: string; url: string; mime: string; data: string}>((res) => {
+                            void Promise.all(files.map((f) => new Promise<{name: string; url: string; mime: string; data: string}>((res) => {
                                 const reader = new FileReader();
                                 reader.onload = () => { const r = reader.result as string; res({name: f.name, url: r, mime: f.type || "application/octet-stream", data: r.split(",")[1] ?? ""}); };
                                 reader.readAsDataURL(f);

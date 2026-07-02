@@ -1386,7 +1386,7 @@ try {
         });
         if (extension) files = files.filter((f) => f.endsWith(extension));
         let renamed = 0;
-        let repl = replacement ?? "";
+        const repl = replacement ?? "";
         files.forEach((file, i) => {
             const actualRepl = repl.replace(/\{n\}/g, String(i + 1));
             const newName = file.replace(regex, actualRepl);

@@ -120,7 +120,7 @@ export async function pluginInstall(repoOrUrl: string): Promise<string> {
         const child = exec(
             "powershell -NoProfile -NonInteractive -Command -",
             {timeout: 15000, windowsHide: true},
-            (err) => { err ? reject(err) : resolve(); }
+            (err) => { if (err) reject(err); else resolve(); }
         );
         child.stdin?.end(`Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${tmpDir.replace(/'/g, "''")}' -Force`);
     });

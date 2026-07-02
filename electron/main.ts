@@ -12,8 +12,8 @@ import {AEGIS_GITHUB_TOKEN} from "./aegis-config";
 
 import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
-import {captureStep as routineCaptureStep, recordingName as routineRecordingName} from "./routines";
-import {getFactsForContext, recordToolUsage, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage, getProactiveSuggestion} from "./memory-plus";
+import {recordingName as routineRecordingName} from "./routines";
+import {getFactsForContext, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage, getProactiveSuggestion} from "./memory-plus";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
@@ -205,7 +205,7 @@ function createWindow(): void {
     });
 
     mainWindow.webContents.setWindowOpenHandler(({url}) => {
-        shell.openExternal(url);
+        void shell.openExternal(url);
         return {action: "deny"};
     });
 
@@ -221,10 +221,10 @@ function createWindow(): void {
 
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
-        mainWindow.loadURL("http://127.0.0.1:5173");
+        void mainWindow.loadURL("http://127.0.0.1:5173");
         // mainWindow.webContents.openDevTools({mode: "detach", activate: false});
     } else {
-        mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+        void mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
     }
 }
 
@@ -1223,11 +1223,11 @@ function createOnboardingWindow(): void {
 
     const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
-        onboardingWin.loadURL("http://127.0.0.1:5173?setup=1");
+        void onboardingWin.loadURL("http://127.0.0.1:5173?setup=1");
     } else {
         // loadFile's query string doesn't reliably reach location.search on some Electron
         // versions; use a hash instead — the renderer checks both ?setup and #setup.
-        onboardingWin.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
+        void onboardingWin.loadFile(path.join(__dirname, "../dist/index.html"), {hash: "setup"});
     }
 
     ipcMain.on("win-close", () => onboardingWin?.close());
@@ -1381,7 +1381,7 @@ app.on("render-process-gone", (_e, wc, details) => {
     }
 });
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
     // Developer convenience: AEGIS_FORCE_ONBOARDING=1 forces the onboarding flow
     // open unconditionally (even with a config/trial token). For design/UX testing only.
     if (process.env.AEGIS_FORCE_ONBOARDING === "1") {
@@ -1412,7 +1412,7 @@ app.on("before-quit", (e) => {
     if (isQuitting || sessionHistory.length < 2) return;
     e.preventDefault();
     isQuitting = true;
-    summarizeAndSave().finally(() => {
+    void summarizeAndSave().finally(() => {
         sessionHistory = [];
         app.quit();
     });

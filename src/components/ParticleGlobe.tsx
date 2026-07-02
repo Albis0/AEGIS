@@ -69,7 +69,7 @@ export default function ParticleGlobe({state, capturing}: {state: CoreState; cap
         };
 
         let rotY = 0;
-        let rotX = 0.32;
+        const rotX = 0.32;
         let raf = 0;
         let last = performance.now();
         let pulse = 0;

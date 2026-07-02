@@ -48,7 +48,7 @@ const TOOLS: ToolInfo[] = [
 
 const CATEGORIES = [...new Set(TOOLS.map((t) => t.category))];
 
-export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
+export default function ToolsTab({accent, ac, settings, onApply}: Props) {
     const [pendingEnable, setPendingEnable] = useState(false);
     const fullPcAccess = settings.fullPcAccess ?? false;
     const disabled = new Set(settings.disabledTools ?? []);

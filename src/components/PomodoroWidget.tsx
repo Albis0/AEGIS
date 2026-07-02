@@ -45,7 +45,7 @@ export default function PomodoroWidget() {
     // Server sync (15s) + mount
     useEffect(() => {
         mounted.current = true;
-        sync();
+        void sync();
         const id = setInterval(sync, 15000);
         return () => { mounted.current = false; clearInterval(id); };
     }, [sync]);

@@ -24,7 +24,7 @@ export default function AccountTab({accent, ac, settings, onApply, s}: Props) {
     const isTrial = settings.aiMode === "trial";
 
     useEffect(() => {
-        Promise.all([window.jarvis.authCurrentUser(), window.jarvis.usageGet()])
+        void Promise.all([window.jarvis.authCurrentUser(), window.jarvis.usageGet()])
             .then(([u, us]) => { setUser(u); setUsage(us); })
             .finally(() => setLoading(false));
     }, []);
@@ -200,7 +200,7 @@ function InlineAuth({accent, ac, s, onAuthed}: AuthProps) {
                     <input
                         type="password" value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
                         placeholder={s.accFormPasswordHint}
                         className="w-full bg-transparent rounded-lg px-3 py-2 text-[12px] outline-none border transition"
                         style={inputStyle}

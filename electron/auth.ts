@@ -11,7 +11,7 @@ import * as path from "path";
 import * as os from "os";
 import {createClient, type SupabaseClient, type Session} from "@supabase/supabase-js";
 import {AEGIS_SUPABASE_URL, AEGIS_SUPABASE_ANON_KEY} from "./aegis-config";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const WebSocket = require("ws");
 // Electron runs on Node 20 which has no native WebSocket — supabase-js Realtime needs it
 (globalThis as any).WebSocket = WebSocket;

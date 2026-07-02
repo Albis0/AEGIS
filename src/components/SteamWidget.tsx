@@ -34,7 +34,7 @@ export default function SteamWidget() {
 
     useEffect(() => {
         mounted.current = true;
-        refresh();
+        void refresh();
         const id = setInterval(refresh, 8000); // game status changes slowly
         return () => { mounted.current = false; clearInterval(id); };
     }, [refresh]);

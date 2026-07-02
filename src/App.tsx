@@ -71,7 +71,7 @@ export default function App() {
     ]);
 
     useEffect(() => {
-        window.jarvis.settingsGet().then((s) => {
+        void window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
             applyFamilyBg(s.uiFamily ?? "cyber");
             applyAccent(s.accentColor);
@@ -110,7 +110,7 @@ export default function App() {
         const sentence = ttsQueueRef.current.shift()!;
         ttsPlayingRef.current = true;
         setState("speaking");
-        speakRef.current(sentence, () => {
+        void speakRef.current(sentence, () => {
             ttsPlayingRef.current = false;
             drainTtsQueue();
         });
@@ -155,7 +155,7 @@ export default function App() {
             const imageItems = items.filter((it) => it.kind === "file" && it.type.startsWith("image/"));
             if (imageItems.length === 0) return;
             e.preventDefault();
-            Promise.all(imageItems.map((it) => new Promise<Attachment>((res) => {
+            void Promise.all(imageItems.map((it) => new Promise<Attachment>((res) => {
                 const file = it.getAsFile();
                 if (!file) return;
                 const reader = new FileReader();
@@ -255,7 +255,7 @@ export default function App() {
 
     useEffect(() => {
         const load = () => window.jarvis.weather().then(setWeather).catch(() => {});
-        load();
+        void load();
         const t = setInterval(load, 600000);
         const unsub = window.jarvis.on("weather-update", (w) => setWeather(w as Weather));
         return () => { clearInterval(t); unsub(); };
@@ -359,7 +359,7 @@ export default function App() {
                 setFeed((prev) => [...prev, {id, kind: "assistant", text: reminderText, tools: []}]);
                 historyRef.current = [...historyRef.current, {role: "assistant", content: reminderText}];
                 if (modeRef.current !== "off") {
-                    speakRef.current(reminderText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
+                    void speakRef.current(reminderText, () => setState(modeRef.current !== "off" ? "listening" : "idle"));
                     setState("speaking");
                 }
             }),
@@ -392,7 +392,6 @@ export default function App() {
             }),
         ];
         return () => offs.forEach((off) => off());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const t = UI[lang] ?? UI.tr;
@@ -444,7 +443,7 @@ export default function App() {
 
     const handleSettingsClose = () => {
         setSettingsOpen(false);
-        window.jarvis.settingsGet().then((s) => {
+        void window.jarvis.settingsGet().then((s) => {
             setTtsRate(s.ttsRate);
             applyFamilyBg(s.uiFamily ?? "cyber");
             setSkin(s.skin ?? "hologram");
@@ -523,7 +522,7 @@ export default function App() {
                             {updateInfo.error ? (
                                 <span>İndirme başarısız: {updateInfo.error.slice(0, 80)} —{" "}
                                     <button className="underline hover:brightness-125"
-                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "retry"})); window.jarvis.updateDownload(); }}
+                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "retry"})); void window.jarvis.updateDownload(); }}
                                     >tekrar dene</button>
                                 </span>
                             ) : updateInfo.ready ? (
@@ -535,7 +534,7 @@ export default function App() {
                             ) : (
                                 <span>Yeni sürüm var: v{updateInfo.version} —{" "}
                                     <button className="underline hover:brightness-125"
-                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "start-download"})); window.jarvis.updateDownload(); }}
+                                        onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "start-download"})); void window.jarvis.updateDownload(); }}
                                     >indir</button>
                                 </span>
                             )}

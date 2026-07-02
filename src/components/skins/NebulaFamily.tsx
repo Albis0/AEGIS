@@ -5,7 +5,7 @@
 // SkinProps. All 4 skins share the common NebFeed + NebInput parts, only the
 // OUTER layout/chrome differs.
 
-import React, {useState, useEffect} from "react";
+import React from "react";
 import type {SkinProps} from "./HologramSkin";
 import type {VoiceMode} from "../../hooks/useVoice";
 import VoiceModeToggle from "../VoiceModeToggle";
@@ -111,7 +111,7 @@ function NebInput({input, setInput, attachments, setAttachments, state, streamin
                     <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                         onChange={(e) => {
                             const files = Array.from(e.target.files ?? []);
-                            Promise.all(files.map((f) => new Promise<{name: string; url: string; mime: string; data: string}>((res) => {
+                            void Promise.all(files.map((f) => new Promise<{name: string; url: string; mime: string; data: string}>((res) => {
                                 const reader = new FileReader();
                                 reader.onload = () => { const r = reader.result as string; res({name: f.name, url: r, mime: f.type || "application/octet-stream", data: r.split(",")[1] ?? ""}); };
                                 reader.readAsDataURL(f);

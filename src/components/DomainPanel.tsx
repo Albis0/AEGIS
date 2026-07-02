@@ -103,7 +103,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
         } finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { if (open) load(def); }, [open, tab, def, load]);
+    useEffect(() => { if (open) void load(def); }, [open, tab, def, load]);
 
     useEffect(() => {
         if (!open) return;
@@ -123,7 +123,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
         const m = line.match(def.action.match);
         if (!m) return;
         await window.jarvis.runTool(def.action.tool, {[def.action.argKey]: m[1]});
-        load(def);
+        void load(def);
     };
 
     if (!open) return null;
@@ -187,7 +187,7 @@ export default function DomainPanel({open, onClose, accent}: {open: boolean; onC
                     <div className="px-5 pt-3 pb-1">
                         <div className="flex gap-2">
                             <input value={query} onChange={(e) => setQuery(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
+                                onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
                                 placeholder={def.search.placeholder}
                                 className="flex-1 px-3 py-2 rounded-lg text-[12px] outline-none"
                                 style={{background: `rgba(${accent},0.06)`, border: `1px solid rgba(${accent},0.2)`, color: ac}} />

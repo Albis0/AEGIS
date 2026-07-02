@@ -58,7 +58,7 @@ export default function SpotifyWidget() {
     }, []);
 
     useEffect(() => {
-        refresh();
+        void refresh();
         const id = setInterval(refresh, 4000);
         return () => clearInterval(id);
     }, [refresh]);

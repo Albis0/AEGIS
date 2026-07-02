@@ -18,7 +18,7 @@ interface KeyRow {
     required?: boolean;
 }
 
-export default function KeysTab({config, accent, ac, onApplyConfig, s}: Props) {
+export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
     const rows: KeyRow[] = [
         {
             label: "GROQ",

@@ -37,7 +37,7 @@ export default function SmartHomeWidget() {
 
     useEffect(() => {
         mounted.current = true;
-        refresh();
+        void refresh();
         const id = setInterval(refresh, 10000);
         return () => { mounted.current = false; clearInterval(id); };
     }, [refresh]);

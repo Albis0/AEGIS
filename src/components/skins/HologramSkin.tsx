@@ -311,7 +311,7 @@ export default function HologramSkin({
                         <input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py" className="hidden"
                             onChange={(e) => {
                                 const files = Array.from(e.target.files ?? []);
-                                Promise.all(files.map((f) => new Promise<Attachment>((res) => {
+                                void Promise.all(files.map((f) => new Promise<Attachment>((res) => {
                                     const reader = new FileReader();
                                     reader.onload = () => {
                                         const result = reader.result as string;

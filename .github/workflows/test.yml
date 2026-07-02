@@ -40,6 +40,9 @@ jobs:
       - name: TypeScript — renderer (strict)
         run: bunx tsc --noEmit -p tsconfig.json
 
+      - name: ESLint
+        run: bunx eslint .
+
       - name: Run unit & integration tests
         run: bun run test
         env:

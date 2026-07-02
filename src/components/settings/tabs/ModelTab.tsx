@@ -58,7 +58,6 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
             .catch(() => { if (!cancelled) setLiveModels([]); })
             .finally(() => { if (!cancelled) setLoadingModels(false); });
         return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [provider, currentKey]);
 
     // Show the live list if available, otherwise the hardcoded fallback.
@@ -355,7 +354,7 @@ const IconDiamond = () => (<svg {...svgProps}><path d="M12 2 22 12 12 22 2 12Z" 
 const IconCheck = () => (<svg {...svgProps}><polyline points="20 6 9 17 4 12" /></svg>);
 const IconCross = () => (<svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>);
 
-function CapsBadges({caps, accent, ac, s}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
+function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
     const yes = "74,222,128", no = "248,113,113", purp = "192,132,252";
 
     // Large supported/not-supported badge

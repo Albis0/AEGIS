@@ -37,7 +37,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
         }
     }, []);
 
-    useEffect(() => { if (open) { load(); setQuery(""); setSearchResult(null); } }, [open, load]);
+    useEffect(() => { if (open) { void load(); setQuery(""); setSearchResult(null); } }, [open, load]);
 
     // Close with Esc
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
 
     const forget = async (id: string) => {
         await window.jarvis.runTool("forget_fact", {id_or_content: id});
-        load();
+        void load();
     };
 
     if (!open) return null;
@@ -89,7 +89,7 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
                             placeholder="Hafızada ara — 'geçen ay X hakkında ne demiştim?'"
                             className="flex-1 px-3 py-2 rounded-lg text-[12px] outline-none"
                             style={{background: `rgba(${accent},0.06)`, border: `1px solid rgba(${accent},0.2)`, color: ac}}
