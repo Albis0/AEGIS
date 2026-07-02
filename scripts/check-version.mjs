@@ -16,7 +16,7 @@ const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 const canonical = pkg.version;
 
 // docs/ is gitignored (checked only when present locally); the rest run in CI.
-const FILES = ["README.md", "ROADMAP.md", "SECURITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "docs/TECH_STACK.md", "docs/ARCHITECTURE.md"];
+const FILES = ["README.md", "ROADMAP.md", "SECURITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "ARCHITECTURE.md", "docs/TECH_STACK.md", "docs/ARCHITECTURE.md"];
 
 const VERSION_RE = /\bv(\d+\.\d+\.\d+)\b/g;
 
