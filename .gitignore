@@ -64,12 +64,10 @@ reference
 example.claude
 
 # Personal notes — not for the repo
-AGENTS.md
-TECH_STACK.md
 scripts/*-report.json
 scripts/.gui-*
 scripts/.vite.log
 scripts/.electron.log
 tests/harness/*-report.json
 tests/harness/live-output.txt
-IdeasByAuthor.md
+docs
