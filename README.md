@@ -2,6 +2,8 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
+![AEGIS — Hologram skin](assets/screenshots/hologram.png)
+
 > [!WARNING]
 > **AEGIS is under active development.** Not everything works perfectly yet — some tools and features may be unreliable, incomplete, or break in certain situations. Known issues are tracked and fixed incrementally with each version bump, so expect rough edges between releases. Use it as an early-stage project, not a finished product. Bug reports and PRs are very welcome.
 
@@ -36,15 +38,31 @@
 
 ---
 
-## Requirements
+## Skins
 
-- **Windows 10/11**
-- **Node.js 18+** — [nodejs.org](https://nodejs.org)
-- **Bun** — [bun.sh](https://bun.sh)
+16 skins across 4 families — a few of them:
+
+| Dashboard | Terminal |
+|---|---|
+| ![Dashboard](assets/screenshots/dashboard.png) | ![Terminal](assets/screenshots/terminal.png) |
 
 ---
 
-## Installation (Developer)
+## Install (Users)
+
+1. Download **`AEGIS-Setup-x.y.z.exe`** (installer, recommended) or the portable exe from the [latest release](https://github.com/Albis0/AEGIS/releases/latest).
+2. Launch it and pick a mode in onboarding:
+   - **Trial mode — zero keys needed.** Sign up with an email and start talking; requests go through a rate-limited proxy (daily request/token quota).
+   - **Advanced mode — your own key.** Paste a free [Groq](https://console.groq.com) API key (or any supported provider's) in the UI. Keys are stored DPAPI-encrypted on your machine and never leave it except to the provider you chose.
+3. That's it — no `.env` file, no terminal. Everything below this point is for developers. Auto-updates arrive through GitHub Releases.
+
+Requires **Windows 10/11**.
+
+---
+
+## Development Setup
+
+Requirements: **Windows 10/11** · **Node.js 18+** ([nodejs.org](https://nodejs.org)) · **Bun** ([bun.sh](https://bun.sh))
 
 ### 1. Clone the repo
 
@@ -52,7 +70,8 @@
 git clone https://github.com/Albis0/AEGIS.git
 cd AEGIS
 bun install
-cp .env.example .env   # fill in your keys (or enter them in-app later)
+# .env is OPTIONAL — keys can be entered in-app (Settings → API Keys).
+# Copy .env.example only if you prefer environment variables in development.
 ```
 
 ### 2. Pick an AI provider
@@ -134,7 +153,7 @@ Produces an installer `.exe` + portable build under `dist/`.
 ## Project Structure
 
 ```
-electron/          # Main process (main.ts, tools.ts, tts.ts, spotify.ts, etc.)
+electron/          # Main process (main.ts, agent-loop.ts, tools.ts, ipc/, etc.)
 src/               # Renderer (React UI)
   components/
     skins/         # 4 families x 4 variants = 16 skins
@@ -142,6 +161,8 @@ src/               # Renderer (React UI)
 tests/             # Vitest tests + conversation harness scenarios
 supabase/          # Edge Function + schema
 ```
+
+For the trust model, agent-loop pipeline, and the invariants a PR must not break, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 

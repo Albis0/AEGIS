@@ -10,7 +10,7 @@ Requirements: **Windows 10/11**, **Node.js 18+**, and **Bun**.
 git clone https://github.com/Albis0/AEGIS.git
 cd AEGIS
 bun install
-cp .env.example .env   # fill in your keys
+# .env is OPTIONAL - enter keys in-app (Settings -> API Keys) or copy .env.example
 bun run dev            # vite + electron in dev mode
 ```
 
@@ -27,7 +27,7 @@ git config core.hooksPath scripts/githooks
 - **tests/** — Vitest unit tests + conversation harness.
 - **supabase/** — Edge Function and schema.
 
-See the README for a fuller architecture overview.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the trust model, agent-loop pipeline, and the invariants a PR must not break.
 
 ## Running Tests
 
@@ -37,11 +37,14 @@ bun run test:trio                          # tool schema <-> executor sync
 bun run test:convo                         # conversation harness
 ```
 
-Type-check both projects before opening a PR:
+Type-check and lint before opening a PR (CI runs all of these):
 
 ```bash
 node node_modules/typescript/bin/tsc -p tsconfig.electron.json
 node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit
+bun run lint                               # ESLint (no-floating-promises is an error)
+node scripts/check-version.mjs             # docs must not contradict package.json
+node scripts/check-packaged-deps.mjs       # build.files must cover the native dep tree
 ```
 
 ## Commit & PR Conventions

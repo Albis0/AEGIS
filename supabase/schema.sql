@@ -108,3 +108,18 @@ begin
             updated_at    = now();
 end;
 $$;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Public-release hardening (2026-07-03)
+-- The legacy single-user tables predate RLS. In the SHARED cloud project the
+-- bundled anon key must not be able to touch them: enabling RLS with NO
+-- policies denies all anon/authenticated access, while service_role (used by
+-- self-hosted advanced mode and Edge Functions) bypasses RLS and keeps working.
+-- Run this block in the Supabase SQL editor of the shared project.
+-- ════════════════════════════════════════════════════════════════════════════
+
+alter table sessions     enable row level security;
+alter table messages     enable row level security;
+alter table user_profile enable row level security;
+alter table notes        enable row level security;

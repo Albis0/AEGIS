@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a new tool, integration, or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation where you wanted AEGIS to do something it can't.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should it do? If it's a new tool, an example voice/text command helps a lot.
+      placeholder: '"aegis, dim the lights to 30%" → smart_home_control with brightness'
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

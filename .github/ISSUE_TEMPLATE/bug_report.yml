@@ -1,0 +1,52 @@
+name: Bug report
+description: Something in AEGIS doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! For **security vulnerabilities**, do NOT open an issue — follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+  - type: input
+    id: version
+    attributes:
+      label: AEGIS version
+      description: Settings → About, or the installer filename (e.g. 0.7.2)
+      placeholder: "0.7.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Trial mode (no keys)
+        - Advanced mode (own API key)
+        - Running from source (bun run dev)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 Pro 23H2"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: What did you say/type, and what happened instead of the expected behavior?
+      placeholder: |
+        1. Said "open steam"
+        2. AEGIS replied ... / nothing happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Anything from the conversation feed, a screenshot, or console output if running from source. Remove API keys before pasting.
