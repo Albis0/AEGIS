@@ -18,7 +18,32 @@ async function png(size) {
 
 const pngs = await Promise.all(SIZES.map(png));
 
-// ---- ICO container (PNG entries are valid for all sizes on Win10+) ----
+// BMP DIB entry (32-bit BGRA, bottom-up, + empty AND mask) — GDI+ cannot decode
+// PNG-compressed entries below 256px, so every size except 256 must be a DIB.
+async function dib(size) {
+    const raw = await sharp(SVG, {density: Math.ceil((72 * size) / 1024) * 4 + 72})
+        .resize(size, size, {fit: "contain", background: {r: 0, g: 0, b: 0, alpha: 0}})
+        .raw().toBuffer(); // RGBA, top-down
+    const header = Buffer.alloc(40);
+    header.writeUInt32LE(40, 0);            // BITMAPINFOHEADER size
+    header.writeInt32LE(size, 4);           // width
+    header.writeInt32LE(size * 2, 8);       // height ×2 (XOR + AND masks)
+    header.writeUInt16LE(1, 12);            // planes
+    header.writeUInt16LE(32, 14);           // bpp
+    const px = Buffer.alloc(size * size * 4); // BGRA bottom-up
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const s = ((size - 1 - y) * size + x) * 4, d = (y * size + x) * 4;
+            px[d] = raw[s + 2]; px[d + 1] = raw[s + 1]; px[d + 2] = raw[s]; px[d + 3] = raw[s + 3];
+        }
+    }
+    const andMask = Buffer.alloc((size / 8) * size); // all opaque (alpha channel rules)
+    return Buffer.concat([header, px, andMask]);
+}
+
+const entryData = await Promise.all(SIZES.map((s, i) => (s === 256 ? pngs[i] : dib(s))));
+
+// ---- ICO container ----
 const header = Buffer.alloc(6);
 header.writeUInt16LE(0, 0); // reserved
 header.writeUInt16LE(1, 2); // type: icon
@@ -34,12 +59,12 @@ for (let i = 0; i < SIZES.length; i++) {
     e[3] = 0;                               // reserved
     e.writeUInt16LE(1, 4);                  // planes
     e.writeUInt16LE(32, 6);                 // bpp
-    e.writeUInt32LE(pngs[i].length, 8);     // data size
+    e.writeUInt32LE(entryData[i].length, 8); // data size
     e.writeUInt32LE(offset, 12);            // data offset
-    offset += pngs[i].length;
+    offset += entryData[i].length;
     entries.push(e);
 }
-fs.writeFileSync("build/icon.ico", Buffer.concat([header, ...entries, ...pngs]));
+fs.writeFileSync("build/icon.ico", Buffer.concat([header, ...entries, ...entryData]));
 console.log(`build/icon.ico written (${SIZES.join("/")}px, ${offset} bytes)`);
 
 // ---- Tray icon module (16 + 32 px embedded as base64) ----
