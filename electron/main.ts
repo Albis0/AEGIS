@@ -1,5 +1,5 @@
 import {app, shell, BrowserWindow, ipcMain, desktopCapturer, screen, Notification as ElectronNotification, Tray, Menu, nativeImage, dialog, safeStorage} from "electron";
-import * as zlib from "zlib";
+import {TRAY_ICON_16_B64} from "./tray-icon-data";
 import * as path from "path";
 import * as os from "os";
 import {exec} from "child_process";
@@ -97,55 +97,11 @@ function sendToRenderer(channel: string, payload: object = {}): void {
     mainWindow.webContents.send(channel, payload);
 }
 
-// ---- System tray icon (16x16 cyan circle, no external files) ----
-function buildTrayIconBuffer(): Buffer {
-    const W = 16, H = 16;
-    const rows: Buffer[] = [];
-    for (let y = 0; y < H; y++) {
-        const row = Buffer.alloc(1 + W * 3);
-        row[0] = 0; // PNG filter None
-        for (let x = 0; x < W; x++) {
-            const cx = x - 7.5, cy = y - 7.5;
-            const inside = (cx * cx + cy * cy) < 44;
-            row[1 + x * 3]     = inside ? 34  : 4;
-            row[1 + x * 3 + 1] = inside ? 211 : 7;
-            row[1 + x * 3 + 2] = inside ? 238 : 13;
-        }
-        rows.push(row);
-    }
-    const raw = Buffer.concat(rows);
-    const compressed = zlib.deflateSync(raw);
-    const table = (() => {
-        const t = new Uint32Array(256);
-        for (let i = 0; i < 256; i++) {
-            let c = i;
-            for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-            t[i] = c >>> 0;
-        }
-        return t;
-    })();
-    function crc32(b: Buffer): number {
-        let c = 0xFFFFFFFF;
-        for (const byte of b) c = table[(c ^ byte) & 0xFF] ^ (c >>> 8);
-        return (c ^ 0xFFFFFFFF) >>> 0;
-    }
-    function chunk(type: string, data: Buffer): Buffer {
-        const tp = Buffer.from(type, "ascii");
-        const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
-        const crcBuf = Buffer.concat([tp, data]);
-        const crcVal = Buffer.alloc(4); crcVal.writeUInt32BE(crc32(crcBuf));
-        return Buffer.concat([len, tp, data, crcVal]);
-    }
-    const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-    const ihdr = Buffer.alloc(13);
-    ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
-    ihdr[8] = 8; ihdr[9] = 2; // 8-bit RGB
-    return Buffer.concat([sig, chunk("IHDR", ihdr), chunk("IDAT", compressed), chunk("IEND", Buffer.alloc(0))]);
-}
-
+// System tray icon: the AEGIS mark, embedded as base64 (no external files).
+// Regenerate with `node scripts/make-icons.mjs` when build/icon.svg changes.
 function createTray(): void {
     if (tray) return;
-    const icon = nativeImage.createFromBuffer(buildTrayIconBuffer());
+    const icon = nativeImage.createFromBuffer(Buffer.from(TRAY_ICON_16_B64, "base64"));
     tray = new Tray(icon);
     tray.setToolTip("AEGIS");
     const menu = Menu.buildFromTemplate([

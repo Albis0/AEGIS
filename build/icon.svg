@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- AEGIS mark: faceted V-shield. Flat fills only - left half cyan family,
+       right half navy, top-right facet brightest. Source of truth for icon.ico
+       and the tray icon (regenerate via scripts/make-icons.mjs). -->
+  <g transform="translate(-249.5,-307.2) scale(1.48)">
+  <!-- left half -->
+  <polygon points="240,244 512,249 512,516" fill="#33B6EC"/>
+  <polygon points="240,244 283,549 512,516" fill="#3CC5F2"/>
+  <polygon points="283,549 343,697 512,516" fill="#219BD8"/>
+  <polygon points="343,697 512,863 512,516" fill="#2FB1E8"/>
+  <!-- right half -->
+  <polygon points="512,249 789,260 512,516" fill="#38CBF4"/>
+  <polygon points="789,260 753,640 512,516" fill="#2A3254"/>
+  <polygon points="753,640 512,863 512,516" fill="#1D2440"/>
+</g>
+</svg>
