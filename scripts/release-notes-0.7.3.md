@@ -1,17 +1,17 @@
 # AEGIS v0.7.3 — Reliability & Polish
 
-> ⚠️ **AEGIS is under active development.** Not everything works perfectly yet. Treat this as an early-stage project — bug reports and PRs are very welcome.
+> **AEGIS is under active development.** Not everything works perfectly yet. Treat this as an early-stage project — bug reports and PRs are welcome.
 
-## ⬇️ Download
+## Download
 
 | File | For whom |
 |---|---|
-| **AEGIS-Setup-0.7.3.exe** ⭐ **(recommended)** | Regular users — install wizard, shortcuts, auto-update |
+| **AEGIS-Setup-0.7.3.exe** (recommended) | Regular users — install wizard, shortcuts, auto-update |
 | AEGIS-0.7.3.exe | Portable — a single file, no installation |
 
 **SmartScreen note:** the exe is not code-signed (free hobby project — this is permanent). Click *More info → Run anyway*, or verify the download first: [how to verify](https://github.com/Albis0/AEGIS/blob/main/SECURITY.md#unsigned-releases--how-to-verify-a-download).
 
-## 🔧 What's fixed / new
+## What's fixed / new
 
 - **Critical:** finishing **trial-mode onboarding quit the app** in packaged builds — fixed. If v0.7.2 "closed itself" after you signed up, this was it.
 - **New AEGIS app icon** — exe, installer, shortcuts and system tray now carry the real logo (previous releases shipped with Electron's default icon).
@@ -24,4 +24,4 @@
 
 ---
 
-🇹🇷 **TR:** Kritik düzeltme: deneme modu kurulumu bitince uygulamanın kapanması düzeltildi. Yeni uygulama ikonu, akıcı sesli okuma (ön-sentezleme), deneme sunucusu uyanırken otomatik yeniden deneme, uygulama içi hata bildirme formu (ekran görüntüsü ekleyebilirsin), 5 dilde tam çevrilmiş ayarlar paneli ve güncellenmiş model kataloğu. Önerilen indirme: **AEGIS-Setup-0.7.3.exe**.
+🇹🇷 **TR:** Kritik düzeltme: deneme modu kurulumu bitince uygulamanın kapanması düzeltildi. Yeni uygulama ikonu, akıcı sesli okuma (ön-sentezleme), deneme sunucusu uyanırken otomatik yeniden deneme, uygulama içi hata bildirme formu (ekran görüntüsü eklenebilir), 5 dilde tam çevrilmiş ayarlar paneli ve güncellenmiş model kataloğu. Önerilen indirme: **AEGIS-Setup-0.7.3.exe**.

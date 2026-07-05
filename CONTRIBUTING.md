@@ -1,6 +1,6 @@
 # Contributing to AEGIS
 
-Thanks for your interest in contributing! This document covers how to set up the project, the conventions we follow, and how to submit changes.
+This document covers how to set up the project, the conventions we follow, and how to submit changes.
 
 ## Development Setup
 

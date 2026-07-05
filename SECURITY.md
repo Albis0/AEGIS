@@ -23,13 +23,13 @@ Details and invariants: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Reporting a Vulnerability
 
-Found a security issue? First of all — thank you for taking the time. 💙
+Found a security issue? Thank you for taking the time to report it.
 
-The only ask: for security problems, prefer **email over a public issue** (a public issue hands the exploit to everyone before a fix exists). Write to **abdurrahman.aksakal09@gmail.com** — any format is fine, even two sentences. You can expect a reply within a few days; this is a one-person hobby project, so please bear with the occasional delay.
+One firm request: report security problems by **email, not a public issue** — a public issue hands the exploit to everyone before a fix exists. Write to **abdurrahman.aksakal09@gmail.com**. Any format is fine, even two sentences. Expect a reply within a few days; this is a one-person project, so occasional delays happen.
 
-If you're able to include things like reproduction steps, the affected version, or impact details, that's wonderful and speeds up the fix a lot — but it's not a requirement. A vague "something feels off in X" report is still very welcome.
+Reproduction steps, the affected version, or impact details all speed up the fix — include what you can, none of it is required. "Something feels off in X" is already a useful report.
 
-Accidentally opened a public issue instead? No stress — it happens. I'll handle it and move the details out of view if needed.
+If you opened a public issue by accident, don't worry about it; I'll move the details out of view and follow up there.
 
 ## Secret Management
 

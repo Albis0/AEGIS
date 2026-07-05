@@ -1,6 +1,6 @@
 # Getting Help with AEGIS
 
-Thanks for using AEGIS! Here's where to go depending on what you need.
+Where to go depending on what you need.
 
 ## Something is broken
 
@@ -25,4 +25,4 @@ Please email instead of opening a public issue — see [SECURITY.md](SECURITY.md
 | Kokoro (offline TTS) missing | Select it under **Settings → Voice** — the voice model downloads once (~900 MB), then works offline. |
 | App opens as a blank/odd window in dev | Unset `ELECTRON_RUN_AS_NODE` in your shell before `bun run dev`. |
 
-AEGIS is a one-person hobby project — responses can take a few days, but every report and idea genuinely helps. 💙
+AEGIS is a one-person hobby project — responses can take a few days, but every report and idea makes the project better.

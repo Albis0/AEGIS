@@ -11,7 +11,7 @@
 **AEGIS** is a desktop AI assistant for Windows: speech recognition, LLM reasoning, and **332 tools** wired to your actual machine. Talk or type — it controls your system, Spotify, Steam, smart home, files, screen, and more. Works with 8 AI providers (Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama) or with **no API key at all** in trial mode.
 
 > [!WARNING]
-> **Early-stage, under active development.** Some tools and features may be unreliable or break in certain situations. Known issues are fixed incrementally with each release. Treat it as an early-stage project, not a finished product — bug reports and PRs are very welcome.
+> **Early-stage, under active development.** Some tools and features may be unreliable or break in certain situations. Known issues are fixed incrementally with each release. Treat it as an early-stage project, not a finished product — bug reports and PRs are welcome.
 
 > [!NOTE]
 > **Built with AI ("vibe coded").** AEGIS was developed largely with AI coding assistants, shaped through iterative prompting rather than written entirely by hand. Shared openly for transparency; some corners may be rougher than a hand-crafted codebase.
@@ -195,7 +195,7 @@ Details, threat model, and how to verify unsigned releases: [SECURITY.md](SECURI
 
 ## Contributing
 
-Contributions are welcome! Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process, and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Good starting points are listed in [ROADMAP.md](ROADMAP.md#open-work-priority-order).
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, conventions and the PR process; the [Code of Conduct](CODE_OF_CONDUCT.md) applies to all project spaces. Good starting points are listed in [ROADMAP.md](ROADMAP.md#open-work-priority-order).
 
 ---
 

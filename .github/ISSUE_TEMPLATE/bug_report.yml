@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report — every one genuinely helps! Fill in what you can; nothing here needs to be perfect.
-        One small ask: if this is a **security vulnerability**, please email instead of posting it publicly (see [SECURITY.md](../blob/main/SECURITY.md)) so a fix can land before the details are out.
+        Thanks for the report. Fill in what you can — nothing here needs to be perfect.
+        One request: if this is a **security vulnerability**, email instead of posting it publicly (see [SECURITY.md](../blob/main/SECURITY.md)) so a fix can land before the details are out.
   - type: input
     id: version
     attributes:
