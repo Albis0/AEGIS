@@ -19,36 +19,38 @@ interface ToolInfo {
     danger?: boolean;
 }
 
-const TOOLS: ToolInfo[] = [
-    // System
-    {name: "run_command",      desc: "Terminal komutu çalıştırır",                   category: "Sistem",    icon: ">_"},
-    {name: "read_file",        desc: "Dosya içeriğini okur",                         category: "Sistem",    icon: "▤"},
-    {name: "write_file",       desc: "Dosyaya içerik yazar (kapalıyken ev dizini)",  category: "Sistem",    icon: "✎",  danger: true},
-    {name: "list_dir",         desc: "Dizin içeriğini listeler",                     category: "Sistem",    icon: "▦"},
-    {name: "move_file",        desc: "Dosya/klasör taşır (Tam Erişim gerekli)",      category: "Sistem",    icon: "→",  danger: true},
-    {name: "delete_file",      desc: "Dosya veya klasörü siler (Tam Erişim gerekli)",category: "Sistem",    icon: "✕",  danger: true},
-    {name: "bulk_rename",      desc: "Regex ile toplu yeniden adlandırma",           category: "Sistem",    icon: "AB"},
-    {name: "find_duplicates",  desc: "Yinelenen dosyaları bulur",                   category: "Sistem",    icon: "◈"},
-    // Web
-    {name: "web_search",       desc: "Web araması yapar (Tavily/Serper/DDG)",        category: "Web",       icon: "◎"},
-    {name: "browse_url",       desc: "URL içeriğini scrape eder",                   category: "Web",       icon: "↗"},
-    // Memory
-    {name: "remember_fact",    desc: "Uzun süreli hafızaya not kaydeder",            category: "Hafıza",    icon: "◇"},
-    {name: "recall_facts",     desc: "Hafızadan bilgi çeker",                        category: "Hafıza",    icon: "◈"},
-    {name: "list_habits",      desc: "Kullanıcı alışkanlıklarını listeler",          category: "Hafıza",    icon: "▤"},
-    // Productivity
-    {name: "set_reminder",     desc: "Hatırlatıcı kurar",                            category: "Verimlilik",icon: "◷"},
-    {name: "create_task",      desc: "Görev oluşturur",                              category: "Verimlilik",icon: "✓"},
-    {name: "take_screenshot",  desc: "Ekran görüntüsü alır",                        category: "Verimlilik",icon: "◻"},
-    // Data
-    {name: "create_chart",     desc: "ASCII grafik oluşturur",                       category: "Veri",      icon: "▲"},
-    {name: "calculate",        desc: "Matematiksel ifade hesaplar",                  category: "Veri",      icon: "="},
-    {name: "note_save",        desc: "Markdown not kaydeder",                        category: "Veri",      icon: "▷"},
-];
+function buildTools(s: SettingsStrings): ToolInfo[] {
+    return [
+        // System
+        {name: "run_command",      desc: s.tlDescRunCommand,      category: s.tlCatSystem,       icon: ">_"},
+        {name: "read_file",        desc: s.tlDescReadFile,        category: s.tlCatSystem,       icon: "▤"},
+        {name: "write_file",       desc: s.tlDescWriteFile,       category: s.tlCatSystem,       icon: "✎",  danger: true},
+        {name: "list_dir",         desc: s.tlDescListDir,         category: s.tlCatSystem,       icon: "▦"},
+        {name: "move_file",        desc: s.tlDescMoveFile,        category: s.tlCatSystem,       icon: "→",  danger: true},
+        {name: "delete_file",      desc: s.tlDescDeleteFile,      category: s.tlCatSystem,       icon: "✕",  danger: true},
+        {name: "bulk_rename",      desc: s.tlDescBulkRename,      category: s.tlCatSystem,       icon: "AB"},
+        {name: "find_duplicates",  desc: s.tlDescFindDuplicates,  category: s.tlCatSystem,       icon: "◈"},
+        // Web
+        {name: "web_search",       desc: s.tlDescWebSearch,       category: s.tlCatWeb,          icon: "◎"},
+        {name: "browse_url",       desc: s.tlDescBrowseUrl,       category: s.tlCatWeb,          icon: "↗"},
+        // Memory
+        {name: "remember_fact",    desc: s.tlDescRememberFact,    category: s.tlCatMemory,       icon: "◇"},
+        {name: "recall_facts",     desc: s.tlDescRecallFacts,     category: s.tlCatMemory,       icon: "◈"},
+        {name: "list_habits",      desc: s.tlDescListHabits,      category: s.tlCatMemory,       icon: "▤"},
+        // Productivity
+        {name: "set_reminder",     desc: s.tlDescSetReminder,     category: s.tlCatProductivity, icon: "◷"},
+        {name: "create_task",      desc: s.tlDescCreateTask,      category: s.tlCatProductivity, icon: "✓"},
+        {name: "take_screenshot",  desc: s.tlDescTakeScreenshot,  category: s.tlCatProductivity, icon: "◻"},
+        // Data
+        {name: "create_chart",     desc: s.tlDescCreateChart,     category: s.tlCatData,         icon: "▲"},
+        {name: "calculate",        desc: s.tlDescCalculate,       category: s.tlCatData,         icon: "="},
+        {name: "note_save",        desc: s.tlDescNoteSave,        category: s.tlCatData,         icon: "▷"},
+    ];
+}
 
-const CATEGORIES = [...new Set(TOOLS.map((t) => t.category))];
-
-export default function ToolsTab({accent, ac, settings, onApply}: Props) {
+export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
+    const TOOLS = buildTools(s);
+    const CATEGORIES = [...new Set(TOOLS.map((t) => t.category))];
     const [pendingEnable, setPendingEnable] = useState(false);
     const fullPcAccess = settings.fullPcAccess ?? false;
     const disabled = new Set(settings.disabledTools ?? []);
@@ -76,13 +78,12 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
     return (
         <div className="space-y-7">
             <p className="text-[12px] leading-relaxed" style={{color: `rgba(${accent},0.4)`}}>
-                AEGIS bu araçları kullanarak gerçek dünya görevlerini yerine getirir.
-                Tehlikeli araçlar kırmızı ile işaretlenmiştir. Toggle ile her aracı ayrı ayrı açıp kapatabilirsin.
+                {s.tlIntro}
             </p>
 
             {/* ── Security section ── */}
             <div>
-                <SectionLabel label="GÜVENLİK" accent={accent} />
+                <SectionLabel label={s.tlSecurityTitle} accent={accent} />
                 <div className="rounded-xl overflow-hidden"
                     style={{
                         border: `1px solid ${fullPcAccess ? "rgba(248,113,113,0.3)" : `rgba(${accent},0.1)`}`,
@@ -93,19 +94,18 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
                             <div className="flex items-center gap-2 mb-0.5">
                                 <span className="text-[13px] font-medium"
                                     style={{color: fullPcAccess ? "rgba(248,113,113,0.9)" : `rgba(${accent},0.8)`}}>
-                                    Tam PC Erişimi
+                                    {s.tlFullAccessLabel}
                                 </span>
                                 {fullPcAccess && (
                                     <span className="text-[8px] px-1.5 py-0.5 rounded-full font-medium"
                                         style={{color: "rgba(248,113,113,0.8)", background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.25)"}}>
-                                        AKTİF
+                                        {s.tlActiveBadge}
                                     </span>
                                 )}
                             </div>
                             <p className="text-[11px] leading-relaxed"
                                 style={{color: fullPcAccess ? "rgba(248,113,113,0.5)" : `rgba(${accent},0.38)`}}>
-                                Açıkken shutdown, format, disk silme dahil tüm komutlar onay istemeden çalışır.
-                                delete_file ve move_file araçları aktif olur.
+                                {s.tlFullAccessDesc}
                             </p>
                         </div>
                         <Toggle
@@ -120,12 +120,10 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
                             <div className="rounded-xl p-4"
                                 style={{background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)"}}>
                                 <p className="text-[11px] font-medium mb-1" style={{color: "rgba(248,113,113,0.9)"}}>
-                                    ⚠ UYARI: Geri alınamaz işlemler
+                                    {s.tlWarningTitle}
                                 </p>
                                 <p className="text-[11px] leading-relaxed mb-3" style={{color: "rgba(248,113,113,0.6)"}}>
-                                    Bu mod açıldığında AI bilgisayarını yeniden başlatabilir,
-                                    disk formatlayabilir ve dosyaları silebilir.
-                                    Emin misiniz?
+                                    {s.tlWarningBody}
                                 </p>
                                 <div className="flex gap-2">
                                     <button onClick={confirmEnable}
@@ -135,7 +133,7 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
                                             border: "1px solid rgba(248,113,113,0.35)",
                                             color: "rgba(248,113,113,0.9)",
                                         }}>
-                                        EVET, ETKİNLEŞTİR
+                                        {s.tlConfirmEnable}
                                     </button>
                                     <button onClick={() => setPendingEnable(false)}
                                         className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest transition hover:brightness-110"
@@ -143,7 +141,7 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
                                             border: `1px solid rgba(${accent},0.15)`,
                                             color: `rgba(${accent},0.5)`,
                                         }}>
-                                        İPTAL
+                                        {s.tlCancel}
                                     </button>
                                 </div>
                             </div>
@@ -184,7 +182,7 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
                                     {tool.danger && !isDisabled && (
                                         <span className="text-[8px] px-1.5 py-0.5 rounded-full shrink-0 font-medium"
                                             style={{color: "rgba(248,113,113,0.8)", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)"}}>
-                                            DİKKAT
+                                            {s.tlDangerBadge}
                                         </span>
                                     )}
                                     <Toggle
@@ -200,7 +198,7 @@ export default function ToolsTab({accent, ac, settings, onApply}: Props) {
             ))}
 
             <Hint accent={accent}>
-                Plugin sekmesinden ek araçlar yükleyebilirsin.
+                {s.tlPluginHint}
             </Hint>
         </div>
     );
