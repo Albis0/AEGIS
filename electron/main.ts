@@ -36,7 +36,7 @@ import {stmClear, stmBuildPromptBlock} from "./short-term-memory";
 import {taintSource, clearTaint} from "./taint";
 import {buildPlanPrompt} from "./goal-executor";
 
-import {runAgentLoop} from "./agent-loop";
+import {runAgentLoop, type ApprovalReason} from "./agent-loop";
 import {getSystemPrompt} from "./prompts";
 import {registerMediaIpc} from "./ipc/media-ipc";
 import {registerAuthIpc} from "./ipc/auth-ipc";
@@ -669,18 +669,24 @@ let profileCachedAt = 0;
 // ---- Agentic streaming chat ----
 // Phase 54 — Destructive action approval dialog. Native modal (not renderer-dependent).
 // Return: "allow" (once), "always" (permanent permission), "deny" (cancel).
-async function askDestructiveApproval(tool: string, argsJson: string, taintGated = false): Promise<"allow" | "always" | "deny"> {
+async function askDestructiveApproval(tool: string, argsJson: string, reason: ApprovalReason = "risk"): Promise<"allow" | "always" | "deny"> {
     // If Full PC Access is on, the user already granted full authority — skip asking.
-    // EXCEPT under taint (audit A3): external content in the context means the model
-    // may be following injected instructions, so a human click is always required.
-    if (currentSettings.fullPcAccess && !taintGated) return "allow";
+    // EXCEPT for forced reasons: taint (audit A3 — the model may be following
+    // injected instructions) and budget (UX 18.1 — too many destructive steps in
+    // one run). Those always require a human click.
+    if (currentSettings.fullPcAccess && reason === "risk") return "allow";
     const lang = currentSettings.language ?? "tr";
     const detailArgs = argsJson && argsJson !== "{}" ? `\n\n${argsJson.slice(0, 300)}` : "";
     const src = taintSource();
-    const taintNote = taintGated
-        ? (lang === "tr"
-            ? `\n\nBu konuşma dış kaynaklı içerik barındırıyor (${src ?? "web içeriği"}) — bu tür içerik gizli talimat içerebileceği için onayınız gerekiyor.`
-            : `\n\nThis conversation contains content from an external source (${src ?? "web content"}) — such content can carry hidden instructions, so your approval is required.`)
+    const taintNote =
+        reason === "taint"
+            ? (lang === "tr"
+                ? `\n\nBu konuşma dış kaynaklı içerik barındırıyor (${src ?? "web içeriği"}) — bu tür içerik gizli talimat içerebileceği için onayınız gerekiyor.`
+                : `\n\nThis conversation contains content from an external source (${src ?? "web content"}) — such content can carry hidden instructions, so your approval is required.`)
+        : reason === "budget"
+            ? (lang === "tr"
+                ? "\n\nBu görevde art arda birden çok yıkıcı işlem çalıştı — güvenlik için bundan sonraki her yıkıcı adım tek tek onayınızı gerektiriyor."
+                : "\n\nSeveral destructive actions have already run in this task — for safety, each further destructive step now requires your approval.")
         : "";
     const L = lang === "tr"
         ? {title: "Yıkıcı eylem onayı", msg: `AEGIS geri alınamaz olabilecek bir işlem yapmak istiyor:\n\n${tool}${detailArgs}${taintNote}`, buttons: ["İptal", "İzin ver", "Her zaman izin ver"]}

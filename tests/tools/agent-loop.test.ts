@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeEach} from "vitest";
-import {runAgentLoop, MAX_AGENT_STEPS, type AgentDeps} from "../../electron/agent-loop";
+import {runAgentLoop, MAX_AGENT_STEPS, DESTRUCTIVE_BUDGET_PER_RUN, type AgentDeps} from "../../electron/agent-loop";
 import type {OAICompletion, OAIMessage} from "../../electron/ai-client";
 import {stmClear} from "../../electron/short-term-memory";
 import {clearTaint, recordTaintFromTool} from "../../electron/taint";
@@ -13,7 +13,7 @@ import {clearTaint, recordTaintFromTool} from "../../electron/taint";
 type Recorded = {
     events: {channel: string; payload: Record<string, unknown>}[];
     executed: {name: string; argsJson: string}[];
-    approvals: {tool: string; taintGated: boolean}[];
+    approvals: {tool: string; reason: string}[];
     saved: {role: string; content: string}[];
     modelCalls: OAIMessage[][];
 };
@@ -43,8 +43,8 @@ function makeDeps(
             rec.executed.push({name, argsJson});
             return {ok: true, content: `ok: ${name}`};
         },
-        askApproval: async (tool, _argsJson, taintGated) => {
-            rec.approvals.push({tool, taintGated});
+        askApproval: async (tool, _argsJson, reason) => {
+            rec.approvals.push({tool, reason});
             return "deny";
         },
         saveMessage: async (role, content) => { rec.saved.push({role, content}); },
@@ -112,7 +112,7 @@ describe("approval gate", () => {
         );
         await runAgentLoop(HISTORY, deps);
 
-        expect(rec.approvals).toEqual([{tool: "delete_file", taintGated: true}]);
+        expect(rec.approvals).toEqual([{tool: "delete_file", reason: "taint"}]);
         expect(rec.executed).toHaveLength(0); // never reached executeTool
         const deny = rec.events.find((e) => e.channel === "tool-event" && String(e.payload.result ?? "").startsWith("BLOCKED (user denied approval)"));
         expect(deny).toBeTruthy();
@@ -126,6 +126,36 @@ describe("approval gate", () => {
         await runAgentLoop(HISTORY, deps);
         expect(rec.approvals).toHaveLength(0);
         expect(rec.executed).toHaveLength(1);
+    });
+});
+
+describe("destructive budget (UX review 18.1)", () => {
+    it(`after ${DESTRUCTIVE_BUDGET_PER_RUN} destructive executions, further destructive calls require approval even for subagents`, async () => {
+        // Subagent mode skips the normal needsApproval gate — exactly the path
+        // where 8 different files could previously be deleted with zero prompts.
+        const {deps, rec} = makeDeps((step) =>
+            step < DESTRUCTIVE_BUDGET_PER_RUN + 1
+                ? toolCall("delete_file", {path: `C:\\tmp\\f${step}.txt`}, `c${step}`)
+                : answer("stopping"),
+            {isSubAgent: true},
+        );
+        await runAgentLoop(HISTORY, deps);
+
+        expect(rec.executed).toHaveLength(DESTRUCTIVE_BUDGET_PER_RUN); // budget's worth ran free
+        expect(rec.approvals).toEqual([{tool: "delete_file", reason: "budget"}]); // the next one asked
+        const deny = rec.events.find((e) => e.channel === "tool-event" && String(e.payload.result ?? "").startsWith("BLOCKED (user denied approval)"));
+        expect(deny).toBeTruthy();
+        expect(rec.events.filter((e) => e.channel === "chat-done")).toHaveLength(1);
+    });
+
+    it("non-destructive tools are not counted against the budget", async () => {
+        const {deps, rec} = makeDeps((step) =>
+            step < 6 ? toolCall("spotify_play", {round: step}, `c${step}`) : answer("done"),
+            {isSubAgent: true},
+        );
+        await runAgentLoop(HISTORY, deps);
+        expect(rec.approvals).toHaveLength(0);
+        expect(rec.executed).toHaveLength(6);
     });
 });
 

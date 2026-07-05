@@ -43,6 +43,13 @@ export const TAINT_ESCALATED_TOOLS: ReadonlySet<string> = new Set([
     "bulk_rename",
     "clear_old_data",
     "format_code",
+    // Computer-use input tools (UX review 16.1): a web page must not be able to
+    // steer blind clicks/keystrokes — under taint these need a human click too.
+    "computer_use",
+    "mouse_click",
+    "mouse_drag",
+    "type_text",
+    "key_press",
 ]);
 
 let _tainted = false;

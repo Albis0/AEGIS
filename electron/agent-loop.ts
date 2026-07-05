@@ -17,13 +17,25 @@ import {LoopGuard} from "./loop-guard";
 import {classifyError} from "./goal-executor";
 import {diagnose} from "./self-healing";
 import {stmGet, stmRecord} from "./short-term-memory";
-import {needsApproval, grantAlways} from "./permissions";
+import {needsApproval, grantAlways, classifyRisk} from "./permissions";
 import {recordTaintFromTool, taintRequiresApproval} from "./taint";
 import {recordToolUsage} from "./memory-plus";
 import {captureStep as routineCaptureStep} from "./routines";
 
 /** Hard cap on model↔tool round-trips per request (degenerate loops are cut earlier by LoopGuard). */
 export const MAX_AGENT_STEPS = 8;
+
+/**
+ * UX review 18.1 — LoopGuard catches REPEATS, not variety: nothing stopped a
+ * run from deleting 8 different files back-to-back with zero prompts (grants,
+ * subagent mode or Full PC Access silence the per-call gate). After this many
+ * destructive executions in ONE run, every further destructive call requires
+ * an explicit approval regardless of any standing permission.
+ */
+export const DESTRUCTIVE_BUDGET_PER_RUN = 3;
+
+/** Why the approval dialog is being shown — "risk" honors standing grants/Full PC Access, the others never do. */
+export type ApprovalReason = "risk" | "taint" | "budget";
 
 export interface AgentDeps {
     /** Send an event to the UI (already bound to the request id + feed broadcast). */
@@ -33,8 +45,8 @@ export interface AgentDeps {
     /** Tool schemas for this conversation context (provider limits applied). */
     getToolSchemas: (context: string) => ChatCompletionTool[];
     executeTool: (name: string, argsJson: string) => Promise<ToolOutcome>;
-    /** Destructive-action dialog. taintGated=true must never auto-allow. */
-    askApproval: (tool: string, argsJson: string, taintGated: boolean) => Promise<"allow" | "always" | "deny">;
+    /** Destructive-action dialog. Reasons other than "risk" must never auto-allow. */
+    askApproval: (tool: string, argsJson: string, reason: ApprovalReason) => Promise<"allow" | "always" | "deny">;
     saveMessage: (role: "user" | "assistant" | "tool", content: string, toolName?: string) => Promise<void>;
     /** Fully built system prompt (persona + profile + memory + STM + routine note). */
     systemContent: string;
@@ -106,6 +118,8 @@ export async function runAgentLoop(history: {role: string; content: string | Msg
     const guard = new LoopGuard();
     // Phase 59 — Self-Healing: a repeated-error diagnosis is injected at most once.
     let healInjected = false;
+    // UX review 18.1 — destructive executions in THIS run (see DESTRUCTIVE_BUDGET_PER_RUN).
+    let destructiveRuns = 0;
 
     for (let step = 0; step < MAX_AGENT_STEPS; step++) {
         // Groq: tokens stream via onDelta. Other providers: full response returned.
@@ -149,19 +163,25 @@ export async function runAgentLoop(history: {role: string; content: string | Msg
                 // "always allow" grants, subagent status and Full PC Access don't bypass it,
                 // because the model may be executing instructions injected by that content.
                 const pArgs = (parsedArgs && typeof parsedArgs === "object") ? parsedArgs as Record<string, unknown> : {};
+                const isDestructive = classifyRisk(name, pArgs) === "destructive";
                 const taintGated = taintRequiresApproval(name);
-                if (taintGated || (!isSubAgent && needsApproval(name, pArgs))) {
-                    const decision = await deps.askApproval(name, argsJson, taintGated);
+                // UX review 18.1 — past the per-run budget, every destructive call needs
+                // a human click, even for subagents / standing grants / Full PC Access.
+                const budgetGated = isDestructive && destructiveRuns >= DESTRUCTIVE_BUDGET_PER_RUN;
+                const forcedReason: ApprovalReason | null = taintGated ? "taint" : budgetGated ? "budget" : null;
+                if (forcedReason || (!isSubAgent && needsApproval(name, pArgs))) {
+                    const decision = await deps.askApproval(name, argsJson, forcedReason ?? "risk");
                     if (decision === "deny") {
                         const denyMsg = `BLOCKED (user denied approval): "${name}" is a destructive action and the user did not allow it.`;
                         send("tool-event", {phase: "done", name, result: denyMsg});
                         stmRecord(name, argsJson, denyMsg, false, "llm");
                         return {id: call.id, content: denyMsg};
                     }
-                    // Under taint, "always" only applies to this call — a persistent grant
-                    // would let the next injected instruction run without any human in the loop.
-                    if (decision === "always" && !taintGated) grantAlways(name);
+                    // Under taint/budget, "always" only applies to this call — a persistent
+                    // grant would put the loop right back on the unattended path.
+                    if (decision === "always" && !forcedReason) grantAlways(name);
                 }
+                if (isDestructive) destructiveRuns++;
                 send("tool-event", {phase: "start", name, args: argsJson});
                 recordToolUsage(name);
                 const outcome = await deps.executeTool(name, argsJson);

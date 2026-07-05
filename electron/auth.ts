@@ -69,16 +69,50 @@ export interface AuthResult {
     email?: string;
 }
 
+// UX (adversarial review 1.1) — raw Supabase error strings don't let the user
+// tell "wrong password" from "no internet". Map the common cases to actionable
+// messages; anything unknown falls through unchanged.
+export function friendlyAuthError(message: string): string {
+    const m = message.toLowerCase();
+    if (/fetch failed|network|enotfound|econnrefused|timeout|getaddrinfo/.test(m)) {
+        return "Could not reach the server — check your internet connection and try again.";
+    }
+    if (/invalid login credentials|invalid grant/.test(m)) {
+        return "Email or password is incorrect.";
+    }
+    if (/already registered|already exists/.test(m)) {
+        return "This email is already registered — use Sign In instead.";
+    }
+    if (/rate limit|too many/.test(m)) {
+        return "Too many attempts — wait a minute and try again.";
+    }
+    if (/email not confirmed/.test(m)) {
+        return "This email hasn't been confirmed yet — check your inbox.";
+    }
+    if (/valid email/.test(m)) {
+        return "That doesn't look like a valid email address.";
+    }
+    return message;
+}
+
 export async function signUp(email: string, password: string): Promise<AuthResult> {
-    const {data, error} = await getAuthClient().auth.signUp({email, password});
-    if (error) return {ok: false, error: error.message};
-    return {ok: true, userId: data.user?.id, email: data.user?.email};
+    try {
+        const {data, error} = await getAuthClient().auth.signUp({email, password});
+        if (error) return {ok: false, error: friendlyAuthError(error.message)};
+        return {ok: true, userId: data.user?.id, email: data.user?.email};
+    } catch (e) {
+        return {ok: false, error: friendlyAuthError((e as Error).message ?? String(e))};
+    }
 }
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-    const {data, error} = await getAuthClient().auth.signInWithPassword({email, password});
-    if (error) return {ok: false, error: error.message};
-    return {ok: true, userId: data.user?.id, email: data.user?.email};
+    try {
+        const {data, error} = await getAuthClient().auth.signInWithPassword({email, password});
+        if (error) return {ok: false, error: friendlyAuthError(error.message)};
+        return {ok: true, userId: data.user?.id, email: data.user?.email};
+    } catch (e) {
+        return {ok: false, error: friendlyAuthError((e as Error).message ?? String(e))};
+    }
 }
 
 export async function signOut(): Promise<void> {

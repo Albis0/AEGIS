@@ -58,6 +58,9 @@
 
 Requires **Windows 10/11**.
 
+> [!IMPORTANT]
+> **Windows SmartScreen warning is expected.** The executable is currently **not code-signed** (an EV/OV certificate is planned but costly for an early-stage open-source project), so Windows shows "Windows protected your PC" for a new download. Click **More info → Run anyway** if you trust the source. Why the warning is louder than usual: AEGIS legitimately uses screen capture, simulated mouse/keyboard input (the Computer Use feature) and a self-updater — the same APIs security software watches for. The entire source is in this repo, every release is built by the public [GitHub Actions workflow](.github/workflows/release.yml) from a tagged commit, and you can verify any installer on [VirusTotal](https://www.virustotal.com) before running it. If you'd rather not take the word of a README: build it yourself with `bun run electron:build`.
+
 ---
 
 ## Development Setup
