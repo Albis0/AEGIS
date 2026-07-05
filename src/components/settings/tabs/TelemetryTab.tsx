@@ -5,18 +5,20 @@ import type {SettingsStrings} from "../../../i18n";
 
 const ALL_WIDGETS: TelemetryWidget[] = ["cpu","ram","disk","battery","network","gpu","fans","processes","system","activeWindow"];
 
-const WIDGET_INFO: Record<TelemetryWidget, {label: string; sub: string; icon: string}> = {
-    cpu:          {label: "CPU",            sub: "Kullanım, sıcaklık, çekirdekler, frekans", icon: "▣"},
-    ram:          {label: "RAM",            sub: "Kullanım % ve MB cinsinden detay",         icon: "▤"},
-    disk:         {label: "Diskler",        sub: "Tüm sürücüler — kullanım + GB",            icon: "◫"},
-    battery:      {label: "Batarya",        sub: "Şarj seviyesi ve durum",                   icon: "▷"},
-    network:      {label: "Ağ",             sub: "Upload / download hızı + adapter",         icon: "◈"},
-    gpu:          {label: "GPU",            sub: "Yük %, VRAM, sıcaklık",                    icon: "◆"},
-    fans:         {label: "Fanlar",         sub: "Fan hızları RPM (destekleniyorsa)",         icon: "✦"},
-    processes:    {label: "Top Process",    sub: "En çok RAM kullanan 8 process",            icon: "▦"},
-    system:       {label: "Sistem Bilgisi", sub: "Hostname, makine modeli",                  icon: "◎"},
-    activeWindow: {label: "Aktif Pencere",  sub: "Şu an odakta olan uygulama",               icon: "▭"},
-};
+function buildWidgetInfo(s: SettingsStrings): Record<TelemetryWidget, {label: string; sub: string; icon: string}> {
+    return {
+        cpu:          {label: s.telWidgetCpuLabel,          sub: s.telWidgetCpuSub,          icon: "▣"},
+        ram:          {label: s.telWidgetRamLabel,          sub: s.telWidgetRamSub,          icon: "▤"},
+        disk:         {label: s.telWidgetDiskLabel,         sub: s.telWidgetDiskSub,         icon: "◫"},
+        battery:      {label: s.telWidgetBatteryLabel,      sub: s.telWidgetBatterySub,      icon: "▷"},
+        network:      {label: s.telWidgetNetworkLabel,      sub: s.telWidgetNetworkSub,      icon: "◈"},
+        gpu:          {label: s.telWidgetGpuLabel,          sub: s.telWidgetGpuSub,          icon: "◆"},
+        fans:         {label: s.telWidgetFansLabel,         sub: s.telWidgetFansSub,         icon: "✦"},
+        processes:    {label: s.telWidgetProcessesLabel,    sub: s.telWidgetProcessesSub,    icon: "▦"},
+        system:       {label: s.telWidgetSystemLabel,       sub: s.telWidgetSystemSub,       icon: "◎"},
+        activeWindow: {label: s.telWidgetActiveWindowLabel, sub: s.telWidgetActiveWindowSub, icon: "▭"},
+    };
+}
 
 interface Props {
     settings: AppSettings;
@@ -30,6 +32,7 @@ interface Props {
 export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsChange, s}: Props) {
     const [exportDone, setExportDone] = useState(false);
     const active = settings.telemetryWidgets ?? [];
+    const WIDGET_INFO = buildWidgetInfo(s);
 
     function toggle(id: TelemetryWidget) {
         const next = active.includes(id) ? active.filter((x) => x !== id) : [...active, id];
@@ -89,7 +92,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
             <div>
                 <SectionLabel label={s.telWidgets} accent={accent} />
                 <p className="text-[11px] mb-4 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
-                    Sol panelde hangi telemetri bloklarının görüneceğini seç.
+                    {s.telWidgetsHint}
                 </p>
                 <div className="space-y-1.5">
                     {ALL_WIDGETS.map((id) => {
@@ -127,12 +130,12 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                     <button onClick={selectAll}
                         className="flex-1 py-2.5 rounded-xl text-[10px] tracking-widest border transition hover:brightness-125"
                         style={{borderColor: `rgba(${accent},0.2)`, color: `rgba(${accent},0.6)`}}>
-                        TÜMÜNÜ SEÇ
+                        {s.telSelectAll}
                     </button>
                     <button onClick={clearAll}
                         className="flex-1 py-2.5 rounded-xl text-[10px] tracking-widest border transition hover:brightness-125"
                         style={{borderColor: `rgba(${accent},0.2)`, color: `rgba(${accent},0.6)`}}>
-                        TEMİZLE
+                        {s.telClearAll}
                     </button>
                 </div>
             </div>
@@ -141,14 +144,14 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
             <div>
                 <SectionLabel label={s.telThresholds} accent={accent} />
                 <p className="text-[11px] mb-4 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
-                    Eşik aşılınca feed'e uyarı düşer + Windows bildirimi gelir. Boş bırakırsan izlenmez.
+                    {s.telThresholdsHint}
                 </p>
                 <div className="space-y-2">
                     {([
-                        {key: "alertCpuPct"  as const, label: "CPU",  icon: "▣"},
-                        {key: "alertRamPct"  as const, label: "RAM",  icon: "▤"},
-                        {key: "alertGpuPct"  as const, label: "GPU",  icon: "◆"},
-                        {key: "alertDiskPct" as const, label: "Disk", icon: "◫"},
+                        {key: "alertCpuPct"  as const, label: "CPU",              icon: "▣"},
+                        {key: "alertRamPct"  as const, label: "RAM",              icon: "▤"},
+                        {key: "alertGpuPct"  as const, label: "GPU",              icon: "◆"},
+                        {key: "alertDiskPct" as const, label: s.telDiskSingular, icon: "◫"},
                     ]).map(({key, label, icon}) => {
                         const val = settings[key] ?? null;
                         const hasVal = val !== null;
@@ -173,7 +176,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                                     className="w-16 bg-transparent outline-none text-center text-[13px] border-b tabular-nums"
                                     style={{color: ac, borderColor: `rgba(${accent},0.25)`}}
                                 />
-                                <span className="text-[11px] flex-1" style={{color: `rgba(${accent},0.3)`}}>% üstünde uyar</span>
+                                <span className="text-[11px] flex-1" style={{color: `rgba(${accent},0.3)`}}>{s.telPctAlertSuffix}</span>
                                 {hasVal && (
                                     <button onClick={() => onApply({[key]: null} as Partial<typeof settings>)}
                                         className="text-[11px] opacity-30 hover:opacity-70 transition"
@@ -183,20 +186,20 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                         );
                     })}
                 </div>
-                <Hint accent={accent}>AEGIS'e "GPU yüzde 90 geçince uyar" diyerek de ayarlayabilirsin.</Hint>
+                <Hint accent={accent}>{s.telThresholdsHint2}</Hint>
             </div>
 
             {/* Notification channel */}
             <div>
-                <SectionLabel label="BİLDİRİM KANALI" accent={accent} />
+                <SectionLabel label={s.telNotifyChannelTitle} accent={accent} />
                 <p className="text-[11px] mb-3 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
-                    Eşik aşıldığında uyarı nereye gitsin?
+                    {s.telNotifyChannelHint}
                 </p>
                 <div className="flex gap-2">
                     {([
-                        {id: "feed"  as const, label: "Sadece Feed",    icon: "▤"},
-                        {id: "toast" as const, label: "Sadece Bildirim", icon: "◻"},
-                        {id: "both"  as const, label: "İkisi Birden",   icon: "◈"},
+                        {id: "feed"  as const, label: s.telChannelFeed,  icon: "▤"},
+                        {id: "toast" as const, label: s.telChannelToast, icon: "◻"},
+                        {id: "both"  as const, label: s.telChannelBoth,  icon: "◈"},
                     ]).map(({id, label, icon}) => {
                         const sel = notifyChannel === id;
                         return (
@@ -218,11 +221,11 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
 
             {/* Temperature unit */}
             <div>
-                <SectionLabel label="SICAKLIK BİRİMİ" accent={accent} />
+                <SectionLabel label={s.telTempUnitTitle} accent={accent} />
                 <div className="flex gap-2">
                     {([
-                        {id: "C" as const, label: "Celsius",    sub: "°C"},
-                        {id: "F" as const, label: "Fahrenheit", sub: "°F"},
+                        {id: "C" as const, label: s.telCelsius,    sub: "°C"},
+                        {id: "F" as const, label: s.telFahrenheit, sub: "°F"},
                     ]).map(({id, label, sub}) => {
                         const sel = tempUnit === id;
                         return (
@@ -246,17 +249,17 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
 
             {/* History duration */}
             <div>
-                <SectionLabel label="GEÇMİŞ SÜRESİ" accent={accent} />
+                <SectionLabel label={s.telHistoryTitle} accent={accent} />
                 <p className="text-[11px] mb-3 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
-                    Grafik/geçmiş için kaç saniyelik telemetri verisi hafızada tutulsun.
+                    {s.telHistoryHint}
                 </p>
                 <div className="flex gap-2 flex-wrap">
                     {([
                         {val: 10,  label: "10s"},
                         {val: 30,  label: "30s"},
-                        {val: 60,  label: "1dk"},
-                        {val: 120, label: "2dk"},
-                        {val: 300, label: "5dk"},
+                        {val: 60,  label: s.telHistory1m},
+                        {val: 120, label: s.telHistory2m},
+                        {val: 300, label: s.telHistory5m},
                     ]).map(({val, label}) => {
                         const sel = historySec === val;
                         return (
@@ -272,12 +275,12 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                         );
                     })}
                 </div>
-                <Hint accent={accent}>Daha uzun geçmiş hafıza kullanımını artırır.</Hint>
+                <Hint accent={accent}>{s.telHistoryFooterHint}</Hint>
             </div>
 
             {/* Update interval */}
             <div>
-                <SectionLabel label="GÜNCELLEME HIZI" accent={accent} />
+                <SectionLabel label={s.telUpdateSpeedTitle} accent={accent} />
                 <div className="flex gap-2 flex-wrap">
                     {[500, 1000, 1500, 2000, 3000, 5000].map((ms) => {
                         const sel = (settings.telemetryUpdateMs ?? 1500) === ms;
@@ -294,14 +297,14 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                         );
                     })}
                 </div>
-                <Hint accent={accent}>Daha hızlı güncelleme CPU kullanımını artırır.</Hint>
+                <Hint accent={accent}>{s.telUpdateSpeedHint}</Hint>
             </div>
 
             {/* JSON Export */}
             <div>
-                <SectionLabel label="VERİ DIŞA AKTARIMI" accent={accent} />
+                <SectionLabel label={s.telExportTitle} accent={accent} />
                 <p className="text-[11px] mb-3 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
-                    O anki telemetri snapshot'ını JSON dosyası olarak indir.
+                    {s.telExportHint}
                 </p>
                 <button onClick={handleExport}
                     className="flex items-center gap-3 px-5 py-3 rounded-xl transition-all hover:brightness-125"
@@ -312,7 +315,7 @@ export default function TelemetryTab({settings, accent, ac, onApply, onWidgetsCh
                     }}>
                     <span className="text-[14px]">{exportDone ? "✓" : "▤"}</span>
                     <span className="text-[12px] font-medium tracking-wide">
-                        {exportDone ? "İndirildi!" : "JSON Snapshot İndir"}
+                        {exportDone ? s.telExportDone : s.telExportBtn}
                     </span>
                 </button>
             </div>
