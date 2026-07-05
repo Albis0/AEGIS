@@ -437,6 +437,10 @@ export interface SettingsStrings {
     voLang: string; voLangHint: string; voEngine: string;
     voEdgeSub: string; voElSub: string; voKokoroSub: string; voKokoroMissing: string; voKokoroInstall: string; voKokoroReady: string; voElKey: string;
     voVoice: string; voSpeed: string; voTest: string; voTestPlaying: string; voTestHint: string;
+    voFemale: string; voMale: string; voDefault: string; voNatural: string; voSoft: string; voProfessional: string;
+    voNarrator: string; voDeep: string; voCasual: string; voNewsAnchor: string; voClassic: string;
+    voKokoroDeleteFail: string; voKokoroDeleteErr: string; voKokoroPkgInstalling: string; voKokoroReadyExcl: string;
+    voKokoroErrFallback: string; voTestPhrase: string; voKokoroInstalledHint: string; voKokoroRemoving: string; voKokoroRemoveBtn: string; voTestBtnLabel: string;
     // AppearanceTab
     apSkin: string; apDensity: string; apNormal: string; apCompact: string;
     apFineAdj: string; apAccent: string; apPalette: string; apFont: string;
@@ -514,6 +518,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · online · hızlı", voElSub: "Gerçekçi · API key gerekli", voKokoroSub: "Yerel · Çevrimdışı · Ücretsiz", voKokoroMissing: "Kokoro kurulu değil (~900 MB).", voKokoroInstall: "İNDİR", voKokoroReady: "HAZIR",
         voElKey: "ELEVENLABS API KEY", voVoice: "SES", voSpeed: "KONUŞMA HIZI",
         voTest: "SES TESTİ", voTestPlaying: "ÇALINIYOR…", voTestHint: " motoru kullanılır.",
+        voFemale: "Kadın", voMale: "Erkek", voDefault: "varsayılan", voNatural: "doğal", voSoft: "yumuşak", voProfessional: "profesyonel",
+        voNarrator: "anlatıcı", voDeep: "derin", voCasual: "rahat", voNewsAnchor: "haberci", voClassic: "klasik",
+        voKokoroDeleteFail: "Silme başarısız — model dosyaları hâlâ diskte.", voKokoroDeleteErr: "Silme hatası: ", voKokoroPkgInstalling: "Paket kuruluyor…", voKokoroReadyExcl: "Hazır!",
+        voKokoroErrFallback: "Hata", voTestPhrase: "Merhaba, ben AEGIS. Sesinizi duyuyorum.", voKokoroInstalledHint: "Kokoro kurulu — model dosyaları önbellekte.", voKokoroRemoving: "SİLİNİYOR…", voKokoroRemoveBtn: "SİL", voTestBtnLabel: "MERHABA, BEN AEGIS",
         apSkin: "GÖRÜNÜM", apDensity: "YOĞUNLUK", apNormal: "Normal", apCompact: "Kompakt",
         apFineAdj: "İNCE AYAR", apAccent: "VURGU RENGİ", apPalette: "PALET", apFont: "FONT",
         apApp: "UYGULAMA", apTray: "Sistem tepsisine küçült", apAutoLaunch: "Başlangıçta başlat", apApiServer: "API Sunucusu", apProactive: "Proaktif öneriler (alışkanlık örüntüleri)",
@@ -585,6 +593,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voEngine: "TTS ENGINE", voEdgeSub: "Free · online · fast", voElSub: "Realistic · API key required", voKokoroSub: "Local · Offline · Free", voKokoroMissing: "Kokoro not installed (~900 MB).", voKokoroInstall: "INSTALL", voKokoroReady: "READY",
         voElKey: "ELEVENLABS API KEY", voVoice: "VOICE", voSpeed: "SPEECH RATE",
         voTest: "VOICE TEST", voTestPlaying: "PLAYING…", voTestHint: " engine is used.",
+        voFemale: "Female", voMale: "Male", voDefault: "default", voNatural: "natural", voSoft: "soft", voProfessional: "professional",
+        voNarrator: "narrator", voDeep: "deep", voCasual: "casual", voNewsAnchor: "news anchor", voClassic: "classic",
+        voKokoroDeleteFail: "Deletion failed — model files still on disk.", voKokoroDeleteErr: "Deletion error: ", voKokoroPkgInstalling: "Installing package…", voKokoroReadyExcl: "Ready!",
+        voKokoroErrFallback: "Error", voTestPhrase: "Hello, I'm AEGIS. I can hear you.", voKokoroInstalledHint: "Kokoro installed — model files cached.", voKokoroRemoving: "REMOVING…", voKokoroRemoveBtn: "REMOVE", voTestBtnLabel: "HELLO, I'M AEGIS",
         apSkin: "APPEARANCE", apDensity: "DENSITY", apNormal: "Normal", apCompact: "Compact",
         apFineAdj: "FINE TUNE", apAccent: "ACCENT COLOR", apPalette: "PALETTE", apFont: "FONT",
         apApp: "APPLICATION", apTray: "Minimize to tray", apAutoLaunch: "Launch at startup", apApiServer: "API Server", apProactive: "Proactive suggestions (habit patterns)",
@@ -656,6 +668,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · online · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich", voKokoroSub: "Lokal · Offline · Kostenlos", voKokoroMissing: "Kokoro nicht installiert (~900 MB).", voKokoroInstall: "HERUNTERLADEN", voKokoroReady: "BEREIT",
         voElKey: "ELEVENLABS-API-SCHLÜSSEL", voVoice: "STIMME", voSpeed: "SPRECHGESCHWINDIGKEIT",
         voTest: "STIMMTEST", voTestPlaying: "WIRD ABGESPIELT…", voTestHint: " Engine wird verwendet.",
+        voFemale: "Weiblich", voMale: "Männlich", voDefault: "Standard", voNatural: "natürlich", voSoft: "sanft", voProfessional: "professionell",
+        voNarrator: "Erzähler", voDeep: "tief", voCasual: "locker", voNewsAnchor: "Nachrichtensprecher", voClassic: "klassisch",
+        voKokoroDeleteFail: "Löschen fehlgeschlagen — Modelldateien noch auf der Festplatte.", voKokoroDeleteErr: "Löschfehler: ", voKokoroPkgInstalling: "Paket wird installiert…", voKokoroReadyExcl: "Bereit!",
+        voKokoroErrFallback: "Fehler", voTestPhrase: "Hallo, ich bin AEGIS. Ich höre dich.", voKokoroInstalledHint: "Kokoro installiert — Modelldateien zwischengespeichert.", voKokoroRemoving: "WIRD ENTFERNT…", voKokoroRemoveBtn: "ENTFERNEN", voTestBtnLabel: "HALLO, ICH BIN AEGIS",
         apSkin: "AUSSEHEN", apDensity: "DICHTE", apNormal: "Normal", apCompact: "Kompakt",
         apFineAdj: "FEINEINSTELLUNG", apAccent: "AKZENTFARBE", apPalette: "PALETTE", apFont: "SCHRIFTART",
         apApp: "ANWENDUNG", apTray: "In Taskleiste minimieren", apAutoLaunch: "Beim Start ausführen", apApiServer: "API-Server", apProactive: "Proaktive Vorschläge (Gewohnheitsmuster)",
@@ -727,6 +743,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · en ligne · rapide", voElSub: "Réaliste · clé API requise", voKokoroSub: "Local · Hors ligne · Gratuit", voKokoroMissing: "Kokoro non installé (~900 Mo).", voKokoroInstall: "INSTALLER", voKokoroReady: "PRÊT",
         voElKey: "CLÉ API ELEVENLABS", voVoice: "VOIX", voSpeed: "VITESSE D'ÉLOCUTION",
         voTest: "TEST VOCAL", voTestPlaying: "LECTURE…", voTestHint: " moteur utilisé.",
+        voFemale: "Femme", voMale: "Homme", voDefault: "par défaut", voNatural: "naturelle", voSoft: "douce", voProfessional: "professionnelle",
+        voNarrator: "narrateur", voDeep: "grave", voCasual: "décontractée", voNewsAnchor: "présentateur", voClassic: "classique",
+        voKokoroDeleteFail: "Échec de la suppression — fichiers du modèle toujours sur le disque.", voKokoroDeleteErr: "Erreur de suppression : ", voKokoroPkgInstalling: "Installation du paquet…", voKokoroReadyExcl: "Prêt !",
+        voKokoroErrFallback: "Erreur", voTestPhrase: "Bonjour, je suis AEGIS. Je vous entends.", voKokoroInstalledHint: "Kokoro installé — fichiers du modèle en cache.", voKokoroRemoving: "SUPPRESSION…", voKokoroRemoveBtn: "SUPPRIMER", voTestBtnLabel: "BONJOUR, JE SUIS AEGIS",
         apSkin: "APPARENCE", apDensity: "DENSITÉ", apNormal: "Normal", apCompact: "Compact",
         apFineAdj: "RÉGLAGE FIN", apAccent: "COULEUR D'ACCENT", apPalette: "PALETTE", apFont: "POLICE",
         apApp: "APPLICATION", apTray: "Réduire dans la barre", apAutoLaunch: "Lancer au démarrage", apApiServer: "Serveur API", apProactive: "Suggestions proactives (habitudes)",
@@ -798,6 +818,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · en línea · rápido", voElSub: "Realista · requiere clave API", voKokoroSub: "Local · Sin conexión · Gratis", voKokoroMissing: "Kokoro no instalado (~900 MB).", voKokoroInstall: "INSTALAR", voKokoroReady: "LISTO",
         voElKey: "CLAVE API ELEVENLABS", voVoice: "VOZ", voSpeed: "VELOCIDAD DE HABLA",
         voTest: "PRUEBA DE VOZ", voTestPlaying: "REPRODUCIENDO…", voTestHint: " motor en uso.",
+        voFemale: "Mujer", voMale: "Hombre", voDefault: "predeterminada", voNatural: "natural", voSoft: "suave", voProfessional: "profesional",
+        voNarrator: "narrador", voDeep: "profunda", voCasual: "casual", voNewsAnchor: "presentador", voClassic: "clásica",
+        voKokoroDeleteFail: "Error al eliminar — los archivos del modelo siguen en el disco.", voKokoroDeleteErr: "Error al eliminar: ", voKokoroPkgInstalling: "Instalando paquete…", voKokoroReadyExcl: "¡Listo!",
+        voKokoroErrFallback: "Error", voTestPhrase: "Hola, soy AEGIS. Te escucho.", voKokoroInstalledHint: "Kokoro instalado — archivos del modelo en caché.", voKokoroRemoving: "ELIMINANDO…", voKokoroRemoveBtn: "ELIMINAR", voTestBtnLabel: "HOLA, SOY AEGIS",
         apSkin: "APARIENCIA", apDensity: "DENSIDAD", apNormal: "Normal", apCompact: "Compacto",
         apFineAdj: "AJUSTE FINO", apAccent: "COLOR DE ACENTO", apPalette: "PALETA", apFont: "FUENTE",
         apApp: "APLICACIÓN", apTray: "Minimizar a bandeja", apAutoLaunch: "Iniciar al arranque", apApiServer: "Servidor API", apProactive: "Sugerencias proactivas (hábitos)",

@@ -3,41 +3,47 @@ import type {AppSettings, AegisConfig} from "../../../electron.d";
 import {SectionLabel, RadioCard, Hint, KeyField} from "../shared";
 import type {SettingsStrings} from "../../../i18n";
 
-const EDGE_VOICES = [
-    {id: "tr-TR-EmelNeural",   label: "Emel",   meta: "TR · Kadın"},
-    {id: "tr-TR-AhmetNeural",  label: "Ahmet",  meta: "TR · Erkek"},
-    {id: "en-US-AriaNeural",   label: "Aria",   meta: "EN · Kadın"},
-    {id: "en-US-GuyNeural",    label: "Guy",    meta: "EN · Erkek"},
-    {id: "en-GB-SoniaNeural",  label: "Sonia",  meta: "EN-GB · Kadın"},
-    {id: "de-DE-KatjaNeural",  label: "Katja",  meta: "DE · Kadın"},
-    {id: "de-DE-ConradNeural", label: "Conrad", meta: "DE · Erkek"},
-    {id: "fr-FR-DeniseNeural", label: "Denise", meta: "FR · Kadın"},
-    {id: "fr-FR-HenriNeural",  label: "Henri",  meta: "FR · Erkek"},
-    {id: "es-ES-ElviraNeural", label: "Elvira", meta: "ES · Kadın"},
-    {id: "es-ES-AlvaroNeural", label: "Alvaro", meta: "ES · Erkek"},
-];
+function buildEdgeVoices(s: SettingsStrings) {
+    return [
+        {id: "tr-TR-EmelNeural",   label: "Emel",   meta: `TR · ${s.voFemale}`},
+        {id: "tr-TR-AhmetNeural",  label: "Ahmet",  meta: `TR · ${s.voMale}`},
+        {id: "en-US-AriaNeural",   label: "Aria",   meta: `EN · ${s.voFemale}`},
+        {id: "en-US-GuyNeural",    label: "Guy",    meta: `EN · ${s.voMale}`},
+        {id: "en-GB-SoniaNeural",  label: "Sonia",  meta: `EN-GB · ${s.voFemale}`},
+        {id: "de-DE-KatjaNeural",  label: "Katja",  meta: `DE · ${s.voFemale}`},
+        {id: "de-DE-ConradNeural", label: "Conrad", meta: `DE · ${s.voMale}`},
+        {id: "fr-FR-DeniseNeural", label: "Denise", meta: `FR · ${s.voFemale}`},
+        {id: "fr-FR-HenriNeural",  label: "Henri",  meta: `FR · ${s.voMale}`},
+        {id: "es-ES-ElviraNeural", label: "Elvira", meta: `ES · ${s.voFemale}`},
+        {id: "es-ES-AlvaroNeural", label: "Alvaro", meta: `ES · ${s.voMale}`},
+    ];
+}
 
-const KOKORO_VOICES = [
-    {id: "af_bella",   label: "Bella",   meta: "EN · Kadın"},
-    {id: "af_sarah",   label: "Sarah",   meta: "EN · Kadın"},
-    {id: "am_adam",    label: "Adam",    meta: "EN · Erkek"},
-    {id: "am_michael", label: "Michael", meta: "EN · Erkek"},
-    {id: "bf_emma",    label: "Emma",    meta: "EN-GB · Kadın"},
-    {id: "bm_george",  label: "George",  meta: "EN-GB · Erkek"},
-];
+function buildKokoroVoices(s: SettingsStrings) {
+    return [
+        {id: "af_bella",   label: "Bella",   meta: `EN · ${s.voFemale}`},
+        {id: "af_sarah",   label: "Sarah",   meta: `EN · ${s.voFemale}`},
+        {id: "am_adam",    label: "Adam",    meta: `EN · ${s.voMale}`},
+        {id: "am_michael", label: "Michael", meta: `EN · ${s.voMale}`},
+        {id: "bf_emma",    label: "Emma",    meta: `EN-GB · ${s.voFemale}`},
+        {id: "bm_george",  label: "George",  meta: `EN-GB · ${s.voMale}`},
+    ];
+}
 
-const EL_VOICES = [
-    {id: "el:cgSgspJ2msm6clMCkdW9", label: "Jessica",   meta: "EN · Kadın · varsayılan"},
-    {id: "el:9BWtsMINqrJLrRacOk9x", label: "Aria",      meta: "EN · Kadın · doğal"},
-    {id: "el:XB0fDUnXU5powFXDhCwa", label: "Charlotte", meta: "EN-GB · Kadın · yumuşak"},
-    {id: "el:Xb7hH8MSUJpSbSDYk0k2", label: "Alice",     meta: "EN-GB · Kadın · profesyonel"},
-    {id: "el:TX3LPaxmHKxFdv7VOQHJ", label: "Liam",      meta: "EN · Erkek · anlatıcı"},
-    {id: "el:nPczCjzI2devNBz1zQrb", label: "Brian",     meta: "EN · Erkek · derin"},
-    {id: "el:IKne3meq5aSn9XLyUdCD", label: "Charlie",   meta: "EN-AU · Erkek · rahat"},
-    {id: "el:onwK4e9ZLuTAKqWW03F9", label: "Daniel",    meta: "EN-GB · Erkek · haberci"},
-    {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel",    meta: "EN · Kadın · klasik"},
-    {id: "el:pNInz6obpgDQGcFmaJgB", label: "Adam",      meta: "EN · Erkek · klasik"},
-];
+function buildElVoices(s: SettingsStrings) {
+    return [
+        {id: "el:cgSgspJ2msm6clMCkdW9", label: "Jessica",   meta: `EN · ${s.voFemale} · ${s.voDefault}`},
+        {id: "el:9BWtsMINqrJLrRacOk9x", label: "Aria",      meta: `EN · ${s.voFemale} · ${s.voNatural}`},
+        {id: "el:XB0fDUnXU5powFXDhCwa", label: "Charlotte", meta: `EN-GB · ${s.voFemale} · ${s.voSoft}`},
+        {id: "el:Xb7hH8MSUJpSbSDYk0k2", label: "Alice",     meta: `EN-GB · ${s.voFemale} · ${s.voProfessional}`},
+        {id: "el:TX3LPaxmHKxFdv7VOQHJ", label: "Liam",      meta: `EN · ${s.voMale} · ${s.voNarrator}`},
+        {id: "el:nPczCjzI2devNBz1zQrb", label: "Brian",     meta: `EN · ${s.voMale} · ${s.voDeep}`},
+        {id: "el:IKne3meq5aSn9XLyUdCD", label: "Charlie",   meta: `EN-AU · ${s.voMale} · ${s.voCasual}`},
+        {id: "el:onwK4e9ZLuTAKqWW03F9", label: "Daniel",    meta: `EN-GB · ${s.voMale} · ${s.voNewsAnchor}`},
+        {id: "el:21m00Tcm4TlvDq8ikWAM", label: "Rachel",    meta: `EN · ${s.voFemale} · ${s.voClassic}`},
+        {id: "el:pNInz6obpgDQGcFmaJgB", label: "Adam",      meta: `EN · ${s.voMale} · ${s.voClassic}`},
+    ];
+}
 
 const LANGUAGES = [
     {id: "tr", flag: "🇹🇷", label: "Türkçe"},
@@ -78,12 +84,12 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
             const stillInstalled = res?.installed === true;
             setKokoroInstalled(stillInstalled);
             if (stillInstalled) {
-                setKokoroProg({phase: "error", percent: 0, label: "Silme başarısız — model dosyaları hâlâ diskte."});
+                setKokoroProg({phase: "error", percent: 0, label: s.voKokoroDeleteFail});
             } else {
                 setKokoroProg({phase: "idle", percent: 0, label: ""});
             }
         } catch (e) {
-            setKokoroProg({phase: "error", percent: 0, label: "Silme hatası: " + String(e)});
+            setKokoroProg({phase: "error", percent: 0, label: s.voKokoroDeleteErr + String(e)});
             // re-query the real state
             window.jarvis.ttsKokoroInstalled().then(setKokoroInstalled).catch(() => {});
         }
@@ -92,18 +98,18 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
 
     function startKokoroInstall() {
         if (kokoroProg.phase !== "idle" && kokoroProg.phase !== "error") return;
-        setKokoroProg({phase: "pkg", percent: 0, label: "Paket kuruluyor…"});
+        setKokoroProg({phase: "pkg", percent: 0, label: s.voKokoroPkgInstalling});
         unsubRef.current?.();
         unsubRef.current = window.jarvis.on("kokoro-install-progress", (p: any) => {
             if (p.phase === "ready") {
-                setKokoroProg({phase: "ready", percent: 100, label: "Hazır!"});
+                setKokoroProg({phase: "ready", percent: 100, label: s.voKokoroReadyExcl});
                 setKokoroInstalled(true);
                 unsubRef.current?.();
             } else if (p.phase === "error") {
-                setKokoroProg({phase: "error", percent: 0, label: p.label ?? "Hata"});
+                setKokoroProg({phase: "error", percent: 0, label: p.label ?? s.voKokoroErrFallback});
                 unsubRef.current?.();
             } else if (p.phase === "pkg") {
-                setKokoroProg({phase: "pkg", percent: p.percent ?? 0, label: p.label ?? "Paket kuruluyor…"});
+                setKokoroProg({phase: "pkg", percent: p.percent ?? 0, label: p.label ?? s.voKokoroPkgInstalling});
             } else if (p.phase === "model") {
                 const pct = p.percent ?? 0;
                 const file = (p.file as string ?? "").split("/").pop() ?? "";
@@ -115,15 +121,15 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
         });
     }
 
-    const voices = settings.ttsProvider === "elevenlabs" ? EL_VOICES
-                 : settings.ttsProvider === "kokoro"     ? KOKORO_VOICES
-                 : EDGE_VOICES;
+    const voices = settings.ttsProvider === "elevenlabs" ? buildElVoices(s)
+                 : settings.ttsProvider === "kokoro"     ? buildKokoroVoices(s)
+                 : buildEdgeVoices(s);
 
     async function testVoice() {
         if (testing) return;
         setTesting(true);
         try {
-            const res = await window.jarvis.tts("Merhaba, ben AEGIS. Sesinizi duyuyorum.");
+            const res = await window.jarvis.tts(s.voTestPhrase);
             if (res.error || !res.buffer) return;
             const ctx = new AudioContext();
             const raw = res.buffer as unknown as {data?: number[]};
@@ -199,18 +205,18 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         strokeLinecap="round" strokeLinejoin="round" style={{color: ac, flexShrink: 0}}>
                         <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    <span className="flex-1 text-[11px]" style={{color: `rgba(${accent},0.7)`}}>Kokoro kurulu — model dosyaları önbellekte.</span>
+                    <span className="flex-1 text-[11px]" style={{color: `rgba(${accent},0.7)`}}>{s.voKokoroInstalledHint}</span>
                     <button
                         onClick={removeKokoro}
                         disabled={kokoroRemoving}
                         className="flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] tracking-[0.12em] transition hover:brightness-125 disabled:opacity-40 shrink-0"
                         style={{color: "rgba(239,68,68,0.85)", borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)"}}>
-                        {kokoroRemoving ? "SİLİNİYOR…" : (
+                        {kokoroRemoving ? s.voKokoroRemoving : (
                             <>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                                 </svg>
-                                SİL
+                                {s.voKokoroRemoveBtn}
                             </>
                         )}
                     </button>
@@ -256,7 +262,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                         <div className="px-4 pb-3 space-y-1.5">
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] truncate max-w-[240px]" style={{color: `rgba(${accent},0.5)`}}>
-                                    {kokoroProg.phase === "pkg" ? "Paket kuruluyor…" : kokoroProg.label}
+                                    {kokoroProg.phase === "pkg" ? s.voKokoroPkgInstalling : kokoroProg.label}
                                 </span>
                                 <span className="text-[10px] tabular-nums ml-2 shrink-0" style={{color: `rgba(${accent},0.5)`}}>
                                     {kokoroProg.phase === "pkg" ? "" : `${kokoroProg.percent}%`}
@@ -333,7 +339,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                     style={{color: ac, borderColor: `rgba(${accent},0.3)`, background: `rgba(${accent},0.07)`}}>
                     {testing
                         ? <><span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{background: ac}} />{s.voTestPlaying}</>
-                        : <>▶ MERHABA, BEN AEGIS</>}
+                        : <>▶ {s.voTestBtnLabel}</>}
                 </button>
                 <Hint accent={accent}>{settings.ttsProvider === "elevenlabs" ? "ElevenLabs" : settings.ttsProvider === "kokoro" ? "Kokoro" : "Edge TTS"}{s.voTestHint}</Hint>
             </div>
