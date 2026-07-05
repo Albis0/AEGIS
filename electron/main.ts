@@ -1211,10 +1211,14 @@ function createOnboardingWindow(): void {
 
 // Closes the onboarding window and starts the actual app.
 async function startMainAppFromOnboarding(): Promise<void> {
-    if (onboardingWin && !onboardingWin.isDestroyed()) onboardingWin.close();
+    // Boot (creates the main window + tray) BEFORE closing the onboarding window:
+    // closing first leaves zero windows and no tray, so "window-all-closed"
+    // quits the app mid-transition (raced in packaged builds).
+    const oldWin = onboardingWin;
     onboardingWin = null;
     mainWindow = null;
     await bootApp();
+    if (oldWin && !oldWin.isDestroyed()) oldWin.close();
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
