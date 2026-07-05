@@ -1408,7 +1408,7 @@ try {
             const ext = path.extname(target).slice(1).toLowerCase();
             const mimeMap: Record<string, string> = {jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif", webp:"image/webp"};
             const mime = mimeMap[ext] ?? "image/png";
-            return `[IMAGE ANALYSIS]\nFile: ${path.basename(target)}\nSize: ${(buf.length / 1024).toFixed(1)} KB\nQuestion: ${question || "What's in this image?"}\nNote: Image analysis requires a vision-capable model (gpt-4o-mini or llama-3.2-vision). The current Groq model is text-based. I've prepared the image as base64 (${mime}, ${base64.length} characters). Add an OpenAI API key in settings to enable the vision feature.`;
+            return `[IMAGE ANALYSIS]\nFile: ${path.basename(target)}\nSize: ${(buf.length / 1024).toFixed(1)} KB\nQuestion: ${question || "What's in this image?"}\nNote: Image analysis requires a vision-capable model (e.g. gpt-5-mini or Llama 4 Scout). The current Groq model is text-based. I've prepared the image as base64 (${mime}, ${base64.length} characters). Add an OpenAI API key in settings to enable the vision feature.`;
         } catch (e) {
             return `ERROR: ${(e as Error).message}`;
         }
@@ -1788,7 +1788,7 @@ else{
 
     // ── Phase 29: Multi-Model ──────────────────────────────────────────────────
     async model_compare({prompt, models}) {
-        return modelCompare(prompt ?? "", models ?? "groq:qwen3-32b,groq:llama-3.3-70b");
+        return modelCompare(prompt ?? "", models ?? "groq:llama-3.1-8b-instant,groq:openai/gpt-oss-20b");
     },
     async pipeline_run({pipeline_name, input}) {
         return pipelineRun(pipeline_name ?? "", input ?? "");

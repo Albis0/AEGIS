@@ -52,14 +52,12 @@ async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
 }
 
 // Groq fallback — known, ACTIVE models to show when the API is unreachable.
-// (June 2026: gemma2-9b-it, mistral-saba-24b and llama-4-maverick were removed/
-// deprecated from Groq's production list → dropped from the fallback. Replaced
-// with Groq's recommended gpt-oss series. Scout kept for vision.)
+// (July 2026: llama-3.3-70b-versatile deprecated by Groq — decommission Aug
+// 2026 — dropped from the fallback. gpt-oss series + Scout remain production.)
 const GROQ_FALLBACK: LiveModel[] = [
-    {id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)"},
-    {id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq)"},
     {id: "openai/gpt-oss-120b", label: "GPT-OSS 120B (Groq)"},
     {id: "openai/gpt-oss-20b", label: "GPT-OSS 20B (Groq)"},
+    {id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (Groq)"},
     {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout · Vision (Groq)"},
 ];
 

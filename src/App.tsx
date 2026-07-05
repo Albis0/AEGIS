@@ -350,7 +350,7 @@ export default function App() {
             }),
 
             window.jarvis.on("system-notice", ({message}: {message: string}) => {
-                setFeed((prev) => [...prev, {id: uid(), kind: "error", text: message}]);
+                setFeed((prev) => [...prev, {id: uid(), kind: "notice", text: message}]);
             }),
 
             window.jarvis.on("reminder-fired", ({message}: {message: string}) => {

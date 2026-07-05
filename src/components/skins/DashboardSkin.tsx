@@ -166,6 +166,11 @@ export default function DashboardSkin({
                                 </div>
                                 <p className="px-3 py-2.5 text-[12px] leading-relaxed whitespace-pre-wrap break-words" style={{color: "rgb(252,180,180)"}}>{item.text}</p>
                             </div>
+                        ) : item.kind === "notice" ? (
+                            <div key={item.id} className="rise px-3 py-2 rounded-lg text-[11.5px] leading-relaxed"
+                                style={{background: "rgba(var(--hud),0.05)", border: "1px solid rgba(var(--hud),0.15)", color: "rgba(var(--hud),0.6)"}}>
+                                {item.text}
+                            </div>
                         ) : item.kind === "user" ? (
                             <div key={item.id} className="rise flex justify-end">
                                 <div className="max-w-[75%] px-3 py-2 rounded-lg rounded-br-sm text-[12px] leading-relaxed" style={{background: "rgba(var(--hud),0.1)", border: "1px solid rgba(var(--hud),0.2)", color: "rgb(var(--hud-soft))"}}>

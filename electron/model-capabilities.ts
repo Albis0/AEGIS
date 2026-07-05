@@ -151,6 +151,7 @@ function anthropicCaps(id: string): ModelCaps {
     if (/sonnet-4-5|opus-4-5|claude-sonnet-4-20/.test(id)) return a(64 * K);              // 4.5 / Sonnet 4 → 64K
     if (/opus-4-6|opus-4-7|opus-4-8/.test(id)) return a(128 * K, 1000 * K);               // Opus 4.6+ → 128K / 1M ctx
     if (/sonnet-4-6|haiku-4-5/.test(id)) return a(64 * K, /sonnet/.test(id) ? 1000 * K : 200 * K);
+    if (/fable-5|mythos-5|sonnet-5/.test(id)) return a(128 * K, 1000 * K);                // Claude 5 family → 128K / 1M ctx
     // Unknown Claude → safe 8192 (nearly all modern Claudes handle it).
     return a(8 * K);
 }

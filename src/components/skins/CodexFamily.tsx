@@ -39,6 +39,13 @@ function CdxFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "stream
                         </div>
                     );
                 }
+                if (item.kind === "notice") {
+                    return (
+                        <div key={item.id} className="rise opacity-70" style={{borderLeft: "2px solid rgba(var(--hud),0.3)", paddingLeft: 10}}>
+                            <div className="text-[11px] leading-relaxed break-words" style={{color: "rgba(var(--hud),0.6)"}}>{item.text}</div>
+                        </div>
+                    );
+                }
                 if (item.kind === "user") {
                     return (
                         <div key={item.id} className="rise" style={{borderLeft: `2px solid ${line}`, paddingLeft: 10}}>

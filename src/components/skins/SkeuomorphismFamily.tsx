@@ -86,6 +86,11 @@ function SkFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
                         <span className="break-words" style={{color: "#e88"}}>{item.text}</span>
                     </div>
                 );
+                if (item.kind === "notice") return (
+                    <div key={item.id} className={`rise px-3 ${py} text-[11.5px] leading-relaxed opacity-80`} style={inset()}>
+                        <span className="break-words" style={{color: SK.creamDim}}>{item.text}</span>
+                    </div>
+                );
                 if (item.kind === "user") return (
                     <div key={item.id} className={`rise px-3 ${py} text-[12px] leading-relaxed self-end max-w-[80%] ml-auto`}
                         style={{...inset(), background: SK.leather}}>
@@ -376,6 +381,7 @@ export function SkWalkman(p: SkinProps) {
                             const lcdc: React.CSSProperties = {color: "#4ade80", fontSize: 11, lineHeight: "1.5"};
                             const lcdUser: React.CSSProperties = {color: "#86efac", fontSize: 11};
                             if (item.kind === "error") return <div key={item.id} className="rise text-[10px]" style={{color: "#ff6666"}}>!! {p.t.errLabel}: {item.text}</div>;
+                            if (item.kind === "notice") return <div key={item.id} className="rise text-[10px] opacity-60" style={lcdc}>i: {item.text}</div>;
                             if (item.kind === "user") return (
                                 <div key={item.id} className="rise" style={lcdUser}>&gt; {item.text}</div>
                             );

@@ -101,6 +101,27 @@ const FeedItem = React.memo(function FeedItem({item, streaming, isLast, t}: Prop
         );
     }
 
+    // Soft informational notice — background events (sync retry, offline hints).
+    // Deliberately NOT red: a first-launch network hiccup must not look like a crash.
+    if (item.kind === "notice") {
+        return (
+            <div className="rise">
+                <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-[11.5px] leading-relaxed"
+                    style={{
+                        background: "rgba(var(--hud),0.05)",
+                        border: "1px solid rgba(var(--hud),0.15)",
+                        color: "rgba(var(--hud),0.65)",
+                    }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                        className="shrink-0 mt-0.5" style={{opacity: 0.7}}>
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01" strokeLinecap="round"/>
+                    </svg>
+                    <span className="whitespace-pre-wrap break-words">{item.text}</span>
+                </div>
+            </div>
+        );
+    }
+
     if (item.kind === "user") {
         return (
             <div className="flex justify-end rise">

@@ -66,6 +66,11 @@ export default function TerminalSkin({
                             <span className="shrink-0" style={{color: "rgb(248,113,113)"}}>[!]</span>
                             <span className="whitespace-pre-wrap break-words">error: {item.text}</span>
                         </div>
+                    ) : item.kind === "notice" ? (
+                        <div key={item.id} className="rise flex gap-2" style={{color: "rgba(var(--hud),0.55)"}}>
+                            <span className="shrink-0">[i]</span>
+                            <span className="whitespace-pre-wrap break-words">{item.text}</span>
+                        </div>
                     ) : item.kind === "user" ? (
                         <div key={item.id} className="rise">
                             <div className="flex gap-2">

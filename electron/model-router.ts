@@ -62,7 +62,7 @@ export function getModelRoutingRules(): string {
     const rules = loadRouting();
     const entries = Object.values(rules);
     if (entries.length === 0) {
-        return "No model routing rules.\n\nExample usage: model_route_set(task_type='code', model='groq:qwen3-32b', description='For code tasks')";
+        return "No model routing rules.\n\nExample usage: model_route_set(task_type='code', model='groq:openai/gpt-oss-120b', description='For code tasks')";
     }
     const lines = entries.map((r) => `• ${r.taskType} → ${r.model}${r.description ? " (" + r.description + ")" : ""}`);
     return `Model Routing Rules (${lines.length}):\n${lines.join("\n")}`;
@@ -86,7 +86,7 @@ export function savePipeline(name: string, stepsJson: string, description: strin
 export function listPipelines(): string {
     const pipelines = loadPipelines();
     const entries = Object.values(pipelines);
-    if (entries.length === 0) return "No pipelines.\n\nExample: pipeline_save(name='analysis', steps='[{\"prompt\":\"Summarize: {{input}}\",\"model\":\"groq:qwen3-32b\"},{\"prompt\":\"Critique the results: {{input}}\"}]')";
+    if (entries.length === 0) return "No pipelines.\n\nExample: pipeline_save(name='analysis', steps='[{\"prompt\":\"Summarize: {{input}}\",\"model\":\"groq:llama-3.1-8b-instant\"},{\"prompt\":\"Critique the results: {{input}}\"}]')";
     const lines = entries.map((p) => `• ${p.name} (${p.steps.length} steps)${p.description ? " — " + p.description : ""}`);
     return `Pipelines (${lines.length}):\n${lines.join("\n")}`;
 }
@@ -125,7 +125,7 @@ export async function pipelineRun(pipelineName: string, input: string): Promise<
 
 export async function modelCompare(prompt: string, models: string): Promise<string> {
     const modelList = models.split(",").map((m) => m.trim()).filter(Boolean);
-    if (modelList.length < 2) return "ERROR: Specify at least 2 models, separated by commas (e.g. groq:qwen3-32b,groq:llama-3.3-70b)";
+    if (modelList.length < 2) return "ERROR: Specify at least 2 models, separated by commas (e.g. groq:llama-3.1-8b-instant,groq:openai/gpt-oss-20b)";
     if (!_llmCallback) return "ERROR: LLM connection not ready. Restart the application.";
 
     const header = `Model Comparison\nPrompt: "${prompt.slice(0, 100)}"\nModels: ${modelList.join(", ")}\n${"═".repeat(50)}`;

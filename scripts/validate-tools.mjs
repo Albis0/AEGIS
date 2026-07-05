@@ -73,7 +73,17 @@ const execStart = execSrc.indexOf(execMarker);
 const execStopRe = /\nasync function executeTool\b|\nexport async function executeTool\b|\nfunction executeTool\b/;
 const execStopMatch = execStopRe.exec(execSrc.slice(execStart));
 const execEnd = execStopMatch ? execStart + execStopMatch.index : execSrc.length;
-const execBlock = execSrc.slice(execStart, execEnd);
+let execBlock = execSrc.slice(execStart, execEnd);
+
+// Domain executor modules (audit B1 split): spotify/steam executors moved to
+// dist-electron/tools/exec-*.js and are spread into the executors object.
+// Scan them too, or every moved tool reads as NO-EXECUTOR.
+const toolsDir = path.join(DIST, "tools");
+if (fs.existsSync(toolsDir)) {
+    for (const f of fs.readdirSync(toolsDir).filter((n) => /^exec-.*\.js$/.test(n))) {
+        execBlock += "\n" + fs.readFileSync(path.join(toolsDir, f), "utf-8");
+    }
+}
 
 const executors = [];
 const execRe = /async\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/g;
@@ -126,3 +136,6 @@ console.log(`FAILS: ${fails.length}   WARNS: ${warns.length}`);
 fs.writeFileSync(path.join(__dirname, "tool-validation-report.json"),
     JSON.stringify({schemaCount: schemas.length, execCount: executors.length, fails, warns,
         schemaNames: [...schemaNames].sort(), execNames: [...execNames].sort(), schemas, executors}, null, 2));
+
+// A validator that only prints is decoration — fail the build on breakage.
+if (fails.length) process.exit(1);

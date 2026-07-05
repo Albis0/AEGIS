@@ -63,6 +63,11 @@ export default function MinimalSkin({
                                 {item.text}
                             </p>
                         </div>
+                    ) : item.kind === "notice" ? (
+                        <div key={item.id} className="rise flex gap-3">
+                            <span className="text-[11px] opacity-30 shrink-0 mt-0.5" style={{color: "rgb(var(--hud))"}}>i</span>
+                            <p className="text-[12.5px] leading-relaxed" style={{color: "rgba(var(--hud),0.55)"}}>{item.text}</p>
+                        </div>
                     ) : item.kind === "user" ? (
                         <div key={item.id} className="rise flex gap-3">
                             <span className="text-[11px] opacity-30 shrink-0 mt-0.5" style={{color: "rgb(var(--hud))"}}>you</span>

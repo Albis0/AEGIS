@@ -66,6 +66,11 @@ function NbFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps, "feed"|"
                         <span className="break-words" style={{color: NB.danger}}>{item.text}</span>
                     </div>
                 );
+                if (item.kind === "notice") return (
+                    <div key={item.id} className={`rise ${px} text-[12px]`} style={{...card(), opacity: 0.75}}>
+                        <span className="break-words" style={{color: NB.ink}}>{item.text}</span>
+                    </div>
+                );
                 if (item.kind === "user") return (
                     <div key={item.id} className={`rise ${px} text-[13px] self-end max-w-[82%]`}
                         style={card({background: NB.accent, borderColor: NB.border, boxShadow: NB.shadowSm, color: "#fff"})}>

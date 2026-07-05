@@ -139,80 +139,76 @@ export interface ModelEntry {
     note?: string;
 }
 
+// July 2026 sweep (console.groq.com/docs/models): llama-3.3-70b-versatile and
+// qwen3-32b are deprecated (decommission Aug 2026), deepseek-r1-distill was
+// dropped from Groq entirely — all removed. gemma2/mixtral went earlier.
 export const GROQ_MODELS: ModelEntry[] = [
     {id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout",          tag: "varsayılan", ctx: "128K", note: "MoE·Vizyon"},
-    {id: "qwen/qwen3-32b",                            label: "Qwen3 32B",              tag: "güçlü",      ctx: "128K"},
-    {id: "openai/gpt-oss-120b",                       label: "GPT OSS 120B",           tag: "yeni",       ctx: "131K", note: "OpenAI open-weight"},
+    {id: "openai/gpt-oss-120b",                       label: "GPT OSS 120B",           tag: "güçlü",      ctx: "131K", note: "OpenAI open-weight"},
     {id: "openai/gpt-oss-20b",                        label: "GPT OSS 20B",            tag: "hızlı",      ctx: "131K", note: "~1000 tok/s"},
-    {id: "deepseek-r1-distill-llama-70b",             label: "DeepSeek-R1 Distill 70B",tag: "reasoning",  ctx: "128K"},
-    {id: "llama-3.3-70b-versatile",                   label: "Llama 3.3 70B",          tag: "",           ctx: "128K"},
+    {id: "qwen/qwen3.6-27b",                          label: "Qwen3.6 27B",            tag: "yeni",       ctx: "128K", note: "Preview"},
     {id: "llama-3.1-8b-instant",                      label: "Llama 3.1 8B",           tag: "hızlı",      ctx: "128K", note: "~560 tok/s"},
     {id: "groq/compound",                             label: "Groq Compound",          tag: "agentic",    ctx: "131K", note: "Web+Kod dahil"},
     {id: "groq/compound-mini",                        label: "Groq Compound Mini",     tag: "agentic",    ctx: "131K"},
-    // Note: gemma2-9b-it and mixtral-8x7b-32768 were removed from Groq production (2026) → removed here too.
 ];
 
+// July 2026 sweep: legacy tail (o3, gpt-4.1, gpt-4o, gpt-3.5-turbo) removed —
+// superseded generations that only cluttered the picker; the live-models fetch
+// still surfaces them for anyone who really wants one.
 export const OPENAI_MODELS: ModelEntry[] = [
-    {id: "gpt-5.5",       label: "GPT-5.5",       tag: "yeni",      ctx: "1M",   note: "Flagship"},
+    {id: "gpt-5.5",       label: "GPT-5.5",       tag: "varsayılan", ctx: "1M",   note: "Flagship"},
     {id: "gpt-5.5-pro",   label: "GPT-5.5 Pro",   tag: "güçlü",     ctx: "1M"},
     {id: "gpt-5.4",       label: "GPT-5.4",        tag: "",          ctx: "1M"},
     {id: "gpt-5.4-mini",  label: "GPT-5.4 Mini",   tag: "hızlı",     ctx: "400K"},
     {id: "gpt-5.4-nano",  label: "GPT-5.4 Nano",   tag: "ekonomik",  ctx: "400K"},
     {id: "gpt-5",         label: "GPT-5",           tag: "",          ctx: "1M"},
     {id: "gpt-5-mini",    label: "GPT-5 Mini",      tag: "",          ctx: "200K"},
-    {id: "o3",            label: "o3",              tag: "reasoning", ctx: "200K", note: "o3-2025-04-16"},
-    {id: "gpt-4.1",       label: "GPT-4.1",         tag: "eski",      ctx: "1M"},
-    {id: "gpt-4o",        label: "GPT-4o",          tag: "eski",      ctx: "128K"},
-    {id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo",  tag: "ucuz",      ctx: "16K"},
 ];
 
+// July 2026 sweep: Fable 5 and Sonnet 5 added (GA June 2026); the 4.5/4.7 and
+// Claude 3.x tail removed — every remaining entry has a strictly better,
+// same-price-class successor above it.
 export const ANTHROPIC_MODELS: ModelEntry[] = [
-    {id: "claude-opus-4-8",            label: "Claude Opus 4.8",   tag: "yeni",       ctx: "1M",   note: "Adaptive thinking"},
-    {id: "claude-opus-4-7",            label: "Claude Opus 4.7",   tag: "güçlü",      ctx: "1M"},
-    {id: "claude-sonnet-4-6",          label: "Claude Sonnet 4.6", tag: "varsayılan", ctx: "1M",   note: "Önerilen"},
+    {id: "claude-fable-5",             label: "Claude Fable 5",    tag: "yeni",       ctx: "1M",   note: "En yetenekli"},
+    {id: "claude-sonnet-5",            label: "Claude Sonnet 5",   tag: "varsayılan", ctx: "1M",   note: "Önerilen"},
+    {id: "claude-opus-4-8",            label: "Claude Opus 4.8",   tag: "güçlü",      ctx: "1M",   note: "Adaptive thinking"},
+    {id: "claude-sonnet-4-6",          label: "Claude Sonnet 4.6", tag: "",           ctx: "1M"},
     {id: "claude-haiku-4-5-20251001",  label: "Claude Haiku 4.5",  tag: "hızlı",      ctx: "200K", note: "En ucuz"},
-    {id: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5", tag: "",           ctx: "200K"},
-    {id: "claude-opus-4-5-20251101",   label: "Claude Opus 4.5",   tag: "",           ctx: "200K"},
-    {id: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet", tag: "thinking",   ctx: "200K"},
-    {id: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", tag: "eski",       ctx: "200K"},
-    {id: "claude-3-5-haiku-20241022",  label: "Claude 3.5 Haiku",  tag: "eski",       ctx: "200K"},
 ];
 
+// July 2026 sweep: gemini-1.5-pro (retired generation) and 2.5-flash-lite
+// (redundant with 3.1-flash-lite) removed; 3.5 Flash is the GA flagship.
 export const GEMINI_MODELS: ModelEntry[] = [
-    {id: "gemini-3.5-flash",            label: "Gemini 3.5 Flash",      tag: "yeni",      ctx: "1M",  note: "Flagship"},
-    {id: "gemini-3.1-pro-preview",      label: "Gemini 3.1 Pro",        tag: "güçlü",     ctx: "1M",  note: "Preview"},
-    {id: "gemini-3.1-flash-lite",       label: "Gemini 3.1 Flash Lite", tag: "ekonomik",  ctx: "1M"},
-    {id: "gemini-2.5-pro",              label: "Gemini 2.5 Pro",        tag: "varsayılan",ctx: "1M",  note: "En iyi reasoning"},
-    {id: "gemini-2.5-flash",            label: "Gemini 2.5 Flash",      tag: "hızlı",     ctx: "1M",  note: "Fiyat/performans"},
-    {id: "gemini-2.5-flash-lite",       label: "Gemini 2.5 Flash Lite", tag: "",          ctx: "1M"},
-    {id: "gemini-1.5-pro",              label: "Gemini 1.5 Pro",        tag: "eski",      ctx: "2M"},
+    {id: "gemini-3.5-flash",            label: "Gemini 3.5 Flash",      tag: "varsayılan", ctx: "1M",  note: "Flagship"},
+    {id: "gemini-3.1-pro-preview",      label: "Gemini 3.1 Pro",        tag: "güçlü",      ctx: "1M",  note: "Preview"},
+    {id: "gemini-3.1-flash-lite",       label: "Gemini 3.1 Flash Lite", tag: "ekonomik",   ctx: "1M"},
+    {id: "gemini-2.5-pro",              label: "Gemini 2.5 Pro",        tag: "",           ctx: "1M",  note: "İyi reasoning"},
+    {id: "gemini-2.5-flash",            label: "Gemini 2.5 Flash",      tag: "hızlı",      ctx: "1M",  note: "Fiyat/performans"},
 ];
 
+// July 2026 sweep: magistral-small (redundant with medium), ministral-14b and
+// open-mistral-nemo-2407 (2024-era, weak tool calling) removed — Small 4
+// already unified Magistral/Pixtral/Devstral capabilities.
 export const MISTRAL_MODELS: ModelEntry[] = [
     {id: "mistral-medium-3.5",      label: "Mistral Medium 3.5",   tag: "yeni",      ctx: "256K", note: "128B · MIT"},
     {id: "mistral-small-2603",      label: "Mistral Small 4",      tag: "varsayılan",ctx: "256K", note: "Reasoning+Vizyon"},
     {id: "mistral-large-latest",    label: "Mistral Large",        tag: "güçlü",     ctx: "256K"},
     {id: "magistral-medium-latest", label: "Magistral Medium",     tag: "reasoning", ctx: "128K"},
-    {id: "magistral-small-2506",    label: "Magistral Small",      tag: "reasoning", ctx: "128K"},
     {id: "codestral-latest",        label: "Codestral",            tag: "kod",       ctx: "128K", note: "FIM+kod"},
-    {id: "ministral-14b-latest",    label: "Ministral 14B",        tag: "hızlı",     ctx: "256K", note: "Edge"},
-    {id: "open-mistral-nemo-2407",  label: "Mistral Nemo",         tag: "açık",      ctx: "128K"},
 ];
 
+// July 2026 sweep: xAI redirects legacy slugs to grok-4.3 since May 2026 and
+// 4.3 has vision built in — the 4.20 trio and grok-2-vision removed.
 export const XAI_MODELS: ModelEntry[] = [
-    {id: "grok-4.3",                     label: "Grok 4.3",             tag: "yeni",      ctx: "1M",   note: "Flagship"},
-    {id: "grok-4.20-0309-reasoning",     label: "Grok 4.20 Reasoning",  tag: "reasoning", ctx: "1M"},
-    {id: "grok-4.20-0309-non-reasoning", label: "Grok 4.20",            tag: "güçlü",     ctx: "1M"},
-    {id: "grok-4.20-multi-agent-0309",   label: "Grok 4.20 Multi-Agent",tag: "agentic",   ctx: "1M"},
-    {id: "grok-build-0.1",               label: "Grok Build",           tag: "kod",       ctx: "256K", note: "Agentic kod"},
-    {id: "grok-2-vision-1212",           label: "Grok 2 Vision",        tag: "vizyon",    ctx: "32K"},
+    {id: "grok-4.3",       label: "Grok 4.3",   tag: "varsayılan", ctx: "1M",   note: "Flagship · Vizyon"},
+    {id: "grok-build-0.1", label: "Grok Build", tag: "kod",        ctx: "256K", note: "Agentic kod"},
 ];
 
+// July 2026 sweep: deepseek-chat / deepseek-reasoner are deprecated aliases
+// (shut off 2026-07-24) — removed so nobody picks a model that dies in weeks.
 export const DEEPSEEK_MODELS: ModelEntry[] = [
-    {id: "deepseek-v4-pro",   label: "DeepSeek V4 Pro",   tag: "yeni",       ctx: "1M",  note: "1.6T params"},
+    {id: "deepseek-v4-pro",   label: "DeepSeek V4 Pro",   tag: "güçlü",      ctx: "1M",  note: "1.6T params"},
     {id: "deepseek-v4-flash", label: "DeepSeek V4 Flash", tag: "varsayılan", ctx: "1M",  note: "Fiyat/performans"},
-    {id: "deepseek-chat",     label: "DeepSeek Chat",     tag: "eski",       ctx: "64K"},
-    {id: "deepseek-reasoner", label: "DeepSeek Reasoner", tag: "eski",       ctx: "64K"},
 ];
 
 export const PROVIDER_MODELS: Record<string, ModelEntry[]> = {
@@ -222,8 +218,8 @@ export const PROVIDER_MODELS: Record<string, ModelEntry[]> = {
 
 export const DEFAULT_MODEL: Record<string, string> = {
     groq: "meta-llama/llama-4-scout-17b-16e-instruct",
-    openai: "gpt-5.5", anthropic: "claude-sonnet-4-6",
-    gemini: "gemini-2.5-pro", mistral: "mistral-medium-3.5",
+    openai: "gpt-5.5", anthropic: "claude-sonnet-5",
+    gemini: "gemini-3.5-flash", mistral: "mistral-medium-3.5",
     xai: "grok-4.3", deepseek: "deepseek-v4-flash", ollama: "qwen3:8b",
 };
 
@@ -236,8 +232,8 @@ export const MAX_TOKEN_OPTIONS = [512, 1024, 2048, 4096, 8192, 16384, 32768, 655
 
 export const AI_PROVIDERS = [
     {id: "groq",      icon: "⚡", label: "Groq",       sub: "Ultra hızlı · Llama 4",     badge: "free"  },
-    {id: "openai",    icon: "◎",  label: "OpenAI",     sub: "GPT-5.5 · o3 serisi",       badge: ""      },
-    {id: "anthropic", icon: "◈",  label: "Anthropic",  sub: "Claude Opus 4.8",           badge: ""      },
+    {id: "openai",    icon: "◎",  label: "OpenAI",     sub: "GPT-5.5 serisi",            badge: ""      },
+    {id: "anthropic", icon: "◈",  label: "Anthropic",  sub: "Claude 5 · Fable",          badge: ""      },
     {id: "gemini",    icon: "◇",  label: "Gemini",     sub: "3.5 Flash · 1M ctx",        badge: "free"  },
     {id: "mistral",   icon: "✦",  label: "Mistral",    sub: "Medium 3.5 · EU · MIT",     badge: ""      },
     {id: "xai",       icon: "✧",  label: "xAI / Grok", sub: "Grok 4.3 · gerçek zamanlı",badge: ""      },

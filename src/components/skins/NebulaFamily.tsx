@@ -39,6 +39,14 @@ function NebFeed({feed, streaming, t, feedRef, center}: Pick<SkinProps, "feed" |
                         </div>
                     );
                 }
+                if (item.kind === "notice") {
+                    return (
+                        <div key={item.id} className="rise px-4 py-2 rounded-2xl text-[11.5px] leading-relaxed"
+                            style={{background: "rgba(var(--hud),0.05)", border: "1px solid rgba(var(--hud),0.14)", color: "rgba(var(--hud),0.6)"}}>
+                            {item.text}
+                        </div>
+                    );
+                }
                 if (item.kind === "user") {
                     return (
                         <div key={item.id} className="rise flex justify-end">

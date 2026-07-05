@@ -74,6 +74,12 @@ function ClFeed({feed, streaming, t, feedRef, compact}: Pick<SkinProps,"feed"|"s
                         <span className="break-words" style={{color: CL.danger}}>{item.text}</span>
                     </div>
                 );
+                if (item.kind === "notice") return (
+                    <div key={item.id} className={`rise ${py} text-[12px] leading-relaxed opacity-80`}
+                        style={clay(CL.textDim, {background: CL.bgCard})}>
+                        <span className="break-words" style={{color: CL.textDim}}>{item.text}</span>
+                    </div>
+                );
                 if (item.kind === "user") return (
                     <div key={item.id} className={`rise ${py} text-[13px] leading-relaxed self-end max-w-[80%]`}
                         style={clay(CL.lila, {background: "#2d2050"})}>

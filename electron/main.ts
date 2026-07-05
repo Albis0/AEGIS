@@ -936,11 +936,13 @@ async function bootApp(): Promise<void> {
                 deepseek: "https://api.deepseek.com/v1/chat/completions",
                 mistral:  "https://api.mistral.ai/v1/chat/completions",
             };
+            // July 2026: gpt-4o-mini / grok-2-vision / pixtral-12b are retired —
+            // current flagship lines all take image input directly.
             const visionModel: Record<string, string> = {
-                openai:   MODEL.startsWith("gpt") ? MODEL : "gpt-4o-mini",
-                xai:      "grok-2-vision-1212",
+                openai:   MODEL.startsWith("gpt") ? MODEL : "gpt-5-mini",
+                xai:      "grok-4.3",
                 deepseek: MODEL,
-                mistral:  "pixtral-12b-2409",
+                mistral:  "mistral-small-2603",
             };
             const body = {
                 model: visionModel[provider],
@@ -1369,13 +1371,22 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
 // Previously these only logged — the renderer (and thus the user) had no idea
 // anything went wrong, so a background failure looked identical to "the app
 // quietly froze" with no actionable information.
+// Environmental network noise (offline boot, paused Supabase, DNS blips) is not
+// actionable for the user and was painting the feed red on every cold start —
+// log it, but don't notify or auto-report it.
+function isNetworkNoise(msg: string): boolean {
+    return /fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|getaddrinfo|network|socket hang up|521|522|EAI_AGAIN/i.test(msg);
+}
 process.on("unhandledRejection", (reason) => {
+    const msg = (reason as Error)?.message ?? String(reason);
     console.error("[AEGIS] Unhandled rejection:", reason);
-    sendToRenderer("system-notice", {message: `A background error occurred: ${(reason as Error)?.message ?? String(reason)}`});
+    if (isNetworkNoise(msg)) return;
+    sendToRenderer("system-notice", {message: `A background error occurred: ${msg}`});
     void reportAiError("unhandledRejection", (reason as Error)?.stack ?? String(reason));
 });
 process.on("uncaughtException", (err) => {
     console.error("[AEGIS] Uncaught exception:", err.message, err.stack);
+    if (isNetworkNoise(err.message)) return;
     sendToRenderer("system-notice", {message: `An unexpected error occurred: ${err.message}`});
     void reportAiError(`uncaughtException: ${err.message}`, err.stack ?? "");
 });

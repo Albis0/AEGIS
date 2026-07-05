@@ -47,6 +47,9 @@ function RtFeed({feed, streaming, t, feedRef}: Pick<SkinProps, "feed" | "streami
                 if (item.kind === "error") {
                     return <div key={item.id} className="rise whitespace-pre-wrap break-words" style={{color: "rgb(248,113,113)"}}>!! {t.errLabel}: {item.text}</div>;
                 }
+                if (item.kind === "notice") {
+                    return <div key={item.id} className="rise whitespace-pre-wrap break-words text-[11.5px] opacity-60" style={{color: "rgb(var(--hud))"}}>i: {item.text}</div>;
+                }
                 if (item.kind === "user") {
                     return <div key={item.id} className="rise whitespace-pre-wrap break-words" style={{color: "rgb(var(--hud-soft))"}}>&gt; {item.text}</div>;
                 }
