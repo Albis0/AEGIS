@@ -12,6 +12,52 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: "0.7.3",
+        date: "2026-07-06",
+        notes: {
+            tr: [
+                "Kritik düzeltme: Deneme modu kurulumu tamamlanınca uygulama kapanıyordu — düzeltildi.",
+                "Yeni AEGIS uygulama ikonu (exe, kısayollar ve sistem tepsisi).",
+                "Sesli okuma artık cümleler arasında takılmadan akıcı ilerliyor (ön-sentezleme).",
+                "Deneme sunucusu uykudan uyanırken istekler otomatik yeniden denenir; ham ağ hatası gösterilmez.",
+                "Hata bildir formuna ekran görüntüsü ekleme geldi; açılıştaki bilgi mesajları artık kırmızı değil yumuşak renkte.",
+                "Ayarlar paneli 5 dilde tamamen çevrildi; model kataloğu güncellendi (eski/kaldırılmış modeller temizlendi).",
+            ],
+            en: [
+                "Critical fix: the app quit after finishing trial-mode onboarding — fixed.",
+                "New AEGIS app icon (exe, shortcuts and system tray).",
+                "Text-to-speech now flows smoothly between sentences (audio prefetching).",
+                "Requests retry automatically while the trial server wakes from sleep; no more raw network errors.",
+                "Bug-report form gained screenshot attachments; startup notices are now soft-colored instead of red.",
+                "Settings panel fully translated into all 5 languages; model catalog updated (deprecated models removed).",
+            ],
+            de: [
+                "Kritischer Fix: Die App beendete sich nach Abschluss des Testmodus-Onboardings — behoben.",
+                "Neues AEGIS-App-Icon (Exe, Verknüpfungen und Systemleiste).",
+                "Sprachausgabe fließt jetzt ohne Stocken zwischen Sätzen (Audio-Vorabsynthese).",
+                "Anfragen werden automatisch wiederholt, während der Testserver aufwacht; keine rohen Netzwerkfehler mehr.",
+                "Fehlerbericht-Formular unterstützt jetzt Screenshots; Starthinweise sind nicht mehr rot, sondern dezent gefärbt.",
+                "Einstellungen vollständig in alle 5 Sprachen übersetzt; Modellkatalog aktualisiert.",
+            ],
+            fr: [
+                "Correctif critique : l'application se fermait après l'onboarding du mode d'essai — corrigé.",
+                "Nouvelle icône AEGIS (exe, raccourcis et barre système).",
+                "La synthèse vocale enchaîne désormais les phrases sans accroc (pré-synthèse audio).",
+                "Les requêtes sont automatiquement réessayées pendant que le serveur d'essai se réveille ; plus d'erreurs réseau brutes.",
+                "Le formulaire de rapport de bug accepte les captures d'écran ; les notifications de démarrage sont désormais en couleur douce.",
+                "Panneau de paramètres entièrement traduit dans les 5 langues ; catalogue de modèles mis à jour.",
+            ],
+            es: [
+                "Corrección crítica: la aplicación se cerraba al terminar el onboarding del modo de prueba — corregido.",
+                "Nuevo icono de AEGIS (exe, accesos directos y bandeja del sistema).",
+                "La síntesis de voz ahora fluye entre frases sin pausas (preprocesado de audio).",
+                "Las solicitudes se reintentan automáticamente mientras el servidor de prueba despierta; se acabaron los errores de red sin formato.",
+                "El formulario de informe de errores admite capturas de pantalla; los avisos de inicio ahora usan colores suaves en lugar de rojo.",
+                "Panel de ajustes totalmente traducido a los 5 idiomas; catálogo de modelos actualizado.",
+            ],
+        },
+    },
+    {
         version: "0.7.2",
         date: "2026-06-21",
         notes: {
