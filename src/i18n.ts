@@ -409,6 +409,11 @@ export interface SettingsStrings {
     navAbout: string; navAboutSub: string;
     // AboutTab — patch notes
     aboutChangelog: string; aboutCurrent: string;
+    // AboutTab — version card & update flow
+    aboutApp: string; aboutVersion: string; aboutPlatform: string;
+    aboutCheckBtn: string; aboutChecking: string; aboutUpToDate: string;
+    aboutAvailableSuffix: string; aboutDownloadingSuffix: string; aboutDownloadBtn: string; aboutReadyMsg: string; aboutCloseNow: string;
+    aboutErrorPrefix: string; aboutErrUpdate: string; aboutErrUnknown: string;
     // AboutTab — bug report (IdeasByAuthor: rapor sistemi)
     reportTitle: string; reportName: string; reportDesc: string;
     reportSend: string; reportSent: string; reportQueued: string; reportFailed: string;
@@ -466,6 +471,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTools: "Araçlar", navToolsSub: "Mevcut tool listesi",
         navAbout: "Hakkında", navAboutSub: "Sürüm & güncelleme",
         aboutChangelog: "Yama Notları", aboutCurrent: "yüklü",
+        aboutApp: "Uygulama", aboutVersion: "Sürüm", aboutPlatform: "Platform",
+        aboutCheckBtn: "GÜNCELLEMELERİ DENETLE", aboutChecking: "KONTROL EDİLİYOR…", aboutUpToDate: "En güncel sürüm yüklü.",
+        aboutAvailableSuffix: " mevcut", aboutDownloadingSuffix: " mevcut — indiriliyor…", aboutDownloadBtn: "İNDİR", aboutReadyMsg: "İndirildi — yeniden başlatınca kurulacak.", aboutCloseNow: "ŞİMDİ KAPAT",
+        aboutErrorPrefix: "Hata: ", aboutErrUpdate: "Güncelleme hatası", aboutErrUnknown: "Bilinmeyen hata",
         reportTitle: "HATA BİLDİR", reportName: "Başlık", reportDesc: "Ne oldu? Ne bekliyordun?",
         reportSend: "GÖNDER", reportSent: "Rapor gönderildi — teşekkürler!", reportQueued: "Kaydedildi — bağlantı gelince gönderilecek.", reportFailed: "Gönderilemedi",
         reportShot: "EKRAN GÖRÜNTÜSÜ EKLE",
@@ -515,6 +524,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTools: "Tools", navToolsSub: "Available tool list",
         navAbout: "About", navAboutSub: "Version & updates",
         aboutChangelog: "Patch Notes", aboutCurrent: "installed",
+        aboutApp: "Application", aboutVersion: "Version", aboutPlatform: "Platform",
+        aboutCheckBtn: "CHECK FOR UPDATES", aboutChecking: "CHECKING…", aboutUpToDate: "You're up to date.",
+        aboutAvailableSuffix: " available", aboutDownloadingSuffix: " available — downloading…", aboutDownloadBtn: "DOWNLOAD", aboutReadyMsg: "Downloaded — will install on restart.", aboutCloseNow: "CLOSE NOW",
+        aboutErrorPrefix: "Error: ", aboutErrUpdate: "Update error", aboutErrUnknown: "Unknown error",
         reportTitle: "REPORT A BUG", reportName: "Title", reportDesc: "What happened? What did you expect?",
         reportSend: "SEND", reportSent: "Report sent — thank you!", reportQueued: "Saved — will be sent when back online.", reportFailed: "Could not send",
         reportShot: "ADD SCREENSHOT",
@@ -564,6 +577,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTools: "Werkzeuge", navToolsSub: "Verfügbare Tool-Liste",
         navAbout: "Über", navAboutSub: "Version & Updates",
         aboutChangelog: "Änderungen", aboutCurrent: "installiert",
+        aboutApp: "Anwendung", aboutVersion: "Version", aboutPlatform: "Plattform",
+        aboutCheckBtn: "NACH UPDATES SUCHEN", aboutChecking: "WIRD GEPRÜFT…", aboutUpToDate: "Neueste Version installiert.",
+        aboutAvailableSuffix: " verfügbar", aboutDownloadingSuffix: " verfügbar — wird heruntergeladen…", aboutDownloadBtn: "HERUNTERLADEN", aboutReadyMsg: "Heruntergeladen — wird beim Neustart installiert.", aboutCloseNow: "JETZT SCHLIESSEN",
+        aboutErrorPrefix: "Fehler: ", aboutErrUpdate: "Update-Fehler", aboutErrUnknown: "Unbekannter Fehler",
         reportTitle: "FEHLER MELDEN", reportName: "Titel", reportDesc: "Was ist passiert? Was hast du erwartet?",
         reportSend: "SENDEN", reportSent: "Bericht gesendet — danke!", reportQueued: "Gespeichert — wird bei Verbindung gesendet.", reportFailed: "Senden fehlgeschlagen",
         reportShot: "SCREENSHOT HINZUFÜGEN",
@@ -613,6 +630,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTools: "Outils", navToolsSub: "Liste des outils disponibles",
         navAbout: "À propos", navAboutSub: "Version & mises à jour",
         aboutChangelog: "Notes de version", aboutCurrent: "installée",
+        aboutApp: "Application", aboutVersion: "Version", aboutPlatform: "Plateforme",
+        aboutCheckBtn: "VÉRIFIER LES MISES À JOUR", aboutChecking: "VÉRIFICATION…", aboutUpToDate: "Vous avez la dernière version.",
+        aboutAvailableSuffix: " disponible", aboutDownloadingSuffix: " disponible — téléchargement…", aboutDownloadBtn: "TÉLÉCHARGER", aboutReadyMsg: "Téléchargé — sera installé au redémarrage.", aboutCloseNow: "FERMER MAINTENANT",
+        aboutErrorPrefix: "Erreur : ", aboutErrUpdate: "Erreur de mise à jour", aboutErrUnknown: "Erreur inconnue",
         reportTitle: "SIGNALER UN BUG", reportName: "Titre", reportDesc: "Que s'est-il passé ? Qu'attendiez-vous ?",
         reportSend: "ENVOYER", reportSent: "Rapport envoyé — merci !", reportQueued: "Enregistré — envoyé dès la reconnexion.", reportFailed: "Échec de l'envoi",
         reportShot: "AJOUTER UNE CAPTURE",
@@ -662,6 +683,10 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         navTools: "Herramientas", navToolsSub: "Lista de herramientas disponibles",
         navAbout: "Acerca de", navAboutSub: "Versión y actualizaciones",
         aboutChangelog: "Notas de versión", aboutCurrent: "instalada",
+        aboutApp: "Aplicación", aboutVersion: "Versión", aboutPlatform: "Plataforma",
+        aboutCheckBtn: "BUSCAR ACTUALIZACIONES", aboutChecking: "COMPROBANDO…", aboutUpToDate: "Tienes la última versión.",
+        aboutAvailableSuffix: " disponible", aboutDownloadingSuffix: " disponible — descargando…", aboutDownloadBtn: "DESCARGAR", aboutReadyMsg: "Descargado — se instalará al reiniciar.", aboutCloseNow: "CERRAR AHORA",
+        aboutErrorPrefix: "Error: ", aboutErrUpdate: "Error de actualización", aboutErrUnknown: "Error desconocido",
         reportTitle: "INFORMAR DE UN ERROR", reportName: "Título", reportDesc: "¿Qué pasó? ¿Qué esperabas?",
         reportSend: "ENVIAR", reportSent: "Informe enviado — ¡gracias!", reportQueued: "Guardado — se enviará al reconectar.", reportFailed: "No se pudo enviar",
         reportShot: "AÑADIR CAPTURA",

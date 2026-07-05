@@ -95,7 +95,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                 setStatus("uptodate");
             }
         } catch (e: any) {
-            setErrorMsg(e.message ?? "Bilinmeyen hata");
+            setErrorMsg(e.message ?? s.aboutErrUnknown);
             setStatus("error");
         }
     }
@@ -137,15 +137,15 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
             <div className="rounded-xl p-5 space-y-0"
                 style={{background: `rgba(${a},0.04)`, border: `1px solid rgba(${a},0.1)`}}>
                 <div className={row}>
-                    <span className={label} style={{color: `rgba(${a},0.5)`}}>Uygulama</span>
+                    <span className={label} style={{color: `rgba(${a},0.5)`}}>{s.aboutApp}</span>
                     <span className={value} style={{color: ac}}>AEGIS</span>
                 </div>
                 <div className={`${row} ${divider}`} style={{borderColor: `rgba(${a},0.07)`}}>
-                    <span className={label} style={{color: `rgba(${a},0.5)`}}>Sürüm</span>
+                    <span className={label} style={{color: `rgba(${a},0.5)`}}>{s.aboutVersion}</span>
                     <span className={value} style={{color: ac}}>v{version}</span>
                 </div>
                 <div className={`${row} ${divider}`} style={{borderColor: `rgba(${a},0.07)`}}>
-                    <span className={label} style={{color: `rgba(${a},0.5)`}}>Platform</span>
+                    <span className={label} style={{color: `rgba(${a},0.5)`}}>{s.aboutPlatform}</span>
                     <span className={value} style={{color: `rgba(${a},0.7)`}}>Windows</span>
                 </div>
             </div>
@@ -158,7 +158,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                     className="w-full py-2.5 rounded-xl text-[12px] tracking-widest transition hover:brightness-125 disabled:opacity-50"
                     style={{background: `rgba(${a},0.08)`, border: `1px solid rgba(${a},0.2)`, color: ac}}
                 >
-                    {status === "checking" ? "KONTROL EDİLİYOR…" : "GÜNCELLEMELERİ DENETLE"}
+                    {status === "checking" ? s.aboutChecking : s.aboutCheckBtn}
                 </button>
 
                 {status === "uptodate" && (
@@ -167,7 +167,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
-                        En güncel sürüm yüklü.
+                        {s.aboutUpToDate}
                     </div>
                 )}
 
@@ -176,7 +176,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                         style={{background: `rgba(${a},0.06)`, border: `1px solid rgba(${a},0.2)`}}>
                         {/* Title */}
                         <div className="flex items-center justify-between px-4 py-2.5 text-[12px]" style={{color: ac}}>
-                            <span>v{latestVersion} mevcut{status === "downloading" ? " — indiriliyor…" : ""}</span>
+                            <span>v{latestVersion}{status === "downloading" ? s.aboutDownloadingSuffix : s.aboutAvailableSuffix}</span>
                             {status === "available" && (
                                 <button
                                     onClick={() => { setStatus("downloading"); void window.jarvis.updateDownload(); }}
@@ -185,7 +185,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                         <path d="M12 2v10m0 0-3-3m3 3 3-3M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>
                                     </svg>
-                                    İNDİR
+                                    {s.aboutDownloadBtn}
                                 </button>
                             )}
                         </div>
@@ -216,13 +216,13 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                     <polyline points="20 6 9 17 4 12"/>
                                 </svg>
-                                İndirildi — yeniden başlatınca kurulacak.
+                                {s.aboutReadyMsg}
                             </div>
                             <button
                                 onClick={() => window.jarvis.updateInstall()}
                                 className="text-[11px] px-3 py-1 rounded-lg transition hover:brightness-125"
                                 style={{background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "rgba(74,222,128,0.9)"}}>
-                                ŞİMDİ KAPAT
+                                {s.aboutCloseNow}
                             </button>
                         </div>
                     </div>
@@ -231,7 +231,7 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                 {status === "error" && (
                     <div className="px-4 py-2.5 rounded-xl text-[12px]"
                         style={{background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "rgba(239,68,68,0.9)"}}>
-                        Hata: {errorMsg}
+                        {s.aboutErrorPrefix}{errorMsg}
                     </div>
                 )}
             </div>
