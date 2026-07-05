@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import {createClient, type SupabaseClient, type Session} from "@supabase/supabase-js";
+import {withWakeRetry, isWakingError} from "./retry";
 import {AEGIS_SUPABASE_URL, AEGIS_SUPABASE_ANON_KEY} from "./aegis-config";
  
 const WebSocket = require("ws");
@@ -74,8 +75,8 @@ export interface AuthResult {
 // messages; anything unknown falls through unchanged.
 export function friendlyAuthError(message: string): string {
     const m = message.toLowerCase();
-    if (/fetch failed|network|enotfound|econnrefused|timeout|getaddrinfo/.test(m)) {
-        return "Could not reach the server — check your internet connection and try again.";
+    if (/fetch failed|failed to fetch|network|enotfound|econnrefused|timeout|getaddrinfo/.test(m)) {
+        return "Could not reach the server. The free trial server may be waking up from sleep — wait ~30 seconds and try again (also check your internet connection).";
     }
     if (/invalid login credentials|invalid grant/.test(m)) {
         return "Email or password is incorrect.";
@@ -95,9 +96,16 @@ export function friendlyAuthError(message: string): string {
     return message;
 }
 
-export async function signUp(email: string, password: string): Promise<AuthResult> {
+// Waking-server retry: a paused free-tier project fails the first request(s)
+// with fetch/DNS errors. Retry those quietly (~3×8s); real auth errors
+// (wrong password etc.) are not waking-class and surface immediately.
+async function authCall(fn: () => Promise<{data: {user: {id: string; email?: string} | null}; error: {message: string} | null}>): Promise<AuthResult> {
     try {
-        const {data, error} = await getAuthClient().auth.signUp({email, password});
+        const {data, error} = await withWakeRetry(async () => {
+            const res = await fn();
+            if (res.error && isWakingError(res.error.message)) throw new Error(res.error.message);
+            return res;
+        }, {attempts: 3, delayMs: 8000});
         if (error) return {ok: false, error: friendlyAuthError(error.message)};
         return {ok: true, userId: data.user?.id, email: data.user?.email};
     } catch (e) {
@@ -105,14 +113,12 @@ export async function signUp(email: string, password: string): Promise<AuthResul
     }
 }
 
+export async function signUp(email: string, password: string): Promise<AuthResult> {
+    return authCall(() => getAuthClient().auth.signUp({email, password}));
+}
+
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-    try {
-        const {data, error} = await getAuthClient().auth.signInWithPassword({email, password});
-        if (error) return {ok: false, error: friendlyAuthError(error.message)};
-        return {ok: true, userId: data.user?.id, email: data.user?.email};
-    } catch (e) {
-        return {ok: false, error: friendlyAuthError((e as Error).message ?? String(e))};
-    }
+    return authCall(() => getAuthClient().auth.signInWithPassword({email, password}));
 }
 
 export async function signOut(): Promise<void> {

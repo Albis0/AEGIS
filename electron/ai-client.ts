@@ -5,6 +5,7 @@ import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
 import {getAccessToken} from "./auth";
+import {withWakeRetry, isWakingError} from "./retry";
 import {redactMessages} from "./boundary-guard";
 import type {AppSettings} from "./settings";
 
@@ -225,19 +226,33 @@ export async function callProxy(
 
     let resp: Response;
     try {
-        resp = await fetchWithTimeout(AEGIS_PROXY_URL, {
-            method: "POST",
-            headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
-            body: JSON.stringify({
-                model: opts.model,
-                messages,
-                ...(tools.length > 0 ? {tools} : {}),
-                temperature: opts.temperature,
-                max_tokens: opts.max_tokens,
-            }),
-        }, 45_000);
+        // Waking-server retry: a paused free-tier project fails with DNS/5xx for
+        // ~10-30s after the first hit. Retry the connection phase quietly; the
+        // stream itself is never retried (no double answers).
+        resp = await withWakeRetry(async () => {
+            const r = await fetchWithTimeout(AEGIS_PROXY_URL, {
+                method: "POST",
+                headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
+                body: JSON.stringify({
+                    model: opts.model,
+                    messages,
+                    ...(tools.length > 0 ? {tools} : {}),
+                    temperature: opts.temperature,
+                    max_tokens: opts.max_tokens,
+                }),
+            }, 45_000);
+            if ([502, 503, 521, 522, 540].includes(r.status)) {
+                const err = new Error(`trial service waking (${r.status})`) as Error & {status?: number};
+                err.status = r.status;
+                throw err;
+            }
+            return r;
+        }, {attempts: 3, delayMs: 6000});
     } catch (e) {
         if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.", {cause: e});
+        if (isWakingError((e as Error).message ?? "", (e as {status?: number}).status)) {
+            throw new Error("The trial service seems to be waking up from sleep (free server). Wait ~30 seconds and try again, or switch to Advanced mode in Settings → Model.", {cause: e});
+        }
         throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.", {cause: e});
     }
 
