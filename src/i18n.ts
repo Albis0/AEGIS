@@ -430,6 +430,9 @@ export interface SettingsStrings {
     mdModel: string; mdLoadingModels: string; mdNoKey: string; mdNoLive: string;
     mdParams: string; mdTemp: string; mdMaxTokens: string; mdSysPrompt: string;
     mdSysHint: string; mdCaps: string;
+    mdTempMin: string; mdTempMax: string; mdMistralSafeHint: string; mdResetDefaults: string;
+    mdCapTools: string; mdCapVision: string; mdCapContext: string; mdCapMaxOutput: string;
+    mdCapReasoning: string; mdCapNoTemp: string;
     // VoiceTab
     voLang: string; voLangHint: string; voEngine: string;
     voEdgeSub: string; voElSub: string; voKokoroSub: string; voKokoroMissing: string; voKokoroInstall: string; voKokoroReady: string; voElKey: string;
@@ -498,6 +501,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdNoLive: "Canlı liste alınamadı — bilinen modeller gösteriliyor.",
         mdParams: "PARAMETRELER", mdTemp: "Sıcaklık", mdMaxTokens: "Maks çıktı", mdSysPrompt: "SİSTEM PROMPTU",
         mdSysHint: "Boş bırakırsan AEGIS varsayılan karakterini kullanır.", mdCaps: "BU MODEL NE YAPABİLİR",
+        mdTempMin: "Deterministik", mdTempMax: "Yaratıcı", mdMistralSafeHint: "Otomatik güvenlik system prompt'u", mdResetDefaults: "↺ VARSAYILANA SIFIRLA",
+        mdCapTools: "Araç / Komut", mdCapVision: "Görüntü", mdCapContext: "BAĞLAM", mdCapMaxOutput: "MAKS ÇIKTI",
+        mdCapReasoning: "Reasoning · adım adım düşünür", mdCapNoTemp: "Temperature ayarı yok",
         voLang: "DİL / LANGUAGE", voLangHint: "Dil değişince sistem prompt, Whisper ve TTS sesi otomatik güncellenir.",
         voEngine: "TTS MOTORU", voEdgeSub: "Ücretsiz · online · hızlı", voElSub: "Gerçekçi · API key gerekli", voKokoroSub: "Yerel · Çevrimdışı · Ücretsiz", voKokoroMissing: "Kokoro kurulu değil (~900 MB).", voKokoroInstall: "İNDİR", voKokoroReady: "HAZIR",
         voElKey: "ELEVENLABS API KEY", voVoice: "SES", voSpeed: "KONUŞMA HIZI",
@@ -557,6 +563,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdNoLive: "Could not fetch live list — showing known models.",
         mdParams: "PARAMETERS", mdTemp: "Temperature", mdMaxTokens: "Max output", mdSysPrompt: "SYSTEM PROMPT",
         mdSysHint: "Leave empty to use AEGIS default persona.", mdCaps: "MODEL CAPABILITIES",
+        mdTempMin: "Deterministic", mdTempMax: "Creative", mdMistralSafeHint: "Automatic safety system prompt", mdResetDefaults: "↺ RESET TO DEFAULTS",
+        mdCapTools: "Tools / Commands", mdCapVision: "Vision", mdCapContext: "CONTEXT", mdCapMaxOutput: "MAX OUTPUT",
+        mdCapReasoning: "Reasoning · thinks step by step", mdCapNoTemp: "No temperature setting",
         voLang: "LANGUAGE", voLangHint: "Changing language updates system prompt, Whisper and TTS voice automatically.",
         voEngine: "TTS ENGINE", voEdgeSub: "Free · online · fast", voElSub: "Realistic · API key required", voKokoroSub: "Local · Offline · Free", voKokoroMissing: "Kokoro not installed (~900 MB).", voKokoroInstall: "INSTALL", voKokoroReady: "READY",
         voElKey: "ELEVENLABS API KEY", voVoice: "VOICE", voSpeed: "SPEECH RATE",
@@ -616,6 +625,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdNoLive: "Live-Liste konnte nicht geladen werden — bekannte Modelle werden angezeigt.",
         mdParams: "PARAMETER", mdTemp: "Temperatur", mdMaxTokens: "Max. Ausgabe", mdSysPrompt: "SYSTEMPROMPT",
         mdSysHint: "Leer lassen, um AEGIS-Standardpersona zu verwenden.", mdCaps: "MODELL-FÄHIGKEITEN",
+        mdTempMin: "Deterministisch", mdTempMax: "Kreativ", mdMistralSafeHint: "Automatischer Sicherheits-System-Prompt", mdResetDefaults: "↺ AUF STANDARD ZURÜCKSETZEN",
+        mdCapTools: "Werkzeuge / Befehle", mdCapVision: "Bildverständnis", mdCapContext: "KONTEXT", mdCapMaxOutput: "MAX. AUSGABE",
+        mdCapReasoning: "Reasoning · denkt Schritt für Schritt", mdCapNoTemp: "Keine Temperatur-Einstellung",
         voLang: "SPRACHE", voLangHint: "Beim Sprachwechsel werden Systemprompt, Whisper und TTS-Stimme automatisch aktualisiert.",
         voEngine: "TTS-ENGINE", voEdgeSub: "Kostenlos · online · schnell", voElSub: "Realistisch · API-Schlüssel erforderlich", voKokoroSub: "Lokal · Offline · Kostenlos", voKokoroMissing: "Kokoro nicht installiert (~900 MB).", voKokoroInstall: "HERUNTERLADEN", voKokoroReady: "BEREIT",
         voElKey: "ELEVENLABS-API-SCHLÜSSEL", voVoice: "STIMME", voSpeed: "SPRECHGESCHWINDIGKEIT",
@@ -675,6 +687,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdNoLive: "Liste en direct indisponible — modèles connus affichés.",
         mdParams: "PARAMÈTRES", mdTemp: "Température", mdMaxTokens: "Sortie max", mdSysPrompt: "PROMPT SYSTÈME",
         mdSysHint: "Laisser vide pour utiliser le persona par défaut d'AEGIS.", mdCaps: "CAPACITÉS DU MODÈLE",
+        mdTempMin: "Déterministe", mdTempMax: "Créatif", mdMistralSafeHint: "Prompt système de sécurité automatique", mdResetDefaults: "↺ RÉINITIALISER",
+        mdCapTools: "Outils / Commandes", mdCapVision: "Vision", mdCapContext: "CONTEXTE", mdCapMaxOutput: "SORTIE MAX",
+        mdCapReasoning: "Reasoning · réfléchit étape par étape", mdCapNoTemp: "Pas de réglage de température",
         voLang: "LANGUE", voLangHint: "Le changement de langue met à jour automatiquement le prompt système, Whisper et la voix TTS.",
         voEngine: "MOTEUR TTS", voEdgeSub: "Gratuit · en ligne · rapide", voElSub: "Réaliste · clé API requise", voKokoroSub: "Local · Hors ligne · Gratuit", voKokoroMissing: "Kokoro non installé (~900 Mo).", voKokoroInstall: "INSTALLER", voKokoroReady: "PRÊT",
         voElKey: "CLÉ API ELEVENLABS", voVoice: "VOIX", voSpeed: "VITESSE D'ÉLOCUTION",
@@ -734,6 +749,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         mdNoLive: "No se pudo obtener la lista en vivo — mostrando modelos conocidos.",
         mdParams: "PARÁMETROS", mdTemp: "Temperatura", mdMaxTokens: "Salida máx", mdSysPrompt: "PROMPT DEL SISTEMA",
         mdSysHint: "Dejar vacío para usar la persona predeterminada de AEGIS.", mdCaps: "CAPACIDADES DEL MODELO",
+        mdTempMin: "Determinista", mdTempMax: "Creativo", mdMistralSafeHint: "Prompt del sistema de seguridad automático", mdResetDefaults: "↺ RESTABLECER VALORES",
+        mdCapTools: "Herramientas / Comandos", mdCapVision: "Visión", mdCapContext: "CONTEXTO", mdCapMaxOutput: "SALIDA MÁX",
+        mdCapReasoning: "Reasoning · piensa paso a paso", mdCapNoTemp: "Sin ajuste de temperatura",
         voLang: "IDIOMA", voLangHint: "Al cambiar el idioma se actualizan automáticamente el prompt del sistema, Whisper y la voz TTS.",
         voEngine: "MOTOR TTS", voEdgeSub: "Gratuito · en línea · rápido", voElSub: "Realista · requiere clave API", voKokoroSub: "Local · Sin conexión · Gratis", voKokoroMissing: "Kokoro no instalado (~900 MB).", voKokoroInstall: "INSTALAR", voKokoroReady: "LISTO",
         voElKey: "CLAVE API ELEVENLABS", voVoice: "VOZ", voSpeed: "VELOCIDAD DE HABLA",

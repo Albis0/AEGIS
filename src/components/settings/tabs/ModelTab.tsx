@@ -239,8 +239,8 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                                 onChange={(e) => onApply({temperature: parseFloat(e.target.value)})}
                                 className="w-full" style={{accentColor: ac}} />
                             <div className="flex justify-between mt-1">
-                                <span className="text-[10px] opacity-30" style={{color: ac}}>Deterministik</span>
-                                <span className="text-[10px] opacity-30" style={{color: ac}}>Yaratıcı</span>
+                                <span className="text-[10px] opacity-30" style={{color: ac}}>{s.mdTempMin}</span>
+                                <span className="text-[10px] opacity-30" style={{color: ac}}>{s.mdTempMax}</span>
                             </div>
                         </div>
 
@@ -307,7 +307,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                             <div className="flex items-center justify-between py-2">
                                 <div>
                                     <span className="text-[12px] font-medium" style={{color: `rgba(${accent},0.7)`}}>Safe Mode</span>
-                                    <p className="text-[10px] opacity-35 mt-0.5" style={{color: ac}}>Otomatik güvenlik system prompt'u</p>
+                                    <p className="text-[10px] opacity-35 mt-0.5" style={{color: ac}}>{s.mdMistralSafeHint}</p>
                                 </div>
                                 <button onClick={() => onApply({mistralSafeMode: !(settings.mistralSafeMode ?? false)})}
                                     className="shrink-0 w-11 h-6 rounded-full relative transition-all"
@@ -327,7 +327,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                         <button onClick={() => onApply({temperature: 0.7, maxTokens: 8192, topP: 1.0, presencePenalty: 0, frequencyPenalty: 0})}
                             className="text-[10px] tracking-widest opacity-25 hover:opacity-60 transition flex items-center gap-1.5"
                             style={{color: ac}}>
-                            ↺ VARSAYILANA SIFIRLA
+                            {s.mdResetDefaults}
                         </button>
                     </div>
                 )}
@@ -354,7 +354,7 @@ const IconDiamond = () => (<svg {...svgProps}><path d="M12 2 22 12 12 22 2 12Z" 
 const IconCheck = () => (<svg {...svgProps}><polyline points="20 6 9 17 4 12" /></svg>);
 const IconCross = () => (<svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>);
 
-function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
+function CapsBadges({caps, accent, ac, s}: {caps: ModelCaps; accent: string; ac: string; s: SettingsStrings}) {
     const yes = "74,222,128", no = "248,113,113", purp = "192,132,252";
 
     // Large supported/not-supported badge
@@ -389,25 +389,25 @@ function CapsBadges({caps, accent, ac}: {caps: ModelCaps; accent: string; ac: st
         <div className="rounded-2xl p-3 space-y-2.5"
             style={{background: `rgba(${accent},0.035)`, border: `1px solid rgba(${accent},0.12)`}}>
             <div className="grid grid-cols-2 gap-2">
-                <Cap on={caps.supportsTools} label="Araç / Komut" icon={<IconTerminal />} />
-                <Cap on={caps.supportsVision} label="Görüntü" icon={<IconEye />} />
+                <Cap on={caps.supportsTools} label={s.mdCapTools} icon={<IconTerminal />} />
+                <Cap on={caps.supportsVision} label={s.mdCapVision} icon={<IconEye />} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-                <Stat label="BAĞLAM" value={fmtTok(caps.contextWindow)} sub="token" />
-                <Stat label="MAKS ÇIKTI" value={fmtTok(caps.maxOutputTokens)} sub="token" />
+                <Stat label={s.mdCapContext} value={fmtTok(caps.contextWindow)} sub="token" />
+                <Stat label={s.mdCapMaxOutput} value={fmtTok(caps.maxOutputTokens)} sub="token" />
             </div>
             {(caps.reasoning || !caps.supportsTemperature) && (
                 <div className="flex flex-wrap gap-2 pt-0.5">
                     {caps.reasoning && (
                         <span className="text-[11px] px-3 py-1.5 rounded-full font-semibold inline-flex items-center gap-1.5"
                             style={{color: `rgb(${purp})`, background: `rgba(${purp},0.12)`, border: `1px solid rgba(${purp},0.3)`}}>
-                            <IconDiamond /> Reasoning · adım adım düşünür
+                            <IconDiamond /> {s.mdCapReasoning}
                         </span>
                     )}
                     {!caps.supportsTemperature && (
                         <span className="text-[11px] px-3 py-1.5 rounded-full font-medium inline-flex items-center gap-1.5"
                             style={{color: `rgba(${no},0.8)`, background: `rgba(${no},0.07)`, border: `1px solid rgba(${no},0.22)`}}>
-                            <IconCross /> Temperature ayarı yok
+                            <IconCross /> {s.mdCapNoTemp}
                         </span>
                     )}
                 </div>
