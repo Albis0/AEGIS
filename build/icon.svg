@@ -1,39 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- AEGIS mark: faceted V-shield, geometry traced from build/icon-source.jpg.
-       Each facet carries a subtle linear gradient (paper-fold depth, no glow/shadow).
-       Single source of truth for icon.ico + tray icon: node scripts/make-icons.mjs -->
+  <!-- AEGIS mark: faceted V-shield traced from build/icon-source.jpg.
+       Key feature: the left wing is a separate blade - a deep V notch runs from
+       the top down to the pinwheel center between the wing and the bright facet.
+       Regenerate outputs: node scripts/make-icons.mjs -->
   <defs>
-    <linearGradient id="lTop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3FC8F3"/><stop offset="1" stop-color="#2799D6"/>
+    <linearGradient id="wingDark" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#33B2E8"/><stop offset="1" stop-color="#2492CE"/>
     </linearGradient>
-    <linearGradient id="lOuter" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#4AD1F7"/><stop offset="1" stop-color="#2FAEE6"/>
+    <linearGradient id="wingLight" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#45CDF6"/><stop offset="1" stop-color="#2FB0E8"/>
     </linearGradient>
-    <linearGradient id="lDark" x1="0" y1="0" x2="1" y2="0.4">
-      <stop offset="0" stop-color="#2191D2"/><stop offset="1" stop-color="#1A7CBB"/>
+    <linearGradient id="lowerLeft" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#33B9EE"/><stop offset="1" stop-color="#2596D6"/>
     </linearGradient>
-    <linearGradient id="lBottom" x1="0" y1="1" x2="0.7" y2="0">
-      <stop offset="0" stop-color="#36BBEE"/><stop offset="1" stop-color="#2596D3"/>
+    <linearGradient id="bright" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#3FD2F8"/><stop offset="1" stop-color="#2ABBF0"/>
     </linearGradient>
-    <linearGradient id="rBright" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0" stop-color="#48D6F8"/><stop offset="1" stop-color="#2CB4EC"/>
+    <linearGradient id="navyUp" x1="1" y1="0" x2="0" y2="0.7">
+      <stop offset="0" stop-color="#323A5E"/><stop offset="1" stop-color="#262E4E"/>
     </linearGradient>
-    <linearGradient id="rNavy" x1="1" y1="0" x2="0" y2="0.8">
-      <stop offset="0" stop-color="#333B60"/><stop offset="1" stop-color="#252C4A"/>
+    <linearGradient id="navyMid" x1="1" y1="0" x2="0" y2="0.6">
+      <stop offset="0" stop-color="#272E4B"/><stop offset="1" stop-color="#20263F"/>
     </linearGradient>
-    <linearGradient id="rDeep" x1="1" y1="0" x2="0.2" y2="1">
-      <stop offset="0" stop-color="#232A46"/><stop offset="1" stop-color="#151B2E"/>
+    <linearGradient id="navyDeep" x1="1" y1="0" x2="0.1" y2="1">
+      <stop offset="0" stop-color="#1F2540"/><stop offset="1" stop-color="#141A2C"/>
     </linearGradient>
   </defs>
-  <g transform="translate(-249.5,-307.2) scale(1.48)">
-    <!-- left half (cyan family) -->
-    <polygon points="237,242 512,251 512,517" fill="url(#lTop)"/>
-    <polygon points="237,242 278,537 512,517" fill="url(#lOuter)"/>
-    <polygon points="278,537 309,674 512,517" fill="url(#lDark)"/>
-    <polygon points="309,674 512,863 512,517" fill="url(#lBottom)"/>
-    <!-- right half (navy family, bright top facet) -->
-    <polygon points="512,246 789,265 512,517" fill="url(#rBright)"/>
-    <polygon points="789,265 749,669 512,517" fill="url(#rNavy)"/>
-    <polygon points="749,669 512,863 512,517" fill="url(#rDeep)"/>
+  <g transform="translate(-333,-333) scale(2.3)">
+    <!-- left wing: separate blade, inner edge slants from peak to center (the notch) -->
+    <polygon points="172,178 355,350 270,412" fill="url(#wingDark)"/>
+    <polygon points="172,178 270,412 205,442" fill="url(#wingLight)"/>
+    <!-- lower-left facet down to the tip -->
+    <polygon points="205,442 355,565 355,350" fill="url(#lowerLeft)"/>
+    <!-- bright top-right facet: vertical left edge = right wall of the notch -->
+    <polygon points="357,172 528,180 355,350" fill="url(#bright)"/>
+    <!-- right side: bulged silhouette split into three navy facets -->
+    <polygon points="528,180 562,338 355,350" fill="url(#navyUp)"/>
+    <polygon points="562,338 478,470 355,350" fill="url(#navyMid)"/>
+    <polygon points="478,470 355,565 355,350" fill="url(#navyDeep)"/>
   </g>
 </svg>
