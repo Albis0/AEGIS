@@ -447,6 +447,12 @@ export interface SettingsStrings {
     apFontRounded: string; apFontReadable: string; apCssOverrideHint: string;
     // KeysTab
     keysSection: string; keysHint: string;
+    keysTavilyHint: string; keysSerperHint: string; keysElevenHint: string;
+    keysSteamKeyHint: string; keysSteamIdHint: string;
+    keysHaUrlLabel: string; keysHaUrlHint: string; keysHaTokenLabel: string; keysHaTokenHint: string;
+    keysRequiredBadge: string; keysSetBadge: string;
+    keysSecurityNoteTitle: string; keysSecurityNoteBodyPrefix: string; keysSecurityNoteBodySuffix: string;
+    keysGroqHintPrefix: string; keysGroqHintSuffix: string;
     // TelemetryTab
     telWidgets: string; telThresholds: string;
     telWeatherCity: string; telWeatherCityHint: string; telWeatherCityPlaceholder: string;
@@ -516,6 +522,15 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apLayoutNormalSub: "Standart boşluklar", apLayoutCompactSub: "Daha sık", apPaletteHint: "Palet seçince renk + zemin + font birlikte değişir.", apApplyBtn: "UYGULA",
         apFontRounded: "Yuvarlak", apFontReadable: "Okunaklı", apCssOverrideHint: "CSS değişkenlerini override et. Örn: ",
         keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
+        keysTavilyHint: "tvly-... (opsiyonel · web arama)", keysSerperHint: "opsiyonel · yedek arama", keysElevenHint: "sk_... (opsiyonel · gelişmiş TTS)",
+        keysSteamKeyHint: "opsiyonel · oyun/arkadaş/başarım (steamcommunity.com/dev/apikey)", keysSteamIdHint: "opsiyonel · 17 haneli ID (steamid.io)",
+        keysHaUrlLabel: "AKILLI EV — HOME ASSISTANT ADRESİ", keysHaUrlHint: "opsiyonel · http://homeassistant.local:8123 (ışık/priz/kilit/termostat)",
+        keysHaTokenLabel: "AKILLI EV — ERİŞİM TOKEN'I", keysHaTokenHint: "opsiyonel · HA → Profil → Uzun ömürlü erişim belirteci",
+        keysRequiredBadge: "GEREKLİ", keysSetBadge: "✓ AYARLI",
+        keysSecurityNoteTitle: "Güvenlik notu",
+        keysSecurityNoteBodyPrefix: "API key'ler Windows DPAPI (safeStorage) ile şifrelenip ",
+        keysSecurityNoteBodySuffix: " altındaki dosyalarda saklanır; sadece bu Windows kullanıcı hesabıyla açılabilir. Ağ üzerinden iletilmez.",
+        keysGroqHintPrefix: "Groq key'ini almak için: ", keysGroqHintSuffix: " — ücretsiz tier mevcut.",
         telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
         telWeatherCity: "HAVA DURUMU ŞEHRİ", telWeatherCityHint: "Boş bırakırsan IP adresine göre otomatik tespit edilir (yanlış olabilir). Şehir adı yazarsan Open-Meteo geocoding ile doğru konumu bulur.", telWeatherCityPlaceholder: "örn. İstanbul",
         scTitle: "KLAVYE KISAYOLLARI", scHint: "Kısayollar sistem genelinde çalışır.",
@@ -578,6 +593,15 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apLayoutNormalSub: "Standard spacing", apLayoutCompactSub: "Tighter", apPaletteHint: "Picking a palette changes color + background + font together.", apApplyBtn: "APPLY",
         apFontRounded: "Rounded", apFontReadable: "Readable", apCssOverrideHint: "Override CSS variables. E.g.: ",
         keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
+        keysTavilyHint: "tvly-... (optional · web search)", keysSerperHint: "optional · fallback search", keysElevenHint: "sk_... (optional · advanced TTS)",
+        keysSteamKeyHint: "optional · games/friends/achievements (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optional · 17-digit ID (steamid.io)",
+        keysHaUrlLabel: "SMART HOME — HOME ASSISTANT ADDRESS", keysHaUrlHint: "optional · http://homeassistant.local:8123 (lights/plugs/locks/thermostat)",
+        keysHaTokenLabel: "SMART HOME — ACCESS TOKEN", keysHaTokenHint: "optional · HA → Profile → Long-lived access token",
+        keysRequiredBadge: "REQUIRED", keysSetBadge: "✓ SET",
+        keysSecurityNoteTitle: "Security note",
+        keysSecurityNoteBodyPrefix: "API keys are encrypted with Windows DPAPI (safeStorage) and stored in files under ",
+        keysSecurityNoteBodySuffix: "; only this Windows user account can open them. Never transmitted over the network.",
+        keysGroqHintPrefix: "To get your Groq key: ", keysGroqHintSuffix: " — free tier available.",
         telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
         telWeatherCity: "WEATHER CITY", telWeatherCityHint: "Leave blank to auto-detect from your IP (may be inaccurate). Enter a city name to use Open-Meteo geocoding for accurate location.", telWeatherCityPlaceholder: "e.g. Istanbul",
         scTitle: "KEYBOARD SHORTCUTS", scHint: "Shortcuts work system-wide.",
@@ -640,6 +664,15 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apLayoutNormalSub: "Standardabstände", apLayoutCompactSub: "Enger", apPaletteHint: "Bei Auswahl einer Palette ändern sich Farbe, Hintergrund und Schriftart zusammen.", apApplyBtn: "ANWENDEN",
         apFontRounded: "Rund", apFontReadable: "Lesbar", apCssOverrideHint: "CSS-Variablen überschreiben. Z. B.: ",
         keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
+        keysTavilyHint: "tvly-... (optional · Websuche)", keysSerperHint: "optional · Ausweichsuche", keysElevenHint: "sk_... (optional · erweiterte TTS)",
+        keysSteamKeyHint: "optional · Spiele/Freunde/Erfolge (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optional · 17-stellige ID (steamid.io)",
+        keysHaUrlLabel: "SMART HOME — HOME-ASSISTANT-ADRESSE", keysHaUrlHint: "optional · http://homeassistant.local:8123 (Licht/Steckdose/Schloss/Thermostat)",
+        keysHaTokenLabel: "SMART HOME — ZUGRIFFSTOKEN", keysHaTokenHint: "optional · HA → Profil → Langlebiges Zugriffstoken",
+        keysRequiredBadge: "ERFORDERLICH", keysSetBadge: "✓ EINGERICHTET",
+        keysSecurityNoteTitle: "Sicherheitshinweis",
+        keysSecurityNoteBodyPrefix: "API-Schlüssel werden mit Windows DPAPI (safeStorage) verschlüsselt und in Dateien unter ",
+        keysSecurityNoteBodySuffix: " gespeichert; nur dieses Windows-Benutzerkonto kann sie öffnen. Werden nie über das Netzwerk übertragen.",
+        keysGroqHintPrefix: "Groq-Schlüssel erhalten: ", keysGroqHintSuffix: " — kostenlose Stufe verfügbar.",
         telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
         telWeatherCity: "WETTERSTADT", telWeatherCityHint: "Leer lassen für automatische Erkennung per IP (kann ungenau sein). Stadtname eingeben für genauen Standort via Open-Meteo.", telWeatherCityPlaceholder: "z.B. Istanbul",
         scTitle: "TASTATURKÜRZEL", scHint: "Kürzel funktionieren systemweit.",
@@ -702,6 +735,15 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apLayoutNormalSub: "Espacement standard", apLayoutCompactSub: "Plus serré", apPaletteHint: "Choisir une palette change la couleur, le fond et la police ensemble.", apApplyBtn: "APPLIQUER",
         apFontRounded: "Arrondi", apFontReadable: "Lisible", apCssOverrideHint: "Remplacer les variables CSS. Ex. : ",
         keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
+        keysTavilyHint: "tvly-... (optionnel · recherche web)", keysSerperHint: "optionnel · recherche de secours", keysElevenHint: "sk_... (optionnel · TTS avancé)",
+        keysSteamKeyHint: "optionnel · jeux/amis/succès (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optionnel · ID à 17 chiffres (steamid.io)",
+        keysHaUrlLabel: "MAISON CONNECTÉE — ADRESSE HOME ASSISTANT", keysHaUrlHint: "optionnel · http://homeassistant.local:8123 (lumières/prises/serrures/thermostat)",
+        keysHaTokenLabel: "MAISON CONNECTÉE — JETON D'ACCÈS", keysHaTokenHint: "optionnel · HA → Profil → Jeton d'accès longue durée",
+        keysRequiredBadge: "REQUIS", keysSetBadge: "✓ CONFIGURÉ",
+        keysSecurityNoteTitle: "Note de sécurité",
+        keysSecurityNoteBodyPrefix: "Les clés API sont chiffrées avec Windows DPAPI (safeStorage) et stockées dans des fichiers sous ",
+        keysSecurityNoteBodySuffix: " ; seul ce compte utilisateur Windows peut les ouvrir. Jamais transmises via le réseau.",
+        keysGroqHintPrefix: "Pour obtenir votre clé Groq : ", keysGroqHintSuffix: " — offre gratuite disponible.",
         telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
         telWeatherCity: "VILLE MÉTÉO", telWeatherCityHint: "Laisser vide pour la détection automatique par IP (peut être imprécise). Entrez un nom de ville pour la géolocalisation Open-Meteo.", telWeatherCityPlaceholder: "ex. Istanbul",
         scTitle: "RACCOURCIS CLAVIER", scHint: "Les raccourcis fonctionnent à l'échelle du système.",
@@ -764,6 +806,15 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apLayoutNormalSub: "Espaciado estándar", apLayoutCompactSub: "Más compacto", apPaletteHint: "Elegir una paleta cambia el color, el fondo y la fuente a la vez.", apApplyBtn: "APLICAR",
         apFontRounded: "Redondeada", apFontReadable: "Legible", apCssOverrideHint: "Sobrescribe variables CSS. Ej.: ",
         keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
+        keysTavilyHint: "tvly-... (opcional · búsqueda web)", keysSerperHint: "opcional · búsqueda de respaldo", keysElevenHint: "sk_... (opcional · TTS avanzado)",
+        keysSteamKeyHint: "opcional · juegos/amigos/logros (steamcommunity.com/dev/apikey)", keysSteamIdHint: "opcional · ID de 17 dígitos (steamid.io)",
+        keysHaUrlLabel: "CASA INTELIGENTE — DIRECCIÓN DE HOME ASSISTANT", keysHaUrlHint: "opcional · http://homeassistant.local:8123 (luces/enchufes/cerraduras/termostato)",
+        keysHaTokenLabel: "CASA INTELIGENTE — TOKEN DE ACCESO", keysHaTokenHint: "opcional · HA → Perfil → Token de acceso de larga duración",
+        keysRequiredBadge: "REQUERIDO", keysSetBadge: "✓ CONFIGURADO",
+        keysSecurityNoteTitle: "Nota de seguridad",
+        keysSecurityNoteBodyPrefix: "Las claves API se cifran con Windows DPAPI (safeStorage) y se guardan en archivos bajo ",
+        keysSecurityNoteBodySuffix: "; solo esta cuenta de usuario de Windows puede abrirlas. Nunca se transmiten por red.",
+        keysGroqHintPrefix: "Para obtener tu clave de Groq: ", keysGroqHintSuffix: " — nivel gratuito disponible.",
         telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",
         telWeatherCity: "CIUDAD DEL TIEMPO", telWeatherCityHint: "Dejar vacío para detección automática por IP (puede ser inexacta). Introduce un nombre de ciudad para geolocalización precisa con Open-Meteo.", telWeatherCityPlaceholder: "ej. Estambul",
         scTitle: "ATAJOS DE TECLADO", scHint: "Los atajos funcionan a nivel del sistema.",

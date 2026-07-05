@@ -41,43 +41,43 @@ export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
         },
         {
             label: "TAVILY",
-            hint: "tvly-... (opsiyonel · web arama)",
+            hint: s.keysTavilyHint,
             value: config.tavilyApiKey ?? "",
             onSave: (v) => onApplyConfig({tavilyApiKey: v || undefined}),
         },
         {
             label: "SERPER",
-            hint: "opsiyonel · yedek arama",
+            hint: s.keysSerperHint,
             value: config.serperApiKey ?? "",
             onSave: (v) => onApplyConfig({serperApiKey: v || undefined}),
         },
         {
             label: "ELEVENLABS",
-            hint: "sk_... (opsiyonel · gelişmiş TTS)",
+            hint: s.keysElevenHint,
             value: config.elevenlabsApiKey ?? "",
             onSave: (v) => onApplyConfig({elevenlabsApiKey: v || undefined}),
         },
         {
             label: "STEAM API KEY",
-            hint: "opsiyonel · oyun/arkadaş/başarım (steamcommunity.com/dev/apikey)",
+            hint: s.keysSteamKeyHint,
             value: config.steamApiKey ?? "",
             onSave: (v) => onApplyConfig({steamApiKey: v || undefined}),
         },
         {
             label: "STEAMID64",
-            hint: "opsiyonel · 17 haneli ID (steamid.io)",
+            hint: s.keysSteamIdHint,
             value: config.steamId64 ?? "",
             onSave: (v) => onApplyConfig({steamId64: v || undefined}),
         },
         {
-            label: "AKILLI EV — HOME ASSISTANT ADRESİ",
-            hint: "opsiyonel · http://homeassistant.local:8123 (ışık/priz/kilit/termostat)",
+            label: s.keysHaUrlLabel,
+            hint: s.keysHaUrlHint,
             value: config.homeAssistantUrl ?? "",
             onSave: (v) => onApplyConfig({homeAssistantUrl: v || undefined}),
         },
         {
-            label: "AKILLI EV — ERİŞİM TOKEN'I",
-            hint: "opsiyonel · HA → Profil → Uzun ömürlü erişim belirteci",
+            label: s.keysHaTokenLabel,
+            hint: s.keysHaTokenHint,
             value: config.homeAssistantToken ?? "",
             onSave: (v) => onApplyConfig({homeAssistantToken: v || undefined}),
         },
@@ -96,12 +96,12 @@ export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-[9px] px-2 py-0.5 rounded-full font-medium"
                                 style={{color: "rgba(74,222,128,0.8)", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)"}}>
-                                GEREKLİ
+                                {s.keysRequiredBadge}
                             </span>
                             {row.value && (
                                 <span className="text-[9px] px-2 py-0.5 rounded-full"
                                     style={{color: `rgba(${accent},0.6)`, background: `rgba(${accent},0.07)`, border: `1px solid rgba(${accent},0.15)`}}>
-                                    ✓ AYARLI
+                                    {s.keysSetBadge}
                                 </span>
                             )}
                         </div>
@@ -111,15 +111,14 @@ export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
             ))}
 
             <div className="rounded-xl p-4 space-y-2" style={{background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.1)`}}>
-                <p className="text-[11px] font-medium" style={{color: `rgba(${accent},0.6)`}}>Güvenlik notu</p>
+                <p className="text-[11px] font-medium" style={{color: `rgba(${accent},0.6)`}}>{s.keysSecurityNoteTitle}</p>
                 <p className="text-[11px] leading-relaxed" style={{color: `rgba(${accent},0.35)`}}>
-                    API key'ler Windows DPAPI (safeStorage) ile şifrelenip <code style={{color: `rgba(${accent},0.55)`}}>~/.aegis/</code> altındaki dosyalarda saklanır;
-                    sadece bu Windows kullanıcı hesabıyla açılabilir. Ağ üzerinden iletilmez.
+                    {s.keysSecurityNoteBodyPrefix}<code style={{color: `rgba(${accent},0.55)`}}>~/.aegis/</code>{s.keysSecurityNoteBodySuffix}
                 </p>
             </div>
 
             <Hint accent={accent}>
-                Groq key'ini almak için: <span style={{color: `rgba(${accent},0.6)`}}>console.groq.com</span> — ücretsiz tier mevcut.
+                {s.keysGroqHintPrefix}<span style={{color: `rgba(${accent},0.6)`}}>console.groq.com</span>{s.keysGroqHintSuffix}
             </Hint>
         </div>
     );
