@@ -7,7 +7,7 @@ import {useState} from "react";
 import ModeSelectScreen from "./ModeSelectScreen";
 import AuthScreen from "./AuthScreen";
 import SetupScreen from "./SetupScreen";
-import {ONBOARDING, LANG_NAMES, type Lang} from "../i18n";
+import {ONBOARDING, SETUP, LANG_NAMES, type Lang} from "../i18n";
 import {Shell, Body, Heading, C, ac, muted, PrimaryButton, GhostButton} from "./onboarding/ui";
 
 type Step = "lang" | "mode" | "trial-auth" | "own-setup" | "own-auth" | "spotify-connect";
@@ -76,7 +76,7 @@ export default function Onboarding() {
     }
 
     if (step === "own-setup") {
-        return <SetupScreen step={STEP_INDEX["own-setup"]} totalSteps={TOTAL_STEPS} onComplete={finishOwnSetup} onBack={() => setStep("mode")} />;
+        return <SetupScreen t={SETUP[lang]} step={STEP_INDEX["own-setup"]} totalSteps={TOTAL_STEPS} onComplete={finishOwnSetup} onBack={() => setStep("mode")} />;
     }
 
     if (step === "own-auth") {

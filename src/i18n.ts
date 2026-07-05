@@ -395,6 +395,97 @@ export const ONBOARDING: Record<Lang, OnboardingStrings> = {
     },
 };
 
+// ─── Setup screen (API keys, first-launch "own" flow) ─────────────────────────
+export interface SetupStrings {
+    suGroqRequired: string; suSupabaseBothRequired: string; suUnknownError: string;
+    suTitle: string; suSubtitle: string;
+    suGroqLabel: string; suGroqHint: string;
+    suAdvancedTitle: string; suAdvancedSub: string;
+    suCloudSyncLabel: string; suSupabaseUrlLabel: string; suSupabaseUrlHint: string;
+    suSupabaseKeyLabel: string; suSupabaseKeyHint: string;
+    suWebSearchLabel: string; suTavilyLabel: string; suTavilyHint: string;
+    suSerperLabel: string; suSerperHint: string;
+    suSaveBtn: string; suSaving: string; suBackBtn: string;
+}
+
+export const SETUP: Record<Lang, SetupStrings> = {
+    tr: {
+        suGroqRequired: "Groq API anahtarı zorunlu.",
+        suSupabaseBothRequired: "Supabase için hem URL hem service_role key gerekli (ya ikisini de gir ya da boş bırak).",
+        suUnknownError: "Bilinmeyen hata.",
+        suTitle: "Kurulum", suSubtitle: "API anahtarlarını gir. Ayarlar cihazında ~/.aegis/config.json'a kaydedilir.",
+        suGroqLabel: "Groq API anahtarı", suGroqHint: "console.groq.com → API Keys → Create (ücretsiz)",
+        suAdvancedTitle: "Gelişmiş (opsiyonel)", suAdvancedSub: "Bulut senkronu ve web arama anahtarları",
+        suCloudSyncLabel: "Bulut Senkronu — Supabase",
+        suSupabaseUrlLabel: "Supabase URL", suSupabaseUrlHint: "Konuşma geçmişini bulutta saklamak için. Boş bırakırsan uygulama yine çalışır.",
+        suSupabaseKeyLabel: "Supabase service_role key", suSupabaseKeyHint: "Settings → API → service_role (anon key değil). Girersen supabase/schema.sql'i çalıştırmayı unutma.",
+        suWebSearchLabel: "Web Arama",
+        suTavilyLabel: "Tavily API anahtarı", suTavilyHint: "app.tavily.com → API Keys (ücretsiz tier)",
+        suSerperLabel: "Serper API anahtarı", suSerperHint: "serper.dev → API Key (ücretsiz tier)",
+        suSaveBtn: "Kaydet ve devam et", suSaving: "Kaydediliyor…", suBackBtn: "‹ Geri",
+    },
+    en: {
+        suGroqRequired: "Groq API key is required.",
+        suSupabaseBothRequired: "Supabase requires both URL and service_role key (enter both or leave both blank).",
+        suUnknownError: "Unknown error.",
+        suTitle: "Setup", suSubtitle: "Enter your API keys. Settings are saved to ~/.aegis/config.json on your device.",
+        suGroqLabel: "Groq API key", suGroqHint: "console.groq.com → API Keys → Create (free)",
+        suAdvancedTitle: "Advanced (optional)", suAdvancedSub: "Cloud sync and web search keys",
+        suCloudSyncLabel: "Cloud Sync — Supabase",
+        suSupabaseUrlLabel: "Supabase URL", suSupabaseUrlHint: "For storing conversation history in the cloud. The app still works if left blank.",
+        suSupabaseKeyLabel: "Supabase service_role key", suSupabaseKeyHint: "Settings → API → service_role (not the anon key). If you enter this, remember to run supabase/schema.sql.",
+        suWebSearchLabel: "Web Search",
+        suTavilyLabel: "Tavily API key", suTavilyHint: "app.tavily.com → API Keys (free tier)",
+        suSerperLabel: "Serper API key", suSerperHint: "serper.dev → API Key (free tier)",
+        suSaveBtn: "Save and continue", suSaving: "Saving…", suBackBtn: "‹ Back",
+    },
+    de: {
+        suGroqRequired: "Groq-API-Schlüssel ist erforderlich.",
+        suSupabaseBothRequired: "Supabase benötigt sowohl URL als auch service_role key (beide eingeben oder beide leer lassen).",
+        suUnknownError: "Unbekannter Fehler.",
+        suTitle: "Einrichtung", suSubtitle: "Gib deine API-Schlüssel ein. Einstellungen werden lokal in ~/.aegis/config.json gespeichert.",
+        suGroqLabel: "Groq-API-Schlüssel", suGroqHint: "console.groq.com → API Keys → Create (kostenlos)",
+        suAdvancedTitle: "Erweitert (optional)", suAdvancedSub: "Cloud-Synchronisation und Websuche-Schlüssel",
+        suCloudSyncLabel: "Cloud-Synchronisation — Supabase",
+        suSupabaseUrlLabel: "Supabase-URL", suSupabaseUrlHint: "Zum Speichern des Gesprächsverlaufs in der Cloud. Die App funktioniert auch ohne diese Angabe.",
+        suSupabaseKeyLabel: "Supabase service_role key", suSupabaseKeyHint: "Settings → API → service_role (nicht der anon key). Falls eingegeben, denke daran, supabase/schema.sql auszuführen.",
+        suWebSearchLabel: "Websuche",
+        suTavilyLabel: "Tavily-API-Schlüssel", suTavilyHint: "app.tavily.com → API Keys (kostenlose Stufe)",
+        suSerperLabel: "Serper-API-Schlüssel", suSerperHint: "serper.dev → API Key (kostenlose Stufe)",
+        suSaveBtn: "Speichern und fortfahren", suSaving: "Wird gespeichert…", suBackBtn: "‹ Zurück",
+    },
+    fr: {
+        suGroqRequired: "La clé API Groq est requise.",
+        suSupabaseBothRequired: "Supabase nécessite à la fois l'URL et la clé service_role (entrez les deux ou laissez les deux vides).",
+        suUnknownError: "Erreur inconnue.",
+        suTitle: "Configuration", suSubtitle: "Entrez vos clés API. Les paramètres sont enregistrés dans ~/.aegis/config.json sur votre appareil.",
+        suGroqLabel: "Clé API Groq", suGroqHint: "console.groq.com → API Keys → Create (gratuit)",
+        suAdvancedTitle: "Avancé (optionnel)", suAdvancedSub: "Clés de synchronisation cloud et de recherche web",
+        suCloudSyncLabel: "Synchronisation Cloud — Supabase",
+        suSupabaseUrlLabel: "URL Supabase", suSupabaseUrlHint: "Pour stocker l'historique des conversations dans le cloud. L'application fonctionne même si ce champ est vide.",
+        suSupabaseKeyLabel: "Clé service_role Supabase", suSupabaseKeyHint: "Settings → API → service_role (pas la clé anon). Si renseignée, pensez à exécuter supabase/schema.sql.",
+        suWebSearchLabel: "Recherche Web",
+        suTavilyLabel: "Clé API Tavily", suTavilyHint: "app.tavily.com → API Keys (offre gratuite)",
+        suSerperLabel: "Clé API Serper", suSerperHint: "serper.dev → API Key (offre gratuite)",
+        suSaveBtn: "Enregistrer et continuer", suSaving: "Enregistrement…", suBackBtn: "‹ Retour",
+    },
+    es: {
+        suGroqRequired: "Se requiere la clave API de Groq.",
+        suSupabaseBothRequired: "Supabase requiere tanto la URL como la clave service_role (introduce ambas o deja ambas vacías).",
+        suUnknownError: "Error desconocido.",
+        suTitle: "Configuración", suSubtitle: "Introduce tus claves API. Los ajustes se guardan en ~/.aegis/config.json en tu dispositivo.",
+        suGroqLabel: "Clave API de Groq", suGroqHint: "console.groq.com → API Keys → Create (gratis)",
+        suAdvancedTitle: "Avanzado (opcional)", suAdvancedSub: "Claves de sincronización en la nube y búsqueda web",
+        suCloudSyncLabel: "Sincronización en la Nube — Supabase",
+        suSupabaseUrlLabel: "URL de Supabase", suSupabaseUrlHint: "Para guardar el historial de conversaciones en la nube. La app funciona igual si se deja vacío.",
+        suSupabaseKeyLabel: "Clave service_role de Supabase", suSupabaseKeyHint: "Settings → API → service_role (no la clave anon). Si la introduces, recuerda ejecutar supabase/schema.sql.",
+        suWebSearchLabel: "Búsqueda Web",
+        suTavilyLabel: "Clave API de Tavily", suTavilyHint: "app.tavily.com → API Keys (nivel gratuito)",
+        suSerperLabel: "Clave API de Serper", suSerperHint: "serper.dev → API Key (nivel gratuito)",
+        suSaveBtn: "Guardar y continuar", suSaving: "Guardando…", suBackBtn: "‹ Atrás",
+    },
+};
+
 // ─── Ayarlar paneli (Öncelik 2) ───────────────────────────────────────────────
 export interface SettingsStrings {
     // Nav sekme adları + alt başlıklar

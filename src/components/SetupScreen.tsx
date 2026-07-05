@@ -1,6 +1,7 @@
 // AEGIS — Setup (API keys) screen — Phase 64 new design
 import {useState} from "react";
 import {Shell, Body, Heading, Field, PrimaryButton, ErrorBox, LinkButton, C, ac, muted} from "./onboarding/ui";
+import type {SetupStrings} from "../i18n";
 
 interface Fields {
     groqApiKey: string;
@@ -17,9 +18,10 @@ interface SetupProps {
     onBack?: () => void;
     step?: number;
     totalSteps?: number;
+    t: SetupStrings;
 }
 
-export default function SetupScreen({onComplete, onBack, step, totalSteps}: SetupProps = {}) {
+export default function SetupScreen({onComplete, onBack, step, totalSteps, t}: SetupProps) {
     const [fields, setFields] = useState<Fields>({
         groqApiKey: "",
         supabaseUrl: "",
@@ -34,12 +36,12 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
     const set = (k: keyof Fields) => (v: string) => setFields((f) => ({...f, [k]: v}));
 
     async function handleSave() {
-        if (!fields.groqApiKey.trim()) { setError("Groq API anahtarı zorunlu."); return; }
+        if (!fields.groqApiKey.trim()) { setError(t.suGroqRequired); return; }
         // Supabase optional (Phase 30): if provided, session/message history is saved to the cloud.
         const sbUrl = fields.supabaseUrl.trim();
         const sbKey = fields.supabaseServiceKey.trim();
         if ((sbUrl && !sbKey) || (!sbUrl && sbKey)) {
-            setError("Supabase için hem URL hem service_role key gerekli (ya ikisini de gir ya da boş bırak).");
+            setError(t.suSupabaseBothRequired);
             return;
         }
         setError("");
@@ -54,7 +56,7 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
             });
             onComplete?.();
         } catch (e) {
-            setError((e as Error).message ?? "Bilinmeyen hata.");
+            setError((e as Error).message ?? t.suUnknownError);
             setSaving(false);
         }
     }
@@ -63,19 +65,19 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
         <Shell step={step} totalSteps={totalSteps}>
             <Body>
                 <Heading
-                    title="Kurulum"
-                    subtitle="API anahtarlarını gir. Ayarlar cihazında ~/.aegis/config.json'a kaydedilir."
+                    title={t.suTitle}
+                    subtitle={t.suSubtitle}
                 />
 
                 {/* Required: Groq */}
                 <Field
-                    label="Groq API anahtarı"
+                    label={t.suGroqLabel}
                     required
                     type="password"
                     value={fields.groqApiKey}
                     onChange={set("groqApiKey")}
                     placeholder="gsk_…"
-                    hint="console.groq.com → API Keys → Create (ücretsiz)"
+                    hint={t.suGroqHint}
                 />
 
                 {/* Advanced (Supabase + web search) — collapsed by default, accordion */}
@@ -85,8 +87,8 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
                         className="w-full flex items-center justify-between px-4 py-3.5 transition hover:bg-white/[0.03] rounded-2xl"
                     >
                         <div className="text-left">
-                            <div className="text-[13.5px] font-medium" style={{color: ac}}>Gelişmiş (opsiyonel)</div>
-                            <div className="text-[11.5px]" style={{color: muted}}>Bulut senkronu ve web arama anahtarları</div>
+                            <div className="text-[13.5px] font-medium" style={{color: ac}}>{t.suAdvancedTitle}</div>
+                            <div className="text-[11.5px]" style={{color: muted}}>{t.suAdvancedSub}</div>
                         </div>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                             className="transition-transform duration-200 shrink-0" style={{color: muted, transform: showAdvanced ? "rotate(180deg)" : "none"}}>
@@ -96,30 +98,30 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
 
                     {showAdvanced && (
                         <div className="px-4 pb-4 pt-1 space-y-4 border-t" style={{borderColor: `rgba(${C.line},0.1)`}}>
-                            <SectionLabel>Bulut Senkronu — Supabase</SectionLabel>
+                            <SectionLabel>{t.suCloudSyncLabel}</SectionLabel>
                             <Field
-                                label="Supabase URL" optional type="text"
+                                label={t.suSupabaseUrlLabel} optional type="text"
                                 value={fields.supabaseUrl} onChange={set("supabaseUrl")}
                                 placeholder="https://xxxx.supabase.co"
-                                hint="Konuşma geçmişini bulutta saklamak için. Boş bırakırsan uygulama yine çalışır."
+                                hint={t.suSupabaseUrlHint}
                             />
                             <Field
-                                label="Supabase service_role key" optional type="password"
+                                label={t.suSupabaseKeyLabel} optional type="password"
                                 value={fields.supabaseServiceKey} onChange={set("supabaseServiceKey")}
                                 placeholder="eyJ…"
-                                hint="Settings → API → service_role (anon key değil). Girersen supabase/schema.sql'i çalıştırmayı unutma."
+                                hint={t.suSupabaseKeyHint}
                             />
 
-                            <SectionLabel>Web Arama</SectionLabel>
+                            <SectionLabel>{t.suWebSearchLabel}</SectionLabel>
                             <Field
-                                label="Tavily API anahtarı" optional type="password"
+                                label={t.suTavilyLabel} optional type="password"
                                 value={fields.tavilyApiKey} onChange={set("tavilyApiKey")}
-                                placeholder="tvly-…" hint="app.tavily.com → API Keys (ücretsiz tier)"
+                                placeholder="tvly-…" hint={t.suTavilyHint}
                             />
                             <Field
-                                label="Serper API anahtarı" optional type="password"
+                                label={t.suSerperLabel} optional type="password"
                                 value={fields.serperApiKey} onChange={set("serperApiKey")}
-                                placeholder="" hint="serper.dev → API Key (ücretsiz tier)"
+                                placeholder="" hint={t.suSerperHint}
                             />
                         </div>
                     )}
@@ -129,11 +131,11 @@ export default function SetupScreen({onComplete, onBack, step, totalSteps}: Setu
 
                 <div className="flex flex-col gap-3">
                     <PrimaryButton onClick={handleSave} disabled={saving}>
-                        {saving ? "Kaydediliyor…" : "Kaydet ve devam et"}
+                        {saving ? t.suSaving : t.suSaveBtn}
                     </PrimaryButton>
                     {onBack && (
                         <div className="flex justify-center">
-                            <LinkButton onClick={onBack}>‹ Geri</LinkButton>
+                            <LinkButton onClick={onBack}>{t.suBackBtn}</LinkButton>
                         </div>
                     )}
                 </div>
