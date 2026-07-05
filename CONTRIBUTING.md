@@ -57,7 +57,9 @@ node scripts/check-packaged-deps.mjs       # build.files must cover the native d
 
 ## Reporting Bugs
 
-Open a GitHub issue with reproduction steps, your OS version, and the AEGIS version. For **security** issues, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+Open a GitHub issue with reproduction steps, your OS version, and the AEGIS version — or use the in-app form (**Settings → About → Report a bug**, screenshot attach supported). For **security** issues, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+Looking for something to work on? See the priority-ordered [open work list in ROADMAP.md](ROADMAP.md#open-work-priority-order).
 
 ## Code of Conduct
 

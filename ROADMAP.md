@@ -13,14 +13,14 @@ _The version number has a single source of truth: `package.json` (enforced in CI
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | **i18n Priority 2 — Settings panel (~200 strings)** | Tab names, section labels, hints across all 9 settings tabs + SetupScreen. Add keys to `src/i18n.ts`, replace hardcoded Turkish. In progress. |
-| 2 | **i18n Priority 3 — backend user-facing messages** | `main.ts` error/limit messages (friendlyHttpError, callProxy) are still fixed-language; localize by the selected language. Executor return strings are optional (they go to the model, not directly to the user). |
-| 3 | **Code-signing certificate** | The only fix for the SmartScreen warning. EV/OV cert is a purchase decision; release workflow is otherwise ready (`.github/workflows/release.yml`). Was 30.8. |
-| 4 | **Home-screen module pool (34.2)** | Optional widgets skins can arrange: quick-action dock, agenda/notes panel, now-playing, telemetry sparklines, voice visualizer, suggestion chips, clock variants. Nice-to-have. |
-| 5 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
-| 6 | **Real-device release testing** | Packaged exe smoke test on a clean machine per release; streaming verification for non-Groq providers. |
+| 1 | **i18n Priority 3 — backend user-facing messages** | `main.ts` error/limit messages (friendlyHttpError, callProxy) are still fixed-language; localize by the selected language. Executor return strings are optional (they go to the model, not directly to the user). |
+| 2 | **Home-screen module pool (34.2)** | Optional widgets skins can arrange: quick-action dock, agenda/notes panel, now-playing, telemetry sparklines, voice visualizer, suggestion chips, clock variants. Nice-to-have. |
+| 3 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
+| 4 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
 
-**Deliberately not planned** (over-engineering for this product): LoRA/fine-tuning pipelines, a full eval framework, RBAC, Docker/WASM sandboxing, multi-agent orchestration/A2A, litellm migration (the hand-written provider layer is leaner and matches the model-capabilities registry), multi-channel bridges (WhatsApp/iMessage), self-rewriting meta-planners.
+_Done since the last revision: i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
+
+**Deliberately not planned:** **code signing** (AEGIS is a free hobby project; a certificate is a recurring cost — the SmartScreen warning is permanent and [SECURITY.md](SECURITY.md) documents how to verify a release instead), LoRA/fine-tuning pipelines, a full eval framework, RBAC, Docker/WASM sandboxing, multi-agent orchestration/A2A, litellm migration (the hand-written provider layer is leaner and matches the model-capabilities registry), multi-channel bridges (WhatsApp/iMessage), self-rewriting meta-planners.
 
 ---
 

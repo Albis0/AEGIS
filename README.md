@@ -2,15 +2,19 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
+[![Tests](https://github.com/Albis0/AEGIS/actions/workflows/test.yml/badge.svg)](https://github.com/Albis0/AEGIS/actions/workflows/test.yml)
+[![Latest release](https://img.shields.io/github/v/release/Albis0/AEGIS)](https://github.com/Albis0/AEGIS/releases/latest)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 ![AEGIS — Hologram skin](assets/screenshots/hologram.png)
 
+**AEGIS** is a desktop AI assistant for Windows: speech recognition, LLM reasoning, and **332 tools** wired to your actual machine. Talk or type — it controls your system, Spotify, Steam, smart home, files, screen, and more. Works with 8 AI providers (Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama) or with **no API key at all** in trial mode.
+
 > [!WARNING]
-> **AEGIS is under active development.** Not everything works perfectly yet — some tools and features may be unreliable, incomplete, or break in certain situations. Known issues are tracked and fixed incrementally with each version bump, so expect rough edges between releases. Use it as an early-stage project, not a finished product. Bug reports and PRs are very welcome.
+> **Early-stage, under active development.** Some tools and features may be unreliable or break in certain situations. Known issues are fixed incrementally with each release. Treat it as an early-stage project, not a finished product — bug reports and PRs are very welcome.
 
 > [!NOTE]
-> **Built with AI ("vibe coded").** AEGIS was developed largely with the help of AI coding assistants. The architecture, tools, and UI were shaped through iterative prompting rather than written entirely by hand. This is shared openly for transparency — it also means some corners may be rougher than a hand-crafted codebase, which ties into the development-stage note above.
-
-**AEGIS** is a desktop AI assistant for Windows, combining speech recognition, LLM reasoning, and **332 tools**. It supports Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, and Ollama. Give it commands by voice or text to control your system, Spotify, Steam, smart home devices, web search, file management, screen vision, mouse/keyboard control, and much more.
+> **Built with AI ("vibe coded").** AEGIS was developed largely with AI coding assistants, shaped through iterative prompting rather than written entirely by hand. Shared openly for transparency; some corners may be rougher than a hand-crafted codebase.
 
 ---
 
@@ -18,25 +22,20 @@
 
 | Category          | What it can do                                                                          |
 | ------------------ | ---------------------------------------------------------------------------------------- |
-| **Chat**           | Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama                          |
-| **Voice**          | Microphone → Whisper transcription, TTS (Edge / ElevenLabs / Kokoro offline), wake-word, VAD |
-| **System**         | PowerShell, volume/brightness, window management, processes, disk cleanup               |
-| **Spotify**        | Play/pause/skip/volume/search/playlists — Spotify Web API integration                   |
-| **Steam**          | Launch games, library listing, open/close Steam                                         |
-| **Web**            | Tavily/Serper/DuckDuckGo search, URL content reading                                    |
-| **Files**          | Read/write/list/organize/find duplicates/batch rename                                   |
-| **Vision**         | Screenshot capture + AI analysis, visual Q&A                                            |
-| **Computer Use**   | AI controls mouse and keyboard via free-form natural language goals                     |
-| **Memory**         | User profile, notes, facts, session summaries, cloud sync                               |
-| **Automation**     | Scheduled tasks, conditional automations, macros, routines, agent mode                  |
-| **Smart Home**     | Home Assistant (lights/outlets/locks/thermostats/scenes), natural-language device control |
-| **Developer**      | Git, build/test running, project templates, terminal output analysis, SSH/Docker        |
-| **Productivity**   | Calendar, pomodoro, time tracking, flashcards, goals, email, real-time translation       |
-| **Telemetry**      | Live CPU/RAM/GPU/disk/battery/network monitoring + alerts                               |
-| **Security**       | API key vault (OS DPAPI), privacy audit                                                 |
-| **UI**             | 4 skin families × 4 variants (16 skins), 5 languages, custom accents                     |
+| **AI core**        | 8 providers, streaming, tool calling (332 tools), per-model capability registry, deterministic tool routing, loop guard, self-healing |
+| **Voice**          | Whisper STT (multilingual), TTS (Edge / ElevenLabs / Kokoro offline) with sentence-level streaming, wake-word + VAD, barge-in (ESC), live voice translation |
+| **System**         | PowerShell, volume/brightness, windows, processes, disk cleanup, live telemetry (CPU/RAM/GPU/disk/battery/network) + alerts |
+| **Files & media**  | Read/write/organize, duplicate finder, bulk rename, image tools, PDF text, local BM25 search (RAG), file chat |
+| **Apps & web**     | Spotify (full Web API), Steam, OBS/VS Code/Discord/Notion plugins, web search (Tavily/Serper/DDG), URL reading, news & price tracking |
+| **Vision & control** | Screenshot + AI analysis, Computer Use (mouse/keyboard from natural-language goals) with verification loop |
+| **Automation**     | Scheduled tasks, conditional automations, macros, routines, agent mode, goal executor    |
+| **Memory**         | User profile, facts, habits, session summaries, semantic recall, morning briefing, workspaces |
+| **Smart home**     | Home Assistant (lights/locks/thermostats/scenes) + HA-less local device discovery (mDNS/SSDP) |
+| **Security**       | DPAPI-encrypted keys, taint boundary for external content, destructive-action approval gate, boundary guard, RLS on every cloud table |
+| **UI**             | 4 skin families × 4 variants (16 skins), 5 languages (TR/EN/DE/FR/ES), palette presets, custom CSS |
+| **Access**         | Local network API (token-auth), browser UI with live sync, QR pairing for phones         |
 
----
+Full feature history and open work: [ROADMAP.md](ROADMAP.md).
 
 ## Skins
 
@@ -52,14 +51,19 @@
 
 1. Download **`AEGIS-Setup-x.y.z.exe`** (installer, recommended) or the portable exe from the [latest release](https://github.com/Albis0/AEGIS/releases/latest).
 2. Launch it and pick a mode in onboarding:
-   - **Trial mode — zero keys needed.** Sign up with an email and start talking; requests go through a rate-limited proxy (daily request/token quota).
+   - **Trial mode — zero keys needed.** Sign up with an email and start talking; requests go through a rate-limited proxy (daily request/token quota). Note: the trial backend runs on a free tier — after long inactivity the first request may take ~30 seconds while the server wakes up; AEGIS retries automatically.
    - **Advanced mode — your own key.** Paste a free [Groq](https://console.groq.com) API key (or any supported provider's) in the UI. Keys are stored DPAPI-encrypted on your machine and never leave it except to the provider you chose.
-3. That's it — no `.env` file, no terminal. Everything below this point is for developers. Auto-updates arrive through GitHub Releases.
+3. That's it — no `.env` file, no terminal. Auto-updates arrive through GitHub Releases.
 
 Requires **Windows 10/11**.
 
 > [!IMPORTANT]
-> **Windows SmartScreen warning is expected.** The executable is currently **not code-signed** (an EV/OV certificate is planned but costly for an early-stage open-source project), so Windows shows "Windows protected your PC" for a new download. Click **More info → Run anyway** if you trust the source. Why the warning is louder than usual: AEGIS legitimately uses screen capture, simulated mouse/keyboard input (the Computer Use feature) and a self-updater — the same APIs security software watches for. The entire source is in this repo, every release is built by the public [GitHub Actions workflow](.github/workflows/release.yml) from a tagged commit, and you can verify any installer on [VirusTotal](https://www.virustotal.com) before running it. If you'd rather not take the word of a README: build it yourself with `bun run electron:build`.
+> **Windows SmartScreen will warn you — this is expected and permanent.** AEGIS is a free, hobby open-source project and the executables are **not code-signed** (a signing certificate is a recurring cost that doesn't make sense here; see [SECURITY.md](SECURITY.md#unsigned-releases--how-to-verify-a-download)). Click **More info → Run anyway** if you trust the source. The warning is louder than usual because AEGIS legitimately uses screen capture, simulated input (Computer Use) and a self-updater — the same APIs security software watches for.
+>
+> Don't take a README's word for it — you can verify any release yourself:
+> - the entire source is in this repo, and every release is built from a tagged commit by the public [GitHub Actions workflow](.github/workflows/release.yml);
+> - scan the installer on [VirusTotal](https://www.virustotal.com) before running it;
+> - or build it yourself: `bun run electron:build`.
 
 ---
 
@@ -67,7 +71,7 @@ Requires **Windows 10/11**.
 
 Requirements: **Windows 10/11** · **Node.js 18+** ([nodejs.org](https://nodejs.org)) · **Bun** ([bun.sh](https://bun.sh))
 
-### 1. Clone the repo
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/Albis0/AEGIS.git
@@ -79,7 +83,7 @@ bun install
 
 ### 2. Pick an AI provider
 
-You can use an API key from any supported provider. For the fastest start, use **Groq** (free):
+Any supported provider's key works. For the fastest start, use **Groq** (free):
 
 1. [console.groq.com](https://console.groq.com) → Sign up
 2. **API Keys → Create API Key**
@@ -91,7 +95,7 @@ You can use an API key from any supported provider. For the fastest start, use *
 bun run dev
 ```
 
-### 4. Optional dependencies and API keys
+### 4. Optional services
 
 | Service                                       | What it's for               | Where to get it          |
 | ----------------------------------------------| ----------------------------| --------------------------|
@@ -103,15 +107,9 @@ bun run dev
 
 Keys are entered under **Settings → API Keys**.
 
-#### Local TTS (Kokoro)
+#### Offline TTS (Kokoro)
 
-The Kokoro offline voice engine is optional — it doesn't ship with the default `bun install` (~900 MB ONNX model).
-
-```bash
-bun add kokoro-js
-```
-
-Once installed, select it under **Settings → Voice → TTS Engine → Kokoro**.
+The Kokoro engine library ships with the app; its ~900 MB voice model does **not**. Select **Settings → Voice → TTS Engine → Kokoro** and the model downloads once to your user-data directory, then works fully offline.
 
 ---
 
@@ -133,13 +131,15 @@ AEGIS uses the Spotify Web API (requires Premium):
 | `M`                 | Microphone: Off → Continuous → Wake-word → Off  |
 | `Ctrl+L`            | Focus the message box                           |
 | `Ctrl+Space`        | Command palette                                 |
-| `ESC`               | Stop speaking                                   |
+| `ESC`               | Stop speaking (barge-in)                        |
 | `F11`               | Fullscreen                                      |
 | ⚙ (title bar)       | Settings panel                                  |
 
 **Wake-word:** Say "Aegis, what's the weather?" or just "Aegis" and wait.
 
 **Attaching files/images:** Use the `⊕` button or paste with `Ctrl+V` (after `Win+Shift+S`).
+
+**Found a bug?** Use the in-app report form (**Settings → About → Report a bug**, screenshot attach supported) or open a [GitHub issue](https://github.com/Albis0/AEGIS/issues). Security issues: see [SECURITY.md](SECURITY.md) — please don't open a public issue.
 
 ---
 
@@ -150,6 +150,7 @@ bun run electron:build
 ```
 
 Produces an installer `.exe` + portable build under `dist/`.
+Note: embedding the exe icon requires Windows **Developer Mode** locally (symlink privilege for electron-builder's cache extraction); CI has it by default.
 
 ---
 
@@ -174,36 +175,27 @@ For the trust model, agent-loop pipeline, and the invariants a PR must not break
 - **Electron 31** + **React 19** + **TypeScript** + **Vite** + **Tailwind CSS**
 - **Groq SDK** (streaming, tool calling)
 - **Supabase** (auth, DB, Edge Functions)
-- **electron-updater** (auto-update)
-- **msedge-tts** (free Edge TTS)
-- **kokoro-js** _(optional)_ — offline local TTS, no API key required
-- **Sentence-level streaming TTS** (voices sentences as the LLM streams them)
+- **electron-updater** (auto-update via GitHub Releases)
+- **msedge-tts** (free Edge TTS) · **kokoro-js** (offline TTS)
+- Sentence-level streaming TTS with prefetch (speaks while the LLM is still writing)
 
 ---
 
-## Security Model
+## Security Model (summary)
 
-- API keys are stored using OS-level encryption (Windows DPAPI)
-- `.env` is never committed
-- The `service_role` key lives only in the Supabase Edge Function, never in the repo
-- Row-Level Security (RLS) ensures each user can only read their own data
-- No secrets are bundled into the client; tokens required for private-repo update checks are supplied via environment variables at build/runtime — the updater fails closed without one rather than shipping a credential to every install
+- API keys stored with OS-level encryption (Windows DPAPI); no secrets ever bundled or committed
+- The Supabase `service_role` key lives only in the Edge Function secret store; the bundled anon key is public-safe behind Row-Level Security
+- External content (web pages, RSS, files) is taint-tracked — destructive tools escalate to mandatory approval once untrusted content enters the conversation
+- Destructive actions go through an approval gate with per-run budgets
+- The updater fails closed rather than shipping a credential to every install
 
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
-
----
-
-## Troubleshooting
-
-- **Kokoro / local TTS not working:** It's optional and not installed by default. Run `bun add kokoro-js`; the ONNX model (~900 MB) downloads to your user data directory on first use.
-- **Native binaries missing after install (onnxruntime, sharp):** `bun` skips postinstall for untrusted packages. The required packages are listed under `trustedDependencies` in `package.json`; re-run `bun install`.
-- **Electron opens as Node instead of a window:** If `ELECTRON_RUN_AS_NODE` is set in your shell, unset it before `bun run dev`.
+Details, threat model, and how to verify unsigned releases: [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process, and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome! Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process, and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Good starting points are listed in [ROADMAP.md](ROADMAP.md#open-work-priority-order).
 
 ---
 
