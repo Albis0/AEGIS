@@ -11,6 +11,7 @@ import {getFamily} from "./themes";
 import {applyAccent} from "./utils/color";
 import type {FeedItem, Attachment} from "./types/feed";
 import {updateReducer, type UpdateState, type UpdateEvent} from "./update-state";
+import {splitSentences, cleanForTts, TTS_MAX_CHARS} from "./tts-stream";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -91,13 +92,19 @@ export default function App() {
     const reqIdRef = useRef<string | null>(null);
     const feedRef = useRef<HTMLDivElement>(null);
 
-    // Sentence-level streaming TTS state
+    // Sentence-level streaming TTS state. Audio is synthesized the moment a
+    // sentence is queued (prefetch) so playback flows without synth-latency gaps.
     const sentBufRef = useRef("");            // partial sentence accumulator
-    const ttsQueueRef = useRef<string[]>([]); // sentences waiting to be spoken
+    const ttsQueueRef = useRef<{text: string; pre: Promise<{buffer?: Buffer; error?: string}>}[]>([]);
     const ttsPlayingRef = useRef(false);      // true while a sentence is being TTS'd
     const ttsOnAllEndRef = useRef<(() => void) | null>(null); // called when queue fully drains
-    const SENT_END = /(?<=[.!?])\s+|(?<=\n)\s*\n/;
 
+    const queueSentence = useCallback((sentence: string) => {
+        ttsQueueRef.current.push({
+            text: sentence,
+            pre: window.jarvis.tts(cleanForTts(sentence).slice(0, TTS_MAX_CHARS)).catch((e) => ({error: String(e)})),
+        });
+    }, []);
 
     const drainTtsQueue = useCallback(() => {
         if (ttsPlayingRef.current) return;
@@ -107,13 +114,16 @@ export default function App() {
             onEnd?.();
             return;
         }
-        const sentence = ttsQueueRef.current.shift()!;
+        const item = ttsQueueRef.current.shift()!;
         ttsPlayingRef.current = true;
         setState("speaking");
-        void speakRef.current(sentence, () => {
-            ttsPlayingRef.current = false;
-            drainTtsQueue();
-        });
+        void (async () => {
+            const pre = await item.pre;
+            void speakRef.current(item.text, () => {
+                ttsPlayingRef.current = false;
+                drainTtsQueue();
+            }, pre);
+        })();
     }, []);
 
     // Terminal-style input history — navigate with ArrowUp/Down
@@ -303,17 +313,13 @@ export default function App() {
                 const aId = activeIdRef.current;
                 setFeed((prev) => prev.map((it) => (it.id === aId && it.kind === "assistant" ? {...it, text: accRef.current} : it)));
 
-                // Sentence-level TTS: buffer tokens and queue complete sentences immediately
-                sentBufRef.current += text;
-                let match: RegExpExecArray | null;
-                while ((match = SENT_END.exec(sentBufRef.current)) !== null) {
-                    const sentence = sentBufRef.current.slice(0, match.index + 1).trim();
-                    sentBufRef.current = sentBufRef.current.slice(match.index + match[0].length);
-                    if (sentence) {
-                        ttsQueueRef.current.push(sentence);
-                        drainTtsQueue();
-                    }
-                    SENT_END.lastIndex = 0;
+                // Sentence-level TTS: buffer tokens, queue complete sentences immediately
+                // (queueSentence starts synthesizing right away — prefetch)
+                const split = splitSentences(sentBufRef.current + text);
+                sentBufRef.current = split.rest;
+                for (const sentence of split.sentences) {
+                    queueSentence(sentence);
+                    drainTtsQueue();
                 }
             }),
 
@@ -377,11 +383,11 @@ export default function App() {
                 // Flush remaining partial sentence (e.g. reply ending without punctuation)
                 const tail = sentBufRef.current.trim();
                 sentBufRef.current = "";
-                if (tail) ttsQueueRef.current.push(tail);
+                if (tail) queueSentence(tail);
 
                 // Fallback: nothing was queued (very short reply with no sentence boundary)
                 if (ttsQueueRef.current.length === 0 && !ttsPlayingRef.current && responseText) {
-                    ttsQueueRef.current.push(responseText);
+                    queueSentence(responseText);
                 }
 
                 ttsOnAllEndRef.current = () => {

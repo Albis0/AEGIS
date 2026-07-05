@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from "react";
+import {cleanForTts, TTS_MAX_CHARS} from "../tts-stream";
 
 export type VoiceMode = "off" | "always-on" | "wake-word";
 
@@ -331,21 +332,15 @@ export function useVoice({onTranscript, isBusyRef, ttsRate = 1.0}: {onTranscript
     }, [resumeVAD]);
 
     const speak = useCallback(
-        async (text: string, onEnd?: () => void) => {
+        async (text: string, onEnd?: () => void, pre?: {buffer?: Buffer; error?: string}) => {
             pauseVAD();
             stopSpeaking();
             onSpeakEndRef.current = onEnd ?? null;
 
             try {
-                const clean = text
-                    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
-                    .replace(/\*\*([^*]+)\*\*/g, "$1")
-                    .replace(/\*([^*]+)\*/g, "$1")
-                    .replace(/#{1,6}\s+/g, "")
-                    .replace(/`[^`]+`/g, "")
-                    .replace(/\s+/g, " ")
-                    .trim();
-                const result = await window.jarvis.tts(clean.slice(0, 500));
+                // `pre` = audio synthesized ahead of time while the previous sentence
+                // was still playing (sentence-streaming prefetch) — skips the synth wait.
+                const result = pre ?? await window.jarvis.tts(cleanForTts(text).slice(0, TTS_MAX_CHARS));
                 if (result.error || !result.buffer) {
                     console.warn("TTS hatası:", result.error);
                     if (modeRef.current !== "off") setTimeout(() => resumeVAD(), 200);

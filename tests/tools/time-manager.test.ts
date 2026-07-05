@@ -119,12 +119,15 @@ describe("timeTrackReport", () => {
     });
 
     it("aggregates and reports completed tasks", () => {
-        // Inject a past completed record
-        const now = Date.now();
+        // Inject past completed records. Anchor to start-of-today so the test
+        // doesn't flake right after midnight (records must stay on today's date).
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const base = Math.max(startOfToday.getTime(), Date.now() - 3_600_000);
         const log = [
-            {task: "Tasarım", startedAt: now - 3_600_000, stoppedAt: now - 3_000_000, durationMs: 600_000},
-            {task: "Tasarım", startedAt: now - 2_000_000, stoppedAt: now - 1_700_000, durationMs: 300_000},
-            {task: "Toplantı", startedAt: now - 1_000_000, stoppedAt: now - 700_000, durationMs: 300_000},
+            {task: "Tasarım", startedAt: base, stoppedAt: base + 600_000, durationMs: 600_000},
+            {task: "Tasarım", startedAt: base + 1, stoppedAt: base + 300_001, durationMs: 300_000},
+            {task: "Toplantı", startedAt: base + 2, stoppedAt: base + 300_002, durationMs: 300_000},
         ];
         fs.writeFileSync(TIMELOG, JSON.stringify(log), "utf-8");
         const out = timeTrackReport("today");
