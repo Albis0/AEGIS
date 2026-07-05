@@ -867,6 +867,16 @@ async function bootApp(): Promise<void> {
         }
     };
 
+    // Bug-report screenshot: same capture path (window hidden, user notified),
+    // but returned as a compressed JPEG data URL sized for a DB row, not vision.
+    ipcMain.handle("report-capture", async (): Promise<{ok: boolean; dataUrl?: string; error?: string}> => {
+        const shot = await captureScreen();
+        if ("error" in shot) return {ok: false, error: shot.error};
+        const img = nativeImage.createFromDataURL(`data:image/png;base64,${shot.base64}`);
+        const jpeg = img.toJPEG(70);
+        return {ok: true, dataUrl: `data:image/jpeg;base64,${jpeg.toString("base64")}`};
+    });
+
     const analyzeScreenWithModel = async (base64: string, prompt: string): Promise<string> => {
         const provider = currentSettings.aiProvider;
         const key = getProviderKey(provider, currentSettings);

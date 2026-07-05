@@ -412,6 +412,7 @@ export interface SettingsStrings {
     // AboutTab — bug report (IdeasByAuthor: rapor sistemi)
     reportTitle: string; reportName: string; reportDesc: string;
     reportSend: string; reportSent: string; reportQueued: string; reportFailed: string;
+    reportShot: string;
     // AccountTab
     accSection: string; accMode: string; accEmail: string;
     accTrial: string; accAdvanced: string;
@@ -467,6 +468,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         aboutChangelog: "Yama Notları", aboutCurrent: "yüklü",
         reportTitle: "HATA BİLDİR", reportName: "Başlık", reportDesc: "Ne oldu? Ne bekliyordun?",
         reportSend: "GÖNDER", reportSent: "Rapor gönderildi — teşekkürler!", reportQueued: "Kaydedildi — bağlantı gelince gönderilecek.", reportFailed: "Gönderilemedi",
+        reportShot: "EKRAN GÖRÜNTÜSÜ EKLE",
         accSection: "HESAP & MOD", accMode: "Mod", accEmail: "Hesap",
         accTrial: "Hızlı Başlangıç (Deneme)", accAdvanced: "Gelişmiş (Kendi Anahtarın)",
         accQuota: "GÜNLÜK KOTA", accRequests: "İstek", accTokens: "Token",
@@ -515,6 +517,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         aboutChangelog: "Patch Notes", aboutCurrent: "installed",
         reportTitle: "REPORT A BUG", reportName: "Title", reportDesc: "What happened? What did you expect?",
         reportSend: "SEND", reportSent: "Report sent — thank you!", reportQueued: "Saved — will be sent when back online.", reportFailed: "Could not send",
+        reportShot: "ADD SCREENSHOT",
         accSection: "ACCOUNT & MODE", accMode: "Mode", accEmail: "Account",
         accTrial: "Quick Start (Trial)", accAdvanced: "Advanced (Own Key)",
         accQuota: "DAILY QUOTA", accRequests: "Requests", accTokens: "Tokens",
@@ -563,6 +566,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         aboutChangelog: "Änderungen", aboutCurrent: "installiert",
         reportTitle: "FEHLER MELDEN", reportName: "Titel", reportDesc: "Was ist passiert? Was hast du erwartet?",
         reportSend: "SENDEN", reportSent: "Bericht gesendet — danke!", reportQueued: "Gespeichert — wird bei Verbindung gesendet.", reportFailed: "Senden fehlgeschlagen",
+        reportShot: "SCREENSHOT HINZUFÜGEN",
         accSection: "KONTO & MODUS", accMode: "Modus", accEmail: "Konto",
         accTrial: "Schnellstart (Testversion)", accAdvanced: "Erweitert (Eigener Schlüssel)",
         accQuota: "TAGESKONTINGENT", accRequests: "Anfragen", accTokens: "Token",
@@ -611,6 +615,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         aboutChangelog: "Notes de version", aboutCurrent: "installée",
         reportTitle: "SIGNALER UN BUG", reportName: "Titre", reportDesc: "Que s'est-il passé ? Qu'attendiez-vous ?",
         reportSend: "ENVOYER", reportSent: "Rapport envoyé — merci !", reportQueued: "Enregistré — envoyé dès la reconnexion.", reportFailed: "Échec de l'envoi",
+        reportShot: "AJOUTER UNE CAPTURE",
         accSection: "COMPTE & MODE", accMode: "Mode", accEmail: "Compte",
         accTrial: "Démarrage rapide (Essai)", accAdvanced: "Avancé (Clé personnelle)",
         accQuota: "QUOTA QUOTIDIEN", accRequests: "Requêtes", accTokens: "Tokens",
@@ -659,6 +664,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         aboutChangelog: "Notas de versión", aboutCurrent: "instalada",
         reportTitle: "INFORMAR DE UN ERROR", reportName: "Título", reportDesc: "¿Qué pasó? ¿Qué esperabas?",
         reportSend: "ENVIAR", reportSent: "Informe enviado — ¡gracias!", reportQueued: "Guardado — se enviará al reconectar.", reportFailed: "No se pudo enviar",
+        reportShot: "AÑADIR CAPTURA",
         accSection: "CUENTA Y MODO", accMode: "Modo", accEmail: "Cuenta",
         accTrial: "Inicio rápido (Prueba)", accAdvanced: "Avanzado (Clave propia)",
         accQuota: "CUOTA DIARIA", accRequests: "Solicitudes", accTokens: "Tokens",

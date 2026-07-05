@@ -10,6 +10,7 @@ import {
     _setReportDepsForTests,
     AI_REPORT_DAILY_CAP,
     REPORT_QUEUE_MAX,
+    SCREENSHOT_MAX_CHARS,
 } from "../../electron/error-report";
 
 const QUEUE_PATH = path.join(os.homedir(), ".aegis", "report-queue.json");
@@ -66,6 +67,18 @@ describe("submitReport", () => {
         expect(r.queued).toBe(true);
         expect(r.error).toBe("network down");
         expect(pendingReportCount()).toBe(1);
+    });
+
+    it("screenshot data URL lands in context; junk/oversized screenshots are dropped, not fatal", async () => {
+        await submitReport({source: "user", title: "with shot", screenshot: "data:image/jpeg;base64,abc123"});
+        expect((inserted[0].context as Record<string, unknown>).screenshot).toBe("data:image/jpeg;base64,abc123");
+
+        await submitReport({source: "user", title: "junk shot", screenshot: "javascript:alert(1)"});
+        expect((inserted[1].context as Record<string, unknown>).screenshot).toBeUndefined();
+
+        await submitReport({source: "user", title: "huge shot", screenshot: "data:image/png;base64," + "x".repeat(SCREENSHOT_MAX_CHARS)});
+        expect((inserted[2].context as Record<string, unknown>).screenshot).toBeUndefined();
+        expect(inserted).toHaveLength(3); // all three reports still sent
     });
 
     it("queue is capped at REPORT_QUEUE_MAX (oldest dropped)", async () => {

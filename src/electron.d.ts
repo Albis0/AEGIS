@@ -173,8 +173,9 @@ declare global {
             authSignOut: () => Promise<void>;
             authCurrentUser: () => Promise<{userId: string; email?: string} | null>;
             usageGet: () => Promise<{signedIn: boolean; usedRequests: number; usedTokens: number; limitRequests: number; limitTokens: number}>;
-            reportSubmit: (title: string, description: string) => Promise<{ok: boolean; queued: boolean; error?: string}>;
+            reportSubmit: (title: string, description: string, screenshot?: string) => Promise<{ok: boolean; queued: boolean; error?: string}>;
             reportPendingCount: () => Promise<number>;
+            reportCapture: () => Promise<{ok: boolean; dataUrl?: string; error?: string}>;
             modelsList: (provider: string, key?: string) => Promise<{id: string; label?: string}[]>;
             capsGet: (provider: string, model: string) => Promise<ModelCaps>;
             onboardingComplete: (mode: "trial" | "own") => Promise<void>;

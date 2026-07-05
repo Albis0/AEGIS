@@ -30,7 +30,13 @@ export interface ErrorReportInput {
     title: string;
     description?: string;
     context?: Record<string, unknown>;
+    /** Optional screenshot as a data URL (jpeg/png). Stored in context.screenshot. */
+    screenshot?: string;
 }
+
+// A screenshot bigger than this won't fit comfortably in a DB row — drop it
+// rather than fail the whole report. ~1.1MB base64 ≈ 800KB JPEG.
+export const SCREENSHOT_MAX_CHARS = 1_100_000;
 
 export interface ErrorReportResult {
     ok: boolean;
@@ -87,13 +93,19 @@ function clampTitle(t: string): string {
     return clean || "(untitled report)";
 }
 
+function validScreenshot(s: string | undefined): string | null {
+    if (!s || !s.startsWith("data:image/") || s.length > SCREENSHOT_MAX_CHARS) return null;
+    return s;
+}
+
 async function insertReport(userId: string, r: ErrorReportInput): Promise<{ok: boolean; error?: string}> {
+    const shot = validScreenshot(r.screenshot);
     const {error} = await _insert({
         user_id: userId,
         source: r.source,
         title: clampTitle(r.title),
         description: (r.description ?? "").slice(0, 4000),
-        context: r.context ?? {},
+        context: {...(r.context ?? {}), ...(shot ? {screenshot: shot} : {})},
         app_version: _appVersion,
     });
     return error ? {ok: false, error: error.message} : {ok: true};

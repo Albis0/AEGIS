@@ -23,6 +23,7 @@ export function registerAuthIpc(): void {
             source: "user",
             title: String(r?.title ?? ""),
             description: String(r?.description ?? ""),
+            screenshot: typeof r?.screenshot === "string" ? r.screenshot : undefined,
         }));
     ipcMain.handle("report-pending-count", () => pendingReportCount());
 }

@@ -27,10 +27,22 @@ if (!res.ok) {
 }
 const rows = await res.json();
 console.log(`${rows.length} report(s) in the last ${days} day(s)${source ? ` (source=${source})` : ""}\n`);
+const fs = await import("fs");
 for (const r of rows) {
     console.log(`── [${r.source}] ${r.created_at}  v${r.app_version || "?"}  user=${String(r.user_id).slice(0, 8)}`);
     console.log(`   ${r.title}`);
     if (r.description) console.log(`   ${r.description.split("\n").join("\n   ")}`);
-    if (r.context && Object.keys(r.context).length) console.log(`   context: ${JSON.stringify(r.context)}`);
+    const {screenshot, ...ctx} = r.context ?? {};
+    if (screenshot) {
+        // Data URL → file next to the script, so the image is viewable.
+        const m = String(screenshot).match(/^data:image\/(\w+);base64,(.+)$/s);
+        if (m) {
+            fs.mkdirSync("report-media", {recursive: true});
+            const file = `report-media/${r.id}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+            fs.writeFileSync(file, Buffer.from(m[2], "base64"));
+            console.log(`   screenshot: ${file}`);
+        }
+    }
+    if (Object.keys(ctx).length) console.log(`   context: ${JSON.stringify(ctx)}`);
     console.log();
 }
