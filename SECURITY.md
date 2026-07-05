@@ -23,18 +23,13 @@ Details and invariants: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in AEGIS, please report it responsibly:
+Found a security issue? First of all — thank you for taking the time. 💙
 
-- **Do not** open a public GitHub issue for security problems.
-- Email the maintainer at **abdurrahman.aksakal09@gmail.com** with details and reproduction steps.
-- You can expect an initial response within a few days.
+The only ask: for security problems, prefer **email over a public issue** (a public issue hands the exploit to everyone before a fix exists). Write to **abdurrahman.aksakal09@gmail.com** — any format is fine, even two sentences. You can expect a reply within a few days; this is a one-person hobby project, so please bear with the occasional delay.
 
-Please include:
+If you're able to include things like reproduction steps, the affected version, or impact details, that's wonderful and speeds up the fix a lot — but it's not a requirement. A vague "something feels off in X" report is still very welcome.
 
-- A description of the vulnerability and its impact
-- Steps to reproduce
-- Affected version(s)
-- Any suggested remediation, if you have one
+Accidentally opened a public issue instead? No stress — it happens. I'll handle it and move the details out of view if needed.
 
 ## Secret Management
 

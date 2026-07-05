@@ -139,7 +139,7 @@ AEGIS uses the Spotify Web API (requires Premium):
 
 **Attaching files/images:** Use the `⊕` button or paste with `Ctrl+V` (after `Win+Shift+S`).
 
-**Found a bug?** Use the in-app report form (**Settings → About → Report a bug**, screenshot attach supported) or open a [GitHub issue](https://github.com/Albis0/AEGIS/issues). Security issues: see [SECURITY.md](SECURITY.md) — please don't open a public issue.
+**Found a bug?** Use the in-app report form (**Settings → About → Report a bug**, screenshot attach supported) or open a [GitHub issue](https://github.com/Albis0/AEGIS/issues) — whatever details you have are welcome. For security issues, email is preferred over a public issue (see [SECURITY.md](SECURITY.md)). More help: [SUPPORT.md](SUPPORT.md).
 
 ---
 
