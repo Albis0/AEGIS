@@ -446,6 +446,9 @@ export interface SettingsStrings {
     telWeatherCity: string; telWeatherCityHint: string; telWeatherCityPlaceholder: string;
     // ShortcutsTab
     scTitle: string; scHint: string;
+    scCatNav: string; scCatVoice: string; scCatChat: string;
+    scCmdPalette: string; scStopConvo: string; scFullscreen: string;
+    scMicMode: string; scSendMsg: string; scNewLine: string;
     // ToolsTab
     tlTitle: string; tlHint: string;
     // SettingsPanel nav footer
@@ -504,6 +507,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
         telWeatherCity: "HAVA DURUMU ŞEHRİ", telWeatherCityHint: "Boş bırakırsan IP adresine göre otomatik tespit edilir (yanlış olabilir). Şehir adı yazarsan Open-Meteo geocoding ile doğru konumu bulur.", telWeatherCityPlaceholder: "örn. İstanbul",
         scTitle: "KLAVYE KISAYOLLARI", scHint: "Kısayollar sistem genelinde çalışır.",
+        scCatNav: "Navigasyon", scCatVoice: "Ses", scCatChat: "Sohbet",
+        scCmdPalette: "Komut paleti aç", scStopConvo: "Konuşmayı durdur / kapat", scFullscreen: "Tam ekran geç",
+        scMicMode: "Mikrofon modu değiştir", scSendMsg: "Mesaj gönder", scNewLine: "Yeni satır (metin girişinde)",
         tlTitle: "MEVCUT ARAÇLAR", tlHint: "Aktif araçlar AI'ın kullanabileceği işlevleri gösterir.",
         saved: "Kaydedildi",
         accSignIn: "Giriş Yap", accSignUp: "Hesap Oluştur",
@@ -557,6 +563,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
         telWeatherCity: "WEATHER CITY", telWeatherCityHint: "Leave blank to auto-detect from your IP (may be inaccurate). Enter a city name to use Open-Meteo geocoding for accurate location.", telWeatherCityPlaceholder: "e.g. Istanbul",
         scTitle: "KEYBOARD SHORTCUTS", scHint: "Shortcuts work system-wide.",
+        scCatNav: "Navigation", scCatVoice: "Voice", scCatChat: "Chat",
+        scCmdPalette: "Open command palette", scStopConvo: "Stop / close conversation", scFullscreen: "Toggle fullscreen",
+        scMicMode: "Switch microphone mode", scSendMsg: "Send message", scNewLine: "New line (in text input)",
         tlTitle: "AVAILABLE TOOLS", tlHint: "Active tools show what functions the AI can use.",
         saved: "Saved",
         accSignIn: "Sign In", accSignUp: "Create Account",
@@ -610,6 +619,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
         telWeatherCity: "WETTERSTADT", telWeatherCityHint: "Leer lassen für automatische Erkennung per IP (kann ungenau sein). Stadtname eingeben für genauen Standort via Open-Meteo.", telWeatherCityPlaceholder: "z.B. Istanbul",
         scTitle: "TASTATURKÜRZEL", scHint: "Kürzel funktionieren systemweit.",
+        scCatNav: "Navigation", scCatVoice: "Stimme", scCatChat: "Chat",
+        scCmdPalette: "Befehlspalette öffnen", scStopConvo: "Unterhaltung stoppen / schließen", scFullscreen: "Vollbild umschalten",
+        scMicMode: "Mikrofonmodus wechseln", scSendMsg: "Nachricht senden", scNewLine: "Neue Zeile (im Texteingabefeld)",
         tlTitle: "VERFÜGBARE WERKZEUGE", tlHint: "Aktive Tools zeigen, welche Funktionen die KI nutzen kann.",
         saved: "Gespeichert",
         accSignIn: "Anmelden", accSignUp: "Konto erstellen",
@@ -663,6 +675,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
         telWeatherCity: "VILLE MÉTÉO", telWeatherCityHint: "Laisser vide pour la détection automatique par IP (peut être imprécise). Entrez un nom de ville pour la géolocalisation Open-Meteo.", telWeatherCityPlaceholder: "ex. Istanbul",
         scTitle: "RACCOURCIS CLAVIER", scHint: "Les raccourcis fonctionnent à l'échelle du système.",
+        scCatNav: "Navigation", scCatVoice: "Voix", scCatChat: "Discussion",
+        scCmdPalette: "Ouvrir la palette de commandes", scStopConvo: "Arrêter / fermer la conversation", scFullscreen: "Basculer en plein écran",
+        scMicMode: "Changer le mode micro", scSendMsg: "Envoyer le message", scNewLine: "Nouvelle ligne (dans le champ de texte)",
         tlTitle: "OUTILS DISPONIBLES", tlHint: "Les outils actifs montrent les fonctions que l'IA peut utiliser.",
         saved: "Enregistré",
         accSignIn: "Se Connecter", accSignUp: "Créer un Compte",
@@ -716,6 +731,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",
         telWeatherCity: "CIUDAD DEL TIEMPO", telWeatherCityHint: "Dejar vacío para detección automática por IP (puede ser inexacta). Introduce un nombre de ciudad para geolocalización precisa con Open-Meteo.", telWeatherCityPlaceholder: "ej. Estambul",
         scTitle: "ATAJOS DE TECLADO", scHint: "Los atajos funcionan a nivel del sistema.",
+        scCatNav: "Navegación", scCatVoice: "Voz", scCatChat: "Chat",
+        scCmdPalette: "Abrir paleta de comandos", scStopConvo: "Detener / cerrar conversación", scFullscreen: "Alternar pantalla completa",
+        scMicMode: "Cambiar modo de micrófono", scSendMsg: "Enviar mensaje", scNewLine: "Nueva línea (en el campo de texto)",
         tlTitle: "HERRAMIENTAS DISPONIBLES", tlHint: "Las herramientas activas muestran las funciones que puede usar la IA.",
         saved: "Guardado",
         accSignIn: "Iniciar Sesión", accSignUp: "Crear Cuenta",

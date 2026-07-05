@@ -13,19 +13,19 @@ interface Shortcut {
     category: string;
 }
 
-const SHORTCUTS: Shortcut[] = [
-    // Navigation
-    {keys: ["Ctrl", "Space"], label: "Komut paleti aç",             category: "Navigasyon"},
-    {keys: ["Esc"],           label: "Konuşmayı durdur / kapat",    category: "Navigasyon"},
-    {keys: ["F11"],           label: "Tam ekran geç",               category: "Navigasyon"},
-    // Voice
-    {keys: ["M"],             label: "Mikrofon modu değiştir",      category: "Ses"},
-    // Chat
-    {keys: ["Enter"],         label: "Mesaj gönder",                category: "Sohbet"},
-    {keys: ["Shift","Enter"], label: "Yeni satır (metin girişinde)", category: "Sohbet"},
-];
-
-const CATEGORIES = [...new Set(SHORTCUTS.map((s) => s.category))];
+function buildShortcuts(s: SettingsStrings): Shortcut[] {
+    return [
+        // Navigation
+        {keys: ["Ctrl", "Space"], label: s.scCmdPalette, category: s.scCatNav},
+        {keys: ["Esc"],           label: s.scStopConvo,  category: s.scCatNav},
+        {keys: ["F11"],           label: s.scFullscreen, category: s.scCatNav},
+        // Voice
+        {keys: ["M"],             label: s.scMicMode,    category: s.scCatVoice},
+        // Chat
+        {keys: ["Enter"],         label: s.scSendMsg,    category: s.scCatChat},
+        {keys: ["Shift","Enter"], label: s.scNewLine,    category: s.scCatChat},
+    ];
+}
 
 function Kbd({label, accent, ac}: {label: string; accent: string; ac: string}) {
     return (
@@ -43,13 +43,15 @@ function Kbd({label, accent, ac}: {label: string; accent: string; ac: string}) {
 }
 
 export default function ShortcutsTab({accent, ac, s}: Props) {
+    const SHORTCUTS = buildShortcuts(s);
+    const CATEGORIES = [...new Set(SHORTCUTS.map((sc) => sc.category))];
     return (
         <div className="space-y-7">
             {CATEGORIES.map((cat) => (
                 <div key={cat}>
                     <SectionLabel label={cat.toUpperCase()} accent={accent} />
                     <div className="space-y-1.5">
-                        {SHORTCUTS.filter((s) => s.category === cat).map((s, i) => (
+                        {SHORTCUTS.filter((sc) => sc.category === cat).map((s, i) => (
                             <div key={i}
                                 className="flex items-center justify-between px-4 py-3 rounded-xl"
                                 style={{border: `1px solid rgba(${accent},0.07)`, background: `rgba(${accent},0.02)`}}>
