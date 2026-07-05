@@ -1,16 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- AEGIS mark: faceted V-shield. Flat fills only - left half cyan family,
-       right half navy, top-right facet brightest. Source of truth for icon.ico
-       and the tray icon (regenerate via scripts/make-icons.mjs). -->
+  <!-- AEGIS mark: faceted V-shield, geometry traced from build/icon-source.jpg.
+       Each facet carries a subtle linear gradient (paper-fold depth, no glow/shadow).
+       Single source of truth for icon.ico + tray icon: node scripts/make-icons.mjs -->
+  <defs>
+    <linearGradient id="lTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3FC8F3"/><stop offset="1" stop-color="#2799D6"/>
+    </linearGradient>
+    <linearGradient id="lOuter" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#4AD1F7"/><stop offset="1" stop-color="#2FAEE6"/>
+    </linearGradient>
+    <linearGradient id="lDark" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0" stop-color="#2191D2"/><stop offset="1" stop-color="#1A7CBB"/>
+    </linearGradient>
+    <linearGradient id="lBottom" x1="0" y1="1" x2="0.7" y2="0">
+      <stop offset="0" stop-color="#36BBEE"/><stop offset="1" stop-color="#2596D3"/>
+    </linearGradient>
+    <linearGradient id="rBright" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#48D6F8"/><stop offset="1" stop-color="#2CB4EC"/>
+    </linearGradient>
+    <linearGradient id="rNavy" x1="1" y1="0" x2="0" y2="0.8">
+      <stop offset="0" stop-color="#333B60"/><stop offset="1" stop-color="#252C4A"/>
+    </linearGradient>
+    <linearGradient id="rDeep" x1="1" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#232A46"/><stop offset="1" stop-color="#151B2E"/>
+    </linearGradient>
+  </defs>
   <g transform="translate(-249.5,-307.2) scale(1.48)">
-  <!-- left half -->
-  <polygon points="240,244 512,249 512,516" fill="#33B6EC"/>
-  <polygon points="240,244 283,549 512,516" fill="#3CC5F2"/>
-  <polygon points="283,549 343,697 512,516" fill="#219BD8"/>
-  <polygon points="343,697 512,863 512,516" fill="#2FB1E8"/>
-  <!-- right half -->
-  <polygon points="512,249 789,260 512,516" fill="#38CBF4"/>
-  <polygon points="789,260 753,640 512,516" fill="#2A3254"/>
-  <polygon points="753,640 512,863 512,516" fill="#1D2440"/>
-</g>
+    <!-- left half (cyan family) -->
+    <polygon points="237,242 512,251 512,517" fill="url(#lTop)"/>
+    <polygon points="237,242 278,537 512,517" fill="url(#lOuter)"/>
+    <polygon points="278,537 309,674 512,517" fill="url(#lDark)"/>
+    <polygon points="309,674 512,863 512,517" fill="url(#lBottom)"/>
+    <!-- right half (navy family, bright top facet) -->
+    <polygon points="512,246 789,265 512,517" fill="url(#rBright)"/>
+    <polygon points="789,265 749,669 512,517" fill="url(#rNavy)"/>
+    <polygon points="749,669 512,863 512,517" fill="url(#rDeep)"/>
+  </g>
 </svg>
