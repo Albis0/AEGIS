@@ -6,6 +6,7 @@
 
 import {ipcMain} from "electron";
 import {signUp, signIn, signOut, getCurrentUser, getUsage} from "../auth";
+import {submitReport, pendingReportCount, type ErrorReportInput} from "../error-report";
 import {spotifyAuthorizeCmd} from "../spotify";
 
 export function registerAuthIpc(): void {
@@ -15,4 +16,13 @@ export function registerAuthIpc(): void {
     ipcMain.handle("auth-current-user", () => getCurrentUser());
     ipcMain.handle("usage-get", () => getUsage());
     ipcMain.handle("spotify-authorize", () => spotifyAuthorizeCmd());
+    // Bug reports (user-filed, Settings → About). Renderer input is untrusted:
+    // pin source to "user" and only pass through the whitelisted fields.
+    ipcMain.handle("report-submit", (_e, r: Partial<ErrorReportInput>) =>
+        submitReport({
+            source: "user",
+            title: String(r?.title ?? ""),
+            description: String(r?.description ?? ""),
+        }));
+    ipcMain.handle("report-pending-count", () => pendingReportCount());
 }

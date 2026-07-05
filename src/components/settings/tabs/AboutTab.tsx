@@ -43,6 +43,10 @@ function ensureGlobalListeners() {
 
 export default function AboutTab({accent: a, ac, lang, s}: Props) {
     const [version, setVersion] = useState<string>("…");
+    const [reportName, setReportName] = useState("");
+    const [reportDesc, setReportDesc] = useState("");
+    const [reportState, setReportState] = useState<"idle" | "sending" | "sent" | "queued" | "failed">("idle");
+    const [reportError, setReportError] = useState("");
     const [status, setStatus] = useState<UpdateStatus>(_gStatus);
     const [latestVersion, setLatestVersion] = useState<string | null>(_gLatest);
     const [errorMsg, setErrorMsg] = useState(_gError);
@@ -91,6 +95,30 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
         } catch (e: any) {
             setErrorMsg(e.message ?? "Bilinmeyen hata");
             setStatus("error");
+        }
+    }
+
+    async function sendReport() {
+        if (!reportName.trim() || reportState === "sending") return;
+        setReportState("sending");
+        setReportError("");
+        try {
+            const r = await window.jarvis.reportSubmit(reportName.trim(), reportDesc.trim());
+            if (r.ok) {
+                setReportState("sent");
+                setReportName("");
+                setReportDesc("");
+            } else if (r.queued) {
+                setReportState("queued");
+                setReportName("");
+                setReportDesc("");
+            } else {
+                setReportError(r.error ?? "");
+                setReportState("failed");
+            }
+        } catch (e: any) {
+            setReportError(e?.message ?? "");
+            setReportState("failed");
         }
     }
 
@@ -202,6 +230,65 @@ export default function AboutTab({accent: a, ac, lang, s}: Props) {
                         Hata: {errorMsg}
                     </div>
                 )}
+            </div>
+
+            {/* Bug report (IdeasByAuthor: rapor sistemi) */}
+            <div className="space-y-3">
+                <div className="text-[11px] tracking-widest uppercase" style={{color: `rgba(${a},0.45)`}}>
+                    {s.reportTitle}
+                </div>
+                <div className="rounded-xl p-4 space-y-3"
+                    style={{background: `rgba(${a},0.04)`, border: `1px solid rgba(${a},0.1)`}}>
+                    <input
+                        value={reportName}
+                        onChange={(e) => { setReportName(e.target.value); if (reportState !== "idle") setReportState("idle"); }}
+                        placeholder={s.reportName}
+                        maxLength={200}
+                        className="w-full px-3 py-2 rounded-lg text-[12px] outline-none bg-transparent"
+                        style={{border: `1px solid rgba(${a},0.18)`, color: ac}}
+                    />
+                    <textarea
+                        value={reportDesc}
+                        onChange={(e) => { setReportDesc(e.target.value); if (reportState !== "idle") setReportState("idle"); }}
+                        placeholder={s.reportDesc}
+                        maxLength={4000}
+                        rows={4}
+                        className="w-full px-3 py-2 rounded-lg text-[12px] outline-none bg-transparent resize-y"
+                        style={{border: `1px solid rgba(${a},0.18)`, color: ac}}
+                    />
+                    <button
+                        onClick={() => void sendReport()}
+                        disabled={!reportName.trim() || reportState === "sending"}
+                        className="w-full py-2 rounded-lg text-[12px] tracking-widest transition hover:brightness-125 disabled:opacity-40 flex items-center justify-center gap-2"
+                        style={{background: `rgba(${a},0.08)`, border: `1px solid rgba(${a},0.2)`, color: ac}}
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                        {reportState === "sending" ? "…" : s.reportSend}
+                    </button>
+                    {reportState === "sent" && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px]"
+                            style={{background: "rgba(74,222,128,0.07)", border: "1px solid rgba(74,222,128,0.2)", color: "rgba(74,222,128,0.9)"}}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            {s.reportSent}
+                        </div>
+                    )}
+                    {reportState === "queued" && (
+                        <div className="px-3 py-2 rounded-lg text-[11px]"
+                            style={{background: `rgba(${a},0.06)`, border: `1px solid rgba(${a},0.15)`, color: `rgba(${a},0.7)`}}>
+                            {s.reportQueued}
+                        </div>
+                    )}
+                    {reportState === "failed" && (
+                        <div className="px-3 py-2 rounded-lg text-[11px]"
+                            style={{background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "rgba(239,68,68,0.9)"}}>
+                            {s.reportFailed}{reportError ? `: ${reportError}` : ""}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Patch notes — based on the active language */}

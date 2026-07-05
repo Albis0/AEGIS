@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld("jarvis", {
     authSignOut: () => ipcRenderer.invoke("auth-sign-out"),
     authCurrentUser: () => ipcRenderer.invoke("auth-current-user"),
     usageGet: () => ipcRenderer.invoke("usage-get"),
+    reportSubmit: (title: string, description: string) => ipcRenderer.invoke("report-submit", {title, description}),
+    reportPendingCount: () => ipcRenderer.invoke("report-pending-count"),
     modelsList: (provider: string, key?: string) => ipcRenderer.invoke("models-list", {provider, key}),
     capsGet: (provider: string, model: string) => ipcRenderer.invoke("caps-get", {provider, model}),
     onboardingComplete: (mode: string) => ipcRenderer.invoke("onboarding-complete", mode),

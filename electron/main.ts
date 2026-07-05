@@ -37,6 +37,7 @@ import {taintSource, clearTaint} from "./taint";
 import {buildPlanPrompt} from "./goal-executor";
 
 import {runAgentLoop, type ApprovalReason} from "./agent-loop";
+import {reportAiError, flushReportQueue, setReportAppVersion} from "./error-report";
 import {getSystemPrompt} from "./prompts";
 import {registerMediaIpc} from "./ipc/media-ipc";
 import {registerAuthIpc} from "./ipc/auth-ipc";
@@ -1371,10 +1372,12 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
 process.on("unhandledRejection", (reason) => {
     console.error("[AEGIS] Unhandled rejection:", reason);
     sendToRenderer("system-notice", {message: `A background error occurred: ${(reason as Error)?.message ?? String(reason)}`});
+    void reportAiError("unhandledRejection", (reason as Error)?.stack ?? String(reason));
 });
 process.on("uncaughtException", (err) => {
     console.error("[AEGIS] Uncaught exception:", err.message, err.stack);
     sendToRenderer("system-notice", {message: `An unexpected error occurred: ${err.message}`});
+    void reportAiError(`uncaughtException: ${err.message}`, err.stack ?? "");
 });
 
 // Renderer crash (OOM, GPU crash) — without this the window just goes blank/unresponsive
@@ -1388,6 +1391,10 @@ app.on("render-process-gone", (_e, wc, details) => {
 });
 
 void app.whenReady().then(async () => {
+    setReportAppVersion(app.getVersion());
+    // Reports queued while offline/signed-out get retried once per launch.
+    setTimeout(() => { flushReportQueue().catch(() => {}); }, 10_000);
+
     // Developer convenience: AEGIS_FORCE_ONBOARDING=1 forces the onboarding flow
     // open unconditionally (even with a config/trial token). For design/UX testing only.
     if (process.env.AEGIS_FORCE_ONBOARDING === "1") {

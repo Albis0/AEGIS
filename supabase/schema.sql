@@ -123,3 +123,34 @@ alter table sessions     enable row level security;
 alter table messages     enable row level security;
 alter table user_profile enable row level security;
 alter table notes        enable row level security;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Error reports (2026-07-05)
+-- Two sources write here: the user (bug-report form in Settings → About) and
+-- AEGIS itself (auto-reports for unhandled crashes, deduplicated + rate-capped
+-- client-side). Users can INSERT their own rows and nothing else — reports are
+-- write-only from the client; reading them is done with service_role
+-- (dashboard / maintainer tooling), which bypasses RLS.
+-- Run this block in the Supabase SQL editor of the shared project.
+-- ════════════════════════════════════════════════════════════════════════════
+
+create table if not exists error_reports (
+    id          uuid primary key default gen_random_uuid(),
+    user_id     uuid not null references auth.users(id) on delete cascade,
+    source      text not null check (source in ('user', 'ai')),
+    title       text not null check (char_length(title) between 1 and 200),
+    description text not null default '' check (char_length(description) <= 4000),
+    context     jsonb not null default '{}'::jsonb,
+    app_version text not null default '',
+    created_at  timestamptz default now()
+);
+
+alter table error_reports enable row level security;
+
+drop policy if exists "error_reports_insert_own" on error_reports;
+create policy "error_reports_insert_own" on error_reports
+    for insert with check (auth.uid() = user_id);
+
+-- NOTE: no select/update/delete policy on purpose — clients cannot read other
+-- users' reports (or even their own back); only service_role can.
