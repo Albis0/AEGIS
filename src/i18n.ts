@@ -439,6 +439,9 @@ export interface SettingsStrings {
     apFineAdj: string; apAccent: string; apPalette: string; apFont: string;
     apApp: string; apTray: string; apAutoLaunch: string; apApiServer: string; apProactive: string;
     apCustomCss: string; apCssHint: string; apActive: string;
+    apReactorType: string; apReactorRings: string; apReactorHex: string; apReactorPulsar: string; apReactorVortex: string;
+    apLayoutNormalSub: string; apLayoutCompactSub: string; apPaletteHint: string; apApplyBtn: string;
+    apFontRounded: string; apFontReadable: string; apCssOverrideHint: string;
     // KeysTab
     keysSection: string; keysHint: string;
     // TelemetryTab
@@ -503,6 +506,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apFineAdj: "İNCE AYAR", apAccent: "VURGU RENGİ", apPalette: "PALET", apFont: "FONT",
         apApp: "UYGULAMA", apTray: "Sistem tepsisine küçült", apAutoLaunch: "Başlangıçta başlat", apApiServer: "API Sunucusu", apProactive: "Proaktif öneriler (alışkanlık örüntüleri)",
         apCustomCss: "ÖZEL CSS", apCssHint: "Tüm CSS değişkenlerine ve sınıflarına erişebilirsin.", apActive: "AKTİF",
+        apReactorType: "Reaktör Tipi", apReactorRings: "Chronos — halka sistemi", apReactorHex: "Tesseract — altıgen çekirdek", apReactorPulsar: "Sonar — yayılan dalgalar", apReactorVortex: "Singularity — sarmal akış",
+        apLayoutNormalSub: "Standart boşluklar", apLayoutCompactSub: "Daha sık", apPaletteHint: "Palet seçince renk + zemin + font birlikte değişir.", apApplyBtn: "UYGULA",
+        apFontRounded: "Yuvarlak", apFontReadable: "Okunaklı", apCssOverrideHint: "CSS değişkenlerini override et. Örn: ",
         keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
         telWidgets: "TELEMETRİ WİDGET'LARI", telThresholds: "UYARI EŞİKLERİ",
         telWeatherCity: "HAVA DURUMU ŞEHRİ", telWeatherCityHint: "Boş bırakırsan IP adresine göre otomatik tespit edilir (yanlış olabilir). Şehir adı yazarsan Open-Meteo geocoding ile doğru konumu bulur.", telWeatherCityPlaceholder: "örn. İstanbul",
@@ -559,6 +565,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apFineAdj: "FINE TUNE", apAccent: "ACCENT COLOR", apPalette: "PALETTE", apFont: "FONT",
         apApp: "APPLICATION", apTray: "Minimize to tray", apAutoLaunch: "Launch at startup", apApiServer: "API Server", apProactive: "Proactive suggestions (habit patterns)",
         apCustomCss: "CUSTOM CSS", apCssHint: "You have access to all CSS variables and classes.", apActive: "ACTIVE",
+        apReactorType: "Reactor Type", apReactorRings: "Chronos — ring system", apReactorHex: "Tesseract — hexagonal core", apReactorPulsar: "Sonar — spreading waves", apReactorVortex: "Singularity — spiral flow",
+        apLayoutNormalSub: "Standard spacing", apLayoutCompactSub: "Tighter", apPaletteHint: "Picking a palette changes color + background + font together.", apApplyBtn: "APPLY",
+        apFontRounded: "Rounded", apFontReadable: "Readable", apCssOverrideHint: "Override CSS variables. E.g.: ",
         keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
         telWidgets: "TELEMETRY WIDGETS", telThresholds: "ALERT THRESHOLDS",
         telWeatherCity: "WEATHER CITY", telWeatherCityHint: "Leave blank to auto-detect from your IP (may be inaccurate). Enter a city name to use Open-Meteo geocoding for accurate location.", telWeatherCityPlaceholder: "e.g. Istanbul",
@@ -615,6 +624,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apFineAdj: "FEINEINSTELLUNG", apAccent: "AKZENTFARBE", apPalette: "PALETTE", apFont: "SCHRIFTART",
         apApp: "ANWENDUNG", apTray: "In Taskleiste minimieren", apAutoLaunch: "Beim Start ausführen", apApiServer: "API-Server", apProactive: "Proaktive Vorschläge (Gewohnheitsmuster)",
         apCustomCss: "BENUTZERDEFINIERTES CSS", apCssHint: "Zugriff auf alle CSS-Variablen und Klassen.", apActive: "AKTIV",
+        apReactorType: "Reaktortyp", apReactorRings: "Chronos — Ringsystem", apReactorHex: "Tesseract — Sechseckkern", apReactorPulsar: "Sonar — ausbreitende Wellen", apReactorVortex: "Singularity — Spiralfluss",
+        apLayoutNormalSub: "Standardabstände", apLayoutCompactSub: "Enger", apPaletteHint: "Bei Auswahl einer Palette ändern sich Farbe, Hintergrund und Schriftart zusammen.", apApplyBtn: "ANWENDEN",
+        apFontRounded: "Rund", apFontReadable: "Lesbar", apCssOverrideHint: "CSS-Variablen überschreiben. Z. B.: ",
         keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
         telWidgets: "TELEMETRIE-WIDGETS", telThresholds: "WARNSCHWELLEN",
         telWeatherCity: "WETTERSTADT", telWeatherCityHint: "Leer lassen für automatische Erkennung per IP (kann ungenau sein). Stadtname eingeben für genauen Standort via Open-Meteo.", telWeatherCityPlaceholder: "z.B. Istanbul",
@@ -671,6 +683,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apFineAdj: "RÉGLAGE FIN", apAccent: "COULEUR D'ACCENT", apPalette: "PALETTE", apFont: "POLICE",
         apApp: "APPLICATION", apTray: "Réduire dans la barre", apAutoLaunch: "Lancer au démarrage", apApiServer: "Serveur API", apProactive: "Suggestions proactives (habitudes)",
         apCustomCss: "CSS PERSONNALISÉ", apCssHint: "Accès à toutes les variables et classes CSS.", apActive: "ACTIF",
+        apReactorType: "Type de réacteur", apReactorRings: "Chronos — système d'anneaux", apReactorHex: "Tesseract — noyau hexagonal", apReactorPulsar: "Sonar — ondes qui se propagent", apReactorVortex: "Singularity — flux en spirale",
+        apLayoutNormalSub: "Espacement standard", apLayoutCompactSub: "Plus serré", apPaletteHint: "Choisir une palette change la couleur, le fond et la police ensemble.", apApplyBtn: "APPLIQUER",
+        apFontRounded: "Arrondi", apFontReadable: "Lisible", apCssOverrideHint: "Remplacer les variables CSS. Ex. : ",
         keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
         telWidgets: "WIDGETS DE TÉLÉMÉTRIE", telThresholds: "SEUILS D'ALERTE",
         telWeatherCity: "VILLE MÉTÉO", telWeatherCityHint: "Laisser vide pour la détection automatique par IP (peut être imprécise). Entrez un nom de ville pour la géolocalisation Open-Meteo.", telWeatherCityPlaceholder: "ex. Istanbul",
@@ -727,6 +742,9 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apFineAdj: "AJUSTE FINO", apAccent: "COLOR DE ACENTO", apPalette: "PALETA", apFont: "FUENTE",
         apApp: "APLICACIÓN", apTray: "Minimizar a bandeja", apAutoLaunch: "Iniciar al arranque", apApiServer: "Servidor API", apProactive: "Sugerencias proactivas (hábitos)",
         apCustomCss: "CSS PERSONALIZADO", apCssHint: "Acceso a todas las variables y clases CSS.", apActive: "ACTIVO",
+        apReactorType: "Tipo de reactor", apReactorRings: "Chronos — sistema de anillos", apReactorHex: "Tesseract — núcleo hexagonal", apReactorPulsar: "Sonar — ondas expansivas", apReactorVortex: "Singularity — flujo en espiral",
+        apLayoutNormalSub: "Espaciado estándar", apLayoutCompactSub: "Más compacto", apPaletteHint: "Elegir una paleta cambia el color, el fondo y la fuente a la vez.", apApplyBtn: "APLICAR",
+        apFontRounded: "Redondeada", apFontReadable: "Legible", apCssOverrideHint: "Sobrescribe variables CSS. Ej.: ",
         keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
         telWidgets: "WIDGETS DE TELEMETRÍA", telThresholds: "UMBRALES DE ALERTA",
         telWeatherCity: "CIUDAD DEL TIEMPO", telWeatherCityHint: "Dejar vacío para detección automática por IP (puede ser inexacta). Introduce un nombre de ciudad para geolocalización precisa con Open-Meteo.", telWeatherCityPlaceholder: "ej. Estambul",

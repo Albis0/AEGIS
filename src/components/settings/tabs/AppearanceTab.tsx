@@ -27,8 +27,8 @@ const FONTS = [
     {id: "oxanium",      label: "Oxanium",       sub: "Modern", family: "Oxanium"},
     {id: "syne",         label: "Syne",          sub: "Bold geo", family: "Syne"},
     {id: "rajdhani",     label: "Rajdhani",      sub: "Sharp", family: "Rajdhani"},
-    {id: "poppins",      label: "Poppins",       sub: "Yuvarlak", family: "Poppins"},
-    {id: "inter",        label: "Inter",         sub: "Okunaklı", family: "Inter"},
+    {id: "poppins",      label: "Poppins",       sub: "rounded", family: "Poppins"},
+    {id: "inter",        label: "Inter",         sub: "readable", family: "Inter"},
     {id: "spacegrotesk", label: "Space Grotesk", sub: "Techy", family: "'Space Grotesk'"},
 ] as const;
 
@@ -138,14 +138,14 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
             {/* ── 2. REACTOR TYPE (only visible in the Hologram skin) ── */}
             {settings.skin === "hologram" && (
                 <div>
-                    <SectionLabel label="Reaktör Tipi" accent={accent} />
+                    <SectionLabel label={s.apReactorType} accent={accent} />
                     <div className="grid grid-cols-2 gap-2">
                         {([
-                            {id: "rings",   label: "Rings",    sub: "Chronos — halka sistemi"},
-                            {id: "hexcore", label: "Hex Core", sub: "Tesseract — altıgen çekirdek"},
-                            {id: "pulsar",  label: "Pulsar",   sub: "Sonar — yayılan dalgalar"},
-                            {id: "vortex",  label: "Vortex",   sub: "Singularity — sarmal akış"},
-                        ] as const).map((r) => {
+                            {id: "rings" as const,   label: "Rings",    sub: s.apReactorRings},
+                            {id: "hexcore" as const, label: "Hex Core", sub: s.apReactorHex},
+                            {id: "pulsar" as const,  label: "Pulsar",   sub: s.apReactorPulsar},
+                            {id: "vortex" as const,  label: "Vortex",   sub: s.apReactorVortex},
+                        ]).map((r) => {
                             const isActive = (settings.reactorStyle ?? "rings") === r.id;
                             return (
                                 <RadioCard key={r.id} active={isActive} accent={accent}
@@ -165,9 +165,9 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 <SectionLabel label={s.apDensity} accent={accent} />
                 <div className="grid grid-cols-2 gap-2">
                     {([
-                        {id: "normal",  label: "Normal",  sub: "Standart boşluklar"},
-                        {id: "compact", label: "Kompakt", sub: "Daha sık"},
-                    ] as const).map((l) => {
+                        {id: "normal" as const,  label: s.apNormal,  sub: s.apLayoutNormalSub},
+                        {id: "compact" as const, label: s.apCompact, sub: s.apLayoutCompactSub},
+                    ]).map((l) => {
                         const active = (settings.layout ?? "normal") === l.id;
                         return (
                             <RadioCard key={l.id} active={active} accent={accent}
@@ -238,7 +238,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                                     );
                                 })}
                             </div>
-                            <Hint accent={accent}>Palet seçince renk + zemin + font birlikte değişir.</Hint>
+                            <Hint accent={accent}>{s.apPaletteHint}</Hint>
                         </div>
 
                         {/* Font */}
@@ -255,7 +255,7 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                                                 border: `1px solid ${active ? `rgba(${accent},0.35)` : `rgba(${accent},0.07)`}`,
                                             }}>
                                             <span className="text-[12px] font-semibold leading-tight truncate" style={{color: active ? ac : `rgba(${accent},0.6)`, fontFamily: f.family}}>{f.label}</span>
-                                            <span className="text-[9px]" style={{color: `rgba(${accent},0.3)`}}>{f.sub}</span>
+                                            <span className="text-[9px]" style={{color: `rgba(${accent},0.3)`}}>{f.sub === "rounded" ? s.apFontRounded : f.sub === "readable" ? s.apFontReadable : f.sub}</span>
                                         </button>
                                     );
                                 })}
@@ -297,14 +297,14 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
             {/* ── 5. CUSTOM CSS ── */}
             <div>
                 <SectionLabel label={s.apCustomCss} accent={accent} />
-                <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} />
-                <Hint accent={accent}>CSS değişkenlerini override et. Örn: <code style={{color: `rgba(${accent},0.55)`}}>{`:root { --hud: 255,100,50; }`}</code></Hint>
+                <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} apply={s.apApplyBtn} />
+                <Hint accent={accent}>{s.apCssOverrideHint}<code style={{color: `rgba(${accent},0.55)`}}>{`:root { --hud: 255,100,50; }`}</code></Hint>
             </div>
         </div>
     );
 }
 
-function CustomCssField({value, onSave, accent}: {value: string; onSave: (v: string) => void; accent: string}) {
+function CustomCssField({value, onSave, accent, apply}: {value: string; onSave: (v: string) => void; accent: string; apply: string}) {
     const [val, setVal] = useState(value);
     const changed = val !== value;
     const ac = `rgb(${accent})`;
@@ -318,7 +318,7 @@ function CustomCssField({value, onSave, accent}: {value: string; onSave: (v: str
                 <button onClick={() => onSave(val)}
                     className="px-4 py-2 rounded-lg border text-[10px] tracking-widest transition hover:brightness-125"
                     style={{borderColor: `rgba(${accent},0.35)`, background: `rgba(${accent},0.1)`, color: ac}}>
-                    UYGULA
+                    {apply}
                 </button>
             )}
         </div>
