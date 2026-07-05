@@ -449,6 +449,8 @@ export interface SettingsStrings {
     apReactorType: string; apReactorRings: string; apReactorHex: string; apReactorPulsar: string; apReactorVortex: string;
     apLayoutNormalSub: string; apLayoutCompactSub: string; apPaletteHint: string; apApplyBtn: string;
     apFontRounded: string; apFontReadable: string; apCssOverrideHint: string;
+    // shared.tsx — KeyField show/hide toggle
+    keyFieldShow: string; keyFieldHide: string;
     // KeysTab
     keysSection: string; keysHint: string;
     keysTavilyHint: string; keysSerperHint: string; keysElevenHint: string;
@@ -529,6 +531,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apReactorType: "Reaktör Tipi", apReactorRings: "Chronos — halka sistemi", apReactorHex: "Tesseract — altıgen çekirdek", apReactorPulsar: "Sonar — yayılan dalgalar", apReactorVortex: "Singularity — sarmal akış",
         apLayoutNormalSub: "Standart boşluklar", apLayoutCompactSub: "Daha sık", apPaletteHint: "Palet seçince renk + zemin + font birlikte değişir.", apApplyBtn: "UYGULA",
         apFontRounded: "Yuvarlak", apFontReadable: "Okunaklı", apCssOverrideHint: "CSS değişkenlerini override et. Örn: ",
+        keyFieldShow: "GÖR", keyFieldHide: "GİZLE",
         keysSection: "API ANAHTARLARI", keysHint: "Anahtarlar yerel olarak saklanır, hiçbir zaman paylaşılmaz.",
         keysTavilyHint: "tvly-... (opsiyonel · web arama)", keysSerperHint: "opsiyonel · yedek arama", keysElevenHint: "sk_... (opsiyonel · gelişmiş TTS)",
         keysSteamKeyHint: "opsiyonel · oyun/arkadaş/başarım (steamcommunity.com/dev/apikey)", keysSteamIdHint: "opsiyonel · 17 haneli ID (steamid.io)",
@@ -604,6 +607,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apReactorType: "Reactor Type", apReactorRings: "Chronos — ring system", apReactorHex: "Tesseract — hexagonal core", apReactorPulsar: "Sonar — spreading waves", apReactorVortex: "Singularity — spiral flow",
         apLayoutNormalSub: "Standard spacing", apLayoutCompactSub: "Tighter", apPaletteHint: "Picking a palette changes color + background + font together.", apApplyBtn: "APPLY",
         apFontRounded: "Rounded", apFontReadable: "Readable", apCssOverrideHint: "Override CSS variables. E.g.: ",
+        keyFieldShow: "SHOW", keyFieldHide: "HIDE",
         keysSection: "API KEYS", keysHint: "Keys are stored locally and never shared.",
         keysTavilyHint: "tvly-... (optional · web search)", keysSerperHint: "optional · fallback search", keysElevenHint: "sk_... (optional · advanced TTS)",
         keysSteamKeyHint: "optional · games/friends/achievements (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optional · 17-digit ID (steamid.io)",
@@ -679,6 +683,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apReactorType: "Reaktortyp", apReactorRings: "Chronos — Ringsystem", apReactorHex: "Tesseract — Sechseckkern", apReactorPulsar: "Sonar — ausbreitende Wellen", apReactorVortex: "Singularity — Spiralfluss",
         apLayoutNormalSub: "Standardabstände", apLayoutCompactSub: "Enger", apPaletteHint: "Bei Auswahl einer Palette ändern sich Farbe, Hintergrund und Schriftart zusammen.", apApplyBtn: "ANWENDEN",
         apFontRounded: "Rund", apFontReadable: "Lesbar", apCssOverrideHint: "CSS-Variablen überschreiben. Z. B.: ",
+        keyFieldShow: "ANZEIGEN", keyFieldHide: "VERBERGEN",
         keysSection: "API-SCHLÜSSEL", keysHint: "Schlüssel werden lokal gespeichert und nie weitergegeben.",
         keysTavilyHint: "tvly-... (optional · Websuche)", keysSerperHint: "optional · Ausweichsuche", keysElevenHint: "sk_... (optional · erweiterte TTS)",
         keysSteamKeyHint: "optional · Spiele/Freunde/Erfolge (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optional · 17-stellige ID (steamid.io)",
@@ -754,6 +759,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apReactorType: "Type de réacteur", apReactorRings: "Chronos — système d'anneaux", apReactorHex: "Tesseract — noyau hexagonal", apReactorPulsar: "Sonar — ondes qui se propagent", apReactorVortex: "Singularity — flux en spirale",
         apLayoutNormalSub: "Espacement standard", apLayoutCompactSub: "Plus serré", apPaletteHint: "Choisir une palette change la couleur, le fond et la police ensemble.", apApplyBtn: "APPLIQUER",
         apFontRounded: "Arrondi", apFontReadable: "Lisible", apCssOverrideHint: "Remplacer les variables CSS. Ex. : ",
+        keyFieldShow: "AFFICHER", keyFieldHide: "MASQUER",
         keysSection: "CLÉS API", keysHint: "Les clés sont stockées localement et ne sont jamais partagées.",
         keysTavilyHint: "tvly-... (optionnel · recherche web)", keysSerperHint: "optionnel · recherche de secours", keysElevenHint: "sk_... (optionnel · TTS avancé)",
         keysSteamKeyHint: "optionnel · jeux/amis/succès (steamcommunity.com/dev/apikey)", keysSteamIdHint: "optionnel · ID à 17 chiffres (steamid.io)",
@@ -829,6 +835,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         apReactorType: "Tipo de reactor", apReactorRings: "Chronos — sistema de anillos", apReactorHex: "Tesseract — núcleo hexagonal", apReactorPulsar: "Sonar — ondas expansivas", apReactorVortex: "Singularity — flujo en espiral",
         apLayoutNormalSub: "Espaciado estándar", apLayoutCompactSub: "Más compacto", apPaletteHint: "Elegir una paleta cambia el color, el fondo y la fuente a la vez.", apApplyBtn: "APLICAR",
         apFontRounded: "Redondeada", apFontReadable: "Legible", apCssOverrideHint: "Sobrescribe variables CSS. Ej.: ",
+        keyFieldShow: "MOSTRAR", keyFieldHide: "OCULTAR",
         keysSection: "CLAVES API", keysHint: "Las claves se almacenan localmente y nunca se comparten.",
         keysTavilyHint: "tvly-... (opcional · búsqueda web)", keysSerperHint: "opcional · búsqueda de respaldo", keysElevenHint: "sk_... (opcional · TTS avanzado)",
         keysSteamKeyHint: "opcional · juegos/amigos/logros (steamcommunity.com/dev/apikey)", keysSteamIdHint: "opcional · ID de 17 dígitos (steamid.io)",

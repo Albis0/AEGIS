@@ -1,4 +1,5 @@
 import React from "react";
+import type {SettingsStrings} from "../../i18n";
 
 // ── Primitive UI helpers ───────────────────────────────────────────────────
 
@@ -56,8 +57,8 @@ export function RadioCard({
 }
 
 export function KeyField({
-    value, placeholder, onSave, accent, type = "password",
-}: {value: string; placeholder: string; onSave: (v: string) => void; accent: string; type?: "password" | "text"}) {
+    value, placeholder, onSave, accent, type = "password", s,
+}: {value: string; placeholder: string; onSave: (v: string) => void; accent: string; type?: "password" | "text"; s: SettingsStrings}) {
     const [val, setVal] = React.useState(value);
     const [show, setShow] = React.useState(false);
     // Compare trimmed — a key saved with stray leading/trailing whitespace (common
@@ -89,7 +90,7 @@ export function KeyField({
                 <button onClick={() => setShow((s) => !s)}
                     className="px-2.5 rounded-lg border text-[9px] tracking-wider transition opacity-30 hover:opacity-70 shrink-0"
                     style={{borderColor: `rgba(${accent},0.15)`, color: ac}}>
-                    {show ? "GİZLE" : "GÖR"}
+                    {show ? s.keyFieldHide : s.keyFieldShow}
                 </button>
             )}
             {changed && (

@@ -293,7 +293,7 @@ export default function VoiceTab({settings, config, accent, ac, onApply, onApply
                 <div>
                     <SectionLabel label={s.voElKey} accent={accent} />
                     <KeyField value={config?.elevenlabsApiKey ?? ""} placeholder="sk_..."
-                        onSave={(v) => onApplyConfig({elevenlabsApiKey: v || undefined})} accent={accent} />
+                        onSave={(v) => onApplyConfig({elevenlabsApiKey: v || undefined})} accent={accent} s={s} />
                 </div>
             )}
 

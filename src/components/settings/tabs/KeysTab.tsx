@@ -106,7 +106,7 @@ export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
                             )}
                         </div>
                     )}
-                    <KeyField value={row.value} placeholder={row.hint} onSave={row.onSave} accent={accent} />
+                    <KeyField value={row.value} placeholder={row.hint} onSave={row.onSave} accent={accent} s={s} />
                 </div>
             ))}
 

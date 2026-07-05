@@ -118,6 +118,7 @@ export default function ModelTab({settings, accent, ac, onApply, s}: Props) {
                         placeholder={({openai:"sk-...", anthropic:"sk-ant-...", mistral:"...", gemini:"AIza...", xai:"xai-...", deepseek:"sk-..."} as Record<string,string>)[provider] ?? "..."}
                         onSave={saveProviderKey}
                         accent={accent}
+                        s={s}
                     />
                     <Hint accent={accent}>{s.mdKeyHint}</Hint>
                 </div>
