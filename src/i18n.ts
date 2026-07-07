@@ -12,6 +12,7 @@ export interface LangStrings {
     ramUsed: string; ramFree: string; ramTotal: string;
     errLabel: string; vRun: string; vRead: string; vWrite: string; vList: string; vSearch: string;
     vmOff: string; vmAlways: string; vmWake: string; vmTitle: string;
+    updFailed: string; updRetry: string; updDownloaded: string; updRestart: string; updDownloading: string; updAvailable: string; updDownload: string;
 }
 
 export const UI: Record<Lang, LangStrings> = {
@@ -27,6 +28,7 @@ export const UI: Record<Lang, LangStrings> = {
         ramUsed: "KULLANILAN", ramFree: "BOŞ", ramTotal: "TOPLAM",
         errLabel: "HATA", vRun: "KOMUT YÜRÜTÜLÜYOR", vRead: "DOSYA OKUNUYOR", vWrite: "DOSYA YAZILIYOR", vList: "DİZİN TARANIYOR", vSearch: "AĞ TARANIYOR",
         vmOff: "MİK KAPALI", vmAlways: "SÜREKLİ", vmWake: "UYANDIRMA", vmTitle: "Ses modu",
+        updFailed: "İndirme başarısız", updRetry: "tekrar dene", updDownloaded: "indirildi", updRestart: "yeniden başlat", updDownloading: "indiriliyor…", updAvailable: "Yeni sürüm var", updDownload: "indir",
     },
     en: {
         processing: "AEGIS processing…", listening: "Listening, sir…", waitingVoice: "Waiting for voice command…", idle: "Give your command, sir…",
@@ -40,6 +42,7 @@ export const UI: Record<Lang, LangStrings> = {
         ramUsed: "USED", ramFree: "FREE", ramTotal: "TOTAL",
         errLabel: "ERROR", vRun: "RUNNING COMMAND", vRead: "READING FILE", vWrite: "WRITING FILE", vList: "LISTING DIR", vSearch: "SEARCHING WEB",
         vmOff: "MIC OFF", vmAlways: "ALWAYS-ON", vmWake: "WAKE WORD", vmTitle: "Voice mode",
+        updFailed: "Download failed", updRetry: "retry", updDownloaded: "downloaded", updRestart: "restart", updDownloading: "downloading…", updAvailable: "Update available", updDownload: "download",
     },
     de: {
         processing: "AEGIS verarbeitet…", listening: "Ich höre, Sir…", waitingVoice: "Warte auf Sprachbefehl…", idle: "Ihr Befehl, Sir…",
@@ -53,6 +56,7 @@ export const UI: Record<Lang, LangStrings> = {
         ramUsed: "BELEGT", ramFree: "FREI", ramTotal: "GESAMT",
         errLabel: "FEHLER", vRun: "BEFEHL LÄUFT", vRead: "DATEI LESEN", vWrite: "DATEI SCHREIBEN", vList: "VERZEICHNIS", vSearch: "WEB-SUCHE",
         vmOff: "MIK AUS", vmAlways: "IMMER AN", vmWake: "WAKE WORD", vmTitle: "Sprachmodus",
+        updFailed: "Download fehlgeschlagen", updRetry: "erneut versuchen", updDownloaded: "heruntergeladen", updRestart: "neu starten", updDownloading: "wird heruntergeladen…", updAvailable: "Update verfügbar", updDownload: "herunterladen",
     },
     fr: {
         processing: "AEGIS traite…", listening: "J'écoute, Monsieur…", waitingVoice: "En attente d'une commande vocale…", idle: "Votre commande, Monsieur…",
@@ -66,6 +70,7 @@ export const UI: Record<Lang, LangStrings> = {
         ramUsed: "UTILISÉ", ramFree: "LIBRE", ramTotal: "TOTAL",
         errLabel: "ERREUR", vRun: "EXÉCUTION", vRead: "LECTURE FICHIER", vWrite: "ÉCRITURE FICHIER", vList: "LISTE DOSSIER", vSearch: "RECHERCHE WEB",
         vmOff: "MIC OFF", vmAlways: "CONTINU", vmWake: "MOT-CLÉ", vmTitle: "Mode vocal",
+        updFailed: "Échec du téléchargement", updRetry: "réessayer", updDownloaded: "téléchargée", updRestart: "redémarrer", updDownloading: "téléchargement…", updAvailable: "Mise à jour disponible", updDownload: "télécharger",
     },
     es: {
         processing: "AEGIS procesando…", listening: "Escuchando, señor…", waitingVoice: "Esperando comando de voz…", idle: "Su orden, señor…",
@@ -79,6 +84,7 @@ export const UI: Record<Lang, LangStrings> = {
         ramUsed: "USADO", ramFree: "LIBRE", ramTotal: "TOTAL",
         errLabel: "ERROR", vRun: "EJECUTANDO", vRead: "LEYENDO ARCHIVO", vWrite: "ESCRIBIENDO ARCHIVO", vList: "LISTANDO DIR", vSearch: "BUSCANDO WEB",
         vmOff: "MIC OFF", vmAlways: "CONTINUO", vmWake: "PALABRA CLAVE", vmTitle: "Modo voz",
+        updFailed: "Descarga fallida", updRetry: "reintentar", updDownloaded: "descargada", updRestart: "reiniciar", updDownloading: "descargando…", updAvailable: "Actualización disponible", updDownload: "descargar",
     },
 };
 

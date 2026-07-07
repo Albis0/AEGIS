@@ -538,22 +538,22 @@ export default function App() {
                         </svg>
                         <div className="flex-1">
                             {updateInfo.error ? (
-                                <span>İndirme başarısız: {updateInfo.error.slice(0, 80)} —{" "}
+                                <span>{t.updFailed}: {updateInfo.error.slice(0, 80)} —{" "}
                                     <button className="underline hover:brightness-125"
                                         onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "retry"})); void window.jarvis.updateDownload(); }}
-                                    >tekrar dene</button>
+                                    >{t.updRetry}</button>
                                 </span>
                             ) : updateInfo.ready ? (
-                                <span>v{updateInfo.version} indirildi —{" "}
-                                    <button className="underline hover:brightness-125" onClick={() => window.jarvis.updateInstall()}>yeniden başlat</button>
+                                <span>v{updateInfo.version} {t.updDownloaded} —{" "}
+                                    <button className="underline hover:brightness-125" onClick={() => window.jarvis.updateInstall()}>{t.updRestart}</button>
                                 </span>
                             ) : updateInfo.downloading ? (
-                                <span>v{updateInfo.version} indiriliyor… {updateInfo.percent != null ? `%${updateInfo.percent}` : ""}</span>
+                                <span>v{updateInfo.version} {t.updDownloading} {updateInfo.percent != null ? `%${updateInfo.percent}` : ""}</span>
                             ) : (
-                                <span>Yeni sürüm var: v{updateInfo.version} —{" "}
+                                <span>{t.updAvailable}: v{updateInfo.version} —{" "}
                                     <button className="underline hover:brightness-125"
                                         onClick={() => { setUpdateInfo((prev) => updateReducer(prev, {type: "start-download"})); void window.jarvis.updateDownload(); }}
-                                    >indir</button>
+                                    >{t.updDownload}</button>
                                 </span>
                             )}
                         </div>
