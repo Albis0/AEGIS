@@ -31,6 +31,7 @@ import {dailyReport, weeklyReport, productivityInsights} from "./reporter";
 import {steamWishlistAdd} from "./steam";
 import {spotifyExecutors} from "./tools/exec-spotify";
 import {steamExecutors} from "./tools/exec-steam";
+import {googleExecutors} from "./tools/exec-google";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {actWithVerification} from "./action-verifier";
 import {stmGet} from "./short-term-memory";
@@ -45,7 +46,7 @@ import {
     watchSchemas, soundSchemas, codeToolSchemas, timeSchemas, mediaSchemas,
     personaSchemas, networkSchemas, vizSchemas, emailSchemas, learningSchemas,
     iotSchemas, smartHomeSchemas, multiModelSchemas, spotifySchemas, steamSchemas,
-    computerUseSchemas,
+    computerUseSchemas, googleSchemas,
 } from "./tools/schemas";
 // main.ts imports toolSchemas/extraSchemas from "./tools" → re-exported for backward compatibility.
 export {toolSchemas, extraSchemas};
@@ -354,6 +355,9 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => computerUseSchemas, roots: ["tikla", "mouse", "fare", "klavye", "tus", "ekran", "screenshot", "yaz", "drag", "scroll", "click", "type", "screen", "computer_use", "bas", "ctrl", "alt", "enter", "kisayol",
         // Multilingual screen/mouse/keyboard: screen/Bildschirm/écran/pantalla, capture, klick, souris/ratón, clavier/teclado
         "bildschirm", "ecran", "pantalla", "capture", "captura", "klick", "souris", "raton", "clavier", "teclado", "taste", "touche", "tecla"]},
+    {schemas: () => googleSchemas,      roots: ["gmail", "google", "mail", "posta", "eposta", "email", "inbox", "gelen", "kutum", "kutusu", "gonder", "takvim", "calendar", "etkinlik", "event", "randevu", "appointment", "toplanti", "meeting", "ajanda", "agenda",
+        // Multilingual mail/calendar (DE/FR/ES): E-Mail/courriel/correo, Kalender/calendrier/calendario, Termin/rendez-vous/cita
+        "kalender", "calendrier", "calendario", "termin", "rendez", "cita", "courriel", "correo", "mensaje", "envoyer", "senden", "enviar", "reunion", "besprechung"]},
 ];
 
 // Find which TOOL_GROUP a tool name belongs to (for sticky context).
@@ -385,7 +389,7 @@ function getAllSchemasMemo(): ChatCompletionTool[] {
         ...soundSchemas, ...codeToolSchemas, ...timeSchemas, ...mediaSchemas,
         ...personaSchemas, ...networkSchemas, ...vizSchemas, ...emailSchemas,
         ...learningSchemas, ...iotSchemas, ...smartHomeSchemas, ...multiModelSchemas,
-        ...spotifySchemas, ...steamSchemas, ...computerUseSchemas,
+        ...spotifySchemas, ...steamSchemas, ...computerUseSchemas, ...googleSchemas,
         ...extraSchemas,
     ];
     _allSchemasExtraLen = extraSchemas.length;
@@ -1997,6 +2001,8 @@ else{
     // ── Faz 46: Spotify & Steam — moved to tools/exec-spotify.ts / exec-steam.ts (audit C2)
     ...spotifyExecutors,
     ...steamExecutors,
+    // ── Phase 7.3: Google (Gmail + Calendar) — tools/exec-google.ts
+    ...googleExecutors,
     // steam_wishlist_add stays here: it drives the computer_use executor and the
     // screenshot/analyze callbacks that live in this module.
     // Grup D — deneysel

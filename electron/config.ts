@@ -16,6 +16,8 @@ export interface AegisConfig {
     steamId64?: string;
     homeAssistantUrl?: string;    // Phase 62 — smart home: http://homeassistant.local:8123
     homeAssistantToken?: string;  // long-lived access token
+    googleClientId?: string;      // Phase 7.3 — Gmail/Calendar OAuth (user's own Desktop-app client)
+    googleClientSecret?: string;
 }
 
 const CONFIG_PATH = path.join(os.homedir(), ".aegis", "config.json");
@@ -26,7 +28,7 @@ function ensureDir(): void {
 
 const SECRET_FIELDS: (keyof AegisConfig)[] = [
     "groqApiKey", "supabaseServiceKey", "tavilyApiKey", "serperApiKey",
-    "elevenlabsApiKey", "steamApiKey", "homeAssistantToken",
+    "elevenlabsApiKey", "steamApiKey", "homeAssistantToken", "googleClientSecret",
 ];
 
 export function loadConfig(): AegisConfig | null {

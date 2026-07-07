@@ -2,7 +2,7 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
-**Snapshot:** 332 tools · 8 AI providers · 16 skins · 5 languages · 587 tests (46 files)
+**Snapshot:** 341 tools · 8 AI providers · 16 skins · 5 languages · 592 tests (47 files)
 _The version number has a single source of truth: `package.json` (enforced in CI by `scripts/check-version.mjs`)._
 
 **Phases 1–63 are complete**, including the Reliability Release (53–61) and public-release hardening. This file lists what's open first, then a compact history of what shipped.
@@ -13,10 +13,10 @@ _The version number has a single source of truth: `package.json` (enforced in CI
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
-| 2 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
+| 1 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
+| 2 | **Outlook/Microsoft 365 OAuth** | Gmail/Google Calendar shipped (7.3); the Microsoft Graph counterpart is still open. |
 
-_Done since the last revision: home-screen module pool (34.2 — opt-in right-edge dock with clock, quick actions, notes, suggestion chips, now-playing and CPU/RAM sparklines; works on all 16 skins, toggles in Settings → Appearance), i18n Priority 3 (backend/main-process messages ×5 languages — provider errors, trial-proxy errors, auth errors, system notices, tray menu), i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
+_Done since the last revision: Gmail & Google Calendar OAuth (7.3 — bring-your-own Desktop-app client like Spotify; 9 tools incl. gmail_list/read/send and calendar events/create/delete, DPAPI-encrypted tokens, gmail_send and calendar_delete_event behind the approval gate), home-screen module pool (34.2 — opt-in right-edge dock with clock, quick actions, notes, suggestion chips, now-playing and CPU/RAM sparklines; works on all 16 skins, toggles in Settings → Appearance), i18n Priority 3 (backend/main-process messages ×5 languages — provider errors, trial-proxy errors, auth errors, system notices, tray menu), i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
 
 **Deliberately not planned:** **code signing** (AEGIS is a free hobby project; a certificate is a recurring cost — the SmartScreen warning is permanent and [SECURITY.md](SECURITY.md) documents how to verify a release instead), LoRA/fine-tuning pipelines, a full eval framework, RBAC, Docker/WASM sandboxing, multi-agent orchestration/A2A, litellm migration (the hand-written provider layer is leaner and matches the model-capabilities registry), multi-channel bridges (WhatsApp/iMessage), self-rewriting meta-planners.
 
@@ -26,7 +26,7 @@ _Done since the last revision: home-screen module pool (34.2 — opt-in right-ed
 
 | Area | What works |
 |------|-----------|
-| **AI core** | 8 providers (Groq/OpenAI/Anthropic/Gemini/xAI/DeepSeek/Mistral/Ollama), streaming, tool calling with 332 tools, per-model capability registry (no unsupported-parameter 400s), deterministic tool routing, reference resolution, loop guard, self-healing |
+| **AI core** | 8 providers (Groq/OpenAI/Anthropic/Gemini/xAI/DeepSeek/Mistral/Ollama), streaming, tool calling with 341 tools, per-model capability registry (no unsupported-parameter 400s), deterministic tool routing, reference resolution, loop guard, self-healing |
 | **Voice** | Whisper STT (multilingual), TTS (Edge / ElevenLabs / Kokoro offline), wake-word + VAD, barge-in (ESC), sentence-level streaming TTS, live voice translation |
 | **System** | PowerShell, volume/brightness, windows, processes, disk cleanup, telemetry (CPU/RAM/GPU/disk/battery/network) + threshold alerts, real-time optimization |
 | **Files & media** | Read/write/organize, duplicate finder, bulk rename, image resize/convert, PDF text, local indexing + BM25 search (RAG), file chat |

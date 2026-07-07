@@ -70,6 +70,18 @@ export default function KeysTab({config, accent, onApplyConfig, s}: Props) {
             onSave: (v) => onApplyConfig({steamId64: v || undefined}),
         },
         {
+            label: "GOOGLE CLIENT ID",
+            hint: "xxxx.apps.googleusercontent.com",
+            value: config.googleClientId ?? "",
+            onSave: (v) => onApplyConfig({googleClientId: v || undefined}),
+        },
+        {
+            label: "GOOGLE CLIENT SECRET",
+            hint: "GOCSPX-...",
+            value: config.googleClientSecret ?? "",
+            onSave: (v) => onApplyConfig({googleClientSecret: v || undefined}),
+        },
+        {
             label: s.keysHaUrlLabel,
             hint: s.keysHaUrlHint,
             value: config.homeAssistantUrl ?? "",

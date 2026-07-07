@@ -141,6 +141,8 @@ export interface AegisConfig {
     steamId64?: string;
     homeAssistantUrl?: string;
     homeAssistantToken?: string;
+    googleClientId?: string;
+    googleClientSecret?: string;
 }
 
 export interface Weather {

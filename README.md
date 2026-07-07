@@ -8,7 +8,7 @@
 
 ![AEGIS — Hologram skin](assets/screenshots/hologram.png)
 
-**AEGIS** is a desktop AI assistant for Windows: speech recognition, LLM reasoning, and **332 tools** wired to your actual machine. Talk or type — it controls your system, Spotify, Steam, smart home, files, screen, and more. Works with 8 AI providers (Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama) or with **no API key at all** in trial mode.
+**AEGIS** is a desktop AI assistant for Windows: speech recognition, LLM reasoning, and **341 tools** wired to your actual machine. Talk or type — it controls your system, Spotify, Steam, smart home, files, screen, and more. Works with 8 AI providers (Groq, OpenAI, Anthropic, Gemini, xAI, DeepSeek, Mistral, Ollama) or with **no API key at all** in trial mode.
 
 > [!WARNING]
 > **Early-stage, under active development.** Some tools and features may be unreliable or break in certain situations. Known issues are fixed incrementally with each release. Treat it as an early-stage project, not a finished product — bug reports and PRs are welcome.
@@ -22,7 +22,7 @@
 
 | Category          | What it can do                                                                          |
 | ------------------ | ---------------------------------------------------------------------------------------- |
-| **AI core**        | 8 providers, streaming, tool calling (332 tools), per-model capability registry, deterministic tool routing, loop guard, self-healing |
+| **AI core**        | 8 providers, streaming, tool calling (341 tools), per-model capability registry, deterministic tool routing, loop guard, self-healing |
 | **Voice**          | Whisper STT (multilingual), TTS (Edge / ElevenLabs / Kokoro offline) with sentence-level streaming, wake-word + VAD, barge-in (ESC), live voice translation |
 | **System**         | PowerShell, volume/brightness, windows, processes, disk cleanup, live telemetry (CPU/RAM/GPU/disk/battery/network) + alerts |
 | **Files & media**  | Read/write/organize, duplicate finder, bulk rename, image tools, PDF text, local BM25 search (RAG), file chat |
@@ -121,6 +121,20 @@ AEGIS uses the Spotify Web API (requires Premium):
 2. Add `http://localhost:17832/callback` as a Redirect URI
 3. Enter the Client ID and Secret under **Settings → API Keys → Spotify**
 4. Click "Connect to AEGIS" to complete OAuth authorization
+
+---
+
+## Gmail & Calendar Integration
+
+AEGIS can read/send Gmail and manage your Google Calendar. Like Spotify, you bring your own (free) OAuth app:
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → create a project → **APIs & Services**
+2. Enable the **Gmail API** and **Google Calendar API**
+3. **Credentials → Create credentials → OAuth client ID → Desktop app**
+4. Enter the Client ID and Secret under **Settings → API Keys → Google**
+5. Say "connect Google" — a browser opens for consent, and you're done
+
+Tokens are stored DPAPI-encrypted on your machine. Sending an email or deleting an event always goes through the approval gate.
 
 ---
 

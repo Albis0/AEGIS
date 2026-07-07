@@ -1375,4 +1375,17 @@ export const computerUseSchemas: ChatCompletionTool[] = [
     {type:"function",function:{name:"screen_size",description:"Get the screen resolution (may be needed for mouse_click coordinates).",parameters:{type:"object",properties:{},additionalProperties:false}}},
 ];
 
+// ── Phase 7.3: Google (Gmail + Calendar via OAuth) ────────────────────────────
+export const googleSchemas: ChatCompletionTool[] = [
+    {type:"function",function:{name:"google_authorize",description:"Connect a Google account to AEGIS for Gmail and Calendar (done once). Opens the Google consent page in a browser. Requires the Client ID/Secret set in Settings → API Keys.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"google_status",description:"Show whether a Google account is connected and which mailbox it is.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"google_disconnect",description:"Disconnect the linked Google account and delete the stored token.",parameters:{type:"object",properties:{},additionalProperties:false}}},
+    {type:"function",function:{name:"gmail_list",description:"List recent emails from Gmail. Supports Gmail search syntax in 'query' (e.g. 'is:unread', 'from:boss@x.com', 'subject:invoice newer_than:7d'). Default: inbox.",parameters:{type:"object",properties:{query:{type:"string",description:"Gmail search query (optional, default 'in:inbox')"},limit:{type:"string",description:"How many emails (1-25, default 10)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"gmail_read",description:"Read the full body of one email by its ID (IDs come from gmail_list).",parameters:{type:"object",properties:{id:{type:"string",description:"Gmail message ID"}},required:["id"],additionalProperties:false}}},
+    {type:"function",function:{name:"gmail_send",description:"Send an email from the connected Gmail account. Use ONLY when the user explicitly asks to send an email.",parameters:{type:"object",properties:{to:{type:"string",description:"Recipient email address"},subject:{type:"string",description:"Subject line"},body:{type:"string",description:"Plain-text email body"}},required:["to","subject","body"],additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_events",description:"List upcoming Google Calendar events (primary calendar).",parameters:{type:"object",properties:{days:{type:"string",description:"How many days ahead to look (1-60, default 7)"}},additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_create_event",description:"Create a Google Calendar event. 'start' is an ISO datetime (2026-07-10T14:00:00) for timed events or YYYY-MM-DD for all-day.",parameters:{type:"object",properties:{summary:{type:"string",description:"Event title"},start:{type:"string",description:"Start: ISO datetime or YYYY-MM-DD (all-day)"},end:{type:"string",description:"End (optional; default 1 hour after start)"},description:{type:"string",description:"Details (optional)"},location:{type:"string",description:"Location (optional)"}},required:["summary","start"],additionalProperties:false}}},
+    {type:"function",function:{name:"calendar_delete_event",description:"Delete a Google Calendar event by ID (IDs come from calendar_events).",parameters:{type:"object",properties:{id:{type:"string",description:"Event ID"}},required:["id"],additionalProperties:false}}},
+];
+
 export const extraSchemas: ChatCompletionTool[] = [];
