@@ -1,3 +1,5 @@
+import {bt} from "./backend-i18n";
+
 /**
  * fetch() wrapper with AbortController timeout.
  * Prevents API calls from hanging indefinitely when network is slow or down.
@@ -31,4 +33,8 @@ export function isTimeoutError(e: unknown): boolean {
     return e instanceof Error && e.name === "AbortError";
 }
 
-export const TIMEOUT_MSG = "The request timed out. Check your network connection and try again.";
+// Localized via backend-i18n; a function (not a const) so it reflects the
+// language selected at call time, not at module load.
+export function timeoutMsg(): string {
+    return bt("timeout");
+}

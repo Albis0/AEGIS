@@ -26,7 +26,8 @@ import {loadConfig, saveConfig, applyConfig, type AegisConfig} from "./config";
 import {initSecretStorage} from "./secret-storage";
 import {getCorruptedFiles} from "./corrupted-file-tracker";
 import {autoUpdater} from "electron-updater";
-import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
+import {fetchWithTimeout, isTimeoutError, timeoutMsg} from "./fetch-utils";
+import {bt, setBackendLang} from "./backend-i18n";
 import {generateTts, warmupKokoro, setKokoroModelDir} from "./tts";
 import {callAI, callProxy, extractTextContent, getProviderKey, friendlyHttpError, type MsgPart, type OAIMessage} from "./ai-client";
 import {stmClear, stmBuildPromptBlock} from "./short-term-memory";
@@ -59,6 +60,7 @@ if (savedConfig) applyConfig(savedConfig);
 
 let groq = new Groq({apiKey: process.env.GROQ_API_KEY ?? ""});
 let currentSettings = loadSettings();
+setBackendLang(currentSettings.language);
 // If config.json/settings.json/facts.json/etc. existed but failed to parse, the
 // loader already fell back to defaults and backed up the broken file as ".bak" —
 // but the user would otherwise never learn their API keys/data just vanished.
@@ -80,7 +82,7 @@ function scheduleCloudPush(): void {
             if (!res.ok && res.error !== "sync disabled" && res.error !== "not signed in" && !_cloudPushFailureNotified) {
                 _cloudPushFailureNotified = true;
                 sendToRenderer("system-notice", {
-                    message: `Could not sync your settings to the cloud (${res.error}). Your change is saved locally; it will retry on the next edit.`,
+                    message: bt("noticeCloudSyncFail", {error: res.error ?? ""}),
                 });
             } else if (res.ok) {
                 _cloudPushFailureNotified = false;
@@ -99,20 +101,16 @@ function sendToRenderer(channel: string, payload: object = {}): void {
 
 // System tray icon: the AEGIS mark, embedded as base64 (no external files).
 // Regenerate with `node scripts/make-icons.mjs` when build/icon.svg changes.
-function createTray(): void {
-    if (tray) return;
-    const icon = nativeImage.createFromBuffer(Buffer.from(TRAY_ICON_16_B64, "base64"));
-    tray = new Tray(icon);
-    tray.setToolTip("AEGIS");
-    const menu = Menu.buildFromTemplate([
+function buildTrayMenu(): Menu {
+    return Menu.buildFromTemplate([
         {
-            label: "Show",
+            label: bt("trayShow"),
             click: () => {
                 if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
             },
         },
         {
-            label: "Open Microphone",
+            label: bt("trayMic"),
             click: () => {
                 if (mainWindow) {
                     mainWindow.show(); mainWindow.focus();
@@ -122,11 +120,18 @@ function createTray(): void {
         },
         {type: "separator"},
         {
-            label: "Exit",
+            label: bt("trayExit"),
             click: () => { isQuitting = true; app.quit(); },
         },
     ]);
-    tray.setContextMenu(menu);
+}
+
+function createTray(): void {
+    if (tray) return;
+    const icon = nativeImage.createFromBuffer(Buffer.from(TRAY_ICON_16_B64, "base64"));
+    tray = new Tray(icon);
+    tray.setToolTip("AEGIS");
+    tray.setContextMenu(buildTrayMenu());
     tray.on("double-click", () => {
         if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
     });
@@ -171,7 +176,7 @@ function createWindow(): void {
     if (_corruptedFilesAtStartup.length > 0) {
         mainWindow.webContents.once("did-finish-load", () => {
             sendToRenderer("system-notice", {
-                message: `The following data was corrupted and has been reset to defaults: ${_corruptedFilesAtStartup.join(", ")}. A backup of each broken file was saved as ".bak" in ~/.aegis/.`,
+                message: bt("noticeDataReset", {files: _corruptedFilesAtStartup.join(", ")}),
             });
         });
     }
@@ -781,6 +786,7 @@ async function bootApp(): Promise<void> {
         const res = await pullFromCloud();
         if (res.applied) {
             currentSettings = loadSettings();
+            setBackendLang(currentSettings.language);
             MODEL = currentSettings.model;
             setFullPcAccess(currentSettings.fullPcAccess ?? false);
             setDisabledTools(currentSettings.disabledTools ?? []);
@@ -796,7 +802,7 @@ async function bootApp(): Promise<void> {
             // Visible notice every time the screen is captured — without this, a user
             // who enabled computer-use once and forgot has no way to know AEGIS just
             // looked at whatever was on screen (passwords, card numbers, etc).
-            sendToRenderer("system-notice", {message: "📸 AEGIS just captured your screen."});
+            sendToRenderer("system-notice", {message: bt("noticeScreenCaptured")});
             // Hide AEGIS window so it doesn't appear in the screenshot
             const wasVisible = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
             if (wasVisible) mainWindow!.hide();
@@ -1029,9 +1035,9 @@ async function bootApp(): Promise<void> {
         } catch (e) {
             let msg = (e as Error).message ?? String(e);
             if (isTimeoutError(e)) {
-                msg = TIMEOUT_MSG;
+                msg = timeoutMsg();
             } else if (/fetch failed|ENOTFOUND|ECONNREFUSED|network|getaddrinfo/i.test(msg)) {
-                msg = "Could not establish an internet connection. Check your network and try again.";
+                msg = bt("netDown");
             }
             sendToRenderer("chat-error", {reqId, message: msg});
         } finally {
@@ -1284,7 +1290,7 @@ function scheduleFullPcAccessExpiry(): void {
         setFullPcAccess(false);
         saveSettings(currentSettings);
         sendToRenderer("system-notice", {
-            message: "Full PC Access was automatically turned off after 30 minutes. Re-enable it in Settings if you still need it.",
+            message: bt("noticeFullAccessOff"),
         });
     }, FULL_PC_ACCESS_TIMEOUT_MS);
 }
@@ -1297,6 +1303,10 @@ ipcMain.handle("settings-set", (_e, patch: Partial<AppSettings>) => {
     currentSettings = {...currentSettings, ...patch};
     if (langChanged && !patch.ttsVoice) {
         currentSettings.ttsVoice = LANG_DEFAULT_VOICE[currentSettings.language] ?? currentSettings.ttsVoice;
+    }
+    if (langChanged) {
+        setBackendLang(currentSettings.language);
+        if (tray) tray.setContextMenu(buildTrayMenu());
     }
     MODEL = currentSettings.model;
     setFullPcAccess(currentSettings.fullPcAccess ?? false);
@@ -1351,13 +1361,13 @@ process.on("unhandledRejection", (reason) => {
     const msg = (reason as Error)?.message ?? String(reason);
     console.error("[AEGIS] Unhandled rejection:", reason);
     if (isNetworkNoise(msg)) return;
-    sendToRenderer("system-notice", {message: `A background error occurred: ${msg}`});
+    sendToRenderer("system-notice", {message: bt("noticeBgError", {msg})});
     void reportAiError("unhandledRejection", (reason as Error)?.stack ?? String(reason));
 });
 process.on("uncaughtException", (err) => {
     console.error("[AEGIS] Uncaught exception:", err.message, err.stack);
     if (isNetworkNoise(err.message)) return;
-    sendToRenderer("system-notice", {message: `An unexpected error occurred: ${err.message}`});
+    sendToRenderer("system-notice", {message: bt("noticeUnexpectedError", {msg: err.message})});
     void reportAiError(`uncaughtException: ${err.message}`, err.stack ?? "");
 });
 

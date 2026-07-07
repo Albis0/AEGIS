@@ -72,3 +72,4 @@ tests/harness/*-report.json
 tests/harness/live-output.txt
 docs
 build/icon-preview-256.png
+readme/

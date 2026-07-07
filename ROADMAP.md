@@ -2,7 +2,7 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
-**Snapshot:** 332 tools · 8 AI providers · 16 skins · 5 languages · 568 tests (43 files)
+**Snapshot:** 332 tools · 8 AI providers · 16 skins · 5 languages · 587 tests (46 files)
 _The version number has a single source of truth: `package.json` (enforced in CI by `scripts/check-version.mjs`)._
 
 **Phases 1–63 are complete**, including the Reliability Release (53–61) and public-release hardening. This file lists what's open first, then a compact history of what shipped.
@@ -13,12 +13,11 @@ _The version number has a single source of truth: `package.json` (enforced in CI
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | **i18n Priority 3 — backend user-facing messages** | `main.ts` error/limit messages (friendlyHttpError, callProxy) are still fixed-language; localize by the selected language. Executor return strings are optional (they go to the model, not directly to the user). |
-| 2 | **Home-screen module pool (34.2)** | Optional widgets skins can arrange: quick-action dock, agenda/notes panel, now-playing, telemetry sparklines, voice visualizer, suggestion chips, clock variants. Nice-to-have. |
-| 3 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
-| 4 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
+| 1 | **Home-screen module pool (34.2)** | Optional widgets skins can arrange: quick-action dock, agenda/notes panel, now-playing, telemetry sparklines, voice visualizer, suggestion chips, clock variants. Nice-to-have. |
+| 2 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
+| 3 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
 
-_Done since the last revision: i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
+_Done since the last revision: i18n Priority 3 (backend/main-process messages ×5 languages — provider errors, trial-proxy errors, auth errors, system notices, tray menu), i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
 
 **Deliberately not planned:** **code signing** (AEGIS is a free hobby project; a certificate is a recurring cost — the SmartScreen warning is permanent and [SECURITY.md](SECURITY.md) documents how to verify a release instead), LoRA/fine-tuning pipelines, a full eval framework, RBAC, Docker/WASM sandboxing, multi-agent orchestration/A2A, litellm migration (the hand-written provider layer is leaner and matches the model-capabilities registry), multi-channel bridges (WhatsApp/iMessage), self-rewriting meta-planners.
 

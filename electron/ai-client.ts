@@ -3,7 +3,8 @@ import type Groq from "groq-sdk";
 import {getAllToolSchemas} from "./tools";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
 import {AEGIS_PROXY_URL} from "./aegis-config";
-import {fetchWithTimeout, isTimeoutError, TIMEOUT_MSG} from "./fetch-utils";
+import {fetchWithTimeout, isTimeoutError, timeoutMsg} from "./fetch-utils";
+import {bt} from "./backend-i18n";
 import {getAccessToken} from "./auth";
 import {withWakeRetry, isWakingError} from "./retry";
 import {redactMessages} from "./boundary-guard";
@@ -106,42 +107,43 @@ export async function friendlyHttpError(providerLabel: string, resp: Response): 
     const s = resp.status;
     const d = detail.toLowerCase();
 
-    if (s === 401) return `${providerLabel}: Your API key is invalid or expired. Update the key in Settings → Model.`;
+    const p = {provider: providerLabel};
+    if (s === 401) return bt("http401", p);
     if (s === 403) {
         if (/duplicate|already declared|function declaration/i.test(detail)) {
-            return `${providerLabel}: Internal error — duplicate tool declaration (400). Please refresh the conversation.`;
+            return bt("httpDupTool", p);
         }
-        return `${providerLabel}: You are not authorized for this operation (403). Check your API key in Settings → Model.`;
+        return bt("http403", p);
     }
     if (s === 400) {
         if (/duplicate.*function|function.*declaration.*found/i.test(detail)) {
-            return `${providerLabel}: Duplicate tool declaration error. Refresh the conversation (Ctrl+R).`;
+            return bt("httpDupTool", p);
         }
         if (/model|not found|does not exist|decommission/i.test(detail)) {
-            return `${providerLabel}: The selected model is not available with this provider. Pick another model in Settings → Model.`;
+            return bt("http400model", p);
         }
         if (/context.*length|too.*long|max.*token/i.test(d)) {
-            return `${providerLabel}: Message is too long and doesn't fit the context window. Clear the chat or write something shorter.`;
+            return bt("http400ctx", p);
         }
-        return `${providerLabel}: Invalid request (400)${detail ? " — " + detail.slice(0, 140) : ""}. Check your configuration in Settings → Model.`;
+        return bt("http400", {...p, detail: detail ? " — " + detail.slice(0, 140) : ""});
     }
-    if (s === 404) return `${providerLabel}: Model not found. Pick a current model in Settings → Model.`;
+    if (s === 404) return bt("http404", p);
     if (s === 429) {
         if (/quota|billing|insufficient|credit|payment/i.test(d)) {
-            return `${providerLabel}: Insufficient account credit/quota. Add balance to your ${providerLabel} account.`;
+            return bt("http429quota", p);
         }
         if (/tpm|tokens per minute/i.test(d)) {
-            return `${providerLabel}: Per-minute token limit exceeded. Wait a few seconds or write a shorter message.`;
+            return bt("http429tpm", p);
         }
-        return `${providerLabel}: Too many requests sent (rate limit). Wait a few seconds and try again.`;
+        return bt("http429", p);
     }
-    if (s === 413) return `${providerLabel}: Message or file is too large. Try again with shorter content.`;
-    if (s === 422) return `${providerLabel}: Invalid request format (422)${detail ? " — " + detail.slice(0, 120) : ""}.`;
-    if (s >= 500 && s < 600) return `${providerLabel}: Temporary error on the provider's server (${s}). Try again in a few seconds.`;
+    if (s === 413) return bt("http413", p);
+    if (s === 422) return bt("http422", {...p, detail: detail ? " — " + detail.slice(0, 120) : ""});
+    if (s >= 500 && s < 600) return bt("http5xx", {...p, status: s});
     if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(detail)) {
-        return `${providerLabel}: Cannot reach the server. Check your internet connection and VPN status.`;
+        return bt("httpNet", p);
     }
-    return `${providerLabel} error (${s})${detail ? ": " + detail.slice(0, 160) : ""}`;
+    return bt("httpGeneric", {...p, status: s, detail: detail ? ": " + detail.slice(0, 160) : ""});
 }
 
 export function friendlyGroqError(e: unknown): string {
@@ -149,15 +151,15 @@ export function friendlyGroqError(e: unknown): string {
     const status = err?.status ?? 0;
     const detail = (err?.error?.message ?? err?.message ?? "").toString();
     const low = detail.toLowerCase();
-    if (isTimeoutError(e)) return `Groq: ${TIMEOUT_MSG}`;
-    if (status === 401 || status === 403) return "Groq: Your API key is invalid or expired. Update the key in Settings → Model.";
-    if (status === 404 || /decommission|not found|does not exist/.test(low)) return "Groq: The selected model is no longer available. Pick a current model in Settings → Model.";
-    if (status === 413 || /too large|reduce your message/.test(low)) return "Groq: Your message is too long. Clear the chat or write something shorter.";
-    if (status === 429 || /rate.limit|tpm|tokens per minute/.test(low)) return "Groq: Hit the rate limit (auto-retry was attempted). Wait a few seconds or pick a different model.";
-    if (status >= 500) return "Groq: The server returned a temporary error. Try again in a few seconds.";
-    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return "Cannot reach Groq. Check your internet connection.";
-    if (/failed_generation/.test(low)) return "Groq: The model failed to generate a response. Try again.";
-    return `Groq error${detail ? ": " + detail.slice(0, 140) : ""}`;
+    if (isTimeoutError(e)) return `Groq: ${timeoutMsg()}`;
+    if (status === 401 || status === 403) return bt("groqAuth");
+    if (status === 404 || /decommission|not found|does not exist/.test(low)) return bt("groqModel");
+    if (status === 413 || /too large|reduce your message/.test(low)) return bt("groqTooLarge");
+    if (status === 429 || /rate.limit|tpm|tokens per minute/.test(low)) return bt("groqRate");
+    if (status >= 500) return bt("groq5xx");
+    if (/fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(detail)) return bt("groqNet");
+    if (/failed_generation/.test(low)) return bt("groqFailedGen");
+    return bt("groqGeneric", {detail: detail ? ": " + detail.slice(0, 140) : ""});
 }
 
 export function stripImagesIfNeeded(messages: OAIMessage[], caps: ModelCaps): OAIMessage[] {
@@ -222,7 +224,7 @@ export async function callProxy(
     onDelta?: (text: string) => void,
 ): Promise<OAICompletion> {
     const token = await getAccessToken();
-    if (!token) throw new Error("You need to sign in to use trial mode. Please log in.");
+    if (!token) throw new Error(bt("proxySignin"));
 
     let resp: Response;
     try {
@@ -249,36 +251,36 @@ export async function callProxy(
             return r;
         }, {attempts: 3, delayMs: 6000});
     } catch (e) {
-        if (isTimeoutError(e)) throw new Error("The trial service did not respond (timeout). Check your internet connection or switch to Advanced mode with your own key in Settings → Model.", {cause: e});
+        if (isTimeoutError(e)) throw new Error(bt("proxyTimeout"), {cause: e});
         if (isWakingError((e as Error).message ?? "", (e as {status?: number}).status)) {
-            throw new Error("The trial service seems to be waking up from sleep (free server). Wait ~30 seconds and try again, or switch to Advanced mode in Settings → Model.", {cause: e});
+            throw new Error(bt("proxyWaking"), {cause: e});
         }
-        throw new Error("Cannot reach the trial service. Check your internet connection or switch to Advanced mode in Settings → Model.", {cause: e});
+        throw new Error(bt("proxyUnreachable"), {cause: e});
     }
 
     if (resp.status === 429) {
         const info = await resp.json().catch(() => ({}) as Record<string, unknown>);
         const raw = JSON.stringify(info).toLowerCase();
         if ((info as {error?: string}).error === "limit") {
-            const err = new Error((info as {message?: string}).message ?? "Your daily trial limit is used up. Add your own Groq key or try again tomorrow.");
+            const err = new Error((info as {message?: string}).message ?? bt("proxyLimit"));
             (err as Error & {isLimit?: boolean}).isLimit = true;
             throw err;
         }
         if (/tpm|tokens per minute|rate_limit|too large/.test(raw)) {
-            throw new Error("There's heavy load right now (per-minute rate limit). Wait a few seconds and try again; shorten your message if it's too long.");
+            throw new Error(bt("proxyTpm"));
         }
-        const err2 = new Error("The trial service is temporarily busy. Try again in a few seconds.");
+        const err2 = new Error(bt("proxyBusy"));
         (err2 as Error & {isLimit?: boolean}).isLimit = true;
         throw err2;
     }
-    if (resp.status === 413) throw new Error("Your message or attached files are too large. Try a shorter message or a smaller file.");
-    if (resp.status === 401) throw new Error("Your session is invalid for trial mode. Please log out and sign in again.");
+    if (resp.status === 413) throw new Error(bt("proxy413"));
+    if (resp.status === 401) throw new Error(bt("proxy401"));
     if (!resp.ok || !resp.body) {
         const errText = await resp.text().catch(() => "");
         let detail = "";
         try { const j = JSON.parse(errText); detail = j?.error?.message ?? j?.message ?? j?.error ?? ""; } catch { detail = errText.slice(0, 120); }
-        if (resp.status >= 500) throw new Error("A temporary error occurred on the trial server. Try again.");
-        throw new Error(`Trial service error${detail ? ": " + String(detail).slice(0, 120) : ` (${resp.status})`}`);
+        if (resp.status >= 500) throw new Error(bt("proxy5xx"));
+        throw new Error(bt("proxyGeneric", {detail: detail ? ": " + String(detail).slice(0, 120) : ` (${resp.status})`}));
     }
 
     let fullContent = "";

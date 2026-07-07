@@ -12,6 +12,7 @@ import * as os from "os";
 import {createClient, type SupabaseClient, type Session} from "@supabase/supabase-js";
 import {withWakeRetry, isWakingError} from "./retry";
 import {AEGIS_SUPABASE_URL, AEGIS_SUPABASE_ANON_KEY} from "./aegis-config";
+import {bt} from "./backend-i18n";
  
 const WebSocket = require("ws");
 // Electron runs on Node 20 which has no native WebSocket — supabase-js Realtime needs it
@@ -76,22 +77,22 @@ export interface AuthResult {
 export function friendlyAuthError(message: string): string {
     const m = message.toLowerCase();
     if (/fetch failed|failed to fetch|network|enotfound|econnrefused|timeout|getaddrinfo/.test(m)) {
-        return "Could not reach the server. The free trial server may be waking up from sleep — wait ~30 seconds and try again (also check your internet connection).";
+        return bt("authNet");
     }
     if (/invalid login credentials|invalid grant/.test(m)) {
-        return "Email or password is incorrect.";
+        return bt("authBadCreds");
     }
     if (/already registered|already exists/.test(m)) {
-        return "This email is already registered — use Sign In instead.";
+        return bt("authExists");
     }
     if (/rate limit|too many/.test(m)) {
-        return "Too many attempts — wait a minute and try again.";
+        return bt("authRate");
     }
     if (/email not confirmed/.test(m)) {
-        return "This email hasn't been confirmed yet — check your inbox.";
+        return bt("authUnconfirmed");
     }
     if (/valid email/.test(m)) {
-        return "That doesn't look like a valid email address.";
+        return bt("authBadEmail");
     }
     return message;
 }
