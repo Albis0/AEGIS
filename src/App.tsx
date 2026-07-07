@@ -12,6 +12,7 @@ import {applyAccent} from "./utils/color";
 import type {FeedItem, Attachment} from "./types/feed";
 import {updateReducer, type UpdateState, type UpdateEvent} from "./update-state";
 import {splitSentences, cleanForTts, TTS_MAX_CHARS} from "./tts-stream";
+import ModuleDock, {type HomeModule} from "./components/modules/ModuleDock";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -70,6 +71,7 @@ export default function App() {
     const [telemetryWidgets, setTelemetryWidgets] = useState<TelemetryWidget[]>([
         "cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow",
     ]);
+    const [homeModules, setHomeModules] = useState<HomeModule[]>([]);
 
     useEffect(() => {
         void window.jarvis.settingsGet().then((s) => {
@@ -83,6 +85,7 @@ export default function App() {
             setLang((s.language ?? "tr") as Lang);
             if (s.telemetryWidgets) setTelemetryWidgets(s.telemetryWidgets);
             if (s.reactorStyle) setReactorStyle(s.reactorStyle);
+            setHomeModules((s.homeModules ?? []) as HomeModule[]);
         });
     }, []);
 
@@ -458,6 +461,7 @@ export default function App() {
             applyCustomCss(s.customCss ?? "");
             setLang((s.language ?? "tr") as Lang);
             if (s.telemetryWidgets) setTelemetryWidgets(s.telemetryWidgets);
+            setHomeModules((s.homeModules ?? []) as HomeModule[]);
         });
     };
 
@@ -509,6 +513,14 @@ export default function App() {
                 lang={lang}
             />
             {(() => { const SkinComp = getSkinComp(skin); return <SkinComp {...skinProps} />; })()}
+            <ModuleDock
+                modules={homeModules}
+                lang={lang}
+                locale={t.locale}
+                tel={tel}
+                onCommand={sendText}
+                onFill={setInput}
+            />
             {updateInfo && (
                 <div
                     className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 flex flex-col gap-2 text-[11px] tracking-wide shadow-lg min-w-[260px] max-w-[340px]"

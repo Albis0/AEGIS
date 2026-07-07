@@ -106,6 +106,7 @@ export interface AppSettings {
     language: "tr" | "en" | "de" | "fr" | "es";
     telemetryWidgets: TelemetryWidget[];
     telemetryUpdateMs: number;
+    homeModules: string[];
     temperature: number;
     maxTokens: number;
     topP: number;

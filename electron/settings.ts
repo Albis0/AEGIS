@@ -37,6 +37,7 @@ export interface AppSettings {
     language: "tr" | "en" | "de" | "fr" | "es";
     telemetryWidgets: TelemetryWidget[];
     telemetryUpdateMs: number;
+    homeModules: string[];
     // AI generation parameters
     temperature: number;
     maxTokens: number;
@@ -87,6 +88,7 @@ const DEFAULTS: AppSettings = {
     language: "tr",
     telemetryWidgets: ALL_WIDGETS,
     telemetryUpdateMs: 1500,
+    homeModules: [],
     temperature: 0.7,
     maxTokens: 8192,
     topP: 1.0,

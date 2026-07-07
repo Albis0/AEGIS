@@ -4,6 +4,8 @@ import {SectionLabel, RadioCard, Hint, Toggle} from "../shared";
 import {UI_FAMILIES, type UiFamily} from "../../../themes";
 import {SKIN_FAMILIES} from "../../skins/registry";
 import type {SettingsStrings} from "../../../i18n";
+import type {Lang} from "../../../i18n";
+import {ALL_HOME_MODULES, moduleInfo, moduleSection} from "../../modules/ModuleDock";
 
 const ACCENT_COLORS = [
     {id: "34,211,238",  label: "Cyan",    hex: "#22d3ee"},
@@ -48,6 +50,7 @@ interface Props {
 
 export default function AppearanceTab({settings, accent, ac, onApply, onAccentChange, onFamilyChange, onSkinChange, onFontChange, onLayoutChange, onCustomCssChange, s}: Props) {
     const [fineOpen, setFineOpen] = useState(false);
+    const uiLang = (settings.language ?? "tr") as Lang;
 
     function applyWithSideEffect(patch: Partial<AppSettings>) {
         onApply(patch);
@@ -294,7 +297,39 @@ export default function AppearanceTab({settings, accent, ac, onApply, onAccentCh
                 </div>
             </div>
 
-            {/* ── 5. CUSTOM CSS ── */}
+            {/* ── 5. HOME-SCREEN MODULES ── */}
+            <div>
+                <SectionLabel label={moduleSection(uiLang).title} accent={accent} />
+                <p className="text-[11px] mb-3 leading-relaxed" style={{color: `rgba(${accent},0.38)`}}>
+                    {moduleSection(uiLang).hint}
+                </p>
+                <div className="space-y-1.5">
+                    {ALL_HOME_MODULES.map((id) => {
+                        const info = moduleInfo(uiLang)[id];
+                        const active = (settings.homeModules ?? []).includes(id);
+                        return (
+                            <div key={id}
+                                className="flex items-center gap-4 px-4 py-3 rounded-xl transition"
+                                style={{
+                                    background: active ? `rgba(${accent},0.07)` : "transparent",
+                                    border: `1px solid ${active ? `rgba(${accent},0.25)` : `rgba(${accent},0.08)`}`,
+                                }}>
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-[13px] font-medium" style={{color: active ? ac : `rgba(${accent},0.6)`}}>{info.label}</span>
+                                    <span className="block text-[11px] mt-0.5" style={{color: `rgba(${accent},0.3)`}}>{info.sub}</span>
+                                </span>
+                                <Toggle active={active} accent={accent}
+                                    onChange={() => {
+                                        const cur = settings.homeModules ?? [];
+                                        onApply({homeModules: active ? cur.filter((x) => x !== id) : [...cur, id]});
+                                    }} />
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* ── 6. CUSTOM CSS ── */}
             <div>
                 <SectionLabel label={s.apCustomCss} accent={accent} />
                 <CustomCssField value={settings.customCss ?? ""} onSave={(v) => applyWithSideEffect({customCss: v})} accent={accent} apply={s.apApplyBtn} />

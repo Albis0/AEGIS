@@ -13,11 +13,10 @@ _The version number has a single source of truth: `package.json` (enforced in CI
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | **Home-screen module pool (34.2)** | Optional widgets skins can arrange: quick-action dock, agenda/notes panel, now-playing, telemetry sparklines, voice visualizer, suggestion chips, clock variants. Nice-to-have. |
-| 2 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
-| 3 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
+| 1 | **Email/Calendar OAuth (7.3)** | Gmail / Outlook integration. Requires OAuth app registration; deferred. |
+| 2 | **Release testing leftovers** | First packaged smoke pass done 2026-07-05 (found & fixed the onboarding-quit race + missing exe icon). Still open: non-Groq streaming with a real key, clean-machine pass, auto-update against a real release. |
 
-_Done since the last revision: i18n Priority 3 (backend/main-process messages ×5 languages — provider errors, trial-proxy errors, auth errors, system notices, tray menu), i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
+_Done since the last revision: home-screen module pool (34.2 — opt-in right-edge dock with clock, quick actions, notes, suggestion chips, now-playing and CPU/RAM sparklines; works on all 16 skins, toggles in Settings → Appearance), i18n Priority 3 (backend/main-process messages ×5 languages — provider errors, trial-proxy errors, auth errors, system notices, tray menu), i18n Priority 2 (settings panel ×5 languages), error-report system with screenshot attach, trial wake-up retry, sentence-TTS prefetch, real app icon._
 
 **Deliberately not planned:** **code signing** (AEGIS is a free hobby project; a certificate is a recurring cost — the SmartScreen warning is permanent and [SECURITY.md](SECURITY.md) documents how to verify a release instead), LoRA/fine-tuning pipelines, a full eval framework, RBAC, Docker/WASM sandboxing, multi-agent orchestration/A2A, litellm migration (the hand-written provider layer is leaner and matches the model-capabilities registry), multi-channel bridges (WhatsApp/iMessage), self-rewriting meta-planners.
 
