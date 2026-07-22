@@ -2,7 +2,7 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
-**Snapshot:** 341 tools · 8 AI providers · 16 skins · 5 languages · 592 tests (47 files)
+**Snapshot:** 344 tools · 8 AI providers · 16 skins · 5 languages · 606 tests (48 files)
 _The version number has a single source of truth: `package.json` (enforced in CI by `scripts/check-version.mjs`)._
 
 **Phases 1–63 are complete**, including the Reliability Release (53–61) and public-release hardening. This file lists what's open first, then a compact history of what shipped.
@@ -144,3 +144,11 @@ _Done since the last revision: Gmail & Google Calendar OAuth (7.3 — bring-your
 | — | Public release prep: history secret scan, RLS hardening for legacy tables, README/CONTRIBUTING/CoC, issue/PR templates, Playwright README screenshots |
 | — | UX hardening: taint boundary over computer-use input, destructive budget per run, friendly auth errors, SmartScreen docs |
 | — | Error report system: user bug-report form (Settings → About) + AI auto-reports with dedupe/caps, offline queue, insert-only RLS table |
+
+### Claude Code Parity (CC)
+
+Closing the gap with Claude Code's software-engineering toolset. See [CLAUDE_CODE_ENTEGRASYON_PLANI.md](CLAUDE_CODE_ENTEGRASYON_PLANI.md).
+
+| Phase | Delivered |
+|-------|-----------|
+| CC-1 | Code-aware file tools: `glob_files` (name-pattern search, `**`/`{a,b}`), `grep_content` (regex content search, file:line), `edit_file` (exact-string replace with uniqueness check). `edit_file` is behind the destructive approval gate; all three honor the home-dir sandbox when Full PC Access is off. |

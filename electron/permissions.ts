@@ -32,6 +32,7 @@ const ALWAYS_DESTRUCTIVE = new Set<string>([
     "bulk_rename",       // bulk renaming
     "clear_old_data",    // deletes data
     "format_code",       // modifies files in place
+    "edit_file",         // Faz CC-1 — exact-string edit modifies a file in place
     "gmail_send",        // sends mail as the user — irreversible, outward-facing
     "calendar_delete_event",
 ]);

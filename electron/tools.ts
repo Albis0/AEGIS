@@ -32,6 +32,7 @@ import {steamWishlistAdd} from "./steam";
 import {spotifyExecutors} from "./tools/exec-spotify";
 import {steamExecutors} from "./tools/exec-steam";
 import {googleExecutors} from "./tools/exec-google";
+import {makeFsExecutors} from "./tools/exec-fs";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {actWithVerification} from "./action-verifier";
 import {stmGet} from "./short-term-memory";
@@ -2003,6 +2004,9 @@ else{
     ...steamExecutors,
     // ── Phase 7.3: Google (Gmail + Calendar) — tools/exec-google.ts
     ...googleExecutors,
+    // ── Faz CC-1: code-aware file tools (glob / grep / edit) — tools/exec-fs.ts
+    // getFullPcAccess reads the live module flag so the home-dir confinement matches read/write_file.
+    ...makeFsExecutors(() => _fullPcAccess),
     // steam_wishlist_add stays here: it drives the computer_use executor and the
     // screenshot/analyze callbacks that live in this module.
     // Grup D — deneysel
