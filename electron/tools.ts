@@ -33,6 +33,7 @@ import {spotifyExecutors} from "./tools/exec-spotify";
 import {steamExecutors} from "./tools/exec-steam";
 import {googleExecutors} from "./tools/exec-google";
 import {makeFsExecutors} from "./tools/exec-fs";
+import {runShell} from "./shell-runner";
 import {mouseMove, mouseClick, mouseScroll, mouseDrag, keyPress, typeText, getScreenSize} from "./computer-use";
 import {actWithVerification} from "./action-verifier";
 import {stmGet} from "./short-term-memory";
@@ -1182,6 +1183,20 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async run_and_analyze({command, context}) {
         const output = await runScript(command ?? "", 30000);
         return `Command output:\n${output}\n\nContext: ${context || "none"}\n\n[Analyze the above output, explain any errors, and suggest a fix.]`;
+    },
+    // Faz CC-2 — general-purpose shell (cwd / timeout / background) via shell-runner.ts.
+    // Approval-gated in permissions.ts. Background completion surfaces as an OS notification.
+    async run_shell(args: Record<string, string>) {
+        const command = String(args.command ?? "");
+        const cwd = args.cwd ? resolvePath(args.cwd) : undefined;
+        const timeoutSeconds = args.timeout_seconds ? Number(args.timeout_seconds) : undefined;
+        const background = args.background === "true" || (args.background as unknown) === true;
+        return runShell(command, {
+            cwd,
+            timeoutSeconds,
+            background,
+            onBackgroundDone: (summary) => _notificationCallback?.("AEGIS — background command", summary),
+        });
     },
     async scaffold_project({template, target_path}) {
         const templates: Record<string, {dirs: string[]; files: Record<string, string>}> = {

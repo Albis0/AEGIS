@@ -65,9 +65,13 @@ const COMMAND_DESTRUCTIVE_PATTERNS: RegExp[] = [
  */
 export function classifyRisk(tool: string, args: Record<string, unknown>): RiskTier {
     if (ALWAYS_DESTRUCTIVE.has(tool)) return "destructive";
-    if (tool === "run_command") {
+    // run_command and run_shell (Faz CC-2) both run arbitrary shell — inspect the
+    // command. run_shell adds cwd/background/long-timeout, so a background job is
+    // treated as destructive regardless of the command (it runs unattended).
+    if (tool === "run_command" || tool === "run_shell") {
         const cmd = String(args.command ?? "");
         if (COMMAND_DESTRUCTIVE_PATTERNS.some((p) => p.test(cmd))) return "destructive";
+        if (tool === "run_shell" && (args.background === "true" || args.background === true)) return "destructive";
     }
     return "safe";
 }

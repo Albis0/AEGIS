@@ -49,6 +49,26 @@ describe("risk classification", () => {
             expect(classifyRisk("run_command", {command: cmd}), cmd).toBe("destructive");
         }
     });
+
+    it("edit_file is destructive (Faz CC-1)", () => {
+        expect(classifyRisk("edit_file", {path: "a.ts"})).toBe("destructive");
+        expect(needsApproval("edit_file", {})).toBe(true);
+    });
+
+    it("run_shell (Faz CC-2): harmless foreground is safe, dangerous is destructive", () => {
+        expect(classifyRisk("run_shell", {command: "npm test"})).toBe("safe");
+        expect(classifyRisk("run_shell", {command: "Remove-Item -Recurse C:\\x"})).toBe("destructive");
+    });
+
+    it("run_shell: background always requires approval", () => {
+        expect(classifyRisk("run_shell", {command: "echo hi", background: "true"})).toBe("destructive");
+        expect(classifyRisk("run_shell", {command: "echo hi", background: true})).toBe("destructive");
+    });
+
+    it("glob_files / grep_content are read-only (safe)", () => {
+        expect(classifyRisk("glob_files", {pattern: "**/*.ts"})).toBe("safe");
+        expect(classifyRisk("grep_content", {pattern: "foo"})).toBe("safe");
+    });
 });
 
 describe("persistent permission store", () => {
