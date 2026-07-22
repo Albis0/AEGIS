@@ -728,6 +728,42 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     });
 }
 
+// Faz CC-6 — run an isolated subagent loop and return its final text. The
+// subagent gets its own single-message history (it does not see the parent
+// conversation), its own capturing `send` (its deltas are collected, not
+// streamed to the UI as the main reply), and isSubAgent:true (per-call approval
+// is bypassed for its own path — but taint/budget still force a click, and the
+// spawn_subagent depth guard prevents recursion).
+async function runSubAgent(task: string): Promise<string> {
+    let captured = "";
+    const send = (channel: string, payload: object) => {
+        if (channel === "chat-delta") {
+            const text = (payload as {text?: string}).text;
+            if (typeof text === "string") captured += text;
+        }
+        // A lightweight feed breadcrumb so the user can see a subagent is working.
+        if (channel === "tool-event") sendToRenderer("tool-event", {reqId: `subagent-${Date.now()}`, ...payload});
+    };
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false)
+        + "\n\n[SUBAGENT] You are an isolated subagent. Complete the single task below and end with a concise text result. You cannot spawn further subagents.";
+    try {
+        await runAgentLoop([{role: "user", content: task}], {
+            send,
+            callModel: (messages: OAIMessage[], onDelta: (t: string) => void, tools: ChatCompletionTool[]) => callAI(messages, onDelta, tools, currentSettings, MODEL, groq),
+            getToolSchemas: (ctx: string) => getAllToolSchemas(currentSettings.aiProvider, ctx),
+            executeTool,
+            askApproval: askDestructiveApproval,
+            saveMessage: async () => {}, // subagent turns are not persisted to the main session
+            systemContent,
+            explainMode: false,
+            isSubAgent: true,
+        });
+    } catch (e) {
+        return `Subagent error: ${(e as Error).message}`;
+    }
+    return captured.trim();
+}
+
 
 // Ensure only one instance runs
 if (!app.requestSingleInstanceLock()) {
@@ -995,6 +1031,7 @@ async function bootApp(): Promise<void> {
         },
         reloadPlugins: async () => activatePlugins(),
         todoUpdate: (steps) => sendToRenderer("todo-update", {steps}),
+        spawnSubAgent: (task) => runSubAgent(task),
     });
 
     await startSession().catch((e) => console.error("[startSession]", e.message));

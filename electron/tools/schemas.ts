@@ -1053,6 +1053,22 @@ export const agentSchemas: ChatCompletionTool[] = [
             },
         },
     },
+    // Faz CC-6 — subagent delegation (Claude-Code subagent parity).
+    {
+        type: "function",
+        function: {
+            name: "spawn_subagent",
+            description: "Delegate a self-contained subtask to an isolated agent that runs its own tool loop and returns a text result you can use. Use it to fan out independent work (e.g. summarize 3 files separately) or to keep a noisy subtask out of the main context. The subagent cannot spawn further subagents.",
+            parameters: {
+                type: "object",
+                properties: {
+                    task: {type: "string", description: "A clear, self-contained instruction for the subagent (it does not see this conversation)."},
+                },
+                required: ["task"],
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 export const watchSchemas: ChatCompletionTool[] = [

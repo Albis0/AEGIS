@@ -125,6 +125,8 @@ export interface ToolHostContext {
     reloadPlugins: () => Promise<string>;
     /** plan_todo tool (Faz CC-3) → push a live plan/progress list to the renderer */
     todoUpdate: (steps: {text: string; status: string}[]) => void;
+    /** spawn_subagent tool (Faz CC-6) → run an isolated agent loop, return its final text */
+    spawnSubAgent: (task: string) => Promise<string>;
 }
 
 export function initToolHost(ctx: ToolHostContext): void {
@@ -138,9 +140,15 @@ export function initToolHost(ctx: ToolHostContext): void {
     _macroRunCallback = ctx.runMacro;
     _reloadPluginsCallback = ctx.reloadPlugins;
     _todoUpdateCallback = ctx.todoUpdate;
+    _spawnSubAgentCallback = ctx.spawnSubAgent;
 }
 
 let _todoUpdateCallback: ((steps: {text: string; status: string}[]) => void) | null = null;
+let _spawnSubAgentCallback: ((task: string) => Promise<string>) | null = null;
+// Faz CC-6 — recursion guard: a subagent may not spawn another subagent (depth 1).
+let _subAgentDepth = 0;
+export function _setSubAgentDepth(n: number): void { _subAgentDepth = n; } // test hook
+export function _setSpawnSubAgentCallback(cb: ((task: string) => Promise<string>) | null): void { _spawnSubAgentCallback = cb; } // test hook
 
 let _fullPcAccess = false;
 export function setFullPcAccess(enabled: boolean): void { _fullPcAccess = enabled; }
@@ -941,6 +949,23 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const steps = Math.max(1, Math.min(20, parseInt(String(max_steps ?? "10"), 10)));
         _agentCallback?.(goal ?? "", steps);
         return `Agent mode started. Goal: "${goal}". Max ${steps} steps. Steps will appear in the feed.`;
+    },
+    // Faz CC-6 — delegate a subtask to an isolated agent and return its result.
+    // Depth guard: a subagent cannot spawn another subagent (prevents runaway recursion).
+    async spawn_subagent({task}) {
+        const t = String(task ?? "").trim();
+        if (!t) return "ERROR: task is required.";
+        if (_subAgentDepth >= 1) return "ERROR: a subagent cannot spawn another subagent (depth limit reached).";
+        if (!_spawnSubAgentCallback) return "ERROR: subagent runner is not registered.";
+        _subAgentDepth++;
+        try {
+            const result = await _spawnSubAgentCallback(t);
+            return `Subagent result:\n${result || "(subagent produced no text output)"}`;
+        } catch (e) {
+            return `ERROR: subagent failed: ${(e as Error).message}`;
+        } finally {
+            _subAgentDepth--;
+        }
     },
 
     async start_macro({name}) {
