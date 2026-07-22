@@ -1,7 +1,42 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import type {AppSettings} from "../../../electron.d";
 import {SectionLabel, Hint, Toggle} from "../shared";
 import type {SettingsStrings} from "../../../i18n";
+
+// Faz CC-4 — skills list (packaged instruction sets). Loads via list_skills;
+// output is "• /name — description" lines from the backend.
+function SkillsSection({accent, ac, s}: {accent: string; ac: string; s: SettingsStrings}) {
+    const [skills, setSkills] = useState<{name: string; desc: string}[]>([]);
+    useEffect(() => {
+        let alive = true;
+        window.jarvis.runTool("list_skills").then((raw: string) => {
+            if (!alive) return;
+            const parsed = raw.split("\n").map((line) => {
+                const m = line.match(/^•\s*\/([^\s]+)\s*—\s*(.*)$/);
+                return m ? {name: m[1], desc: m[2].trim()} : null;
+            }).filter(Boolean) as {name: string; desc: string}[];
+            setSkills(parsed);
+        }).catch(() => {});
+        return () => { alive = false; };
+    }, []);
+    return (
+        <div>
+            <SectionLabel label={s.tlSkillsTitle} accent={accent} />
+            <div className="space-y-1 mb-2">
+                {skills.length === 0 ? (
+                    <div className="text-[11px] py-1" style={{color: `rgba(${accent},0.45)`}}>—</div>
+                ) : skills.map((sk) => (
+                    <div key={sk.name} className="flex items-baseline gap-2 px-2.5 py-1.5 rounded-lg"
+                        style={{background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.1)`}}>
+                        <span className="text-[11px] font-medium shrink-0" style={{color: ac}}>/{sk.name}</span>
+                        <span className="text-[10px] leading-snug" style={{color: `rgba(${accent},0.6)`}}>{sk.desc}</span>
+                    </div>
+                ))}
+            </div>
+            <Hint accent={accent}>{s.tlSkillsHint}</Hint>
+        </div>
+    );
+}
 
 interface Props {
     accent: string;
@@ -196,6 +231,8 @@ export default function ToolsTab({accent, ac, settings, onApply, s}: Props) {
                     </div>
                 </div>
             ))}
+
+            <SkillsSection accent={accent} ac={ac} s={s} />
 
             <Hint accent={accent}>
                 {s.tlPluginHint}

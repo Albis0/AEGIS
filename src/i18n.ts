@@ -595,6 +595,7 @@ export interface SettingsStrings {
     tlWarningTitle: string; tlWarningBody: string; tlConfirmEnable: string; tlCancel: string;
     tlCatSystem: string; tlCatWeb: string; tlCatMemory: string; tlCatProductivity: string; tlCatData: string;
     tlDangerBadge: string; tlPluginHint: string;
+    tlSkillsTitle: string; tlSkillsHint: string;
     tlDescRunCommand: string; tlDescReadFile: string; tlDescWriteFile: string; tlDescListDir: string;
     tlDescMoveFile: string; tlDescDeleteFile: string; tlDescBulkRename: string; tlDescFindDuplicates: string;
     tlDescWebSearch: string; tlDescBrowseUrl: string;
@@ -709,6 +710,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         tlConfirmEnable: "EVET, ETKİNLEŞTİR", tlCancel: "İPTAL",
         tlCatSystem: "Sistem", tlCatWeb: "Web", tlCatMemory: "Hafıza", tlCatProductivity: "Verimlilik", tlCatData: "Veri",
         tlDangerBadge: "DİKKAT", tlPluginHint: "Plugin sekmesinden ek araçlar yükleyebilirsin.",
+        tlSkillsTitle: "YETENEKLER", tlSkillsHint: "~/.aegis/skills/<ad>/SKILL.md ile yeni yetenek ekle. /ad yazarak veya konuyu tarif ederek çalışır.",
         tlDescRunCommand: "Terminal komutu çalıştırır", tlDescReadFile: "Dosya içeriğini okur", tlDescWriteFile: "Dosyaya içerik yazar (kapalıyken ev dizini)", tlDescListDir: "Dizin içeriğini listeler",
         tlDescMoveFile: "Dosya/klasör taşır (Tam Erişim gerekli)", tlDescDeleteFile: "Dosya veya klasörü siler (Tam Erişim gerekli)", tlDescBulkRename: "Regex ile toplu yeniden adlandırma", tlDescFindDuplicates: "Yinelenen dosyaları bulur",
         tlDescWebSearch: "Web araması yapar (Tavily/Serper/DDG)", tlDescBrowseUrl: "URL içeriğini scrape eder",
@@ -819,6 +821,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         tlConfirmEnable: "YES, ENABLE", tlCancel: "CANCEL",
         tlCatSystem: "System", tlCatWeb: "Web", tlCatMemory: "Memory", tlCatProductivity: "Productivity", tlCatData: "Data",
         tlDangerBadge: "CAUTION", tlPluginHint: "You can install additional tools from the Plugins tab.",
+        tlSkillsTitle: "SKILLS", tlSkillsHint: "Add a skill at ~/.aegis/skills/<name>/SKILL.md. It activates when you type /name or describe a matching task.",
         tlDescRunCommand: "Runs a terminal command", tlDescReadFile: "Reads a file's contents", tlDescWriteFile: "Writes content to a file (home directory only when disabled)", tlDescListDir: "Lists a directory's contents",
         tlDescMoveFile: "Moves a file/folder (requires Full Access)", tlDescDeleteFile: "Deletes a file or folder (requires Full Access)", tlDescBulkRename: "Bulk renames files using regex", tlDescFindDuplicates: "Finds duplicate files",
         tlDescWebSearch: "Performs a web search (Tavily/Serper/DDG)", tlDescBrowseUrl: "Scrapes a URL's contents",
@@ -929,6 +932,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         tlConfirmEnable: "JA, AKTIVIEREN", tlCancel: "ABBRECHEN",
         tlCatSystem: "System", tlCatWeb: "Web", tlCatMemory: "Speicher", tlCatProductivity: "Produktivität", tlCatData: "Daten",
         tlDangerBadge: "VORSICHT", tlPluginHint: "Über den Plugins-Tab kannst du weitere Tools installieren.",
+        tlSkillsTitle: "SKILLS", tlSkillsHint: "Füge einen Skill unter ~/.aegis/skills/<name>/SKILL.md hinzu. Er wird aktiv, wenn du /name eingibst oder eine passende Aufgabe beschreibst.",
         tlDescRunCommand: "Führt einen Terminalbefehl aus", tlDescReadFile: "Liest den Inhalt einer Datei", tlDescWriteFile: "Schreibt Inhalt in eine Datei (nur Home-Verzeichnis, wenn deaktiviert)", tlDescListDir: "Listet den Inhalt eines Verzeichnisses auf",
         tlDescMoveFile: "Verschiebt eine Datei/einen Ordner (erfordert vollen Zugriff)", tlDescDeleteFile: "Löscht eine Datei oder einen Ordner (erfordert vollen Zugriff)", tlDescBulkRename: "Massenumbenennung per Regex", tlDescFindDuplicates: "Findet doppelte Dateien",
         tlDescWebSearch: "Führt eine Websuche durch (Tavily/Serper/DDG)", tlDescBrowseUrl: "Scraped den Inhalt einer URL",
@@ -1039,6 +1043,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         tlConfirmEnable: "OUI, ACTIVER", tlCancel: "ANNULER",
         tlCatSystem: "Système", tlCatWeb: "Web", tlCatMemory: "Mémoire", tlCatProductivity: "Productivité", tlCatData: "Données",
         tlDangerBadge: "ATTENTION", tlPluginHint: "Vous pouvez installer des outils supplémentaires depuis l'onglet Plugins.",
+        tlSkillsTitle: "COMPÉTENCES", tlSkillsHint: "Ajoutez une compétence dans ~/.aegis/skills/<nom>/SKILL.md. Elle s'active quand vous tapez /nom ou décrivez une tâche correspondante.",
         tlDescRunCommand: "Exécute une commande terminal", tlDescReadFile: "Lit le contenu d'un fichier", tlDescWriteFile: "Écrit du contenu dans un fichier (répertoire personnel uniquement si désactivé)", tlDescListDir: "Liste le contenu d'un répertoire",
         tlDescMoveFile: "Déplace un fichier/dossier (Accès complet requis)", tlDescDeleteFile: "Supprime un fichier ou dossier (Accès complet requis)", tlDescBulkRename: "Renommage en masse par regex", tlDescFindDuplicates: "Trouve les fichiers en double",
         tlDescWebSearch: "Effectue une recherche web (Tavily/Serper/DDG)", tlDescBrowseUrl: "Scrape le contenu d'une URL",
@@ -1149,6 +1154,7 @@ export const SETTINGS: Record<Lang, SettingsStrings> = {
         tlConfirmEnable: "SÍ, ACTIVAR", tlCancel: "CANCELAR",
         tlCatSystem: "Sistema", tlCatWeb: "Web", tlCatMemory: "Memoria", tlCatProductivity: "Productividad", tlCatData: "Datos",
         tlDangerBadge: "PRECAUCIÓN", tlPluginHint: "Puedes instalar herramientas adicionales desde la pestaña de Plugins.",
+        tlSkillsTitle: "HABILIDADES", tlSkillsHint: "Añade una habilidad en ~/.aegis/skills/<nombre>/SKILL.md. Se activa cuando escribes /nombre o describes una tarea que coincide.",
         tlDescRunCommand: "Ejecuta un comando de terminal", tlDescReadFile: "Lee el contenido de un archivo", tlDescWriteFile: "Escribe contenido en un archivo (solo directorio de inicio si está desactivado)", tlDescListDir: "Lista el contenido de un directorio",
         tlDescMoveFile: "Mueve un archivo/carpeta (requiere Acceso Total)", tlDescDeleteFile: "Elimina un archivo o carpeta (requiere Acceso Total)", tlDescBulkRename: "Renombrado masivo con regex", tlDescFindDuplicates: "Encuentra archivos duplicados",
         tlDescWebSearch: "Realiza una búsqueda web (Tavily/Serper/DDG)", tlDescBrowseUrl: "Extrae el contenido de una URL",

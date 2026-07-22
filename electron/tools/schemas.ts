@@ -380,6 +380,15 @@ export const toolSchemas: ChatCompletionTool[] = [
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
+    // Faz CC-4 — skill / prompt packages.
+    {
+        type: "function",
+        function: {
+            name: "list_skills",
+            description: "List installed skills (packaged instruction sets). Use when the user asks what skills exist or how to use them. A skill activates automatically when the user types /skill-name or describes a matching task.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
     // Faz CC-3 — task planning / live todo tracking (Claude-Code TodoWrite parity).
     {
         type: "function",

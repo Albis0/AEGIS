@@ -15,6 +15,7 @@ import {addMacroStep, isRecording} from "./macros";
 import {recordingName as routineRecordingName} from "./routines";
 import {getFactsForContext, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage, getProactiveSuggestion} from "./memory-plus";
 import {getMemoryIndexForContext} from "./memory-files";
+import {getActiveSkillBlock, seedExampleSkills} from "./skills";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
@@ -700,7 +701,11 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     const routineNote = routineRecordingName()
         ? `\n\nROUTINE RECORDING ACTIVE: "${routineRecordingName()}". Apply the user's commands with tools as normal — your actions are being recorded automatically. If the user says "stop/end recording", call routine_record_stop.`
         : "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + getMemoryIndexForContext() + stmBuildPromptBlock() + routineNote;
+    // Faz CC-4 — active skill block: if the last user message names a skill (/name)
+    // or matches a skill description, inject that skill's instructions for this turn.
+    const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+    const skillBlock = lastUserMsg ? getActiveSkillBlock(extractTextContent(lastUserMsg.content)) : "";
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + getMemoryIndexForContext() + skillBlock + stmBuildPromptBlock() + routineNote;
     const send = (channel: string, payload: object) => {
         sendToRenderer(channel, {reqId, ...payload});
         if (channel === "chat-delta") broadcastFeedEvent("delta", payload);
@@ -993,6 +998,9 @@ async function bootApp(): Promise<void> {
     });
 
     await startSession().catch((e) => console.error("[startSession]", e.message));
+
+    // Faz CC-4 — write the example skills once so users have something to look at/edit.
+    seedExampleSkills();
 
     // Load previous session summaries + pending reminders into system prompt context
     try {

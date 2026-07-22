@@ -11,6 +11,7 @@ import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 import {addFact, addFactReconciled, searchMemory, listFacts, removeFact, listHabits} from "./memory-plus";
 import {rememberFile, recallMemory, listMemoriesText, forgetFile} from "./memory-files";
+import {listSkillsText} from "./skills";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
@@ -161,7 +162,7 @@ export const WIDGET_SAFE_TOOLS: ReadonlySet<string> = new Set([
     "list_automations", "list_macros", "routine_list",
     "goal_list", "reading_list",
     "get_persona", "list_personas",
-    "list_plugins", "plugin_search",
+    "list_plugins", "plugin_search", "list_skills",
     // MemoryModal
     "list_facts", "search_memory", "forget_fact",
     "list_notes_md", "recall_note", "forget_note",
@@ -299,7 +300,7 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     // schedulerSchemas + remind_in (it's in CORE but same domain — for "remind me in 10 min"
     // the correct tool is remind_in; it's prepended to the group so it doesn't get trimmed at the 64-limit).
     {schemas: () => [...coreByName("remind_in"), ...schedulerSchemas], roots: ["hatirlat", "zamanla", "schedule", "reminder", "alarm", "sonra", "dakika"]},
-    {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace"]},
+    {schemas: () => marketplaceSchemas, roots: ["plugin", "eklenti", "marketplace", "skill", "yetenek", "beceri"]},
     {schemas: () => securitySchemas,    roots: ["sifre", "parola", "vault", "kasa", "guvenli", "encrypt", "secret", "gizli"]},
     // knowledgeSchemas + fetch_url (in CORE — for "summarize this site <url>" the correct
     // tool is fetch_url; it's prepended to the group so large groups don't trim it at the 64-limit).
@@ -804,6 +805,10 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async reload_plugins() {
         if (!_reloadPluginsCallback) return "ERROR: Plugin reload callback is not registered.";
         return await _reloadPluginsCallback();
+    },
+    // Faz CC-4 — list installed skills (prompt packages).
+    async list_skills() {
+        return listSkillsText();
     },
     // Faz CC-3 — publish a live plan/todo list to the renderer. steps arrives as an
     // array (from JSON.parse), not a string — coerce defensively and clamp to 20.
