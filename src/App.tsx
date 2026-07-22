@@ -14,6 +14,7 @@ import {updateReducer, type UpdateState, type UpdateEvent} from "./update-state"
 import {splitSentences, cleanForTts, TTS_MAX_CHARS} from "./tts-stream";
 import ModuleDock, {type HomeModule} from "./components/modules/ModuleDock";
 import TodoPanel from "./components/TodoPanel";
+import ReviewPanel from "./components/ReviewPanel";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -522,6 +523,7 @@ export default function App() {
                     <TodoPanel t={t} reset={todoReset} />
                 </div>
             </div>
+            <ReviewPanel />
             <ModuleDock
                 modules={homeModules}
                 lang={lang}

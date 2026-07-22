@@ -1032,6 +1032,13 @@ async function bootApp(): Promise<void> {
         reloadPlugins: async () => activatePlugins(),
         todoUpdate: (steps) => sendToRenderer("todo-update", {steps}),
         spawnSubAgent: (task) => runSubAgent(task),
+        reviewDiff: async (prompt) => {
+            // One non-streaming, tool-less model call for the review.
+            const msgs: OAIMessage[] = [{role: "user", content: prompt}];
+            const res = await callAI(msgs, undefined, undefined, currentSettings, MODEL, groq);
+            return extractTextContent(res.choices?.[0]?.message?.content ?? "");
+        },
+        reviewFindings: (findings) => sendToRenderer("review-findings", {findings}),
     });
 
     await startSession().catch((e) => console.error("[startSession]", e.message));

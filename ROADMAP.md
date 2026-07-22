@@ -2,7 +2,7 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
-**Snapshot:** 352 tools · 8 AI providers · 16 skins · 5 languages · 647 tests (53 files)
+**Snapshot:** 353 tools · 8 AI providers · 16 skins · 5 languages · 656 tests (54 files)
 _The version number has a single source of truth: `package.json` (enforced in CI by `scripts/check-version.mjs`)._
 
 **Phases 1–63 are complete**, including the Reliability Release (53–61) and public-release hardening. This file lists what's open first, then a compact history of what shipped.
@@ -157,3 +157,4 @@ Closing the gap with Claude Code's software-engineering toolset. See [CLAUDE_COD
 | CC-5 | File-based persistent memory (Claude-Code memory parity): human-readable markdown notes under `~/.aegis/memory/` with frontmatter (name/description/type: user/feedback/project/reference) + a `MEMORY.md` index loaded into the system prompt each session. Tools: `remember_note` (dedupe-by-slug update), `recall_note`, `list_notes_md`, `forget_note`. MemoryModal shows a Notes section. New `memory-files.ts` (pure fs, unit-tested). |
 | CC-4 | Skill / prompt packages (Claude-Code skills parity): packaged instruction sets under `~/.aegis/skills/<name>/SKILL.md` (frontmatter name/description + body). A skill activates on `/name` or a description-keyword match and its instructions are injected into the system prompt for that turn. Three example skills seeded on first run (commit-yaz/test-yaz/refactor). `list_skills` tool + a Skills list in Settings → Tools (i18n ×5). New `skills.ts`. |
 | CC-6 | Subagent delegation (`spawn_subagent`, Claude-Code subagent parity): runs an isolated `runAgentLoop` (its own single-message history, capturing send, `isSubAgent:true`) and returns the final text to the caller. Recursion guard: a subagent cannot spawn another (depth 1). Loop-guard + destructive budget still apply inside. `spawnSubAgent` host hook + `runSubAgent` in main.ts. |
+| CC-7 | Code review (`review_changes`, Claude-Code /code-review parity): diffs the working tree (or staged, or against a base branch), sends it to the model, and parses the reply into structured `{file, line, severity, summary}` findings sorted most-severe first. Results show in the feed and in a dismissible `ReviewPanel` overlay grouped by severity. New `code-review.ts` (pure prompt+parse, unit-tested) + `reviewDiff`/`reviewFindings` host hooks. |

@@ -12,6 +12,7 @@ import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFil
 import {addFact, addFactReconciled, searchMemory, listFacts, removeFact, listHabits} from "./memory-plus";
 import {rememberFile, recallMemory, listMemoriesText, forgetFile} from "./memory-files";
 import {listSkillsText} from "./skills";
+import {buildReviewPrompt, parseFindings, formatFindings, type Finding} from "./code-review";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
@@ -127,6 +128,10 @@ export interface ToolHostContext {
     todoUpdate: (steps: {text: string; status: string}[]) => void;
     /** spawn_subagent tool (Faz CC-6) → run an isolated agent loop, return its final text */
     spawnSubAgent: (task: string) => Promise<string>;
+    /** review_changes tool (Faz CC-7) → send a review prompt to the model, return raw reply */
+    reviewDiff: (prompt: string) => Promise<string>;
+    /** review_changes tool (Faz CC-7) → push structured findings to the renderer panel */
+    reviewFindings: (findings: Finding[]) => void;
 }
 
 export function initToolHost(ctx: ToolHostContext): void {
@@ -141,10 +146,14 @@ export function initToolHost(ctx: ToolHostContext): void {
     _reloadPluginsCallback = ctx.reloadPlugins;
     _todoUpdateCallback = ctx.todoUpdate;
     _spawnSubAgentCallback = ctx.spawnSubAgent;
+    _reviewDiffCallback = ctx.reviewDiff;
+    _reviewFindingsCallback = ctx.reviewFindings;
 }
 
 let _todoUpdateCallback: ((steps: {text: string; status: string}[]) => void) | null = null;
 let _spawnSubAgentCallback: ((task: string) => Promise<string>) | null = null;
+let _reviewDiffCallback: ((prompt: string) => Promise<string>) | null = null;
+let _reviewFindingsCallback: ((findings: Finding[]) => void) | null = null;
 // Faz CC-6 — recursion guard: a subagent may not spawn another subagent (depth 1).
 let _subAgentDepth = 0;
 export function _setSubAgentDepth(n: number): void { _subAgentDepth = n; } // test hook
@@ -319,7 +328,7 @@ const TOOL_GROUPS: {schemas: () => ChatCompletionTool[]; roots: string[]}[] = [
     {schemas: () => agentSchemas,       roots: ["ajan", "agent", "otonom"]},
     {schemas: () => watchSchemas,       roots: ["izle", "watch", "uyar", "alert", "esik", "threshold", "takip"]},
     {schemas: () => soundSchemas,       roots: ["bip", "beep", "calar"]},
-    {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon", "push", "pull", "branch", "merge", "stash", "diff", "staged", "unstaged", "remote", "checkout"]},
+    {schemas: () => codeToolSchemas,    roots: ["kod", "code", "git", "npm", "derle", "compile", "lint", "repo", "commit", "fonksiyon", "push", "pull", "branch", "merge", "stash", "diff", "staged", "unstaged", "remote", "checkout", "incele", "review", "gozden", "degisiklik", "bug"]},
     {schemas: () => timeSchemas,        roots: ["saat", "tarih", "zaman", "time", "takvim", "calendar", "timezone", "hafta", "pomodoro", "mola"]},
     {schemas: () => mediaSchemas,       roots: ["resim", "resm", "gorsel", "image", "video", "medya", "media", "foto", "donustur", "convert", "kirp"]},
     {schemas: () => personaSchemas,     roots: ["kisilik", "persona", "karakter"]},
@@ -1158,6 +1167,24 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
         const filePart = file ? `-- "${path.resolve(resolvePath(file))}"` : "";
         const out = await run(`git -C "${cwd}" diff ${flag} --stat ${filePart}`);
         return out || "(no changes)";
+    },
+    // Faz CC-7 — review the working-tree diff with the model, return structured findings.
+    async review_changes({repo_path, staged, base}) {
+        const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
+        let cmd: string;
+        if (base) cmd = `git -C "${cwd}" diff ${JSON.stringify(String(base))}...`;
+        else if (String(staged) === "true") cmd = `git -C "${cwd}" diff --cached`;
+        else cmd = `git -C "${cwd}" diff`;
+        const diff = await run(cmd, 30000);
+        if (diff.startsWith("ERROR")) return diff;
+        if (!diff.trim() || diff === "(no output, command ran)") return "No changes to review.";
+        // Cap the diff so a huge changeset doesn't blow the model context.
+        const clipped = diff.length > 24000 ? diff.slice(0, 24000) + "\n…(diff truncated for review)" : diff;
+        if (!_reviewDiffCallback) return "ERROR: review model callback is not registered.";
+        const reply = await _reviewDiffCallback(buildReviewPrompt(clipped));
+        const findings = parseFindings(reply);
+        _reviewFindingsCallback?.(findings); // let the UI render a structured panel
+        return formatFindings(findings);
     },
     async git_add({repo_path, files}) {
         const cwd = repo_path ? path.resolve(resolvePath(repo_path)) : process.cwd();
