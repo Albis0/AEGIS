@@ -21,8 +21,24 @@ export function parseFacts(raw: string): Fact[] {
     }).filter(Boolean) as Fact[];
 }
 
+// Faz CC-5 — file-memory notes. list_notes_md returns "• [type] name: description".
+export interface NoteMem {
+    name: string;
+    type: string;
+    description: string;
+}
+export function parseNotes(raw: string): NoteMem[] {
+    if (!raw || raw.includes("No file memories")) return [];
+    return raw.split("\n").map((line) => {
+        const m = line.match(/^•\s*\[([^\]]+)\]\s*([^:]+):\s*(.*)$/);
+        if (!m) return null;
+        return {type: m[1].trim(), name: m[2].trim(), description: m[3].trim()};
+    }).filter(Boolean) as NoteMem[];
+}
+
 export default function MemoryModal({open, onClose, accent}: {open: boolean; onClose: () => void; accent: string}) {
     const [facts, setFacts] = useState<Fact[]>([]);
+    const [notes, setNotes] = useState<NoteMem[]>([]);
     const [query, setQuery] = useState("");
     const [searchResult, setSearchResult] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -30,8 +46,12 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const raw = await window.jarvis.runTool("list_facts");
-            setFacts(parseFacts(raw));
+            const [rawFacts, rawNotes] = await Promise.all([
+                window.jarvis.runTool("list_facts"),
+                window.jarvis.runTool("list_notes_md"),
+            ]);
+            setFacts(parseFacts(rawFacts));
+            setNotes(parseNotes(rawNotes));
         } finally {
             setLoading(false);
         }
@@ -55,6 +75,11 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
 
     const forget = async (id: string) => {
         await window.jarvis.runTool("forget_fact", {id_or_content: id});
+        void load();
+    };
+
+    const forgetNote = async (name: string) => {
+        await window.jarvis.runTool("forget_note", {name});
         void load();
     };
 
@@ -140,6 +165,32 @@ export default function MemoryModal({open, onClose, accent}: {open: boolean; onC
                             </button>
                         </div>
                     ))}
+
+                    {/* Faz CC-5 — file-memory notes (persistent markdown notes) */}
+                    {notes.length > 0 && (
+                        <>
+                            <div className="text-[9px] tracking-[0.2em] py-1 pt-3 sticky top-0" style={{color: `rgba(${accent},0.45)`, background: "var(--bg-deep, #060a12)"}}>
+                                NOTLAR · {notes.length}
+                            </div>
+                            {notes.map((n) => (
+                                <div key={n.name} className="flex items-start gap-2 px-3 py-2 rounded-lg group"
+                                    style={{background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.1)`}}>
+                                    <span className="flex-1 text-[12px] leading-snug" style={{color: `rgba(${accent},0.9)`}}>
+                                        <span className="text-[8px] tracking-wider px-1 py-0.5 rounded mr-1.5 align-middle" style={{background: `rgba(${accent},0.12)`, color: `rgba(${accent},0.6)`}}>{n.type.toUpperCase()}</span>
+                                        {n.description || n.name}
+                                    </span>
+                                    <button
+                                        onClick={() => forgetNote(n.name)}
+                                        title="Bu notu sil"
+                                        className="opacity-0 group-hover:opacity-100 transition grid place-items-center w-4 h-4 rounded hover:text-red-400 shrink-0 mt-0.5"
+                                        style={{color: `rgba(${accent},0.5)`}}
+                                    >
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Zm3-3h6l1 2H8l1-2Z" opacity="0.9"/></svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </>
+                    )}
                 </div>
             </div>
         </div>

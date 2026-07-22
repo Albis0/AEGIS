@@ -649,6 +649,61 @@ export const memoryPlusSchemas: ChatCompletionTool[] = [
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
+    // Faz CC-5 — file-based persistent memory (human-readable markdown notes + index).
+    // Distinct from remember_fact (quick DB facts): use these for durable, browsable
+    // notes about the user, their feedback/preferences, ongoing projects, or references.
+    {
+        type: "function",
+        function: {
+            name: "remember_note",
+            description: "Save a durable, human-readable memory as a markdown file the user can browse and edit. Prefer this over remember_fact for anything worth keeping across sessions: who the user is, their preferences/feedback, ongoing projects, or reference links. Updates an existing note with the same title instead of duplicating.",
+            parameters: {
+                type: "object",
+                properties: {
+                    fact:        {type: "string", description: "The thing to remember (can be multi-line)"},
+                    type:        {type: "string", enum: ["user", "feedback", "project", "reference"], description: "user=who they are, feedback=how to work with them, project=ongoing work, reference=external links/resources"},
+                    title:       {type: "string", description: "Optional short title (becomes the filename slug)"},
+                    description: {type: "string", description: "Optional one-line summary shown in the index"},
+                },
+                required: ["fact"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "recall_note",
+            description: "Read the full detail of a saved file-memory by name. Use when the session index mentions a memory and you need its full text.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Memory name/title (partial match is fine)"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_notes_md",
+            description: "List all file-memories (markdown notes) with their type and summary.",
+            parameters: {type: "object", properties: {}, additionalProperties: false},
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "forget_note",
+            description: "Delete a file-memory (markdown note) by name.",
+            parameters: {
+                type: "object",
+                properties: {name: {type: "string", description: "Memory name/title to delete (partial match)"}},
+                required: ["name"],
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 export const knowledgeSchemas: ChatCompletionTool[] = [

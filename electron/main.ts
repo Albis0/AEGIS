@@ -14,6 +14,7 @@ import {pushToCloud, pullFromCloud} from "./cloud-sync";
 import {addMacroStep, isRecording} from "./macros";
 import {recordingName as routineRecordingName} from "./routines";
 import {getFactsForContext, shouldShowMorningSummary, markMorningSummaryShown, buildMorningSummaryPrompt, autoLearnFromMessage, getProactiveSuggestion} from "./memory-plus";
+import {getMemoryIndexForContext} from "./memory-files";
 import {initVault} from "./vault";
 import {startScheduler, stopScheduler, registerSchedulerCallback} from "./scheduler";
 import {checkAutomations} from "./automations";
@@ -699,7 +700,7 @@ async function runAgent(history: {role: string; content: string | MsgPart[]}[], 
     const routineNote = routineRecordingName()
         ? `\n\nROUTINE RECORDING ACTIVE: "${routineRecordingName()}". Apply the user's commands with tools as normal — your actions are being recorded automatically. If the user says "stop/end recording", call routine_record_stop.`
         : "";
-    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + stmBuildPromptBlock() + routineNote;
+    const systemContent = getSystemPrompt(currentSettings.language ?? "tr", currentSettings.fullPcAccess ?? false) + profileNote + memorySummaries + getFactsForContext() + getMemoryIndexForContext() + stmBuildPromptBlock() + routineNote;
     const send = (channel: string, payload: object) => {
         sendToRenderer(channel, {reqId, ...payload});
         if (channel === "chat-delta") broadcastFeedEvent("delta", payload);

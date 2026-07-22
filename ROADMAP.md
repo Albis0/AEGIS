@@ -2,7 +2,7 @@
 
 > A Windows-native AI assistant. It listens, thinks, and acts.
 
-**Snapshot:** 346 tools · 8 AI providers · 16 skins · 5 languages · 625 tests (50 files)
+**Snapshot:** 350 tools · 8 AI providers · 16 skins · 5 languages · 635 tests (51 files)
 _The version number has a single source of truth: `package.json` (enforced in CI by `scripts/check-version.mjs`)._
 
 **Phases 1–63 are complete**, including the Reliability Release (53–61) and public-release hardening. This file lists what's open first, then a compact history of what shipped.
@@ -154,3 +154,4 @@ Closing the gap with Claude Code's software-engineering toolset. See [CLAUDE_COD
 | CC-1 | Code-aware file tools: `glob_files` (name-pattern search, `**`/`{a,b}`), `grep_content` (regex content search, file:line), `edit_file` (exact-string replace with uniqueness check). `edit_file` is behind the destructive approval gate; all three honor the home-dir sandbox when Full PC Access is off. |
 | CC-2 | Safe general-purpose shell (`run_shell`): explicit `cwd`, configurable timeout (2 min default / 10 min cap), background/detached mode with completion notification, 30k output clip. Strips `ELECTRON_RUN_AS_NODE` from the child env. Approval-gated (dangerous commands and background jobs classify destructive). New `shell-runner.ts`. |
 | CC-3 | Live plan / todo tracking (`plan_todo` tool, Claude-Code TodoWrite parity): the model publishes an ordered step list with pending/in_progress/done status; a skin-independent `TodoPanel` overlay renders it live and clears on the next turn. i18n ×5. New `todo-update` IPC event + `todoUpdate` host hook. |
+| CC-5 | File-based persistent memory (Claude-Code memory parity): human-readable markdown notes under `~/.aegis/memory/` with frontmatter (name/description/type: user/feedback/project/reference) + a `MEMORY.md` index loaded into the system prompt each session. Tools: `remember_note` (dedupe-by-slug update), `recall_note`, `list_notes_md`, `forget_note`. MemoryModal shows a Notes section. New `memory-files.ts` (pure fs, unit-tested). |

@@ -10,6 +10,7 @@ import * as routines from "./routines";
 import {addAutomation, listAutomations, removeAutomation, toggleAutomation} from "./automations";
 import {indexFile, indexFolder, searchKnowledge, readFileForChat, listIndexedFiles, removeFromIndex} from "./knowledge";
 import {addFact, addFactReconciled, searchMemory, listFacts, removeFact, listHabits} from "./memory-plus";
+import {rememberFile, recallMemory, listMemoriesText, forgetFile} from "./memory-files";
 import {vaultStore, vaultList, vaultDelete, privacyAudit, clearOldData} from "./vault";
 import {pluginSearch, pluginInstall, pluginRemove} from "./plugin-manager";
 import {playSound, ambientStart, ambientStop, listSounds} from "./sound-player";
@@ -163,6 +164,7 @@ export const WIDGET_SAFE_TOOLS: ReadonlySet<string> = new Set([
     "list_plugins", "plugin_search",
     // MemoryModal
     "list_facts", "search_memory", "forget_fact",
+    "list_notes_md", "recall_note", "forget_note",
     // PomodoroWidget
     "pomodoro_status", "pomodoro_stop",
     // SmartHomeWidget
@@ -1050,6 +1052,19 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     },
     async list_habits() {
         return listHabits();
+    },
+    // Faz CC-5 — file-based persistent memory (markdown notes + MEMORY.md index).
+    async remember_note({fact, type, title, description}) {
+        return rememberFile({fact: String(fact ?? ""), type: type ? String(type) : undefined, title: title ? String(title) : undefined, description: description ? String(description) : undefined});
+    },
+    async recall_note({name}) {
+        return recallMemory(String(name ?? ""));
+    },
+    async list_notes_md() {
+        return listMemoriesText();
+    },
+    async forget_note({name}) {
+        return forgetFile(String(name ?? ""));
     },
 
     async vault_store({key, value}) {
