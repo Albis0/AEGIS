@@ -13,6 +13,7 @@ import type {FeedItem, Attachment} from "./types/feed";
 import {updateReducer, type UpdateState, type UpdateEvent} from "./update-state";
 import {splitSentences, cleanForTts, TTS_MAX_CHARS} from "./tts-stream";
 import ModuleDock, {type HomeModule} from "./components/modules/ModuleDock";
+import TodoPanel from "./components/TodoPanel";
 
 type MsgPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}; name?: string} | {type: "file"; data: string; name: string; mime: string};
 type LLMMsg = {role: "user" | "assistant"; content: string | MsgPart[]};
@@ -72,6 +73,7 @@ export default function App() {
         "cpu", "ram", "disk", "battery", "network", "gpu", "fans", "processes", "system", "activeWindow",
     ]);
     const [homeModules, setHomeModules] = useState<HomeModule[]>([]);
+    const [todoReset, setTodoReset] = useState(0); // Faz CC-3 — bump clears the live plan on a new turn
 
     useEffect(() => {
         void window.jarvis.settingsGet().then((s) => {
@@ -200,6 +202,7 @@ export default function App() {
         setFeed((prev) => [...prev, {id: uid(), kind: "user", text: text.trim()}, {id: aId, kind: "assistant", text: "", tools: []}]);
         setStreaming(true);
         setState("thinking");
+        setTodoReset((n) => n + 1); // clear any previous plan when a new turn begins
         window.jarvis.sendChat(historyRef.current, reqId);
     }, []);
 
@@ -233,6 +236,7 @@ export default function App() {
         ]);
         setStreaming(true);
         setState("thinking");
+        setTodoReset((n) => n + 1);
         window.jarvis.sendChat(historyRef.current, reqId);
     }, []);
 
@@ -513,6 +517,11 @@ export default function App() {
                 lang={lang}
             />
             {(() => { const SkinComp = getSkinComp(skin); return <SkinComp {...skinProps} />; })()}
+            <div className="fixed top-16 right-4 z-40 w-[clamp(200px,20vw,280px)] pointer-events-none">
+                <div className="pointer-events-auto">
+                    <TodoPanel t={t} reset={todoReset} />
+                </div>
+            </div>
             <ModuleDock
                 modules={homeModules}
                 lang={lang}

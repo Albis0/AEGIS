@@ -988,6 +988,7 @@ async function bootApp(): Promise<void> {
             }
         },
         reloadPlugins: async () => activatePlugins(),
+        todoUpdate: (steps) => sendToRenderer("todo-update", {steps}),
     });
 
     await startSession().catch((e) => console.error("[startSession]", e.message));

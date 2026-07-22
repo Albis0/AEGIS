@@ -380,6 +380,34 @@ export const toolSchemas: ChatCompletionTool[] = [
             parameters: {type: "object", properties: {}, additionalProperties: false},
         },
     },
+    // Faz CC-3 — task planning / live todo tracking (Claude-Code TodoWrite parity).
+    {
+        type: "function",
+        function: {
+            name: "plan_todo",
+            description: "For a multi-step task (roughly 3+ steps), publish a live plan the user can watch. Call it once at the start with all steps 'pending', then call it again after each step to flip that step to 'done' (and the next to 'in_progress'). Skip it for simple one-shot requests.",
+            parameters: {
+                type: "object",
+                properties: {
+                    steps: {
+                        type: "array",
+                        description: "Ordered list of steps. Each: {text, status}. status = pending | in_progress | done.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                text: {type: "string", description: "Short description of the step"},
+                                status: {type: "string", enum: ["pending", "in_progress", "done"], description: "Current status"},
+                            },
+                            required: ["text", "status"],
+                            additionalProperties: false,
+                        },
+                    },
+                },
+                required: ["steps"],
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 export const schedulerSchemas: ChatCompletionTool[] = [

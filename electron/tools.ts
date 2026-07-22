@@ -121,6 +121,8 @@ export interface ToolHostContext {
     runMacro: (steps: string[]) => void;
     /** plugin_reload tool */
     reloadPlugins: () => Promise<string>;
+    /** plan_todo tool (Faz CC-3) → push a live plan/progress list to the renderer */
+    todoUpdate: (steps: {text: string; status: string}[]) => void;
 }
 
 export function initToolHost(ctx: ToolHostContext): void {
@@ -133,7 +135,10 @@ export function initToolHost(ctx: ToolHostContext): void {
     _agentCallback = ctx.runAgent;
     _macroRunCallback = ctx.runMacro;
     _reloadPluginsCallback = ctx.reloadPlugins;
+    _todoUpdateCallback = ctx.todoUpdate;
 }
+
+let _todoUpdateCallback: ((steps: {text: string; status: string}[]) => void) | null = null;
 
 let _fullPcAccess = false;
 export function setFullPcAccess(enabled: boolean): void { _fullPcAccess = enabled; }
@@ -797,6 +802,27 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async reload_plugins() {
         if (!_reloadPluginsCallback) return "ERROR: Plugin reload callback is not registered.";
         return await _reloadPluginsCallback();
+    },
+    // Faz CC-3 — publish a live plan/todo list to the renderer. steps arrives as an
+    // array (from JSON.parse), not a string — coerce defensively and clamp to 20.
+    async plan_todo(args: Record<string, unknown>) {
+        const raw = Array.isArray(args.steps) ? args.steps : [];
+        const VALID = new Set(["pending", "in_progress", "done"]);
+        const steps = raw
+            .map((s) => {
+                const o = (s && typeof s === "object") ? s as Record<string, unknown> : {};
+                const status = String(o.status ?? "pending");
+                return {text: String(o.text ?? "").trim(), status: VALID.has(status) ? status : "pending"};
+            })
+            .filter((s) => s.text.length > 0)
+            .slice(0, 20);
+        if (steps.length === 0) return "ERROR: plan_todo needs at least one step with text.";
+        _todoUpdateCallback?.(steps);
+        const done = steps.filter((s) => s.status === "done").length;
+        return `Plan updated (${done}/${steps.length} done):\n${steps.map((s) => {
+            const mark = s.status === "done" ? "[x]" : s.status === "in_progress" ? "[~]" : "[ ]";
+            return `${mark} ${s.text}`;
+        }).join("\n")}`;
     },
     async web_search({query}) {
         // Fallback chain: Tavily → Serper → DuckDuckGo
