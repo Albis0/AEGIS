@@ -2,6 +2,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import type Groq from "groq-sdk";
 import {getAllToolSchemas} from "./tools";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
+import {fitRequest} from "./context-budget";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchWithTimeout, isTimeoutError, timeoutMsg} from "./fetch-utils";
 import {bt} from "./backend-i18n";
@@ -356,14 +357,24 @@ export async function callAI(
     }
     messages = stripImagesIfNeeded(messages, caps);
     messages = mergeSystemIfNeeded(messages, caps);
-    messages = trimToBudget(messages, caps, maxTok);
 
-    const activeSchemas: ReturnType<typeof getAllToolSchemas> = lockedSchemas ?? (() => {
+    // Pick the candidate tool schemas FIRST (relevance-ordered), THEN fit the whole
+    // request — system + history + tools + images — into the model's real window.
+    // (The old order trimmed history before tools existed, so the ~8-15k tokens of
+    // tool schemas were never counted → 413 "message too long" on small-window models.)
+    const rawSchemas: ReturnType<typeof getAllToolSchemas> = lockedSchemas ?? (() => {
         if (!caps.supportsTools) return [];
         const lastUserMsg = [...messages].reverse().find((mm) => mm.role === "user");
         const toolContext = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
         return getAllToolSchemas(effectiveProvider, toolContext);
     })();
+
+    const fitted = fitRequest(messages, rawSchemas, caps, maxTok);
+    messages = fitted.messages;
+    const activeSchemas = fitted.tools;
+    if (fitted.trimmed.toolsDropped > 0 || fitted.trimmed.historyDropped > 0) {
+        console.warn(`[budget] ${effectiveProvider}/${model}: dropped ${fitted.trimmed.toolsDropped} tools, ${fitted.trimmed.historyDropped} msgs to fit window`);
+    }
 
     if (trialMode) {
         return callProxy(messages, activeSchemas, {model, temperature: sendTemp ?? temp, max_tokens: maxTok}, onDelta);
