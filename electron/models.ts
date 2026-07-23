@@ -4,6 +4,13 @@
 // caused 404s). Instead we fetch live from each provider's official "list
 // models" endpoint. Once an API key is entered, real, working models are
 // returned; no more made-up IDs.
+//
+// Each provider's raw list is also full of NOISE — legacy generations, dated
+// snapshots, preview/experimental variants, non-chat helpers. Showing all of
+// them makes the picker unusable ("which id actually works?"). So every provider
+// gets a "useful model" filter. Each filter degrades safely: if it ever empties
+// the list (provider renamed its line), we fall back to the unfiltered chat list
+// rather than showing an empty picker.
 
 import {fetchWithTimeout} from "./fetch-utils";
 
@@ -14,27 +21,66 @@ export interface LiveModel {
 
 // Filter out non-chat / unusable models (whisper, tts, embedding, guard, etc.)
 function isChatModel(id: string): boolean {
-    return !/whisper|tts|embed|guard|orpheus|moderation|rerank|dall-e|image|vision-only/i.test(id);
+    return !/whisper|tts|embed|guard|orpheus|moderation|rerank|dall-e|image|vision-only|ocr/i.test(id);
 }
 
-async function fetchOpenAICompat(baseUrl: string, key: string): Promise<LiveModel[]> {
-    const resp = await fetchWithTimeout(`${baseUrl}/models`, {headers: {Authorization: `Bearer ${key}`}}, 10_000);
-    if (!resp.ok) throw new Error(`${resp.status}`);
-    const data = await resp.json() as {data?: {id: string}[]};
-    return (data.data ?? []).map((m) => ({id: m.id})).filter((m) => isChatModel(m.id));
+/** Apply a "keep" filter but fall back to the full list if it removes everything. */
+function withFallback(all: LiveModel[], keep: (id: string) => boolean): LiveModel[] {
+    const filtered = all.filter((m) => keep(m.id));
+    return filtered.length > 0 ? filtered : all;
+}
+
+// ── Per-provider "useful model" filters ─────────────────────────────────────
+
+// OpenAI /models is huge: base davinci/babbage, gpt-3.5, dated -YYYY-MM-DD
+// snapshots, realtime/audio/transcribe/search variants. Keep the current chat
+// + reasoning lines, prefer the clean alias over a dated snapshot.
+function isUsefulOpenAIModel(id: string): boolean {
+    if (/gpt-3\.5|gpt-4-32k|davinci|babbage|instruct|realtime|-audio|transcribe|search-preview|computer-use/i.test(id)) return false;
+    if (/-\d{4}-\d{2}-\d{2}$/.test(id)) return false; // dated snapshot → prefer the alias
+    return /^(gpt-4o|gpt-4\.1|gpt-5|chatgpt-4o|o1|o3|o4)/i.test(id);
+}
+
+// xAI: drop the retired grok-2 / beta lines and dated snapshots; keep grok-3/4+.
+function isUsefulXaiModel(id: string): boolean {
+    if (/grok-2|grok-beta|grok-vision-beta/i.test(id)) return false;
+    if (/-\d{4}(-\d{2}-\d{2})?$/.test(id)) return false; // dated snapshot
+    return /grok/i.test(id);
+}
+
+// Mistral: drop embed/ocr helpers, the legacy tiny/medium lines, and dated
+// snapshots (…-2402, …-2411). Keeps the *-latest aliases + current families.
+function isUsefulMistralModel(id: string): boolean {
+    if (/-\d{4}$/.test(id)) return false; // dated snapshot (2402, 2411, 2405…)
+    if (/mistral-tiny|mistral-small-24|mistral-medium-23|mistral-large-24/i.test(id)) return false;
+    return true;
+}
+
+// Anthropic ids are always dated, so we don't drop dated — we just drop the
+// superseded claude-1/2 and the pre-3.5 claude-3 lines.
+function isUsefulAnthropicModel(id: string): boolean {
+    if (/claude-(1|2|instant)/i.test(id)) return false;
+    if (/claude-3-(haiku|opus|sonnet)/i.test(id)) return false; // superseded by 3.5/3.7
+    return /claude/i.test(id);
 }
 
 // Gemini's ListModels returns dozens of stale/preview/experimental variants
-// (1.0/1.5 legacy, dated -preview- snapshots, -exp-, -tuning, -8b, -thinking-exp…).
-// Showing all of them made the picker unusable (user couldn't tell which id works).
-// Keep only current, general-use chat models and drop the noise.
+// (1.0/1.5 legacy, dated -preview- snapshots, -exp-, -tuning, -thinking-exp…).
+// Keep only current, general-use chat models.
 function isUsefulGeminiModel(id: string): boolean {
-    // Legacy generations + non-chat helpers — gone.
     if (/gemini-1\.0|gemini-1\.5|gemini-pro-vision|aqa|embedding|imagen|learnlm/i.test(id)) return false;
-    // Dated experimental/preview snapshots (e.g. -preview-04-17, -exp-1206, -thinking-exp).
     if (/-(exp|preview|thinking|tuning)\b|-(exp|preview)-?\d/i.test(id)) return false;
-    // Keep the stable 2.x line (2.0 / 2.5 flash & pro, and any future 3.x).
     return /gemini-(2|3)\./i.test(id);
+}
+
+// ── Fetchers ─────────────────────────────────────────────────────────────────
+
+async function fetchOpenAICompat(baseUrl: string, key: string, keep?: (id: string) => boolean): Promise<LiveModel[]> {
+    const resp = await fetchWithTimeout(`${baseUrl}/models`, {headers: {Authorization: `Bearer ${key}`}}, 10_000);
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const data = await resp.json() as {data?: {id: string}[]};
+    const chat = (data.data ?? []).map((m) => ({id: m.id})).filter((m) => isChatModel(m.id));
+    return keep ? withFallback(chat, keep) : chat;
 }
 
 async function fetchGemini(key: string): Promise<LiveModel[]> {
@@ -42,20 +88,12 @@ async function fetchGemini(key: string): Promise<LiveModel[]> {
     const resp = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {headers: {"x-goog-api-key": key}}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string; displayName?: string; supportedGenerationMethods?: string[]}[]};
-    const models = (data.models ?? [])
+    const chat = (data.models ?? [])
         .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
         .map((m) => ({id: m.name.replace(/^models\//, ""), label: m.displayName}))
-        .filter((m) => isChatModel(m.id) && isUsefulGeminiModel(m.id));
-    // If the filter ever nukes everything (Google renames the line), fall back to
-    // the unfiltered chat list rather than showing an empty picker.
-    if (models.length === 0) {
-        return (data.models ?? [])
-            .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-            .map((m) => ({id: m.name.replace(/^models\//, ""), label: m.displayName}))
-            .filter((m) => isChatModel(m.id));
-    }
+        .filter((m) => isChatModel(m.id));
     // Newest first: 2.5 above 2.0, pro above flash.
-    return models.sort((a, b) => b.id.localeCompare(a.id));
+    return withFallback(chat, isUsefulGeminiModel).sort((a, b) => b.id.localeCompare(a.id));
 }
 
 async function fetchAnthropic(key: string): Promise<LiveModel[]> {
@@ -64,10 +102,13 @@ async function fetchAnthropic(key: string): Promise<LiveModel[]> {
     }, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {data?: {id: string; display_name?: string}[]};
-    return (data.data ?? []).map((m) => ({id: m.id, label: m.display_name}));
+    const all = (data.data ?? []).map((m) => ({id: m.id, label: m.display_name}));
+    // Newest first (ids are dated, so lexical desc ≈ newest).
+    return withFallback(all, isUsefulAnthropicModel).sort((a, b) => b.id.localeCompare(a.id));
 }
 
 async function fetchOllama(baseUrl: string): Promise<LiveModel[]> {
+    // Local models the user installed themselves — no filtering, show them all.
     const resp = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}/api/tags`, {}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const data = await resp.json() as {models?: {name: string}[]};
@@ -88,11 +129,13 @@ const GROQ_FALLBACK: LiveModel[] = [
 export async function fetchModels(provider: string, key: string, ollamaUrl?: string): Promise<LiveModel[]> {
     try {
         switch (provider) {
-            case "openai":   return await fetchOpenAICompat("https://api.openai.com/v1", key);
+            // Groq's live list is already curated by Groq — no extra filter (fallback on error).
             case "groq":     return await fetchOpenAICompat("https://api.groq.com/openai/v1", key);
-            case "xai":      return await fetchOpenAICompat("https://api.x.ai/v1", key);
+            case "openai":   return await fetchOpenAICompat("https://api.openai.com/v1", key, isUsefulOpenAIModel);
+            case "xai":      return await fetchOpenAICompat("https://api.x.ai/v1", key, isUsefulXaiModel);
+            case "mistral":  return await fetchOpenAICompat("https://api.mistral.ai/v1", key, isUsefulMistralModel);
+            // DeepSeek only exposes deepseek-chat / deepseek-reasoner — already clean.
             case "deepseek": return await fetchOpenAICompat("https://api.deepseek.com/v1", key);
-            case "mistral":  return await fetchOpenAICompat("https://api.mistral.ai/v1", key);
             case "gemini":   return await fetchGemini(key);
             case "anthropic":return await fetchAnthropic(key);
             case "ollama":   return await fetchOllama(ollamaUrl ?? "http://localhost:11434");
