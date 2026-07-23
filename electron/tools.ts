@@ -97,6 +97,11 @@ let _quitCallback: (() => void) | null = null;
 let _setLanguageCallback: ((lang: string) => void) | null = null;
 let _screenshotCallback: (() => Promise<{base64: string; width: number; height: number} | {error: string}>) | null = null;
 let _analyzeScreenCallback: ((base64: string, prompt: string) => Promise<string>) | null = null;
+// De-dupe the screenshot TOOL's double-call pattern (model often calls it twice in
+// one turn). Scoped to the tool only — computer-use uses _screenshotCallback directly
+// and must keep getting fresh captures, so it never hits this cache.
+let _lastScreenshotToolCall: {ts: number; question: string; desc: string} | null = null;
+const SCREENSHOT_TOOL_REUSE_MS = 4000;
 let _remindCallback: ((message: string) => void) | null = null;
 
 /**
@@ -772,9 +777,22 @@ const executors: Record<string, (args: Record<string, string>) => Promise<ToolRe
     async screenshot({question}) {
         if (!_screenshotCallback) return "ERROR: Screenshot callback is not registered.";
         if (!_analyzeScreenCallback) return "ERROR: Vision callback is not registered.";
+        const q = question ?? "";
+        // Same question re-asked within a few seconds → reuse the last description
+        // instead of capturing + analyzing again (no second "captured your screen"
+        // notice, no wasted vision call).
+        if (_lastScreenshotToolCall && _lastScreenshotToolCall.question === q &&
+            Date.now() - _lastScreenshotToolCall.ts < SCREENSHOT_TOOL_REUSE_MS) {
+            return _lastScreenshotToolCall.desc;
+        }
         const result = await _screenshotCallback();
         if ("error" in result) return `ERROR: ${result.error}`;
-        return await _analyzeScreenCallback(result.base64, question);
+        const raw = await _analyzeScreenCallback(result.base64, q);
+        // Defensive clip: the description enters the conversation history, so bound it
+        // so an unusually long vision reply can't bloat the next request's context.
+        const desc = raw.length > 2000 ? raw.slice(0, 2000) + "…" : raw;
+        _lastScreenshotToolCall = {ts: Date.now(), question: q, desc};
+        return desc;
     },
     async set_language({language}) {
         _setLanguageCallback?.(language);
