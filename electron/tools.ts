@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import type {ChatCompletionTool} from "groq-sdk/resources/chat/completions";
+import {type Bm25, type Bm25Doc} from "./bm25";
+import {buildGroupIndex, rankGroups} from "./tool-router";
 import {setUserProfile, getUserProfile, saveNote, getPendingNotes, markNoteDone} from "./db";
 import {toolScheduleTask, toolListScheduledTasks, toolCancelScheduledTask, toolToggleScheduledTask} from "./scheduler";
 import {startMacroRecording, stopMacroRecording, listMacros, deleteMacro, getMacroSteps} from "./macros";
@@ -408,6 +410,24 @@ function groupForTool(toolName: string): typeof TOOL_GROUPS[number] | null {
     return _toolGroupIndex.get(toolName) ?? null;
 }
 
+// BM25 index over the tool GROUPS — one document per group built from its roots +
+// tool names + descriptions. Used to RECOVER a domain group that the hand-kept
+// root lists missed (the "flaky tool selection" bug). Built once (groups are
+// static; plugin tools live in CORE/extraSchemas, not in TOOL_GROUPS). Uses the
+// same tokenizer as root matching so tokens align.
+let _groupBm25: Bm25 | null = null;
+function groupBm25(): Bm25 {
+    if (_groupBm25) return _groupBm25;
+    const docs: Bm25Doc[] = TOOL_GROUPS.map((g, i) => {
+        const schemas = g.schemas();
+        const names = schemas.map((t) => t.function?.name ?? "").join(" ");
+        const descs = schemas.map((t) => t.function?.description ?? "").join(" ");
+        return {id: String(i), tokens: tokenize(`${g.roots.join(" ")} ${names} ${descs}`)};
+    });
+    _groupBm25 = buildGroupIndex(docs);
+    return _groupBm25;
+}
+
 // Memoized version of the "all schemas" list (agent mode hot path). Invalidated
 // when extraSchemas (plugin) length changes → rebuilt fresh after a plugin reload.
 let _allSchemasCache: ChatCompletionTool[] | null = null;
@@ -478,6 +498,19 @@ export function getAllToolSchemas(provider?: string, context?: string): ChatComp
             if (lastTool) {
                 const stickyGroup = groupForTool(lastTool);
                 if (stickyGroup && !matchedGroups.includes(stickyGroup)) matchedGroups.push(stickyGroup);
+            }
+            // HYBRID RECOVERY: the hand-kept root lists miss phrasings whose words
+            // don't start with a listed root → the domain tool was silently not
+            // offered. When roots found NO domain group, ask BM25 (roots + tool names
+            // + descriptions) to recover it. Gated on matchedGroups being empty so it
+            // never perturbs a working root match — purely additive, so it cannot
+            // regress the offer-eval (which only checks the expected tool IS offered).
+            if (matchedGroups.length === 0) {
+                const bm = rankGroups(groupBm25(), words, {minScore: 1.5, maxGroups: 2});
+                for (const id of bm.ids) {
+                    const g = TOOL_GROUPS[Number(id)];
+                    if (g && !matchedGroups.includes(g)) matchedGroups.push(g);
+                }
             }
             // Order: matched group tools (the user's actual domain — FULLY preserved,
             // never trimmed) → PRIORITY core (set_volume/fetch_url/remind_in/
