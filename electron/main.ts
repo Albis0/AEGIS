@@ -864,7 +864,12 @@ async function bootApp(): Promise<void> {
 
             const source = sources[0];
             if (!source) return {error: "Screen source not found."};
-            const base64 = source.thumbnail.toDataURL().replace(/^data:image\/png;base64,/, "");
+            // Send JPEG, not PNG. A 1280px desktop PNG is ~2-4 MB in base64 — which as a
+            // vision message blows past the model's context ("message too long"). JPEG at
+            // quality 70 is ~10x smaller and describes just as well. (The bug-report path
+            // already did this; the vision path was still shipping raw PNG.)
+            const jpeg = source.thumbnail.toJPEG(70);
+            const base64 = jpeg.toString("base64");
             return {base64, width, height};
         } catch (e) {
             return {error: (e as Error).message ?? String(e)};
@@ -876,15 +881,14 @@ async function bootApp(): Promise<void> {
     ipcMain.handle("report-capture", async (): Promise<{ok: boolean; dataUrl?: string; error?: string}> => {
         const shot = await captureScreen();
         if ("error" in shot) return {ok: false, error: shot.error};
-        const img = nativeImage.createFromDataURL(`data:image/png;base64,${shot.base64}`);
-        const jpeg = img.toJPEG(70);
-        return {ok: true, dataUrl: `data:image/jpeg;base64,${jpeg.toString("base64")}`};
+        // captureScreen already returns JPEG base64 now — reuse it directly.
+        return {ok: true, dataUrl: `data:image/jpeg;base64,${shot.base64}`};
     });
 
     const analyzeScreenWithModel = async (base64: string, prompt: string): Promise<string> => {
         const provider = currentSettings.aiProvider;
         const key = getProviderKey(provider, currentSettings);
-        const imgUrl = `data:image/png;base64,${base64}`;
+        const imgUrl = `data:image/jpeg;base64,${base64}`;
 
         // ── Trial mode (proxy) — if there's no own Groq key, use your proxy ──
         const ownGroqKey = (currentSettings.providerKeys?.groq ?? "").trim();
@@ -908,7 +912,7 @@ async function bootApp(): Promise<void> {
                 messages: [{
                     role: "user",
                     content: [
-                        {type: "image", source: {type: "base64", media_type: "image/png", data: base64}},
+                        {type: "image", source: {type: "base64", media_type: "image/jpeg", data: base64}},
                         {type: "text", text: prompt},
                     ],
                 }],
@@ -927,7 +931,7 @@ async function bootApp(): Promise<void> {
         if (provider === "gemini" && key) {
             const body = {
                 contents: [{role: "user", parts: [
-                    {inline_data: {mime_type: "image/png", data: base64}},
+                    {inline_data: {mime_type: "image/jpeg", data: base64}},
                     {text: prompt},
                 ]}],
                 generationConfig: {maxOutputTokens: 1024},

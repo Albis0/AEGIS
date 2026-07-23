@@ -303,7 +303,7 @@ export const toolSchemas: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "screenshot",
-            description: "Take a screenshot of the screen and analyze it. Use for questions like 'what's on my screen?', 'what is this error?', 'analyze the screen'. Specify what to ask about via the question parameter.",
+            description: "Take a screenshot of the screen AND analyze it in ONE call — it returns the full description directly. Call it exactly ONCE per request; do NOT call it again to 'look closer'. Use for 'what's on my screen?', 'what is this error?', 'analyze the screen'. Put what to look for in the question parameter.",
             parameters: {
                 type: "object",
                 properties: {
