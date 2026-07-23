@@ -293,7 +293,16 @@ export default function App() {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "F11") { e.preventDefault(); window.jarvis.fullscreen(); }
-            if (e.key === "Escape") { stopSpeaking(); setState(modeRef.current !== "off" ? "listening" : "idle"); }
+            if (e.key === "Escape") {
+                // Barge-in: stop the sentence playing NOW and drop every sentence still
+                // queued (prefetch). Without clearing the queue, stopSpeaking() only cut
+                // the current sentence and drainTtsQueue() resumed from the next one.
+                stopSpeaking();
+                ttsQueueRef.current = [];
+                ttsPlayingRef.current = false;
+                ttsOnAllEndRef.current = null;
+                setState(modeRef.current !== "off" ? "listening" : "idle");
+            }
             if (e.ctrlKey && e.key === "l") { e.preventDefault(); focusInput(); return; }
             if (e.ctrlKey && e.key === " ") { e.preventDefault(); if (!isBusyRef.current) setPaletteOpen(true); return; }
             if (e.key === "m" || e.key === "M") {

@@ -144,6 +144,7 @@ _Done since the last revision: Gmail & Google Calendar OAuth (7.3 — bring-your
 | — | Public release prep: history secret scan, RLS hardening for legacy tables, README/CONTRIBUTING/CoC, issue/PR templates, Playwright README screenshots |
 | — | UX hardening: taint boundary over computer-use input, destructive budget per run, friendly auth errors, SmartScreen docs |
 | — | Error report system: user bug-report form (Settings → About) + AI auto-reports with dedupe/caps, offline queue, insert-only RLS table |
+| — | Manual-test bugfix pass: barge-in now clears the whole TTS sentence queue on ESC (was resuming from the next queued sentence); Gemini model picker filters stale/preview/experimental variants to current 2.x+ chat models; Kokoro disk verification accepts split `.onnx_data` weights + 500 KB floor; ElevenLabs surfaces a clear "key missing" error instead of silently falling back to Edge; F11 now cycles windowed → borderless → fullscreen |
 
 ### Claude Code Parity (CC)
 

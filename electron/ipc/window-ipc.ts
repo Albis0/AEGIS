@@ -27,10 +27,26 @@ export function registerWindowIpc(deps: WindowIpcDeps): void {
             getMainWindow()?.close();
         }
     });
+    // Display cycle: windowed → borderless (fills the screen like a second monitor,
+    // keeps the OS taskbar-free feel) → true fullscreen → back to windowed. Requested
+    // so users can pick the fit they want instead of a single on/off fullscreen.
     ipcMain.on("win-fullscreen", () => {
         const w = getMainWindow();
         if (!w) return;
-        w.setFullScreen(!w.isFullScreen());
+        if (w.isFullScreen()) {
+            // fullscreen → windowed
+            w.setFullScreen(false);
+            w.unmaximize();
+            sendToRenderer("display-mode", {mode: "windowed"});
+        } else if (w.isMaximized()) {
+            // borderless (maximized) → true fullscreen
+            w.setFullScreen(true);
+            sendToRenderer("display-mode", {mode: "fullscreen"});
+        } else {
+            // windowed → borderless (maximized, no window chrome since frame:false)
+            w.maximize();
+            sendToRenderer("display-mode", {mode: "borderless"});
+        }
     });
     ipcMain.on("win-maximize", () => {
         const w = getMainWindow();

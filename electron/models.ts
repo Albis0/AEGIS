@@ -24,15 +24,38 @@ async function fetchOpenAICompat(baseUrl: string, key: string): Promise<LiveMode
     return (data.data ?? []).map((m) => ({id: m.id})).filter((m) => isChatModel(m.id));
 }
 
+// Gemini's ListModels returns dozens of stale/preview/experimental variants
+// (1.0/1.5 legacy, dated -preview- snapshots, -exp-, -tuning, -8b, -thinking-exp…).
+// Showing all of them made the picker unusable (user couldn't tell which id works).
+// Keep only current, general-use chat models and drop the noise.
+function isUsefulGeminiModel(id: string): boolean {
+    // Legacy generations + non-chat helpers — gone.
+    if (/gemini-1\.0|gemini-1\.5|gemini-pro-vision|aqa|embedding|imagen|learnlm/i.test(id)) return false;
+    // Dated experimental/preview snapshots (e.g. -preview-04-17, -exp-1206, -thinking-exp).
+    if (/-(exp|preview|thinking|tuning)\b|-(exp|preview)-?\d/i.test(id)) return false;
+    // Keep the stable 2.x line (2.0 / 2.5 flash & pro, and any future 3.x).
+    return /gemini-(2|3)\./i.test(id);
+}
+
 async function fetchGemini(key: string): Promise<LiveModel[]> {
     // Key in the header instead of a query param — won't leak to logs/proxies (consistent with ai-client).
     const resp = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {headers: {"x-goog-api-key": key}}, 10_000);
     if (!resp.ok) throw new Error(`${resp.status}`);
-    const data = await resp.json() as {models?: {name: string; supportedGenerationMethods?: string[]}[]};
-    return (data.models ?? [])
+    const data = await resp.json() as {models?: {name: string; displayName?: string; supportedGenerationMethods?: string[]}[]};
+    const models = (data.models ?? [])
         .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-        .map((m) => ({id: m.name.replace(/^models\//, "")}))
-        .filter((m) => isChatModel(m.id));
+        .map((m) => ({id: m.name.replace(/^models\//, ""), label: m.displayName}))
+        .filter((m) => isChatModel(m.id) && isUsefulGeminiModel(m.id));
+    // If the filter ever nukes everything (Google renames the line), fall back to
+    // the unfiltered chat list rather than showing an empty picker.
+    if (models.length === 0) {
+        return (data.models ?? [])
+            .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+            .map((m) => ({id: m.name.replace(/^models\//, ""), label: m.displayName}))
+            .filter((m) => isChatModel(m.id));
+    }
+    // Newest first: 2.5 above 2.0, pro above flash.
+    return models.sort((a, b) => b.id.localeCompare(a.id));
 }
 
 async function fetchAnthropic(key: string): Promise<LiveModel[]> {

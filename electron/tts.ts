@@ -104,11 +104,19 @@ export function isKokoroInstalled(): boolean {
 function hasOnnxWeight(dir: string): boolean {
     let found = false;
     const walk = (d: string, depth: number) => {
-        if (found || depth > 5) return;
+        if (found || depth > 6) return;
         for (const e of fs.readdirSync(d, {withFileTypes: true})) {
             const full = path.join(d, e.name);
-            if (e.isDirectory()) walk(full, depth + 1);
-            else if (e.name.endsWith(".onnx") && fs.statSync(full).size > 1_000_000) { found = true; return; }
+            if (e.isDirectory()) { walk(full, depth + 1); continue; }
+            // Accept any sizable model weight file. The q8 build lands as
+            // model_quantized.onnx; some transformers versions split weights into a
+            // companion .onnx_data blob and keep the .onnx graph small — so match
+            // either extension and use a 500 KB floor (a real weight file clears it,
+            // a truncated/partial download does not).
+            const isWeight = e.name.endsWith(".onnx") || e.name.endsWith(".onnx_data");
+            if (isWeight) {
+                try { if (fs.statSync(full).size > 500_000) { found = true; return; } } catch { /* ignore */ }
+            }
         }
     };
     try { walk(dir, 0); } catch { /* ignore */ }
@@ -179,7 +187,13 @@ export async function generateTts(text: string, opts: TtsOptions): Promise<Buffe
         return float32ToWav(compressSilence(pcm, sr), sr);
     }
 
-    if (opts.provider === "elevenlabs" && opts.elevenlabsKey) {
+    if (opts.provider === "elevenlabs") {
+        // Don't silently fall through to Edge when ElevenLabs is the chosen engine but
+        // the key is missing — that made it look like "ElevenLabs isn't working" when
+        // really the key never reached here. Surface the real reason instead.
+        if (!opts.elevenlabsKey) {
+            throw new Error("ElevenLabs API key is missing. Add it under Settings → API Keys.");
+        }
         const voiceId = opts.voice.startsWith("el:") ? opts.voice.slice(3) : "cgSgspJ2msm6clMCkdW9";
         const speed = Math.max(0.7, Math.min(1.2, opts.rate));
         const resp = await fetchWithTimeout(
