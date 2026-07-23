@@ -437,7 +437,10 @@ export default function App() {
     }, [setMode]);
 
     useEffect(() => {
-        return window.jarvis.on("chat-stream-inject", ({command}: {command: string}) => {
+        return window.jarvis.on("chat-stream-inject", (payload: {command?: string} | null) => {
+            // Destructuring a null/undefined payload throws "Cannot read properties of
+            // null (reading 'command')" — guard the whole payload, not just the field.
+            const command = payload?.command;
             if (command?.trim()) sendText(command.trim());
         });
     }, [sendText]);

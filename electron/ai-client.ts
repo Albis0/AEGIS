@@ -371,12 +371,16 @@ export async function callAI(
 
     // ── Groq ──────────────────────────────────────────────────────────────────
     if (provider === "groq") {
+        // model-capabilities can guess supportsTools:true for a model Groq actually
+        // rejects with 400 "tool calling is not supported". When that happens we drop
+        // the tools and retry tool-free instead of surfacing the error to the user.
+        let sendSchemas = activeSchemas;
         for (let attempt = 0; attempt < 2; attempt++) {
             try {
                 const stream = await groq.chat.completions.create({
                     model,
                     messages: messages as ChatCompletionMessageParam[],
-                    ...(activeSchemas.length > 0 ? {tools: activeSchemas} : {}),
+                    ...(sendSchemas.length > 0 ? {tools: sendSchemas} : {}),
                     stream: true,
                     ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
                     max_tokens: maxTok,
@@ -412,9 +416,15 @@ export async function callAI(
                         : undefined,
                 }}]};
             } catch (e) {
-                const errObj = e as {status?: number};
+                const errObj = e as {status?: number; message?: string};
                 if (errObj?.status === 429 && attempt === 0) {
                     await new Promise((r) => setTimeout(r, 3000));
+                    continue;
+                }
+                // Model doesn't support tool calling → retry once without tools.
+                const msg = String(errObj?.message ?? e);
+                if (/tool.?call/i.test(msg) && /not support/i.test(msg) && sendSchemas.length > 0 && attempt === 0) {
+                    sendSchemas = [];
                     continue;
                 }
                 throw new Error(friendlyGroqError(e), {cause: e});
