@@ -13,6 +13,7 @@ import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
 import {reportCorruptedFile} from "./corrupted-file-tracker";
+import {tokenize} from "./bm25";
 
 const INDEX_DIR = path.join(os.homedir(), ".aegis", "index");
 const CHUNK_SIZE = 800;
@@ -56,10 +57,6 @@ function saveMeta(meta: IndexMeta[]): void {
 
 function fileHash(content: string): string {
     return crypto.createHash("sha256").update(content).digest("hex").slice(0, 16);
-}
-
-function tokenize(text: string): string[] {
-    return text.toLowerCase().replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
 }
 
 function chunkText(text: string, source: string): Chunk[] {
