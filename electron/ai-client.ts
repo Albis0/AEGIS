@@ -1,8 +1,8 @@
 import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completions";
 import type Groq from "groq-sdk";
-import {getAllToolSchemas} from "./tools";
+import {getAllToolSchemas, findToolSchemaByName} from "./tools";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
-import {fitRequest, keepEssential, truncateContents} from "./context-budget";
+import {fitRequest, keepEssential, truncateContents, referencedToolNames, dropDanglingToolCalls, stripAllToolCalls} from "./context-budget";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchWithTimeout, isTimeoutError, timeoutMsg} from "./fetch-utils";
 import {bt} from "./backend-i18n";
@@ -279,7 +279,7 @@ export async function callProxy(
         // Reactive shrink+retry (mirror of the Groq path) before surfacing the error.
         // Safe to recurse: the stream hasn't been consumed yet. Depth ≤ 3.
         if (shrinkStage === 0 && tools.length > 0) {
-            return callProxy(messages, [], opts, onDelta, 1);
+            return callProxy(stripAllToolCalls(messages), [], opts, onDelta, 1);
         }
         if (shrinkStage <= 1) {
             const essential = keepEssential(messages);
@@ -387,7 +387,27 @@ export async function callAI(
 
     const fitted = fitRequest(messages, rawSchemas, caps, maxTok);
     messages = fitted.messages;
-    const activeSchemas = fitted.tools;
+    let activeSchemas = fitted.tools;
+
+    // Tool ↔ history consistency: providers reject a request whose messages reference
+    // a tool that isn't in request.tools (model called a tool that got trimmed, or
+    // hallucinated a name). Add back any referenced tool we can find in the full
+    // registry; strip the tool_calls we CAN'T provide so no dangling reference remains.
+    const referenced = referencedToolNames(messages);
+    if (referenced.size > 0) {
+        const present = new Set(activeSchemas.map((t) => t.function?.name));
+        const missing: string[] = [];
+        for (const name of referenced) {
+            if (present.has(name)) continue;
+            const schema = findToolSchemaByName(name);
+            if (schema) { activeSchemas = [...activeSchemas, schema]; present.add(name); }
+            else missing.push(name);
+        }
+        if (missing.length > 0) {
+            messages = dropDanglingToolCalls(messages, new Set(missing));
+            console.warn(`[budget] stripped ${missing.length} dangling tool_call(s) not in registry: ${missing.join(", ")}`);
+        }
+    }
     // Always log the token breakdown — this is the ground truth for diagnosing
     // "message too long": model, its registry window, and what we're actually sending.
     console.warn(`[budget] ${effectiveProvider}/${model} win=${caps.contextWindow} maxOut=${maxTok} estIn=${fitted.estTotal} tools=${activeSchemas.length} msgs=${messages.length}` +
@@ -454,6 +474,7 @@ export async function callAI(
                 const msg = String(errObj?.message ?? e);
                 if (/tool.?call/i.test(msg) && /not support/i.test(msg) && sendSchemas.length > 0 && attempt === 0) {
                     sendSchemas = [];
+                    sendMessages = stripAllToolCalls(sendMessages); // no tools → no dangling tool_calls
                     continue;
                 }
                 // REACTIVE OVERFLOW RECOVERY — the registry's context window was too
@@ -466,6 +487,7 @@ export async function callAI(
                     if (sendSchemas.length > 0) {
                         console.warn(`[budget] Groq too-long → dropping ${sendSchemas.length} tools, retrying`);
                         sendSchemas = [];
+                        sendMessages = stripAllToolCalls(sendMessages); // no tools → no dangling tool_calls
                         continue;
                     }
                     const essential = keepEssential(sendMessages);

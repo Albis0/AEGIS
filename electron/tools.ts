@@ -448,6 +448,14 @@ function getAllSchemasMemo(): ChatCompletionTool[] {
     return _allSchemasCache;
 }
 
+// Look up a single tool schema by name across the FULL (unsliced) registry.
+// Used to satisfy Groq's "tool referenced in history must be in request.tools"
+// rule — a tool the model called earlier may have been trimmed out of the current
+// context-scoped selection.
+export function findToolSchemaByName(name: string): ChatCompletionTool | null {
+    return getAllSchemasMemo().find((t) => t.function?.name === name) ?? null;
+}
+
 // Dedupe by name (the same tool can come from multiple groups).
 function dedupeByName(tools: ChatCompletionTool[]): ChatCompletionTool[] {
     const seen = new Set<string>();

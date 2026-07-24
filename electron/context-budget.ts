@@ -161,6 +161,73 @@ export function keepEssential(messages: OAIMessage[]): OAIMessage[] {
     return lastUser ? [...sys, lastUser] : [...sys];
 }
 
+// ── Tool ↔ history consistency ───────────────────────────────────────────────
+// Groq (and others) reject a request whose messages contain a tool_call for a tool
+// NOT present in request.tools ("attempted to call tool X which was not in
+// request.tools"). This happens when the model calls a tool that then gets trimmed,
+// reactively dropped, or was hallucinated. These helpers keep the invariant.
+
+interface ToolCallRef {id?: string; function?: {name?: string}}
+
+/** Every tool name referenced by an assistant tool_call anywhere in the messages. */
+export function referencedToolNames(messages: OAIMessage[]): Set<string> {
+    const names = new Set<string>();
+    for (const m of messages) {
+        for (const tc of (m.tool_calls ?? []) as ToolCallRef[]) {
+            const n = tc.function?.name;
+            if (n) names.add(n);
+        }
+    }
+    return names;
+}
+
+/**
+ * Remove tool_calls whose tool name is in `drop` (e.g. hallucinated / unavailable),
+ * and any tool-result message answering a removed call — so no dangling reference
+ * remains. An assistant turn left with no tool_calls keeps its text (or a placeholder).
+ */
+export function dropDanglingToolCalls(messages: OAIMessage[], drop: Set<string>): OAIMessage[] {
+    if (drop.size === 0) return messages;
+    const removedIds = new Set<string>();
+    const out: OAIMessage[] = [];
+    for (const m of messages) {
+        if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+            const kept = (m.tool_calls as ToolCallRef[]).filter((tc) => {
+                const rm = tc.function?.name != null && drop.has(tc.function.name);
+                if (rm && tc.id) removedIds.add(tc.id);
+                return !rm;
+            });
+            if (kept.length > 0) {
+                out.push({...m, tool_calls: kept});
+            } else {
+                const {tool_calls, ...rest} = m;
+                void tool_calls;
+                out.push({...rest, content: typeof m.content === "string" && m.content ? m.content : "[tool call omitted]"});
+            }
+            continue;
+        }
+        if (m.role === "tool" && m.tool_call_id && removedIds.has(m.tool_call_id)) continue; // drop orphaned result
+        out.push(m);
+    }
+    return out;
+}
+
+/** Strip ALL tool_calls + tool results — used when a request must be sent with zero tools. */
+export function stripAllToolCalls(messages: OAIMessage[]): OAIMessage[] {
+    const out: OAIMessage[] = [];
+    for (const m of messages) {
+        if (m.role === "tool") continue;
+        if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+            const {tool_calls, ...rest} = m;
+            void tool_calls;
+            out.push({...rest, content: typeof m.content === "string" && m.content ? m.content : "[tool call omitted]"});
+            continue;
+        }
+        out.push(m);
+    }
+    return out;
+}
+
 /** Stage 2 of retry-shrink: hard-cap each message's text (last-ditch). */
 export function truncateContents(messages: OAIMessage[], maxChars: number): OAIMessage[] {
     return messages.map((m) => {

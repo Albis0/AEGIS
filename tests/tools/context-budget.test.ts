@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest";
-import {fitRequest, estimateToolTokens, keepEssential, truncateContents} from "../../electron/context-budget";
+import {fitRequest, estimateToolTokens, keepEssential, truncateContents, referencedToolNames, dropDanglingToolCalls, stripAllToolCalls} from "../../electron/context-budget";
 import type {ModelCaps} from "../../electron/model-capabilities";
 import {estimateTokens} from "../../electron/model-capabilities";
 import type {OAIMessage} from "../../electron/ai-client";
@@ -133,6 +133,39 @@ describe("truncateContents", () => {
         const r = truncateContents(msgs, 100);
         const part = (r[0].content as {type: string; text: string}[])[0];
         expect(part.text.length).toBeLessThanOrEqual(102);
+    });
+});
+
+describe("tool ↔ history consistency", () => {
+    const withCall = (name: string, id = "c1"): OAIMessage => ({role: "assistant", content: "", tool_calls: [{id, type: "function", function: {name, arguments: "{}"}}]} as OAIMessage);
+    const toolResult = (id: string): OAIMessage => ({role: "tool", content: "result", tool_call_id: id});
+
+    it("referencedToolNames collects every called tool", () => {
+        const msgs = [sys("s"), user("q"), withCall("spotify_play"), toolResult("c1"), user("more"), withCall("steam_launch", "c2")];
+        expect(referencedToolNames(msgs)).toEqual(new Set(["spotify_play", "steam_launch"]));
+    });
+
+    it("dropDanglingToolCalls removes the named call + its orphaned result", () => {
+        const msgs = [sys("s"), user("q"), withCall("ghost_tool", "c9"), toolResult("c9"), user("next")];
+        const out = dropDanglingToolCalls(msgs, new Set(["ghost_tool"]));
+        expect(referencedToolNames(out).size).toBe(0);
+        // the orphaned tool result is gone too
+        expect(out.some((m) => m.role === "tool")).toBe(false);
+        // assistant turn survives as text (no dangling tool_calls)
+        expect(out.some((m) => m.role === "assistant" && !m.tool_calls)).toBe(true);
+    });
+
+    it("dropDanglingToolCalls keeps calls that are NOT in the drop set", () => {
+        const msgs = [withCall("keep_me", "c1")];
+        const out = dropDanglingToolCalls(msgs, new Set(["other"]));
+        expect(referencedToolNames(out)).toEqual(new Set(["keep_me"]));
+    });
+
+    it("stripAllToolCalls removes every tool_call and tool result", () => {
+        const msgs = [sys("s"), user("q"), withCall("a", "c1"), toolResult("c1"), user("b")];
+        const out = stripAllToolCalls(msgs);
+        expect(referencedToolNames(out).size).toBe(0);
+        expect(out.some((m) => m.role === "tool")).toBe(false);
     });
 });
 
