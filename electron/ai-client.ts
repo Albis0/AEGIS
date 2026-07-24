@@ -2,7 +2,7 @@ import type {ChatCompletionMessageParam} from "groq-sdk/resources/chat/completio
 import type Groq from "groq-sdk";
 import {getAllToolSchemas} from "./tools";
 import {getModelCapabilities, clampMaxTokens, resolveTemperature, estimateTokens, type ModelCaps} from "./model-capabilities";
-import {fitRequest} from "./context-budget";
+import {fitRequest, keepEssential, truncateContents} from "./context-budget";
 import {AEGIS_PROXY_URL} from "./aegis-config";
 import {fetchWithTimeout, isTimeoutError, timeoutMsg} from "./fetch-utils";
 import {bt} from "./backend-i18n";
@@ -223,6 +223,7 @@ export async function callProxy(
     tools: ReturnType<typeof getAllToolSchemas>,
     opts: {model: string; temperature: number; max_tokens: number},
     onDelta?: (text: string) => void,
+    shrinkStage = 0,
 ): Promise<OAICompletion> {
     const token = await getAccessToken();
     if (!token) throw new Error(bt("proxySignin"));
@@ -274,7 +275,22 @@ export async function callProxy(
         (err2 as Error & {isLimit?: boolean}).isLimit = true;
         throw err2;
     }
-    if (resp.status === 413) throw new Error(bt("proxy413"));
+    if (resp.status === 413) {
+        // Reactive shrink+retry (mirror of the Groq path) before surfacing the error.
+        // Safe to recurse: the stream hasn't been consumed yet. Depth ≤ 3.
+        if (shrinkStage === 0 && tools.length > 0) {
+            return callProxy(messages, [], opts, onDelta, 1);
+        }
+        if (shrinkStage <= 1) {
+            const essential = keepEssential(messages);
+            if (essential.length < messages.length) return callProxy(essential, [], opts, onDelta, 2);
+        }
+        if (shrinkStage <= 2) {
+            const truncated = truncateContents(messages, 4000);
+            if (JSON.stringify(truncated) !== JSON.stringify(messages)) return callProxy(truncated, [], opts, onDelta, 3);
+        }
+        throw new Error(bt("proxy413"));
+    }
     if (resp.status === 401) throw new Error(bt("proxy401"));
     if (!resp.ok || !resp.body) {
         const errText = await resp.text().catch(() => "");
@@ -372,9 +388,10 @@ export async function callAI(
     const fitted = fitRequest(messages, rawSchemas, caps, maxTok);
     messages = fitted.messages;
     const activeSchemas = fitted.tools;
-    if (fitted.trimmed.toolsDropped > 0 || fitted.trimmed.historyDropped > 0) {
-        console.warn(`[budget] ${effectiveProvider}/${model}: dropped ${fitted.trimmed.toolsDropped} tools, ${fitted.trimmed.historyDropped} msgs to fit window`);
-    }
+    // Always log the token breakdown — this is the ground truth for diagnosing
+    // "message too long": model, its registry window, and what we're actually sending.
+    console.warn(`[budget] ${effectiveProvider}/${model} win=${caps.contextWindow} maxOut=${maxTok} estIn=${fitted.estTotal} tools=${activeSchemas.length} msgs=${messages.length}` +
+        (fitted.trimmed.toolsDropped || fitted.trimmed.historyDropped ? ` (proactively dropped ${fitted.trimmed.toolsDropped}t/${fitted.trimmed.historyDropped}m)` : ""));
 
     if (trialMode) {
         return callProxy(messages, activeSchemas, {model, temperature: sendTemp ?? temp, max_tokens: maxTok}, onDelta);
@@ -386,11 +403,12 @@ export async function callAI(
         // rejects with 400 "tool calling is not supported". When that happens we drop
         // the tools and retry tool-free instead of surfacing the error to the user.
         let sendSchemas = activeSchemas;
-        for (let attempt = 0; attempt < 2; attempt++) {
+        let sendMessages = messages;
+        for (let attempt = 0; attempt < 4; attempt++) {
             try {
                 const stream = await groq.chat.completions.create({
                     model,
-                    messages: messages as ChatCompletionMessageParam[],
+                    messages: sendMessages as ChatCompletionMessageParam[],
                     ...(sendSchemas.length > 0 ? {tools: sendSchemas} : {}),
                     stream: true,
                     ...(sendTemp !== undefined ? {temperature: sendTemp} : {}),
@@ -437,6 +455,31 @@ export async function callAI(
                 if (/tool.?call/i.test(msg) && /not support/i.test(msg) && sendSchemas.length > 0 && attempt === 0) {
                     sendSchemas = [];
                     continue;
+                }
+                // REACTIVE OVERFLOW RECOVERY — the registry's context window was too
+                // optimistic (unknown/renamed model defaulting to 131k while its real
+                // limit is smaller). Groq is the source of truth here: escalate the
+                // shrink and retry so the user never sees "message too long".
+                const tooLong = errObj?.status === 413 ||
+                    /too large|too long|reduce your|context length|maximum context|context_length_exceeded/i.test(msg);
+                if (tooLong && attempt < 3) {
+                    if (sendSchemas.length > 0) {
+                        console.warn(`[budget] Groq too-long → dropping ${sendSchemas.length} tools, retrying`);
+                        sendSchemas = [];
+                        continue;
+                    }
+                    const essential = keepEssential(sendMessages);
+                    if (essential.length < sendMessages.length) {
+                        console.warn("[budget] Groq too-long → keeping system+last user only, retrying");
+                        sendMessages = essential;
+                        continue;
+                    }
+                    const truncated = truncateContents(sendMessages, 4000);
+                    if (JSON.stringify(truncated) !== JSON.stringify(sendMessages)) {
+                        console.warn("[budget] Groq too-long → truncating message contents, retrying");
+                        sendMessages = truncated;
+                        continue;
+                    }
                 }
                 throw new Error(friendlyGroqError(e), {cause: e});
             }

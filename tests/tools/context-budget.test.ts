@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest";
-import {fitRequest, estimateToolTokens} from "../../electron/context-budget";
+import {fitRequest, estimateToolTokens, keepEssential, truncateContents} from "../../electron/context-budget";
 import type {ModelCaps} from "../../electron/model-capabilities";
 import {estimateTokens} from "../../electron/model-capabilities";
 import type {OAIMessage} from "../../electron/ai-client";
@@ -106,6 +106,33 @@ describe("fitRequest — history trimming", () => {
             expect(first.role).not.toBe("tool");
             expect(!(first.role === "assistant" && (first as OAIMessage).tool_calls)).toBe(true);
         }
+    });
+});
+
+describe("keepEssential", () => {
+    it("keeps system + last user only, drops the middle", () => {
+        const msgs = [sys("s"), user("old"), asst("reply"), user("latest")];
+        const r = keepEssential(msgs);
+        expect(r.map((m) => m.content)).toEqual(["s", "latest"]);
+    });
+    it("works with no system message", () => {
+        const msgs = [user("a"), asst("b"), user("c")];
+        expect(keepEssential(msgs).map((m) => m.content)).toEqual(["c"]);
+    });
+});
+
+describe("truncateContents", () => {
+    it("hard-caps long string contents and leaves short ones", () => {
+        const msgs = [sys("x".repeat(9000)), user("short")];
+        const r = truncateContents(msgs, 4000);
+        expect((r[0].content as string).length).toBeLessThanOrEqual(4001 + 1);
+        expect(r[1].content).toBe("short");
+    });
+    it("truncates text parts inside array content", () => {
+        const msgs: OAIMessage[] = [{role: "user", content: [{type: "text", text: "y".repeat(9000)}]}];
+        const r = truncateContents(msgs, 100);
+        const part = (r[0].content as {type: string; text: string}[])[0];
+        expect(part.text.length).toBeLessThanOrEqual(102);
     });
 });
 

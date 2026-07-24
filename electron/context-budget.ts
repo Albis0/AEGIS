@@ -42,6 +42,8 @@ export interface FitResult {
     tools: ChatCompletionTool[];
     /** Diagnostics — how much was cut to make it fit. */
     trimmed: {toolsDropped: number; historyDropped: number};
+    /** Estimated input tokens actually being sent (system + history + tools). */
+    estTotal: number;
 }
 
 /** Tokens for one message's content (text + images + file blobs). */
@@ -133,6 +135,7 @@ export function fitRequest(
     if (kept.length === 0 && lastUser) kept.push(lastUser);
 
     const fitted = sysMsg ? [sysMsg, ...kept] : kept;
+    const estTotal = sysTokens + curToolTokens + kept.reduce((a, m) => a + contentTokens(m.content), 0);
     return {
         messages: fitted,
         tools: keptTools,
@@ -140,5 +143,35 @@ export function fitRequest(
             toolsDropped: tools.length - keptTools.length,
             historyDropped: body.length - kept.length,
         },
+        estTotal,
     };
+}
+
+// ── Reactive-retry shrink helpers ───────────────────────────────────────────
+// The proactive fit above relies on caps.contextWindow being ACCURATE. When a
+// provider still answers "message too long" (its real limit is smaller than the
+// registry guess — e.g. an unknown/renamed model defaulting to 131k), the caller
+// shrinks with these, truth-driven, and retries. This is what makes overflow
+// impossible to surface regardless of registry accuracy.
+
+/** Stage 1 of retry-shrink: keep only the system message + the last user message. */
+export function keepEssential(messages: OAIMessage[]): OAIMessage[] {
+    const sys = messages[0]?.role === "system" ? [messages[0]] : [];
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    return lastUser ? [...sys, lastUser] : [...sys];
+}
+
+/** Stage 2 of retry-shrink: hard-cap each message's text (last-ditch). */
+export function truncateContents(messages: OAIMessage[], maxChars: number): OAIMessage[] {
+    return messages.map((m) => {
+        if (typeof m.content === "string" && m.content.length > maxChars) {
+            return {...m, content: m.content.slice(0, maxChars) + "…"};
+        }
+        if (Array.isArray(m.content)) {
+            const parts = m.content.map((p) =>
+                p.type === "text" && p.text.length > maxChars ? {...p, text: p.text.slice(0, maxChars) + "…"} : p);
+            return {...m, content: parts};
+        }
+        return m;
+    });
 }
