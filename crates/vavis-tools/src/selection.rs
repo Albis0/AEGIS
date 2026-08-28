@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn turkish_suffixes_are_handled() {
-        let reg = big_registry();
+        let _reg = big_registry();
         // "dosyayı", "dosyada", "dosyalar" hepsi eşleşmeli.
         for msg in ["dosyayı oku", "dosyada ara", "dosyalarımı listele"] {
             let d = match_domains(msg);

@@ -48,23 +48,32 @@ impl Default for ModelCaps {
 
 impl ModelCaps {
     /// Model adından pencere tahmini. Bilinmeyende güvenli varsayılan.
+    ///
+    /// Tablo hâlinde: yeni model ailesi eklemek tek satır. Sıra önemli —
+    /// ilk eşleşen kazanır, o yüzden özel adlar genel olanlardan önce.
     pub fn for_model(model: &str) -> Self {
+        /// (model adında geçen parça, bağlam penceresi)
+        const WINDOWS: &[(&str, usize)] = &[
+            ("gemini", 1_000_000),
+            ("claude", 200_000),
+            ("gpt-4o", 128_000),
+            ("gpt-4.1", 128_000),
+            ("gpt-5", 128_000),
+            ("llama-3.3", 128_000),
+            ("llama-3.1", 128_000),
+            ("grok", 131_072),
+            ("deepseek", 64_000),
+            ("mistral", 32_000),
+        ];
+
         let m = model.to_ascii_lowercase();
-        let context_window = if m.contains("gemini") {
-            1_000_000
-        } else if m.contains("gpt-4o") || m.contains("gpt-4.1") || m.contains("gpt-5") {
-            128_000
-        } else if m.contains("llama-3.3") || m.contains("llama-3.1") {
-            128_000
-        } else if m.contains("deepseek") {
-            64_000
-        } else if m.contains("mistral") {
-            32_000
-        } else if m.contains("grok") {
-            131_072
-        } else {
-            8_192
-        };
+        let context_window = WINDOWS
+            .iter()
+            .find(|(name, _)| m.contains(name))
+            .map(|(_, window)| *window)
+            // Bilinmeyen model: küçük varsay. Fazla tahmin edip 413 almaktansa
+            // az tahmin edip geçmişi biraz fazla budamak yeğdir.
+            .unwrap_or(8_192);
         Self {
             context_window,
             max_output: 1_024.min(context_window / 4),

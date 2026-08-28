@@ -128,7 +128,7 @@ mod crypto {
     }
 
     pub fn encrypt(plain: &[u8]) -> Vec<u8> {
-        let mut input = DataBlob {
+        let input = DataBlob {
             cb_data: plain.len() as u32,
             pb_data: plain.as_ptr() as *mut u8,
         };
@@ -140,7 +140,7 @@ mod crypto {
         // SAFETY: her iki blob da geçerli; çıktı DPAPI tarafından doldurulur.
         let ok = unsafe {
             CryptProtectData(
-                &mut input,
+                &input,
                 std::ptr::null(),
                 std::ptr::null(),
                 std::ptr::null_mut(),
@@ -161,7 +161,7 @@ mod crypto {
         if sealed.is_empty() {
             return None;
         }
-        let mut input = DataBlob {
+        let input = DataBlob {
             cb_data: sealed.len() as u32,
             pb_data: sealed.as_ptr() as *mut u8,
         };
@@ -173,7 +173,7 @@ mod crypto {
         // SAFETY: giriş geçerli; başarısızlıkta çıktı blob'u dokunulmadan kalır.
         let ok = unsafe {
             CryptUnprotectData(
-                &mut input,
+                &input,
                 std::ptr::null_mut(),
                 std::ptr::null(),
                 std::ptr::null_mut(),

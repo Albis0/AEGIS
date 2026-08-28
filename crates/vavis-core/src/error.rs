@@ -16,11 +16,14 @@ pub enum CoreError {
         source: std::io::Error,
     },
 
+    /// `toml::de::Error` yüzlerce bayt — kutuya alınmazsa `CoreError`'ün
+    /// tamamı şişer ve **her** `Result<T>` o boyutu taşır. Hata nadir,
+    /// başarı sık: maliyeti hataya yüklüyoruz.
     #[error("ayar dosyası bozuk: {path}")]
     ConfigParse {
         path: PathBuf,
         #[source]
-        source: toml::de::Error,
+        source: Box<toml::de::Error>,
     },
 
     #[error("ayar dosyası yazılamadı: {path}")]

@@ -109,7 +109,6 @@ impl VoiceManager {
                     Err(e) => {
                         let _ = self.tx.send(VoiceEvent::Notice(format!("mikrofon açılamadı: {e}")));
                         self.mode = VoiceMode::Off;
-                        return;
                     }
                 }
             }

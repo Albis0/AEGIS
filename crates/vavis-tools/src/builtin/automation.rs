@@ -86,7 +86,7 @@ fn parse_clock(s: &str) -> Option<(u32, u32)> {
     let (head, tail) = s.split_at(separator);
 
     let hour: u32 = head.trim().parse().ok()?;
-    let minute: u32 = tail[1..].trim().split_whitespace().next()?.parse().ok()?;
+    let minute: u32 = tail[1..].split_whitespace().next()?.parse().ok()?;
 
     if hour > 23 || minute > 59 {
         return None;

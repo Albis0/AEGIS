@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
+#[derive(Default)]
 pub struct Config {
     pub general: General,
     pub ui: Ui,
@@ -76,15 +77,6 @@ impl Default for Ui {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: General::default(),
-            ui: Ui::default(),
-            llm: Llm::default(),
-        }
-    }
-}
 
 /// Pencere modu — string yerine tip. Geçersiz değer sessizce `Windowed` olur.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,7 +111,10 @@ impl Config {
             path: file.clone(),
             source,
         })?;
-        toml::from_str(&text).map_err(|source| CoreError::ConfigParse { path: file, source })
+        toml::from_str(&text).map_err(|source| CoreError::ConfigParse {
+            path: file,
+            source: Box::new(source),
+        })
     }
 
     /// Bozuk dosyada çökmek yerine: yedekle, uyar, varsayılanla devam et.

@@ -89,7 +89,7 @@ impl Tool for ListProcesses {
 
         // Bellek kullanımına göre sırala, ilk 10'u göster — tam liste
         // yüzlerce satır olur ve modelin bağlamını boğar.
-        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        rows.sort_by_key(|row| std::cmp::Reverse(row.1));
         rows.truncate(10);
 
         if rows.is_empty() {
