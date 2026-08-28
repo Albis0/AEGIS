@@ -104,3 +104,79 @@ async fn split_line_across_packets_is_buffered() {
 
     assert_eq!(full, "tam");
 }
+
+#[tokio::test]
+async fn tool_call_fragments_are_merged_across_chunks() {
+    // Sağlayıcılar tool çağrısını parçalara böler: ad bir parçada, argümanlar
+    // birkaç parçada. Birleştirme çalışmazsa argümanlar bozulur ve model
+    // "geçersiz JSON" hatası alır — eski projede yaşanan sorun buydu.
+    let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_abc\",\"function\":{\"name\":\"dosya_oku\",\"arguments\":\"\"}}]}}]}\n\
+                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"yol\\\":\"}}]}}]}\n\
+                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"~/test.txt\\\"}\"}}]}}]}\n\
+                data: [DONE]\n";
+    let port = spawn_sse_server(body);
+
+    let resp = BrainClient::new()
+        .chat_stream_with_tools(&config_for(port), vec![Message::user("dosyayı oku")], &[], |_| {})
+        .await
+        .unwrap();
+
+    assert_eq!(resp.tool_calls.len(), 1, "tek çağrı bekleniyordu");
+    let call = &resp.tool_calls[0];
+    assert_eq!(call.id, "call_abc");
+    assert_eq!(call.function.name, "dosya_oku");
+    assert_eq!(
+        call.function.arguments, r#"{"yol":"~/test.txt"}"#,
+        "argümanlar parçalardan doğru birleştirilmeli"
+    );
+}
+
+#[tokio::test]
+async fn multiple_parallel_tool_calls_stay_separate() {
+    // Model aynı anda iki tool isteyebilir; indeksler karışmamalı.
+    let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[\
+                  {\"index\":0,\"id\":\"a\",\"function\":{\"name\":\"simdiki_zaman\",\"arguments\":\"{}\"}},\
+                  {\"index\":1,\"id\":\"b\",\"function\":{\"name\":\"pil_durumu\",\"arguments\":\"{}\"}}]}}]}\n\
+                data: [DONE]\n";
+    let port = spawn_sse_server(body);
+
+    let resp = BrainClient::new()
+        .chat_stream_with_tools(&config_for(port), vec![Message::user("x")], &[], |_| {})
+        .await
+        .unwrap();
+
+    assert_eq!(resp.tool_calls.len(), 2);
+    assert_eq!(resp.tool_calls[0].function.name, "simdiki_zaman");
+    assert_eq!(resp.tool_calls[1].function.name, "pil_durumu");
+}
+
+#[tokio::test]
+async fn nameless_tool_call_is_discarded() {
+    // Adı gelmemiş çağrı çalıştırılamaz — modele hata döndürmek yerine at.
+    let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{}\"}}]}}]}\n\
+                data: [DONE]\n";
+    let port = spawn_sse_server(body);
+
+    let resp = BrainClient::new()
+        .chat_stream_with_tools(&config_for(port), vec![Message::user("x")], &[], |_| {})
+        .await
+        .unwrap();
+
+    assert!(resp.tool_calls.is_empty(), "adsız çağrı atılmalı");
+}
+
+#[tokio::test]
+async fn text_and_tool_calls_can_arrive_together() {
+    let body = "data: {\"choices\":[{\"delta\":{\"content\":\"Bakıyorum...\"}}]}\n\
+                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"sistem_durumu\",\"arguments\":\"{}\"}}]}}]}\n\
+                data: [DONE]\n";
+    let port = spawn_sse_server(body);
+
+    let resp = BrainClient::new()
+        .chat_stream_with_tools(&config_for(port), vec![Message::user("cpu?")], &[], |_| {})
+        .await
+        .unwrap();
+
+    assert_eq!(resp.text, "Bakıyorum...");
+    assert_eq!(resp.tool_calls.len(), 1);
+}

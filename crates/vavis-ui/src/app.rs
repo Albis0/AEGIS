@@ -11,6 +11,7 @@ use crate::feed::{Feed, Speaker};
 use crate::theme::Theme;
 use eframe::egui;
 use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
+use vavis_tools::{Agent, Approval, ApprovalReason};
 use vavis_core::{App as CoreApp, VERSION};
 
 pub struct VavisUi {
@@ -27,6 +28,17 @@ pub struct VavisUi {
     focus_input: bool,
     /// Cevap beklenirken gösterilecek animasyon karesi.
     spinner_frame: usize,
+    /// Kullanıcı onayı bekleyen tool (varsa).
+    pending_approval: Option<PendingApproval>,
+    /// Bu turda tool çalıştı mı — boş cevabın normal olup olmadığını belirler.
+    ran_tool_this_turn: bool,
+}
+
+#[derive(Clone)]
+struct PendingApproval {
+    tool: String,
+    args: String,
+    reason: ApprovalReason,
 }
 
 impl VavisUi {
@@ -34,7 +46,8 @@ impl VavisUi {
         Theme::apply(&cc.egui_ctx, core.config.ui.font_size);
 
         let keys = KeyStore::load(core.paths.root());
-        let bridge = Bridge::new().expect("tokio çalışma zamanı kurulamadı");
+        let agent = Agent::new(vavis_tools::default_registry());
+        let bridge = Bridge::new(agent).expect("tokio çalışma zamanı kurulamadı");
 
         let mut ui = Self {
             core,
@@ -46,6 +59,8 @@ impl VavisUi {
             show_health: false,
             focus_input: true,
             spinner_frame: 0,
+            pending_approval: None,
+            ran_tool_this_turn: false,
         };
         ui.greet();
         ui
@@ -148,7 +163,8 @@ impl VavisUi {
             return;
         }
 
-        self.history.push(Message::user(text));
+        self.history.push(Message::user(text.clone()));
+        self.ran_tool_this_turn = false;
 
         let cfg = ChatConfig::new(
             provider,
@@ -157,13 +173,18 @@ impl VavisUi {
         );
 
         // Sistem mesajı her istekte baştan üretilir — ayar değişirse anında yansır.
-        let mut messages = vec![Message::system(system_prompt(
+        let system = Message::system(system_prompt(
             &self.core.config.general.assistant_name,
             &self.core.config.general.language,
-        ))];
-        messages.extend(self.history.iter().cloned());
+        ));
 
-        self.bridge.send_chat(cfg, messages, Some(ctx.clone()));
+        self.bridge.send_chat(
+            cfg,
+            system,
+            self.history.clone(),
+            text,
+            Some(ctx.clone()),
+        );
     }
 
     fn set_key(&mut self, provider_name: &str, key: String) {
@@ -244,16 +265,39 @@ impl VavisUi {
         for event in self.bridge.drain() {
             match event {
                 UiEvent::Delta(text) => self.feed.push_delta(Speaker::Assistant, &text),
+
+                UiEvent::ToolStart { tool } => {
+                    self.feed.push(Speaker::Tool, format!("{tool}…"));
+                }
+
+                UiEvent::ToolDone { tool, ok, summary } => {
+                    let mark = if ok { "✓" } else { "✗" };
+                    // Çok satırlı çıktıyı tek satıra indir — feed dağılmasın.
+                    let flat = summary.replace('\n', " · ");
+                    self.feed
+                        .push(Speaker::Tool, format!("{tool} {mark} {flat}"));
+                }
+
+                UiEvent::ApprovalNeeded { tool, args, reason } => {
+                    self.pending_approval = Some(PendingApproval { tool, args, reason });
+                }
+
                 UiEvent::Complete(full) => {
                     if full.trim().is_empty() {
-                        self.feed
-                            .push(Speaker::Error, "model boş cevap döndü");
-                        // Boş cevabı geçmişe koyma — sonraki isteği bozar.
-                        self.history.retain(|m| m.role != Role::Assistant || !m.content.is_empty());
+                        // Tool çalıştıysa boş metin normaldir (model sadece
+                        // tool çağırıp susmuş olabilir) — hata gösterme.
+                        if !self.ran_tool_this_turn {
+                            self.feed.push(Speaker::Error, "model boş cevap döndü");
+                        }
+                        if self.history.last().map(|m| m.role) == Some(Role::User) {
+                            self.history.pop();
+                        }
                     } else {
                         self.history.push(Message::assistant(full));
                     }
+                    self.ran_tool_this_turn = false;
                 }
+
                 UiEvent::Failed(msg) => {
                     self.feed.push(Speaker::Error, msg);
                     // Cevapsız kalan kullanıcı mesajını geçmişten çıkar — aksi hâlde
@@ -261,7 +305,10 @@ impl VavisUi {
                     if self.history.last().map(|m| m.role) == Some(Role::User) {
                         self.history.pop();
                     }
+                    self.pending_approval = None;
+                    self.ran_tool_this_turn = false;
                 }
+
                 UiEvent::Models(models) => {
                     if models.is_empty() {
                         self.feed.push(Speaker::System, "model bulunamadı");
@@ -273,6 +320,61 @@ impl VavisUi {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// Onay diyaloğu — yıkıcı işlem öncesi.
+    ///
+    /// Diyalog açıkken ajan iş parçacığı bekliyor; UI donmuyor çünkü bekleyen
+    /// o thread, bu değil.
+    fn draw_approval(&mut self, ctx: &egui::Context) {
+        let Some(pending) = self.pending_approval.clone() else {
+            return;
+        };
+
+        let mut decision: Option<Approval> = None;
+
+        egui::Window::new("onay gerekiyor")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.colored_label(Theme::ERROR, format!("⚠ {}", pending.tool));
+                ui.add_space(4.0);
+
+                let why = match pending.reason {
+                    ApprovalReason::RiskLevel => "Bu işlem geri alınamaz.",
+                    ApprovalReason::BudgetExceeded => {
+                        "Bu çalıştırmada çok sayıda yıkıcı işlem yapıldı."
+                    }
+                };
+                ui.colored_label(Theme::FG_DIM, why);
+                ui.add_space(6.0);
+
+                // Argümanları göster — kullanıcı neye izin verdiğini bilmeli.
+                let args: String = pending.args.chars().take(300).collect();
+                ui.colored_label(Theme::FG, &args);
+                ui.add_space(10.0);
+
+                ui.horizontal(|ui| {
+                    if ui.button("İzin ver").clicked() {
+                        decision = Some(Approval::Allow);
+                    }
+                    if ui.button("Hep izin ver").clicked() {
+                        decision = Some(Approval::AllowAlways);
+                    }
+                    if ui.button("Reddet").clicked() {
+                        decision = Some(Approval::Deny);
+                    }
+                });
+            });
+
+        if let Some(approval) = decision {
+            self.bridge.send_approval(approval);
+            self.pending_approval = None;
+            if approval != Approval::Deny {
+                self.ran_tool_this_turn = true;
             }
         }
     }
@@ -293,6 +395,7 @@ impl VavisUi {
                         Speaker::Assistant => Theme::ASSISTANT,
                         Speaker::System => Theme::FG_DIM,
                         Speaker::Error => Theme::ERROR,
+                        Speaker::Tool => Theme::SYSTEM,
                     };
 
                     ui.horizontal_top(|ui| {
@@ -362,11 +465,12 @@ impl VavisUi {
                     .unwrap_or_else(|e| format!("hata: {e}"));
 
                 let keys = self.keys.configured().join(", ");
-                let rows: [(&str, String); 7] = [
+                let rows: [(&str, String); 8] = [
                     ("sürüm", VERSION.to_string()),
                     ("sağlayıcı", self.provider().to_string()),
                     ("model", self.model()),
                     ("anahtarlar", if keys.is_empty() { "yok".into() } else { keys }),
+                    ("tool sayısı", format!("{} kayıtlı · en fazla {} sunulur", self.bridge.tool_count(), vavis_tools::MAX_TOOLS)),
                     ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
                     ("veritabanı", format!("{msgs} mesaj")),
                     ("veri dizini", self.core.paths.root().display().to_string()),
@@ -407,6 +511,7 @@ impl eframe::App for VavisUi {
         self.pump_events();
         self.handle_shortcuts(ctx);
         self.draw_health(ctx);
+        self.draw_approval(ctx);
 
         // Cevap beklerken sürekli yeniden çiz — spinner dönsün.
         if self.bridge.is_busy() {

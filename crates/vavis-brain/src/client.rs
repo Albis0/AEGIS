@@ -41,6 +41,15 @@ pub enum StreamEvent {
     Done,
 }
 
+/// Bir sohbet turunun sonucu.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ChatResponse {
+    /// Modelin ürettiği metin.
+    pub text: String,
+    /// Modelin çalıştırılmasını istediği tool'lar (boş olabilir).
+    pub tool_calls: Vec<ToolCall>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ChatConfig {
     pub provider: Provider,
@@ -105,8 +114,28 @@ impl BrainClient {
         &self,
         cfg: &ChatConfig,
         messages: Vec<Message>,
-        mut on_event: F,
+        on_event: F,
     ) -> Result<String>
+    where
+        F: FnMut(StreamEvent),
+    {
+        self.chat_stream_with_tools(cfg, messages, &[], on_event)
+            .await
+            .map(|r| r.text)
+    }
+
+    /// Tool'lu akan sohbet.
+    ///
+    /// Tool çağrıları akışta **parça parça** gelir (ad bir parçada, argümanlar
+    /// sonraki parçalarda) — burada indekse göre birleştirilir. Eski projede
+    /// bu birleştirme eksikti ve uzun argümanlar bozuluyordu.
+    pub async fn chat_stream_with_tools<F>(
+        &self,
+        cfg: &ChatConfig,
+        messages: Vec<Message>,
+        tools: &[serde_json::Value],
+        mut on_event: F,
+    ) -> Result<ChatResponse>
     where
         F: FnMut(StreamEvent),
     {
@@ -117,22 +146,34 @@ impl BrainClient {
         }
 
         let caps = ModelCaps::for_model(&cfg.model);
-        let fitted = fit_request(messages, 0, caps);
+
+        // Tool şemaları da bütçeye sayılır — 413'ün kök nedeni buydu.
+        let tool_tokens: usize = tools
+            .iter()
+            .map(|t| estimate_tokens(&t.to_string()))
+            .sum();
+
+        let fitted = fit_request(messages, tool_tokens, caps);
         if fitted.history_dropped > 0 {
             tracing::info!(
                 dropped = fitted.history_dropped,
                 est = fitted.est_tokens,
+                tool_tokens,
                 "geçmiş bütçeye sığdırıldı"
             );
         }
 
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "model": cfg.model,
             "messages": fitted.messages,
             "temperature": cfg.temperature,
             "max_tokens": caps.max_output,
             "stream": true,
         });
+        if !tools.is_empty() {
+            body["tools"] = serde_json::Value::Array(tools.to_vec());
+            body["tool_choice"] = serde_json::Value::String("auto".into());
+        }
 
         let mut req = self
             .http
@@ -155,6 +196,9 @@ impl BrainClient {
 
         let mut full = String::new();
         let mut buf = String::new();
+        // Tool çağrıları indekse göre biriktirilir: sağlayıcı adı bir parçada,
+        // argümanları sonraki parçalarda gönderir.
+        let mut pending: Vec<ToolCallBuilder> = Vec::new();
         let mut stream = resp.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
@@ -173,8 +217,15 @@ impl BrainClient {
                 let data = data.trim();
 
                 if data == "[DONE]" {
+                    let calls = finish_calls(pending);
+                    if !calls.is_empty() {
+                        on_event(StreamEvent::ToolCalls(calls.clone()));
+                    }
                     on_event(StreamEvent::Done);
-                    return Ok(full);
+                    return Ok(ChatResponse {
+                        text: full,
+                        tool_calls: calls,
+                    });
                 }
                 if data.is_empty() {
                     continue;
@@ -190,9 +241,7 @@ impl BrainClient {
                                 }
                             }
                             if let Some(calls) = choice.delta.tool_calls {
-                                on_event(StreamEvent::ToolCalls(
-                                    calls.into_iter().filter_map(|c| c.into_tool_call()).collect(),
-                                ));
+                                merge_tool_calls(&mut pending, calls);
                             }
                         }
                     }
@@ -202,8 +251,16 @@ impl BrainClient {
             }
         }
 
+        // [DONE] gelmeden akış bitti (bazı sağlayıcılar göndermiyor).
+        let calls = finish_calls(pending);
+        if !calls.is_empty() {
+            on_event(StreamEvent::ToolCalls(calls.clone()));
+        }
         on_event(StreamEvent::Done);
-        Ok(full)
+        Ok(ChatResponse {
+            text: full,
+            tool_calls: calls,
+        })
     }
 
     /// Canlı model listesi. Sağlayıcı gürültüsü süzülür.
@@ -291,10 +348,80 @@ struct Delta {
 
 #[derive(Deserialize)]
 struct PartialToolCall {
+    /// Hangi tool çağrısına ait olduğu — parçalar bununla birleştirilir.
+    #[serde(default)]
+    index: usize,
     #[serde(default)]
     id: Option<String>,
     #[serde(default)]
     function: Option<PartialFunction>,
+}
+
+/// Akış boyunca biriken tek bir tool çağrısı.
+#[derive(Default)]
+struct ToolCallBuilder {
+    index: usize,
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+/// Gelen parçaları mevcut çağrılara ekler.
+fn merge_tool_calls(pending: &mut Vec<ToolCallBuilder>, incoming: Vec<PartialToolCall>) {
+    for part in incoming {
+        let slot = match pending.iter_mut().find(|b| b.index == part.index) {
+            Some(existing) => existing,
+            None => {
+                pending.push(ToolCallBuilder {
+                    index: part.index,
+                    ..Default::default()
+                });
+                pending.last_mut().expect("az önce eklendi")
+            }
+        };
+
+        if let Some(id) = part.id {
+            if !id.is_empty() {
+                slot.id = id;
+            }
+        }
+        if let Some(f) = part.function {
+            if let Some(name) = f.name {
+                if !name.is_empty() {
+                    slot.name = name;
+                }
+            }
+            if let Some(args) = f.arguments {
+                // Argümanlar parça parça gelir — eklenerek birleştirilir.
+                slot.arguments.push_str(&args);
+            }
+        }
+    }
+}
+
+/// Biriken çağrıları tamamlanmış hâle getirir.
+fn finish_calls(pending: Vec<ToolCallBuilder>) -> Vec<ToolCall> {
+    pending
+        .into_iter()
+        // Adı olmayan çağrı kullanılamaz — sessizce at.
+        .filter(|b| !b.name.is_empty())
+        .map(|b| ToolCall {
+            id: if b.id.is_empty() {
+                format!("call_{}", b.index)
+            } else {
+                b.id
+            },
+            kind: "function".to_string(),
+            function: crate::message::FunctionCall {
+                name: b.name,
+                arguments: if b.arguments.trim().is_empty() {
+                    "{}".to_string()
+                } else {
+                    b.arguments
+                },
+            },
+        })
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -303,20 +430,6 @@ struct PartialFunction {
     name: Option<String>,
     #[serde(default)]
     arguments: Option<String>,
-}
-
-impl PartialToolCall {
-    fn into_tool_call(self) -> Option<ToolCall> {
-        let f = self.function?;
-        Some(ToolCall {
-            id: self.id.unwrap_or_default(),
-            kind: "function".to_string(),
-            function: crate::message::FunctionCall {
-                name: f.name.unwrap_or_default(),
-                arguments: f.arguments.unwrap_or_default(),
-            },
-        })
-    }
 }
 
 #[derive(Deserialize)]

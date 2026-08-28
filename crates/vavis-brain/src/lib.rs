@@ -14,7 +14,7 @@ pub mod provider;
 
 pub use budget::{estimate_tokens, fit_request, FitResult, ModelCaps};
 pub use client::{
-    system_prompt, BrainClient, BrainError, ChatConfig, Result, StreamEvent,
+    system_prompt, BrainClient, BrainError, ChatConfig, ChatResponse, Result, StreamEvent,
 };
 pub use keys::KeyStore;
 pub use message::{FunctionCall, Message, Role, ToolCall};

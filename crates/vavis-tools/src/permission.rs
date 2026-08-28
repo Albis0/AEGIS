@@ -1,0 +1,196 @@
+//! İzin kapısı — yıkıcı işlemler onaysız çalışmaz.
+//!
+//! Eski projeden taşınan iki fikir:
+//!
+//! 1. **Yıkıcı bütçe**: Tek bir çalıştırmada çok sayıda yıkıcı işlem yapılırsa
+//!    (8 farklı dosya silmek gibi), "hep izin ver" seçilmiş olsa bile sonrakiler
+//!    yeniden onay ister. Tekrar koruması (loop guard) tekrarı yakalar, **çeşidi**
+//!    yakalamaz — bu onu yakalar.
+//!
+//! 2. **Kalıcı izin**: Kullanıcı "bu tool'a hep izin ver" derse o oturum
+//!    boyunca sorulmaz — ama sadece `Moderate` için. `Destructive` her zaman sorar.
+
+use crate::tool::Risk;
+use std::collections::HashSet;
+
+/// Tek çalıştırmada onaysız geçebilecek yıkıcı işlem sayısı.
+pub const DESTRUCTIVE_BUDGET: usize = 3;
+
+/// Onay neden isteniyor?
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApprovalReason {
+    /// Tool'un kendi risk seviyesi. Kalıcı izin bunu susturabilir.
+    RiskLevel,
+    /// Bütçe aşıldı. Kalıcı izin **susturamaz**.
+    BudgetExceeded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Decision {
+    /// Sorulmadan çalıştır.
+    Allow,
+    /// Kullanıcıya sor.
+    Ask(ApprovalReason),
+}
+
+#[derive(Debug, Default)]
+pub struct PermissionGate {
+    /// "Hep izin ver" denen tool'lar (oturum boyunca).
+    granted: HashSet<String>,
+    /// Bu çalıştırmada kaç yıkıcı işlem yapıldı.
+    destructive_used: usize,
+}
+
+impl PermissionGate {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Yeni bir kullanıcı isteği başladı — yıkıcı bütçe sıfırlanır.
+    /// Kalıcı izinler **korunur** (oturum boyunca geçerli).
+    pub fn start_run(&mut self) {
+        self.destructive_used = 0;
+    }
+
+    /// Bu tool çalıştırılabilir mi?
+    pub fn check(&self, tool_name: &str, risk: Risk) -> Decision {
+        match risk {
+            Risk::Safe => Decision::Allow,
+
+            Risk::Moderate => {
+                if self.granted.contains(tool_name) {
+                    Decision::Allow
+                } else {
+                    Decision::Ask(ApprovalReason::RiskLevel)
+                }
+            }
+
+            Risk::Destructive => {
+                // Bütçe aşıldıysa kalıcı izin bile geçersiz.
+                if self.destructive_used >= DESTRUCTIVE_BUDGET {
+                    Decision::Ask(ApprovalReason::BudgetExceeded)
+                } else if self.granted.contains(tool_name) {
+                    Decision::Allow
+                } else {
+                    Decision::Ask(ApprovalReason::RiskLevel)
+                }
+            }
+        }
+    }
+
+    /// Kullanıcı "hep izin ver" dedi.
+    pub fn grant_always(&mut self, tool_name: impl Into<String>) {
+        self.granted.insert(tool_name.into());
+    }
+
+    /// Bir yıkıcı işlem çalıştırıldı — bütçeden düş.
+    pub fn record_execution(&mut self, risk: Risk) {
+        if risk == Risk::Destructive {
+            self.destructive_used += 1;
+        }
+    }
+
+    /// Tüm kalıcı izinleri kaldır.
+    pub fn revoke_all(&mut self) {
+        self.granted.clear();
+    }
+
+    pub fn destructive_used(&self) -> usize {
+        self.destructive_used
+    }
+
+    pub fn granted_tools(&self) -> Vec<&str> {
+        let mut v: Vec<&str> = self.granted.iter().map(String::as_str).collect();
+        v.sort_unstable();
+        v
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_tools_never_ask() {
+        let gate = PermissionGate::new();
+        assert_eq!(gate.check("read_file", Risk::Safe), Decision::Allow);
+    }
+
+    #[test]
+    fn moderate_asks_until_granted() {
+        let mut gate = PermissionGate::new();
+        assert!(matches!(gate.check("set_volume", Risk::Moderate), Decision::Ask(_)));
+
+        gate.grant_always("set_volume");
+        assert_eq!(gate.check("set_volume", Risk::Moderate), Decision::Allow);
+    }
+
+    #[test]
+    fn grant_applies_only_to_the_named_tool() {
+        let mut gate = PermissionGate::new();
+        gate.grant_always("set_volume");
+        assert!(matches!(
+            gate.check("set_brightness", Risk::Moderate),
+            Decision::Ask(_)
+        ));
+    }
+
+    #[test]
+    fn destructive_budget_overrides_standing_grant() {
+        let mut gate = PermissionGate::new();
+        gate.grant_always("delete_file");
+
+        // Bütçe içindeyken izin geçerli.
+        for _ in 0..DESTRUCTIVE_BUDGET {
+            assert_eq!(gate.check("delete_file", Risk::Destructive), Decision::Allow);
+            gate.record_execution(Risk::Destructive);
+        }
+
+        // Bütçe dolunca izin ARTIK geçersiz — asıl korunan senaryo bu.
+        assert_eq!(
+            gate.check("delete_file", Risk::Destructive),
+            Decision::Ask(ApprovalReason::BudgetExceeded)
+        );
+    }
+
+    #[test]
+    fn new_run_resets_budget_but_keeps_grants() {
+        let mut gate = PermissionGate::new();
+        gate.grant_always("delete_file");
+        for _ in 0..DESTRUCTIVE_BUDGET {
+            gate.record_execution(Risk::Destructive);
+        }
+        assert!(matches!(
+            gate.check("delete_file", Risk::Destructive),
+            Decision::Ask(_)
+        ));
+
+        gate.start_run();
+        assert_eq!(gate.destructive_used(), 0);
+        assert_eq!(
+            gate.check("delete_file", Risk::Destructive),
+            Decision::Allow,
+            "kalıcı izin yeni çalıştırmada da geçerli olmalı"
+        );
+    }
+
+    #[test]
+    fn safe_tools_do_not_consume_budget() {
+        let mut gate = PermissionGate::new();
+        for _ in 0..10 {
+            gate.record_execution(Risk::Safe);
+        }
+        assert_eq!(gate.destructive_used(), 0);
+    }
+
+    #[test]
+    fn revoke_clears_all_grants() {
+        let mut gate = PermissionGate::new();
+        gate.grant_always("a");
+        gate.grant_always("b");
+        assert_eq!(gate.granted_tools(), vec!["a", "b"]);
+
+        gate.revoke_all();
+        assert!(gate.granted_tools().is_empty());
+    }
+}

@@ -11,6 +11,8 @@ pub enum Speaker {
     Assistant,
     System,
     Error,
+    /// Bir tool çalıştırıldı — kullanıcı ne olduğunu görsün.
+    Tool,
 }
 
 impl Speaker {
@@ -21,6 +23,7 @@ impl Speaker {
             Self::Assistant => "◆",
             Self::System => "·",
             Self::Error => "✗",
+            Self::Tool => "⚙",
         }
     }
 }

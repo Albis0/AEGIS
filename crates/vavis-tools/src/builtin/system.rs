@@ -1,0 +1,353 @@
+//! Sistem tool'ları — donanım durumu ve kontrol.
+
+use crate::tool::{arg_num, Domain, Param, Risk, Tool, ToolOutcome};
+use serde_json::Value;
+use std::sync::Mutex;
+use sysinfo::System;
+
+/// `System` nesnesi pahalı kurulur ve her sorguda yenilenmesi yeterli —
+/// her çağrıda sıfırdan yaratmak yavaş ve ilk CPU okuması hep 0 çıkar.
+static SYSTEM: Mutex<Option<System>> = Mutex::new(None);
+
+fn with_system<T>(f: impl FnOnce(&mut System) -> T) -> T {
+    let mut guard = SYSTEM.lock().unwrap_or_else(|e| e.into_inner());
+    let sys = guard.get_or_insert_with(System::new_all);
+    sys.refresh_all();
+    f(sys)
+}
+
+/// Sistem telemetrisi — CPU, RAM, disk.
+pub struct SystemInfo;
+
+impl Tool for SystemInfo {
+    fn name(&self) -> &'static str {
+        "sistem_durumu"
+    }
+
+    fn description(&self) -> &'static str {
+        "Bilgisayarın anlık durumu: CPU kullanımı, RAM, disk. Performans sorulduğunda kullan."
+    }
+
+    fn domain(&self) -> Domain {
+        Domain::System
+    }
+
+    fn keywords(&self) -> &'static [&'static str] {
+        &["cpu", "ram", "bellek", "disk", "performans", "sistem", "durum"]
+    }
+
+    fn run(&self, _args: &Value) -> ToolOutcome {
+        let (cpu, used_mb, total_mb, cores) = with_system(|sys| {
+            (
+                sys.global_cpu_usage(),
+                sys.used_memory() / 1_048_576,
+                sys.total_memory() / 1_048_576,
+                sys.cpus().len(),
+            )
+        });
+
+        let ram_pct = if total_mb > 0 {
+            (used_mb as f64 / total_mb as f64 * 100.0).round()
+        } else {
+            0.0
+        };
+
+        ToolOutcome::ok(format!(
+            "CPU: %{:.0} ({cores} çekirdek)\nRAM: {used_mb} MB / {total_mb} MB (%{ram_pct:.0})",
+            cpu
+        ))
+    }
+}
+
+/// Çalışan uygulamalar.
+pub struct ListProcesses;
+
+impl Tool for ListProcesses {
+    fn name(&self) -> &'static str {
+        "calisan_uygulamalar"
+    }
+
+    fn description(&self) -> &'static str {
+        "En çok kaynak kullanan uygulamaları listeler."
+    }
+
+    fn domain(&self) -> Domain {
+        Domain::System
+    }
+
+    fn keywords(&self) -> &'static [&'static str] {
+        &["uygulama", "program", "süreç", "process", "çalışan"]
+    }
+
+    fn run(&self, _args: &Value) -> ToolOutcome {
+        let mut rows: Vec<(String, u64)> = with_system(|sys| {
+            sys.processes()
+                .values()
+                .map(|p| (p.name().to_string_lossy().to_string(), p.memory()))
+                .collect()
+        });
+
+        // Bellek kullanımına göre sırala, ilk 10'u göster — tam liste
+        // yüzlerce satır olur ve modelin bağlamını boğar.
+        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        rows.truncate(10);
+
+        if rows.is_empty() {
+            return ToolOutcome::err("süreç listesi alınamadı");
+        }
+
+        let list = rows
+            .into_iter()
+            .map(|(name, mem)| format!("{name} — {} MB", mem / 1_048_576))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        ToolOutcome::ok(format!("En çok bellek kullananlar:\n{list}"))
+    }
+}
+
+/// Pil durumu.
+pub struct Battery;
+
+impl Tool for Battery {
+    fn name(&self) -> &'static str {
+        "pil_durumu"
+    }
+
+    fn description(&self) -> &'static str {
+        "Pil yüzdesi ve şarj durumu."
+    }
+
+    fn domain(&self) -> Domain {
+        Domain::System
+    }
+
+    fn keywords(&self) -> &'static [&'static str] {
+        &["pil", "batarya", "şarj", "battery"]
+    }
+
+    fn run(&self, _args: &Value) -> ToolOutcome {
+        #[cfg(windows)]
+        {
+            match windows_battery() {
+                Some(text) => ToolOutcome::ok(text),
+                None => ToolOutcome::err("pil bilgisi okunamadı (masaüstü olabilir)"),
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            ToolOutcome::err("pil bilgisi bu platformda desteklenmiyor")
+        }
+    }
+}
+
+#[cfg(windows)]
+fn windows_battery() -> Option<String> {
+    #[repr(C)]
+    struct SystemPowerStatus {
+        ac_line_status: u8,
+        battery_flag: u8,
+        battery_life_percent: u8,
+        system_status_flag: u8,
+        battery_life_time: u32,
+        battery_full_life_time: u32,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetSystemPowerStatus(status: *mut SystemPowerStatus) -> i32;
+    }
+
+    let mut status = SystemPowerStatus {
+        ac_line_status: 0,
+        battery_flag: 0,
+        battery_life_percent: 0,
+        system_status_flag: 0,
+        battery_life_time: 0,
+        battery_full_life_time: 0,
+    };
+
+    // SAFETY: geçerli bir yapıya yazıyoruz; API sadece doldurur.
+    if unsafe { GetSystemPowerStatus(&mut status) } == 0 {
+        return None;
+    }
+
+    // 255 = bilinmiyor (pil yok).
+    if status.battery_life_percent == 255 {
+        return Some("Pil yok (masaüstü) — prize takılı".to_string());
+    }
+
+    let sarj = match status.ac_line_status {
+        1 => "şarjda",
+        _ => "pilde",
+    };
+    Some(format!("Pil: %{} ({sarj})", status.battery_life_percent))
+}
+
+/// Ses seviyesi ayarı.
+pub struct SetVolume;
+
+impl Tool for SetVolume {
+    fn name(&self) -> &'static str {
+        "ses_ayarla"
+    }
+
+    fn description(&self) -> &'static str {
+        "Sistem ses seviyesini 0-100 arasına ayarlar."
+    }
+
+    fn domain(&self) -> Domain {
+        Domain::System
+    }
+
+    /// Geri alınabilir ama kullanıcıyı şaşırtabilir → onay ister.
+    fn risk(&self) -> Risk {
+        Risk::Moderate
+    }
+
+    fn params(&self) -> Vec<Param> {
+        vec![Param::required("seviye", "0 ile 100 arası ses seviyesi")]
+    }
+
+    fn keywords(&self) -> &'static [&'static str] {
+        &["ses", "volume", "sessiz", "kıs", "aç"]
+    }
+
+    fn run(&self, args: &Value) -> ToolOutcome {
+        let Some(level) = arg_num(args, "seviye") else {
+            return ToolOutcome::err("seviye parametresi gerekli (0-100)");
+        };
+        if !(0.0..=100.0).contains(&level) {
+            return ToolOutcome::err("seviye 0-100 arasında olmalı");
+        }
+        set_system_volume(level as u8)
+    }
+}
+
+#[cfg(windows)]
+fn set_system_volume(level: u8) -> ToolOutcome {
+    // Windows'ta ses ayarı COM (IAudioEndpointVolume) gerektirir. Bağımlılık
+    // eklemeden PowerShell üzerinden yapmak güvenilir ve kısa.
+    let script = format!(
+        "$vol = {level} / 100; \
+         Add-Type -TypeDefinition 'using System.Runtime.InteropServices; \
+         [Guid(\"5CDF2C82-841E-4546-9722-0CF74078229A\"), \
+         InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] \
+         interface IAudioEndpointVolume {{ \
+           int f(); int g(); int h(); int i(); \
+           int SetMasterVolumeLevelScalar(float fLevel, System.Guid pguidEventContext); \
+           int j(); int GetMasterVolumeLevelScalar(out float pfLevel); }} \
+         [Guid(\"D666063F-1587-4E43-81F1-B948E807363F\"), \
+         InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] \
+         interface IMMDevice {{ int Activate(ref System.Guid id, int clsCtx, System.IntPtr p, \
+           [MarshalAs(UnmanagedType.IUnknown)] out object o); }} \
+         [Guid(\"A95664D2-9614-4F35-A746-DE8DB63617E6\"), \
+         InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] \
+         interface IMMDeviceEnumerator {{ int f(); \
+           int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint); }} \
+         [ComImport, Guid(\"BCDE0395-E52F-467C-8E3D-C4579291692E\")] class MMDeviceEnumeratorComObject {{ }} \
+         public class Audio {{ \
+           public static void Set(float v) {{ \
+             var e = (IMMDeviceEnumerator)(new MMDeviceEnumeratorComObject()); \
+             IMMDevice dev; e.GetDefaultAudioEndpoint(0, 1, out dev); \
+             var g = typeof(IAudioEndpointVolume).GUID; object o; \
+             dev.Activate(ref g, 23, System.IntPtr.Zero, out o); \
+             ((IAudioEndpointVolume)o).SetMasterVolumeLevelScalar(v, System.Guid.Empty); }} }}'; \
+         [Audio]::Set($vol)"
+    );
+
+    match run_powershell(&script) {
+        Ok(_) => ToolOutcome::ok(format!("Ses seviyesi %{level} yapıldı")),
+        Err(e) => ToolOutcome::err(format!("ses ayarlanamadı: {e}")),
+    }
+}
+
+#[cfg(not(windows))]
+fn set_system_volume(_level: u8) -> ToolOutcome {
+    ToolOutcome::err("ses ayarı bu platformda desteklenmiyor")
+}
+
+/// PowerShell komutu çalıştırır ve çıktısını döner.
+#[cfg(windows)]
+pub(crate) fn run_powershell(script: &str) -> std::io::Result<String> {
+    use std::process::Command;
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .output()?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(std::io::Error::other(if err.is_empty() {
+            "komut başarısız".to_string()
+        } else {
+            err
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn system_info_reports_cpu_and_ram() {
+        let out = SystemInfo.run(&Value::Null);
+        assert!(out.ok);
+        assert!(out.content.contains("CPU"), "çıktı: {}", out.content);
+        assert!(out.content.contains("RAM"), "çıktı: {}", out.content);
+    }
+
+    #[test]
+    fn process_list_is_capped() {
+        let out = ListProcesses.run(&Value::Null);
+        assert!(out.ok);
+        // Başlık + en fazla 10 satır — bağlamı boğmamalı.
+        assert!(out.content.lines().count() <= 11, "liste çok uzun");
+    }
+
+    #[test]
+    fn volume_rejects_out_of_range() {
+        for bad in [-5.0, 101.0, 1000.0] {
+            let args = serde_json::json!({"seviye": bad});
+            let out = SetVolume.run(&args);
+            assert!(!out.ok, "{bad} reddedilmeliydi");
+        }
+    }
+
+    #[test]
+    fn volume_requires_the_parameter() {
+        assert!(!SetVolume.run(&serde_json::json!({})).ok);
+    }
+
+    #[test]
+    fn volume_accepts_string_numbers() {
+        // Model sayıyı string olarak gönderebilir — kabul edilmeli.
+        let args = serde_json::json!({"seviye": "50"});
+        assert_eq!(arg_num(&args, "seviye"), Some(50.0));
+    }
+
+    #[test]
+    fn volume_is_moderate_risk() {
+        assert_eq!(SetVolume.risk(), Risk::Moderate);
+        assert_eq!(SystemInfo.risk(), Risk::Safe);
+    }
+
+    #[test]
+    fn battery_returns_something_on_windows() {
+        let out = Battery.run(&Value::Null);
+        if cfg!(windows) {
+            // Masaüstünde "pil yok" da geçerli bir cevap.
+            assert!(out.ok || out.content.contains("okunamadı"));
+        }
+    }
+}

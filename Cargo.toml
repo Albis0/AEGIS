@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/vavis-core",
     "crates/vavis-brain",
+    "crates/vavis-tools",
     "crates/vavis-ui",
     "crates/vavis-app",
 ]
