@@ -14,39 +14,51 @@ use crate::voice::{VoiceEvent, VoiceManager};
 use eframe::egui;
 use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
 use vavis_core::{App as CoreApp, VERSION};
-use vavis_tools::{Agent, Approval, ApprovalReason};
+use vavis_tools::{Agent, ApprovalReason};
 
 pub struct VavisUi {
-    core: CoreApp,
-    keys: KeyStore,
-    bridge: Bridge,
+    pub(crate) core: CoreApp,
+    pub(crate) keys: KeyStore,
+    pub(crate) bridge: Bridge,
 
-    feed: Feed,
+    pub(crate) feed: Feed,
     /// LLM'e gönderilen sohbet geçmişi (sistem mesajı hariç).
-    history: Vec<Message>,
+    pub(crate) history: Vec<Message>,
 
-    input: String,
-    show_health: bool,
-    focus_input: bool,
-    /// Cevap beklenirken gösterilecek animasyon karesi.
-    spinner_frame: usize,
+    pub(crate) input: String,
+    pub(crate) show_health: bool,
+    pub(crate) focus_input: bool,
     /// Kullanıcı onayı bekleyen tool (varsa).
-    pending_approval: Option<PendingApproval>,
+    pub(crate) pending_approval: Option<PendingApproval>,
     /// Bu turda tool çalıştı mı — boş cevabın normal olup olmadığını belirler.
-    ran_tool_this_turn: bool,
+    pub(crate) ran_tool_this_turn: bool,
     /// Ses katmanı — mikrofon, STT, TTS.
-    voice: VoiceManager,
+    pub(crate) voice: VoiceManager,
     /// Kalıcı depo — hafıza ve sohbet geçmişi.
-    store: std::sync::Arc<std::sync::Mutex<vavis_core::Store>>,
+    pub(crate) store: std::sync::Arc<std::sync::Mutex<vavis_core::Store>>,
     /// Otomasyon zamanlayıcısı — arka planda tetikleyicileri izler.
-    ticker: Ticker,
+    #[allow(dead_code)] // Drop'ta thread'i durdurmak için tutuluyor.
+    pub(crate) ticker: Ticker,
+
+    // ── HUD durumu ──────────────────────────────────────────────────────
+    /// Açılıştan beri geçen süre — animasyonlar buna bağlı, kare sayısına
+    /// değil. Kare hızı düşse de animasyon aynı hızda akar.
+    pub(crate) started: std::time::Instant,
+    /// Şu an çalışan tool'un adı — çekirdek "WORKING" durumuna geçer.
+    pub(crate) running_tool: Option<String>,
+    /// Ses şiddeti (0.0-1.0) — çekirdek konuşurken sesle birlikte atar.
+    pub(crate) audio_level: f32,
+    /// Telemetri ölçümleri saniyede bir yenilenir; her karede ölçmek CPU yakar.
+    pub(crate) telemetry_age: std::time::Instant,
+    pub(crate) cpu: Option<u32>,
+    pub(crate) battery: Option<u32>,
 }
 
 #[derive(Clone)]
-struct PendingApproval {
-    tool: String,
-    args: String,
-    reason: ApprovalReason,
+pub(crate) struct PendingApproval {
+    pub(crate) tool: String,
+    pub(crate) args: String,
+    pub(crate) reason: ApprovalReason,
 }
 
 impl VavisUi {
@@ -93,12 +105,18 @@ impl VavisUi {
             input: String::new(),
             show_health: false,
             focus_input: true,
-            spinner_frame: 0,
             pending_approval: None,
             ran_tool_this_turn: false,
             voice,
             store,
             ticker,
+            started: std::time::Instant::now(),
+            running_tool: None,
+            audio_level: 0.0,
+            // Geçmişe alınmış zaman: ilk karede hemen ölçüm yapılsın.
+            telemetry_age: std::time::Instant::now() - std::time::Duration::from_secs(2),
+            cpu: None,
+            battery: None,
         };
         ui.restore_history();
         ui.greet();
@@ -144,6 +162,50 @@ impl VavisUi {
             Speaker::System,
             format!("— önceki oturumdan {} mesaj yüklendi —", messages.len()),
         );
+    }
+
+    /// Pencere modları arasında dolaşır: windowed → borderless → fullscreen.
+    ///
+    /// Üç modu da tutuyoruz çünkü zevk meselesi: kimi kenarlıksız tam ekran
+    /// ister, kimi normal pencere. Seçim kalıcı olarak kaydedilir.
+    pub(crate) fn cycle_window_mode(&mut self, ctx: &egui::Context) {
+        use vavis_core::WindowMode;
+
+        let next = match self.core.config.window_mode() {
+            WindowMode::Windowed => WindowMode::Borderless,
+            WindowMode::Borderless => WindowMode::Fullscreen,
+            WindowMode::Fullscreen => WindowMode::Windowed,
+        };
+
+        let (name, decorated, fullscreen, maximized) = match next {
+            WindowMode::Windowed => ("windowed", true, false, false),
+            WindowMode::Borderless => ("borderless", false, false, true),
+            WindowMode::Fullscreen => ("fullscreen", false, true, false),
+        };
+
+        // Anında uygula — yeniden başlatma beklemesin.
+        ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(decorated));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+        if !fullscreen {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(maximized));
+        }
+
+        self.core.config.ui.window_mode = name.to_string();
+        self.save_config();
+        self.feed.push(Speaker::System, format!("window: {name}"));
+    }
+
+    /// Açılıştan beri geçen saniye — animasyonların zaman kaynağı.
+    ///
+    /// Kare sayısı yerine gerçek zaman: kare hızı düşse de animasyon
+    /// aynı hızda akar.
+    pub(crate) fn elapsed(&self) -> f32 {
+        self.started.elapsed().as_secs_f32()
+    }
+
+    /// Arayüz dili.
+    pub(crate) fn lang(&self) -> vavis_core::Lang {
+        vavis_core::Lang::parse(&self.core.config.general.language).unwrap_or_default()
     }
 
     /// Bir mesajı kalıcı depoya yazar.
@@ -199,11 +261,11 @@ impl VavisUi {
 
     // ── Ayar erişimi ────────────────────────────────────────────────────────
 
-    fn provider(&self) -> Provider {
+    pub(crate) fn provider(&self) -> Provider {
         Provider::parse(&self.core.config.llm.provider).unwrap_or(Provider::Groq)
     }
 
-    fn model(&self) -> String {
+    pub(crate) fn model(&self) -> String {
         let configured = self.core.config.llm.model.trim();
         if configured.is_empty() {
             self.provider().default_model().to_string()
@@ -222,7 +284,7 @@ impl VavisUi {
 
     // ── Girdi işleme ────────────────────────────────────────────────────────
 
-    fn submit(&mut self, ctx: &egui::Context) {
+    pub(crate) fn submit(&mut self, ctx: &egui::Context) {
         let text = self.input.trim().to_string();
         self.input.clear();
         self.focus_input = true;
@@ -511,7 +573,7 @@ impl VavisUi {
 
     // ── Beyin olaylarını işle ───────────────────────────────────────────────
 
-    fn pump_events(&mut self, ctx: &egui::Context) {
+    pub(crate) fn pump_events(&mut self, ctx: &egui::Context) {
         for event in self.bridge.drain() {
             match event {
                 UiEvent::Delta(text) => self.feed.push_delta(Speaker::Assistant, &text),
@@ -577,213 +639,24 @@ impl VavisUi {
         }
     }
 
-    /// Onay diyaloğu — yıkıcı işlem öncesi.
-    ///
-    /// Diyalog açıkken ajan iş parçacığı bekliyor; UI donmuyor çünkü bekleyen
-    /// o thread, bu değil.
-    fn draw_approval(&mut self, ctx: &egui::Context) {
-        let Some(pending) = self.pending_approval.clone() else {
-            return;
-        };
-
-        let mut decision: Option<Approval> = None;
-
-        egui::Window::new("onay gerekiyor")
-            .collapsible(false)
-            .resizable(false)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .show(ctx, |ui| {
-                ui.colored_label(Theme::ERROR, format!("⚠ {}", pending.tool));
-                ui.add_space(4.0);
-
-                let why = match pending.reason {
-                    ApprovalReason::RiskLevel => "Bu işlem geri alınamaz.",
-                    ApprovalReason::BudgetExceeded => {
-                        "Bu çalıştırmada çok sayıda yıkıcı işlem yapıldı."
-                    }
-                };
-                ui.colored_label(Theme::FG_DIM, why);
-                ui.add_space(6.0);
-
-                // Argümanları göster — kullanıcı neye izin verdiğini bilmeli.
-                let args: String = pending.args.chars().take(300).collect();
-                ui.colored_label(Theme::FG, &args);
-                ui.add_space(10.0);
-
-                ui.horizontal(|ui| {
-                    if ui.button("İzin ver").clicked() {
-                        decision = Some(Approval::Allow);
-                    }
-                    if ui.button("Hep izin ver").clicked() {
-                        decision = Some(Approval::AllowAlways);
-                    }
-                    if ui.button("Reddet").clicked() {
-                        decision = Some(Approval::Deny);
-                    }
-                });
-            });
-
-        if let Some(approval) = decision {
-            self.bridge.send_approval(approval);
-            self.pending_approval = None;
-            if approval != Approval::Deny {
-                self.ran_tool_this_turn = true;
-            }
-        }
-    }
-
-    // ── Çizim ───────────────────────────────────────────────────────────────
-
-    fn draw_feed(&mut self, ui: &mut egui::Ui) {
-        let stick = self.feed.take_dirty();
-
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .stick_to_bottom(stick)
-            .show(ui, |ui| {
-                ui.add_space(4.0);
-                for line in self.feed.iter() {
-                    let color = match line.speaker {
-                        Speaker::User => Theme::ACCENT,
-                        Speaker::Assistant => Theme::ASSISTANT,
-                        Speaker::System => Theme::FG_DIM,
-                        Speaker::Error => Theme::ERROR,
-                        Speaker::Tool => Theme::SYSTEM,
-                    };
-
-                    ui.horizontal_top(|ui| {
-                        ui.spacing_mut().item_spacing.x = 6.0;
-                        ui.colored_label(color, line.speaker.prefix());
-                        ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                            ui.add(
-                                egui::Label::new(egui::RichText::new(&line.text).color(color))
-                                    .wrap(),
-                            );
-                        });
-                    });
-                }
-                ui.add_space(4.0);
-            });
-    }
-
-    fn draw_input(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        let busy = self.bridge.is_busy();
-
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 6.0;
-
-            if busy {
-                // Dönen imleç — cevabın geldiğini gösterir.
-                const FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
-                self.spinner_frame = self.spinner_frame.wrapping_add(1);
-                let f = FRAMES[(self.spinner_frame / 8) % FRAMES.len()];
-                ui.colored_label(Theme::SYSTEM, f);
-            } else if self.voice.is_speaking() {
-                // Konuşurken ESC'nin kestiğini hatırlat.
-                ui.colored_label(Theme::ASSISTANT, "♪")
-                    .on_hover_text("konuşuyor — ESC keser");
-            } else if self.voice.mode().is_listening() {
-                ui.colored_label(Theme::ACCENT, "◉")
-                    .on_hover_text(self.voice.mode().label());
-            } else {
-                ui.colored_label(Theme::ACCENT, "❯");
-            }
-
-            let response = ui.add_sized(
-                [ui.available_width(), ui.spacing().interact_size.y],
-                egui::TextEdit::singleline(&mut self.input)
-                    .frame(false)
-                    .hint_text(if busy {
-                        "cevap bekleniyor…"
-                    } else {
-                        "bir şeyler yaz…"
-                    })
-                    .text_color(Theme::FG),
-            );
-
-            if self.focus_input {
-                response.request_focus();
-                self.focus_input = false;
-            }
-
-            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                self.submit(ctx);
-            }
-        });
-        ui.add_space(4.0);
-    }
-
-    fn draw_health(&mut self, ctx: &egui::Context) {
-        let mut open = self.show_health;
-        egui::Window::new("sistem durumu")
-            .open(&mut open)
-            .collapsible(false)
-            .resizable(false)
-            .show(ctx, |ui| {
-                let msgs = self
-                    .core
-                    .store
-                    .message_count()
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|e| format!("hata: {e}"));
-
-                let keys = self.keys.configured().join(", ");
-                let facts = {
-                    let g = self.store.lock().unwrap_or_else(|e| e.into_inner());
-                    g.fact_count().unwrap_or(0)
-                };
-                let automations = {
-                    let g = self.store.lock().unwrap_or_else(|e| e.into_inner());
-                    g.all_automations().map(|a| a.len()).unwrap_or(0)
-                };
-                let rows: [(&str, String); 11] = [
-                    ("sürüm", VERSION.to_string()),
-                    ("sağlayıcı", self.provider().to_string()),
-                    ("model", self.model()),
-                    (
-                        "anahtarlar",
-                        if keys.is_empty() { "yok".into() } else { keys },
-                    ),
-                    (
-                        "tool sayısı",
-                        format!(
-                            "{} kayıtlı · en fazla {} sunulur",
-                            self.bridge.tool_count(),
-                            vavis_tools::MAX_TOOLS
-                        ),
-                    ),
-                    ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
-                    ("veritabanı", format!("{msgs} mesaj")),
-                    ("hafıza", format!("{facts} olgu")),
-                    ("otomasyon", format!("{automations} kurulu")),
-                    ("ses", self.voice.mode().label().to_string()),
-                    ("veri dizini", self.core.paths.root().display().to_string()),
-                ];
-
-                egui::Grid::new("health")
-                    .num_columns(2)
-                    .spacing([12.0, 4.0])
-                    .show(ui, |ui| {
-                        for (k, v) in rows {
-                            ui.colored_label(Theme::FG_DIM, k);
-                            ui.colored_label(Theme::FG, v);
-                            ui.end_row();
-                        }
-                    });
-            });
-        self.show_health = open;
-    }
-
-    fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        let (f1, ctrl_l, esc, ctrl_m) = ctx.input(|i| {
+    pub(crate) fn handle_shortcuts(&mut self, ctx: &egui::Context) {
+        let (f1, ctrl_l, esc, ctrl_m, f11) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::F1),
                 i.modifiers.ctrl && i.key_pressed(egui::Key::L),
                 i.key_pressed(egui::Key::Escape),
                 i.modifiers.ctrl && i.key_pressed(egui::Key::M),
+                i.key_pressed(egui::Key::F11),
             )
         });
+
+        // F11: pencere modları arasında dolaş.
+        //
+        // Ayar kalıcı olarak da kaydedilir — kullanıcı bir kere seçsin,
+        // her açılışta aynı gelsin.
+        if f11 {
+            self.cycle_window_mode(ctx);
+        }
 
         if f1 {
             self.show_health = !self.show_health;
@@ -829,7 +702,7 @@ impl VavisUi {
     /// Asistan meşgulse **atlanmaz, ertelenir**: bir sonraki turda
     /// tekrar denenmez (tetiklendi işareti konuldu), o yüzden burada
     /// meşgulse kullanıcıya haber verilir.
-    fn pump_ticker(&mut self, ctx: &egui::Context) {
+    pub(crate) fn pump_ticker(&mut self, ctx: &egui::Context) {
         for fired in self.ticker.poll() {
             self.feed.push(
                 Speaker::System,
@@ -850,7 +723,7 @@ impl VavisUi {
     }
 
     /// Ses katmanından gelen olayları işler.
-    fn pump_voice(&mut self, ctx: &egui::Context) {
+    pub(crate) fn pump_voice(&mut self, ctx: &egui::Context) {
         let events = self.voice.poll(Some(ctx.clone()));
         for event in events {
             match event {
@@ -869,37 +742,5 @@ impl VavisUi {
                 }
             }
         }
-    }
-}
-
-impl eframe::App for VavisUi {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.pump_events(ctx);
-        self.pump_voice(ctx);
-        self.pump_ticker(ctx);
-        self.handle_shortcuts(ctx);
-        self.draw_health(ctx);
-        self.draw_approval(ctx);
-
-        // Cevap beklerken sürekli yeniden çiz — spinner dönsün.
-        if self.bridge.is_busy() {
-            ctx.request_repaint_after(std::time::Duration::from_millis(80));
-        }
-
-        egui::TopBottomPanel::bottom("input")
-            .frame(
-                egui::Frame::none()
-                    .fill(Theme::BG_PANEL)
-                    .inner_margin(egui::Margin::symmetric(10.0, 2.0)),
-            )
-            .show(ctx, |ui| self.draw_input(ui, ctx));
-
-        egui::CentralPanel::default()
-            .frame(
-                egui::Frame::none()
-                    .fill(Theme::BG)
-                    .inner_margin(egui::Margin::symmetric(10.0, 4.0)),
-            )
-            .show(ctx, |ui| self.draw_feed(ui));
     }
 }

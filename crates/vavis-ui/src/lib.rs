@@ -7,7 +7,11 @@
 pub mod app;
 pub mod bridge;
 pub mod commands;
+pub mod core_visual;
+pub mod draw;
 pub mod feed;
+pub mod hud;
+pub mod markdown;
 pub mod theme;
 pub mod ticker;
 pub mod voice;
