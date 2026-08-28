@@ -10,18 +10,29 @@ env:
 
 jobs:
   test:
-    # Windows-only: the app links against Win32 APIs (DPAPI, screen capture,
-    # media keys) that have no cross-platform stand-in.
+    # Windows-only: the app links Win32 APIs (DPAPI, screen capture, media
+    # keys) that have no cross-platform stand-in.
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+        working-directory: ui
+
+      - name: Build frontend
+        # The Rust build embeds ui/dist, so this must run first.
+        run: bun run build
+        working-directory: ui
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -33,6 +44,6 @@ jobs:
         run: cargo test --all
 
       - name: Tool selection quality
-        # Guards the core invariant: the model must never see more than 12
+        # Guards the core invariant: the model never sees more than 12
         # tools, and the selection eval must stay at 100%.
         run: cargo test -p vavis-tools --test selection_eval -- --nocapture

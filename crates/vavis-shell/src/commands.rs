@@ -189,7 +189,10 @@ pub fn send_message(
         let keys = AppState::lock(&state.keys);
 
         let provider = Provider::parse(&core.config.llm.provider).unwrap_or(Provider::Groq);
-        let key = keys.get(provider.key_name()).unwrap_or_default().to_string();
+        let key = keys
+            .get(provider.key_name())
+            .unwrap_or_default()
+            .to_string();
 
         if provider.needs_key() && key.is_empty() {
             state.release();
@@ -240,7 +243,12 @@ pub fn send_message(
         {
             Ok(r) => r,
             Err(e) => {
-                let _ = app.emit("chat:error", ErrorPayload { message: e.to_string() });
+                let _ = app.emit(
+                    "chat:error",
+                    ErrorPayload {
+                        message: e.to_string(),
+                    },
+                );
                 busy.store(false, Ordering::SeqCst);
                 return;
             }
@@ -539,7 +547,9 @@ pub async fn list_models(state: State<'_, AppState>) -> Result<Vec<String>, Stri
         let provider = Provider::parse(&core.config.llm.provider).unwrap_or(Provider::Groq);
         (
             provider,
-            keys.get(provider.key_name()).unwrap_or_default().to_string(),
+            keys.get(provider.key_name())
+                .unwrap_or_default()
+                .to_string(),
             state.client.clone(),
         )
     };

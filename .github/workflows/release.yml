@@ -14,22 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: oven-sh/setup-bun@v2
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+        working-directory: ui
+
+      - name: Build frontend
+        run: bun run build
+        working-directory: ui
 
       - name: Test before shipping
         run: cargo test --all
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release -p vavis-shell
 
       - name: Name the artifact after the tag
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}" -replace '^v', ''
           Copy-Item target/release/vavis.exe "vavis-$version.exe"
-          # The hash goes in the release notes so downloads can be verified —
+          # The hash goes in the release notes so downloads can be verified;
           # the binary is deliberately unsigned (see SECURITY.md).
           $hash = (Get-FileHash "vavis-$version.exe" -Algorithm SHA256).Hash
           "SHA256: $hash" | Out-File -FilePath checksum.txt -Encoding utf8
