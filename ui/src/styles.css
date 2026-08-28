@@ -1,0 +1,239 @@
+/*
+ * VAVIS design system.
+ *
+ * Everything visual traces back to the tokens below. Components never
+ * hardcode a colour or a spacing value — changing the look means editing
+ * this file, not hunting through markup.
+ *
+ * The palette is Iron Man HUD: cyan carries the interface, amber is the
+ * accent used sparingly (an accent everywhere stops being an accent), and
+ * the background is near-black rather than pure black so glowing elements
+ * have a surface to sit on.
+ */
+
+:root {
+  /* ── Surfaces ────────────────────────────────────────────────── */
+  --bg: #05080d;
+  --bg-panel: #0a111a;
+  --bg-card: #0d1621;
+  --bg-code: #070c13;
+  --bg-hover: rgba(34, 211, 238, 0.08);
+
+  /* ── Text ────────────────────────────────────────────────────── */
+  --fg: #c8e4f0;
+  --fg-dim: #5a7a8c;
+  --fg-faint: #2a4353;
+
+  /* ── Accents ─────────────────────────────────────────────────── */
+  --cyan: #22d3ee;
+  --cyan-bright: #67e8f9;
+  --cyan-dim: #0e7490;
+  --amber: #f59e0b;
+  --blue: #60a5fa;
+  --red: #f87171;
+  --green: #4ade80;
+
+  /* ── Lines ───────────────────────────────────────────────────── */
+  --border: #143848;
+  --border-bright: #1a5570;
+
+  /* ── Glow ────────────────────────────────────────────────────── */
+  --glow-cyan: 0 0 12px rgba(34, 211, 238, 0.35);
+  --glow-cyan-soft: 0 0 24px rgba(34, 211, 238, 0.15);
+  --glow-amber: 0 0 12px rgba(245, 158, 11, 0.4);
+
+  /* ── Spacing ─────────────────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  /* ── Type ────────────────────────────────────────────────────── */
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Consolas", ui-monospace,
+    monospace;
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+
+  /* ── Motion ──────────────────────────────────────────────────── */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --fast: 120ms;
+  --normal: 220ms;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  /* The window is frameless; nothing should be selectable by accident
+     while dragging it around. Individual text areas opt back in. */
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Text the user should be able to copy. */
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+/* ── Scrollbars ────────────────────────────────────────────────── */
+/* Thin and dim: present when needed, invisible otherwise. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyan-dim);
+}
+
+/* ── Focus ─────────────────────────────────────────────────────── */
+/* Keyboard users must see where they are; mouse users shouldn't get
+   a ring on every click. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ── Shared primitives ─────────────────────────────────────────── */
+
+button {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--fg-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-1) var(--sp-3);
+  cursor: pointer;
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+
+button:hover {
+  color: var(--cyan-bright);
+  border-color: var(--cyan-dim);
+  background: var(--bg-hover);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.primary {
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+button.danger:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  width: 100%;
+  user-select: text;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-faint);
+}
+
+/* ── Panel chrome ──────────────────────────────────────────────── */
+
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+  opacity: 0.75;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid rgba(14, 116, 144, 0.4);
+  margin-bottom: var(--sp-2);
+}
+
+/* ── Animation ─────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Respect the user's motion preference — animation is decoration here,
+   never the only signal. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,29 @@
+[package]
+name = "vavis-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "VAVIS shell — Tauri window hosting the Svelte interface"
+
+[[bin]]
+name = "vavis"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+vavis-core = { path = "../vavis-core" }
+vavis-brain = { path = "../vavis-brain" }
+vavis-tools = { path = "../vavis-tools" }
+vavis-audio = { path = "../vavis-audio" }
+
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-clipboard-manager = "2"
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+chrono = "0.4"

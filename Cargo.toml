@@ -5,8 +5,7 @@ members = [
     "crates/vavis-brain",
     "crates/vavis-audio",
     "crates/vavis-tools",
-    "crates/vavis-ui",
-    "crates/vavis-app",
+    "crates/vavis-shell",
 ]
 
 # Bağımlılıklar burada tek yerde sabitlenir; crate'ler `workspace = true` ile alır.

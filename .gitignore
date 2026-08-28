@@ -1,3 +1,5 @@
 /target
 /dist
 *.pdb
+ui/node_modules
+ui/dist
