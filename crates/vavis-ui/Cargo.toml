@@ -8,6 +8,8 @@ description = "VAVIS kabuk katmanı — terminal görünümlü arayüz"
 
 [dependencies]
 vavis-core = { path = "../vavis-core" }
+vavis-brain = { path = "../vavis-brain" }
+tokio.workspace = true
 eframe.workspace = true
 egui.workspace = true
 tracing.workspace = true

@@ -17,6 +17,26 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub general: General,
     pub ui: Ui,
+    pub llm: Llm,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Llm {
+    /// "groq" | "openai" | "gemini" | "mistral" | "deepseek" | "xai" | "local"
+    pub provider: String,
+    /// Boş bırakılırsa sağlayıcının varsayılan modeli kullanılır.
+    pub model: String,
+}
+
+impl Default for Llm {
+    fn default() -> Self {
+        Self {
+            // Groq varsayılan: ücretsiz katmanı var ve hızlı.
+            provider: "groq".to_string(),
+            model: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +81,7 @@ impl Default for Config {
         Self {
             general: General::default(),
             ui: Ui::default(),
+            llm: Llm::default(),
         }
     }
 }

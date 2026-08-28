@@ -5,10 +5,14 @@
 //! katmanlara dokunulmaz.
 
 pub mod app;
+pub mod bridge;
+pub mod commands;
 pub mod feed;
 pub mod theme;
 
 pub use app::VavisUi;
+pub use bridge::{Bridge, UiEvent};
+pub use commands::Command;
 pub use feed::{Feed, Line, Speaker};
 
 use vavis_core::{App as CoreApp, WindowMode};

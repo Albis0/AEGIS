@@ -12,7 +12,7 @@ pub mod logging;
 pub mod paths;
 pub mod store;
 
-pub use config::{Config, WindowMode};
+pub use config::{Config, Llm, WindowMode};
 pub use error::{CoreError, Result};
 pub use paths::Paths;
 pub use store::Store;
