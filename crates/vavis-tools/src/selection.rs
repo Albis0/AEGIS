@@ -87,6 +87,15 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
         ],
     },
     DomainKeywords {
+        domain: Domain::Vision,
+        words: &[
+            // "bak" ve "gör" bilinçli olarak YOK: "şunu oku bakalım" cümlesi
+            // ekran görüntüsü isteği değil. Ekrana özgü kelimeler gerekli.
+            "ekran", "goruntu", "görüntü", "screenshot",
+            "gorunuyor", "görünüyor", "ekranda", "ekranima", "ekranıma",
+        ],
+    },
+    DomainKeywords {
         domain: Domain::Web,
         words: &[
             "web", "internet", "ara", "arama", "search", "google", "site", "sayfa", "page",

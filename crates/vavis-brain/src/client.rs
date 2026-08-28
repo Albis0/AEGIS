@@ -172,7 +172,7 @@ impl BrainClient {
 
         let mut body = serde_json::json!({
             "model": cfg.model,
-            "messages": fitted.messages,
+            "messages": openai_messages(&fitted.messages),
             "temperature": cfg.temperature,
             "max_tokens": caps.max_output,
             "stream": true,
@@ -411,6 +411,39 @@ impl BrainClient {
         out.sort_unstable();
         Ok(out)
     }
+}
+
+/// Mesajları OpenAI-uyumlu gövdeye çevirir.
+///
+/// Görüntüsüz mesajlar doğrudan serileştirilir. Görüntülü olanlar
+/// **çok parçalı** biçime dönüşür:
+/// `content: [{type:"text",...}, {type:"image_url", image_url:{url:"data:..."}}]`
+///
+/// Neden burada: `Message` yapısı sade kalsın; biçim dönüşümü sağlayıcıya
+/// ait bir ayrıntı.
+fn openai_messages(messages: &[Message]) -> Vec<serde_json::Value> {
+    messages
+        .iter()
+        .map(|m| {
+            let Some(image) = &m.image else {
+                return serde_json::to_value(m).unwrap_or(serde_json::json!({}));
+            };
+
+            let mut parts = Vec::new();
+            if !m.content.trim().is_empty() {
+                parts.push(serde_json::json!({"type": "text", "text": m.content}));
+            }
+            parts.push(serde_json::json!({
+                "type": "image_url",
+                "image_url": {"url": format!("data:image/png;base64,{image}")}
+            }));
+
+            serde_json::json!({
+                "role": m.role.as_str(),
+                "content": parts,
+            })
+        })
+        .collect()
 }
 
 /// Sistem istemi — asistanın kimliği.

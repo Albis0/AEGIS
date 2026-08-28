@@ -89,9 +89,24 @@ pub struct FitResult {
     pub est_tokens: usize,
 }
 
+/// Bir görüntünün yaklaşık token maliyeti.
+///
+/// Sağlayıcılar görüntüyü karo karo tokenleştirir, base64 uzunluğuyla
+/// orantılı değil. ~1100 token tipik bir ekran görüntüsü için makul bir
+/// üst tahmin (eski projedeki değerle aynı).
+///
+/// **Sayılmazsa ne olur:** 2 MB'lık bir PNG base64'te ~2.7 milyon karakter
+/// eder; karakter/4 saysaydık bütçe anında patlar, sığdırma tüm geçmişi
+/// atardı. Sabit maliyet doğru davranış.
+const IMAGE_TOKENS: usize = 1_100;
+
 fn message_tokens(m: &Message) -> usize {
     // +4: rol ve ayraç token'ları için sabit pay.
-    estimate_tokens(&m.content) + 4
+    let mut tokens = estimate_tokens(&m.content) + 4;
+    if m.image.is_some() {
+        tokens += IMAGE_TOKENS;
+    }
+    tokens
 }
 
 /// İstek gövdesini bütçeye sığdırır.
@@ -259,5 +274,61 @@ mod tests {
         let r = fit_request(msgs, 0, caps);
         let texts: Vec<&str> = r.messages.iter().map(|m| m.content.as_str()).collect();
         assert_eq!(texts, vec!["s", "bir", "iki", "üç"], "sıra korunmalı");
+    }
+}
+
+#[cfg(test)]
+mod image_budget_tests {
+    use super::*;
+
+    #[test]
+    fn image_costs_a_fixed_amount_not_its_base64_length() {
+        // 2 MB'lık PNG base64'te ~2.7M karakter — karakter sayarsak bütçe patlar.
+        let huge_base64 = "A".repeat(2_700_000);
+        let with_image = Message::user_with_image("bak", huge_base64);
+
+        let tokens = message_tokens(&with_image);
+        assert!(
+            tokens < IMAGE_TOKENS + 100,
+            "görüntü sabit maliyetli olmalı, hesaplanan: {tokens}"
+        );
+    }
+
+    #[test]
+    fn image_adds_to_the_budget() {
+        let plain = Message::user("bak");
+        let with_image = Message::user_with_image("bak", "kucuk");
+        assert!(message_tokens(&with_image) > message_tokens(&plain) + 1000);
+    }
+
+    #[test]
+    fn conversation_with_image_still_fits_the_budget() {
+        let caps = ModelCaps::for_model("gpt-4o");
+        let mut msgs = vec![Message::system("sen vavis'sin")];
+        for _ in 0..5 {
+            msgs.push(Message::user_with_image("bak", "A".repeat(100_000)));
+        }
+
+        let r = fit_request(msgs, 0, caps);
+        assert!(
+            r.est_tokens <= caps.input_budget(),
+            "görüntülü sohbet bütçeyi aşmamalı: {} > {}",
+            r.est_tokens,
+            caps.input_budget()
+        );
+    }
+
+    #[test]
+    fn small_context_model_drops_older_images() {
+        // 8k pencerede 10 görüntü sığmaz — eskiler atılmalı.
+        let caps = ModelCaps::default();
+        let mut msgs = vec![Message::system("s")];
+        for i in 0..10 {
+            msgs.push(Message::user_with_image(format!("görüntü {i}"), "x"));
+        }
+
+        let r = fit_request(msgs, 0, caps);
+        assert!(r.history_dropped > 0, "eski görüntüler atılmalıydı");
+        assert!(r.est_tokens <= caps.input_budget());
     }
 }

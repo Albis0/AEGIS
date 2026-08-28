@@ -245,6 +245,19 @@ async fn run_agent_turn(
 
         messages.extend(results);
 
+        // Ekran görüntüsü tool'u çalıştıysa görüntüyü modele ilet.
+        //
+        // Tool sonuçları metin olmak zorunda (protokol öyle), o yüzden
+        // görüntü ayrı bir yuvadan geliyor. `take_` çağrısı yuvayı boşaltır —
+        // aynı görüntü iki kez gönderilmez.
+        if let Some(image) = vavis_tools::builtin::vision::take_pending_image() {
+            tracing::info!("ekran görüntüsü modele iletiliyor");
+            messages.push(Message::user_with_image(
+                "(ekran görüntüsü ektedir)",
+                image,
+            ));
+        }
+
         if let Some(c) = ctx {
             c.request_repaint();
         }

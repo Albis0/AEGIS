@@ -28,6 +28,8 @@ pub enum Domain {
     /// sunmak hem gereksiz hem riskli. Ayrıca tek alanda 11 tool birikince
     /// çekirdek tool'lar sınırın dışına itiliyordu.
     Control,
+    /// Ekran görüntüsü ve bilgisayar kullanımı.
+    Vision,
     /// Web arama, sayfa okuma.
     Web,
     /// Hafıza — hatırla/unut/ara.
@@ -35,11 +37,12 @@ pub enum Domain {
 }
 
 impl Domain {
-    pub const ALL: [Domain; 6] = [
+    pub const ALL: [Domain; 7] = [
         Self::Core,
         Self::Files,
         Self::System,
         Self::Control,
+        Self::Vision,
         Self::Web,
         Self::Memory,
     ];
@@ -50,6 +53,7 @@ impl Domain {
             Self::Files => "files",
             Self::System => "system",
             Self::Control => "control",
+            Self::Vision => "vision",
             Self::Web => "web",
             Self::Memory => "memory",
         }

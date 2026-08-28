@@ -94,7 +94,23 @@ pub fn build_messages(messages: &[Message]) -> (String, Vec<Value>) {
             }
 
             Role::User => {
-                if !m.content.trim().is_empty() {
+                // Görüntülü mesaj çok parçalı gider. Anthropic'in şekli
+                // OpenAI'dan farklı: `source` nesnesi, `image_url` değil.
+                if let Some(image) = &m.image {
+                    let mut blocks = vec![json!({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": image,
+                        }
+                    })];
+                    // Metin görüntüden SONRA gelmeli — Anthropic bunu öneriyor.
+                    if !m.content.trim().is_empty() {
+                        blocks.push(json!({"type": "text", "text": m.content}));
+                    }
+                    out.push(json!({"role": "user", "content": blocks}));
+                } else if !m.content.trim().is_empty() {
                     out.push(json!({"role": "user", "content": m.content}));
                 }
             }
@@ -339,6 +355,7 @@ mod tests {
                 role: Role::Assistant,
                 content: "Bakıyorum".into(),
                 tool_call_id: None,
+                image: None,
                 tool_calls: Some(vec![ToolCall {
                     id: "call_x".into(),
                     kind: "function".into(),

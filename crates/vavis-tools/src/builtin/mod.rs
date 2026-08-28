@@ -4,11 +4,13 @@
 //! tool tanımlanmıştı. Burada bilinçli olarak **az sayıda, geniş kapsamlı**
 //! tool var — model az seçenek arasından daha isabetli seçer.
 
+pub mod computer;
 pub mod control;
 pub mod core;
 pub mod files;
 pub mod memory;
 pub mod system;
+pub mod vision;
 pub mod web;
 
 use crate::tool::Registry;
@@ -37,6 +39,13 @@ pub fn register_all(registry: &mut Registry) {
     registry.register(Box::new(files::ListDir));
     registry.register(Box::new(files::WriteFile));
     registry.register(Box::new(files::FindFile));
+
+    // Görü.
+    registry.register(Box::new(vision::Screenshot));
+    registry.register(Box::new(computer::ScreenSize));
+    registry.register(Box::new(computer::Click));
+    registry.register(Box::new(computer::TypeText));
+    registry.register(Box::new(computer::PressKey));
 
     // Web.
     registry.register(Box::new(web::WebSearch));

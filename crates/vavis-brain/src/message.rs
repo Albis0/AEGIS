@@ -35,6 +35,12 @@ pub struct Message {
     /// Modelin istediği tool çağrıları (F3).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    /// Mesaja iliştirilen görüntü (base64 PNG).
+    ///
+    /// Serileştirilmez — sağlayıcıya gönderilirken `content` alanı
+    /// çok parçalı biçime dönüştürülür (her sağlayıcının şekli farklı).
+    #[serde(skip)]
+    pub image: Option<String>,
 }
 
 impl Message {
@@ -54,6 +60,20 @@ impl Message {
             content: content.into(),
             tool_call_id: None,
             tool_calls: None,
+            image: None,
+        }
+    }
+
+    /// Goruntu iliştirilmiş kullanıcı mesajı.
+    ///
+    /// `image_base64`: PNG verisinin base64 kodu (veri URI öneki OLMADAN).
+    pub fn user_with_image(content: impl Into<String>, image_base64: impl Into<String>) -> Self {
+        Self {
+            role: Role::User,
+            content: content.into(),
+            tool_call_id: None,
+            tool_calls: None,
+            image: Some(image_base64.into()),
         }
     }
 
@@ -64,6 +84,7 @@ impl Message {
             content: content.into(),
             tool_call_id: Some(call_id.into()),
             tool_calls: None,
+            image: None,
         }
     }
 }
