@@ -8,6 +8,7 @@
 
 pub mod config;
 pub mod error;
+pub mod i18n;
 pub mod logging;
 pub mod paths;
 pub mod scheduler;
@@ -16,6 +17,7 @@ pub mod store;
 
 pub use config::{Config, Llm, WindowMode};
 pub use error::{CoreError, Result};
+pub use i18n::{t, Key, Lang};
 pub use paths::Paths;
 pub use scheduler::{Automation, Trigger};
 pub use search::{Document, Hit, SearchIndex};
