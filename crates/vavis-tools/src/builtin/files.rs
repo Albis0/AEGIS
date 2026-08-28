@@ -90,7 +90,10 @@ impl Tool for ReadFile {
         };
 
         if meta.is_dir() {
-            return ToolOutcome::err(format!("{} bir klasör — dosya_listele kullan", display(&path)));
+            return ToolOutcome::err(format!(
+                "{} bir klasör — dosya_listele kullan",
+                display(&path)
+            ));
         }
         if meta.len() > MAX_FILE_BYTES {
             return ToolOutcome::err(format!(
@@ -187,7 +190,11 @@ impl Tool for ListDir {
         let mut all: Vec<String> = dirs;
         all.extend(files);
         let shown = all.len().min(60);
-        let mut out = format!("{} ({total} öğe):\n{}", display(&path), all[..shown].join("\n"));
+        let mut out = format!(
+            "{} ({total} öğe):\n{}",
+            display(&path),
+            all[..shown].join("\n")
+        );
         if total > shown {
             out.push_str(&format!("\n…({} öğe daha)", total - shown));
         }
@@ -254,7 +261,11 @@ impl Tool for WriteFile {
             Ok(()) => ToolOutcome::ok(format!(
                 "{} {} ({} bayt)",
                 display(&path),
-                if existed { "güncellendi" } else { "oluşturuldu" },
+                if existed {
+                    "güncellendi"
+                } else {
+                    "oluşturuldu"
+                },
                 content.len()
             )),
             Err(e) => ToolOutcome::err(format!("yazılamadı: {e}")),
@@ -420,7 +431,10 @@ mod tests {
         let out = ListDir.run(&args);
         assert!(out.ok);
         assert!(out.content.contains("a.txt"));
-        assert!(out.content.contains("altklasor/"), "klasörler / ile işaretli olmalı");
+        assert!(
+            out.content.contains("altklasor/"),
+            "klasörler / ile işaretli olmalı"
+        );
     }
 
     #[test]

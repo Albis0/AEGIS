@@ -265,10 +265,7 @@ mod tests {
         // Eski konuşmanın bitiş bildirimi geç geldi.
         q.finished(old.generation);
 
-        assert!(
-            q.is_speaking(),
-            "eski bildirim yeni konuşmayı durdurmamalı"
-        );
+        assert!(q.is_speaking(), "eski bildirim yeni konuşmayı durdurmamalı");
     }
 
     #[test]

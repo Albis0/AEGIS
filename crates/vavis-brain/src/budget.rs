@@ -83,7 +83,9 @@ impl ModelCaps {
     /// Girdi için gerçekten kullanılabilir token sayısı.
     pub fn input_budget(&self) -> usize {
         let usable = (self.context_window as f64 * SAFETY_FACTOR) as usize;
-        usable.saturating_sub(self.max_output).saturating_sub(RESERVE)
+        usable
+            .saturating_sub(self.max_output)
+            .saturating_sub(RESERVE)
     }
 }
 
@@ -126,9 +128,8 @@ pub fn fit_request(messages: Vec<Message>, tool_tokens: usize, caps: ModelCaps) 
     let budget = caps.input_budget();
 
     // Sistem mesajını ayır (varsa).
-    let (system, rest): (Vec<_>, Vec<_>) = messages
-        .into_iter()
-        .partition(|m| m.role == Role::System);
+    let (system, rest): (Vec<_>, Vec<_>) =
+        messages.into_iter().partition(|m| m.role == Role::System);
 
     let system_tokens: usize = system.iter().map(message_tokens).sum();
     let fixed = system_tokens + tool_tokens;
@@ -262,12 +263,18 @@ mod tests {
     fn turkish_text_is_not_overcounted() {
         // Türkçe karakterler 2 bayt ama ~1 token — bayt sayarsak bütçe şişer.
         let turkish = "çğıöşü".repeat(100); // 600 karakter, 1200 bayt
-        assert!(estimate_tokens(&turkish) < 200, "karakter sayılmalı, bayt değil");
+        assert!(
+            estimate_tokens(&turkish) < 200,
+            "karakter sayılmalı, bayt değil"
+        );
     }
 
     #[test]
     fn model_caps_are_conservative_for_unknown_models() {
-        assert_eq!(ModelCaps::for_model("bilinmeyen-model").context_window, 8_192);
+        assert_eq!(
+            ModelCaps::for_model("bilinmeyen-model").context_window,
+            8_192
+        );
         assert!(ModelCaps::for_model("gemini-2.5-flash").context_window > 100_000);
     }
 

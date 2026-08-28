@@ -63,8 +63,8 @@ impl Tool for MediaControl {
 
     fn keywords(&self) -> &'static [&'static str] {
         &[
-            "müzik", "muzik", "şarkı", "sarki", "çal", "cal", "duraklat",
-            "spotify", "medya", "oynat", "sonraki", "önceki",
+            "müzik", "muzik", "şarkı", "sarki", "çal", "cal", "duraklat", "spotify", "medya",
+            "oynat", "sonraki", "önceki",
         ]
     }
 
@@ -215,13 +215,10 @@ mod tests {
     #[test]
     fn turkish_and_english_action_names_both_work() {
         for action in [
-            "oynat", "çal", "play", "duraklat", "pause", "sonraki", "next",
-            "önceki", "previous", "durdur", "stop", "sessiz", "mute",
+            "oynat", "çal", "play", "duraklat", "pause", "sonraki", "next", "önceki", "previous",
+            "durdur", "stop", "sessiz", "mute",
         ] {
-            assert!(
-                resolve_action(action).is_some(),
-                "'{action}' tanınmalıydı"
-            );
+            assert!(resolve_action(action).is_some(), "'{action}' tanınmalıydı");
         }
     }
 

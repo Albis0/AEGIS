@@ -148,10 +148,7 @@ impl BrainClient {
         let caps = ModelCaps::for_model(&cfg.model);
 
         // Tool şemaları da bütçeye sayılır — 413'ün kök nedeni buydu.
-        let tool_tokens: usize = tools
-            .iter()
-            .map(|t| estimate_tokens(&t.to_string()))
-            .sum();
+        let tool_tokens: usize = tools.iter().map(|t| estimate_tokens(&t.to_string())).sum();
 
         // Anthropic tamamen farklı gövde/akış şeması kullanıyor — ayrı yol.
         if cfg.provider == Provider::Anthropic {

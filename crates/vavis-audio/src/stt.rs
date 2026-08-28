@@ -190,8 +190,12 @@ pub fn contains_wake_word(text: &str, wake_word: &str) -> bool {
 
     // "Vavis" için yaygın yanlış duymalar.
     if target == "vavis" {
-        const VARIANTS: &[&str] = &["veyvis", "vavis", "vabis", "davis", "wavis", "vavız", "vavis"];
-        return VARIANTS.iter().any(|v| normalized.contains(&normalize_for_wake(v)));
+        const VARIANTS: &[&str] = &[
+            "veyvis", "vavis", "vabis", "davis", "wavis", "vavız", "vavis",
+        ];
+        return VARIANTS
+            .iter()
+            .any(|v| normalized.contains(&normalize_for_wake(v)));
     }
 
     false

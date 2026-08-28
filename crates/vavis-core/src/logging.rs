@@ -23,7 +23,10 @@ pub fn init(paths: &Paths) -> LogGuard {
     // Varsayılan: info. `VAVIS_LOG=debug` ile ayrıntı açılır.
     let filter = EnvFilter::try_from_env("VAVIS_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
 
-    let file_layer = fmt::layer().with_writer(writer).with_ansi(false).with_target(false);
+    let file_layer = fmt::layer()
+        .with_writer(writer)
+        .with_ansi(false)
+        .with_target(false);
     let console_layer = fmt::layer().with_target(false);
 
     // `try_init` — testlerde iki kez çağrılırsa panik yerine sessizce geçer.

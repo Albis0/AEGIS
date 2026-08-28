@@ -47,28 +47,76 @@ struct DomainKeywords {
 /// Bu kelimeler ancak **alana özgü bir kelimeyle birlikte** sayılır:
 /// "dosya yaz" → Files ✓ · "şiir yaz" → eşleşme yok ✓
 const WEAK_VERBS: &[&str] = &[
-    "yaz", "oku", "kaydet", "sil", "listele", "ara", "bul", "ac", "kapat", "goster",
-    "write", "read", "save", "delete", "list", "search", "find", "open", "close", "show",
+    "yaz", "oku", "kaydet", "sil", "listele", "ara", "bul", "ac", "kapat", "goster", "write",
+    "read", "save", "delete", "list", "search", "find", "open", "close", "show",
 ];
 
 const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
     DomainKeywords {
         domain: Domain::Files,
         words: &[
-            "dosya", "klasör", "klasor", "dizin", "oku", "yaz", "kaydet", "sil", "listele",
-            "file", "folder", "directory", "read", "write", "save", "delete", "list", "path",
-            "yol", "belge", "txt", "içerik", "icerik",
+            "dosya",
+            "klasör",
+            "klasor",
+            "dizin",
+            "oku",
+            "yaz",
+            "kaydet",
+            "sil",
+            "listele",
+            "file",
+            "folder",
+            "directory",
+            "read",
+            "write",
+            "save",
+            "delete",
+            "list",
+            "path",
+            "yol",
+            "belge",
+            "txt",
+            "içerik",
+            "icerik",
         ],
     },
     // OKUMA — durum sorgulama.
     DomainKeywords {
         domain: Domain::System,
         words: &[
-            "cpu", "ram", "bellek", "memory", "disk", "pil", "batarya", "battery",
-            "sistem", "system", "işlem", "islem", "süreç", "surec", "process",
-            "performans", "durum", "telemetri", "sarj", "şarj", "prize",
-            "pencere", "window", "calisan", "çalışan", "calisiyor", "çalışıyor",
-            "acik", "açık", "kullanan", "yiyen", "tuketiyor", "tüketiyor",
+            "cpu",
+            "ram",
+            "bellek",
+            "memory",
+            "disk",
+            "pil",
+            "batarya",
+            "battery",
+            "sistem",
+            "system",
+            "işlem",
+            "islem",
+            "süreç",
+            "surec",
+            "process",
+            "performans",
+            "durum",
+            "telemetri",
+            "sarj",
+            "şarj",
+            "prize",
+            "pencere",
+            "window",
+            "calisan",
+            "çalışan",
+            "calisiyor",
+            "çalışıyor",
+            "acik",
+            "açık",
+            "kullanan",
+            "yiyen",
+            "tuketiyor",
+            "tüketiyor",
         ],
     },
     // DEĞİŞTİRME — ayar yapma, uygulama, komut, pano.
@@ -78,12 +126,39 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
     DomainKeywords {
         domain: Domain::Control,
         words: &[
-            "ses", "sesi", "volume", "sessiz", "kis", "kıs",
-            "parlak", "brightness", "karart", "aydinlat", "aydınlat", "isik", "ışık",
-            "uygulama", "program", "başlat", "baslat", "kapat", "sonlandir", "sonlandır",
-            "komut", "command", "powershell", "script",
-            "pano", "clipboard", "kopyala", "yapistir", "yapıştır",
-            "notepad", "chrome", "spotify", "explorer",
+            "ses",
+            "sesi",
+            "volume",
+            "sessiz",
+            "kis",
+            "kıs",
+            "parlak",
+            "brightness",
+            "karart",
+            "aydinlat",
+            "aydınlat",
+            "isik",
+            "ışık",
+            "uygulama",
+            "program",
+            "başlat",
+            "baslat",
+            "kapat",
+            "sonlandir",
+            "sonlandır",
+            "komut",
+            "command",
+            "powershell",
+            "script",
+            "pano",
+            "clipboard",
+            "kopyala",
+            "yapistir",
+            "yapıştır",
+            "notepad",
+            "chrome",
+            "spotify",
+            "explorer",
         ],
     },
     DomainKeywords {
@@ -91,55 +166,142 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
         words: &[
             // "bak" ve "gör" bilinçli olarak YOK: "şunu oku bakalım" cümlesi
             // ekran görüntüsü isteği değil. Ekrana özgü kelimeler gerekli.
-            "ekran", "goruntu", "görüntü", "screenshot",
-            "gorunuyor", "görünüyor", "ekranda", "ekranima", "ekranıma",
+            "ekran",
+            "goruntu",
+            "görüntü",
+            "screenshot",
+            "gorunuyor",
+            "görünüyor",
+            "ekranda",
+            "ekranima",
+            "ekranıma",
         ],
     },
     DomainKeywords {
         domain: Domain::Web,
         words: &[
-            "web", "internet", "ara", "arama", "search", "google", "site", "sayfa", "page",
-            "url", "link", "haber", "news", "hava", "weather", "fiyat", "price", "güncel",
-            "guncel", "bul", "araştır", "arastir", "indir", "download",
+            "web",
+            "internet",
+            "ara",
+            "arama",
+            "search",
+            "google",
+            "site",
+            "sayfa",
+            "page",
+            "url",
+            "link",
+            "haber",
+            "news",
+            "hava",
+            "weather",
+            "fiyat",
+            "price",
+            "güncel",
+            "guncel",
+            "bul",
+            "araştır",
+            "arastir",
+            "indir",
+            "download",
         ],
     },
     DomainKeywords {
         domain: Domain::Media,
         words: &[
-            "muzik", "müzik", "sarki", "şarkı", "parca", "parça", "spotify",
-            "cal", "çal", "oynat", "duraklat", "sonraki", "onceki", "önceki",
-            "medya", "video", "youtube", "vlc", "album", "albüm", "calan", "çalan",
+            "muzik", "müzik", "sarki", "şarkı", "parca", "parça", "spotify", "cal", "çal", "oynat",
+            "duraklat", "sonraki", "onceki", "önceki", "medya", "video", "youtube", "vlc", "album",
+            "albüm", "calan", "çalan",
         ],
     },
     DomainKeywords {
         domain: Domain::Automation,
         words: &[
-            "otomasyon", "zamanla", "zamanlanmis", "zamanlanmış", "otomatik",
+            "otomasyon",
+            "zamanla",
+            "zamanlanmis",
+            "zamanlanmış",
+            "otomatik",
             // "gece" YOK: "iyi geceler" selamlaması otomasyon tetikliyordu.
             // Saat ifadeleri zaten "09:00" biçiminde geliyor.
             // "sabah" burada güvenli: "iyi geceler"i bozmuyor, "her sabah X yap"
             // cümlesini yakalıyor. "gece" ise selamlamaya çarptığı için YOK.
-            "periyodik", "tekrarla", "sabah",
-            "azalinca", "azalınca", "olunca", "inince", "cikinca", "çıkınca",
-            "hatirlat", "hatırlat", "uyar", "alarm", "gorev", "görev",
+            "periyodik",
+            "tekrarla",
+            "sabah",
+            "azalinca",
+            "azalınca",
+            "olunca",
+            "inince",
+            "cikinca",
+            "çıkınca",
+            "hatirlat",
+            "hatırlat",
+            "uyar",
+            "alarm",
+            "gorev",
+            "görev",
         ],
     },
     DomainKeywords {
         domain: Domain::Memory,
         words: &[
-            "hatırla", "hatirla", "hatırlat", "hatirlat", "unut", "hafıza", "hafiza",
-            "remember", "forget", "memory", "not", "note", "kaydettiğim", "kaydettigim",
-            "biliyor", "söylemiştim", "soylemistim", "bilgi",
+            "hatırla",
+            "hatirla",
+            "hatırlat",
+            "hatirlat",
+            "unut",
+            "hafıza",
+            "hafiza",
+            "remember",
+            "forget",
+            "memory",
+            "not",
+            "note",
+            "kaydettiğim",
+            "kaydettigim",
+            "biliyor",
+            "söylemiştim",
+            "soylemistim",
+            "bilgi",
         ],
     },
 ];
 
 /// Sohbet kapatıcıları — bunlara tool sunulmaz.
 const CHATTER: &[&str] = &[
-    "merhaba", "selam", "teşekkür", "tesekkur", "teşekkürler", "tesekkurler", "sağol",
-    "sagol", "tamam", "ok", "okey", "peki", "evet", "hayır", "hayir", "güzel", "guzel",
-    "harika", "süper", "super", "hello", "hi", "thanks", "thank", "yes", "no", "cool",
-    "nice", "great", "bye", "görüşürüz", "gorusuruz",
+    "merhaba",
+    "selam",
+    "teşekkür",
+    "tesekkur",
+    "teşekkürler",
+    "tesekkurler",
+    "sağol",
+    "sagol",
+    "tamam",
+    "ok",
+    "okey",
+    "peki",
+    "evet",
+    "hayır",
+    "hayir",
+    "güzel",
+    "guzel",
+    "harika",
+    "süper",
+    "super",
+    "hello",
+    "hi",
+    "thanks",
+    "thank",
+    "yes",
+    "no",
+    "cool",
+    "nice",
+    "great",
+    "bye",
+    "görüşürüz",
+    "gorusuruz",
 ];
 
 /// Metni karşılaştırma için normalleştirir: küçük harf + Türkçe sadeleştirme.
@@ -177,7 +339,9 @@ fn is_chatter(words: &[String]) -> bool {
         return false;
     }
     let normalized_chatter: Vec<String> = CHATTER.iter().map(|c| normalize(c)).collect();
-    words.iter().all(|w| normalized_chatter.iter().any(|c| c == w))
+    words
+        .iter()
+        .all(|w| normalized_chatter.iter().any(|c| c == w))
 }
 
 /// Mesaja uyan alanlar, en çok eşleşenden aza doğru.
@@ -210,7 +374,11 @@ pub fn match_domains(message: &str) -> Vec<Domain> {
             }
 
             // Sadece zayıf fiil eşleşti → bu alan değil ("şiir yaz").
-            let mut score = if strong == 0 { 0 } else { strong * 2 + weak_hits };
+            let mut score = if strong == 0 {
+                0
+            } else {
+                strong * 2 + weak_hits
+            };
 
             // Otomasyon niyeti diğer alanları GÖLGELER.
             //
@@ -414,7 +582,10 @@ mod tests {
     fn ascii_turkish_also_matches() {
         // Kullanıcılar sıklıkla şapkasız yazıyor.
         let d = match_domains("parlaklik arttir");
-        assert!(d.contains(&Domain::Control), "ASCII yazım da eşleşmeli: {d:?}");
+        assert!(
+            d.contains(&Domain::Control),
+            "ASCII yazım da eşleşmeli: {d:?}"
+        );
     }
 
     #[test]
@@ -432,7 +603,7 @@ mod tests {
         for msg in [
             "bana bir şiir yaz",
             "bir hikaye yaz",
-            "şunu oku bakalım",       // nesne yok
+            "şunu oku bakalım", // nesne yok
             // ("bir şarkı bul" artık Media alanını tetikliyor — DOĞRU davranış,
             //  medya tool'ları eklendikten sonra. Bu yüzden listeden çıkarıldı.)
             "espri yap ve yaz",
@@ -487,7 +658,14 @@ mod tests {
         // Baskın olarak dosya mesajı.
         let selected = select_named(&reg, "dosya klasör oku yaz listele");
         let first = selected.first().copied().unwrap_or("");
-        let file_tools = ["read_file", "write_file", "list_dir", "delete_file", "move_file", "find_file"];
+        let file_tools = [
+            "read_file",
+            "write_file",
+            "list_dir",
+            "delete_file",
+            "move_file",
+            "find_file",
+        ];
         assert!(
             file_tools.contains(&first),
             "en alakalı alan başta olmalı, ilk: {first}"

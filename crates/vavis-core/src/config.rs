@@ -77,7 +77,6 @@ impl Default for Ui {
     }
 }
 
-
 /// Pencere modu — string yerine tip. Geçersiz değer sessizce `Windowed` olur.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowMode {

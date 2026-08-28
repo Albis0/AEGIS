@@ -161,8 +161,9 @@ impl Store {
 
     pub fn all_automations(&self) -> Result<Vec<Automation>> {
         let conn = self.connection();
-        let mut stmt =
-            conn.prepare("SELECT id, prompt, trigger, enabled, last_fired FROM automations ORDER BY id")?;
+        let mut stmt = conn.prepare(
+            "SELECT id, prompt, trigger, enabled, last_fired FROM automations ORDER BY id",
+        )?;
 
         let rows = stmt.query_map([], |r| {
             let trigger_json: String = r.get(2)?;
@@ -241,7 +242,13 @@ mod tests {
 
     #[test]
     fn daily_fires_at_the_right_minute() {
-        let a = automation(Trigger::Daily { hour: 9, minute: 30 }, 0);
+        let a = automation(
+            Trigger::Daily {
+                hour: 9,
+                minute: 30,
+            },
+            0,
+        );
         assert!(a.should_fire(NOW, 9, 30, None));
         assert!(!a.should_fire(NOW, 9, 31, None), "yanlış dakika");
         assert!(!a.should_fire(NOW, 10, 30, None), "yanlış saat");
@@ -254,7 +261,10 @@ mod tests {
         assert!(!a.should_fire(NOW, 9, 0, None), "30 saniye önce tetiklendi");
 
         let a = automation(Trigger::Daily { hour: 9, minute: 0 }, NOW - 86_400);
-        assert!(a.should_fire(NOW, 9, 0, None), "dün tetiklendi, bugün tetiklenmeli");
+        assert!(
+            a.should_fire(NOW, 9, 0, None),
+            "dün tetiklendi, bugün tetiklenmeli"
+        );
     }
 
     #[test]
@@ -344,7 +354,10 @@ mod tests {
     #[test]
     fn triggers_survive_serialisation() {
         for t in [
-            Trigger::Daily { hour: 9, minute: 30 },
+            Trigger::Daily {
+                hour: 9,
+                minute: 30,
+            },
             Trigger::Every { minutes: 45 },
             Trigger::Once { at: NOW },
             Trigger::BatteryBelow { percent: 20 },
@@ -412,7 +425,9 @@ mod tests {
     #[test]
     fn corrupt_trigger_row_is_skipped_not_fatal() {
         let store = Store::open_in_memory().unwrap();
-        store.add_automation("iyi", &Trigger::Every { minutes: 5 }).unwrap();
+        store
+            .add_automation("iyi", &Trigger::Every { minutes: 5 })
+            .unwrap();
         // Bozuk kayıt elle ekleniyor.
         store
             .connection()

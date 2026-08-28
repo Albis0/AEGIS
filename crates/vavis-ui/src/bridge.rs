@@ -21,7 +21,11 @@ pub enum UiEvent {
     /// Bir tool çalıştırılmaya başladı.
     ToolStart { tool: String },
     /// Tool sonucu geldi.
-    ToolDone { tool: String, ok: bool, summary: String },
+    ToolDone {
+        tool: String,
+        ok: bool,
+        summary: String,
+    },
     /// Onay isteniyor — UI diyalog göstermeli.
     ApprovalNeeded {
         tool: String,
@@ -163,10 +167,7 @@ impl Bridge {
 
     /// Ajanın kayıt defterine erişim (sağlık ekranı için).
     pub fn tool_count(&self) -> usize {
-        self.agent
-            .lock()
-            .map(|a| a.registry.len())
-            .unwrap_or(0)
+        self.agent.lock().map(|a| a.registry.len()).unwrap_or(0)
     }
 }
 
@@ -253,10 +254,7 @@ async fn run_agent_turn(
         // aynı görüntü iki kez gönderilmez.
         if let Some(image) = vavis_tools::builtin::vision::take_pending_image() {
             tracing::info!("ekran görüntüsü modele iletiliyor");
-            messages.push(Message::user_with_image(
-                "(ekran görüntüsü ektedir)",
-                image,
-            ));
+            messages.push(Message::user_with_image("(ekran görüntüsü ektedir)", image));
         }
 
         if let Some(c) = ctx {
@@ -343,7 +341,9 @@ fn friendly_error(err: &vavis_brain::BrainError) -> String {
         }
         E::Api { status, body } => format!("Sağlayıcı hatası {status}: {body}"),
         E::Network(e) if e.is_timeout() => "Zaman aşımı — sağlayıcı cevap vermedi.".into(),
-        E::Network(e) if e.is_connect() => "Bağlanılamadı — internet/sunucu kapalı olabilir.".into(),
+        E::Network(e) if e.is_connect() => {
+            "Bağlanılamadı — internet/sunucu kapalı olabilir.".into()
+        }
         E::Network(e) => format!("Ağ hatası: {e}"),
         E::Parse(e) => format!("Cevap çözümlenemedi: {e}"),
     }
@@ -405,6 +405,9 @@ mod tests {
         b.send_approval(Approval::Allow);
 
         let rx = b.reply_rx.lock().unwrap();
-        assert!(matches!(rx.recv().unwrap(), HostReply::Approval(Approval::Allow)));
+        assert!(matches!(
+            rx.recv().unwrap(),
+            HostReply::Approval(Approval::Allow)
+        ));
     }
 }

@@ -42,7 +42,9 @@ impl Provider {
         match self {
             Self::Groq => "https://api.groq.com/openai/v1/chat/completions",
             Self::OpenAI => "https://api.openai.com/v1/chat/completions",
-            Self::Gemini => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            Self::Gemini => {
+                "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+            }
             Self::Mistral => "https://api.mistral.ai/v1/chat/completions",
             Self::DeepSeek => "https://api.deepseek.com/v1/chat/completions",
             Self::XAI => "https://api.x.ai/v1/chat/completions",
@@ -124,8 +126,18 @@ impl fmt::Display for Provider {
 /// var" diye şikayet etmişti; gürültü burada kesiliyor.
 pub fn is_chat_model(id: &str) -> bool {
     const NOISE: [&str; 12] = [
-        "whisper", "tts", "embed", "guard", "moderation", "rerank", "dall-e", "image", "ocr",
-        "aqa", "imagen", "learnlm",
+        "whisper",
+        "tts",
+        "embed",
+        "guard",
+        "moderation",
+        "rerank",
+        "dall-e",
+        "image",
+        "ocr",
+        "aqa",
+        "imagen",
+        "learnlm",
     ];
     let lower = id.to_ascii_lowercase();
     !NOISE.iter().any(|n| lower.contains(n))

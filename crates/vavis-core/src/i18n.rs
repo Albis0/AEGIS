@@ -340,7 +340,9 @@ pub fn t(lang: Lang, key: Key) -> &'static str {
 
         (En, ErrModelNotFound) => "Model not found. Use /models to list, /model to switch.",
         (Tr, ErrModelNotFound) => "Model bulunamadı. /models ile listele, /model ile değiştir.",
-        (De, ErrModelNotFound) => "Modell nicht gefunden. /models zum Auflisten, /model zum Wechseln.",
+        (De, ErrModelNotFound) => {
+            "Modell nicht gefunden. /models zum Auflisten, /model zum Wechseln."
+        }
         (Fr, ErrModelNotFound) => "Modèle introuvable. /models pour lister, /model pour changer.",
         (Es, ErrModelNotFound) => "Modelo no encontrado. /models para listar, /model para cambiar.",
 
@@ -389,9 +391,13 @@ pub fn t(lang: Lang, key: Key) -> &'static str {
 
         (En, VoiceNeedsKey) => "speech recognition needs a Groq key — /key groq <key>",
         (Tr, VoiceNeedsKey) => "ses tanıma için Groq anahtarı gerekli — /key groq <anahtar>",
-        (De, VoiceNeedsKey) => "Spracherkennung braucht einen Groq-Schlüssel — /key groq <Schlüssel>",
+        (De, VoiceNeedsKey) => {
+            "Spracherkennung braucht einen Groq-Schlüssel — /key groq <Schlüssel>"
+        }
         (Fr, VoiceNeedsKey) => "la reconnaissance vocale nécessite une clé Groq — /key groq <clé>",
-        (Es, VoiceNeedsKey) => "el reconocimiento de voz necesita una clave Groq — /key groq <clave>",
+        (Es, VoiceNeedsKey) => {
+            "el reconocimiento de voz necesita una clave Groq — /key groq <clave>"
+        }
 
         (En, MicFailed) => "microphone could not be opened",
         (Tr, MicFailed) => "mikrofon açılamadı",
@@ -426,7 +432,9 @@ pub fn t(lang: Lang, key: Key) -> &'static str {
 
         (En, ApprovalBudget) => "Many destructive actions were already run in this turn.",
         (Tr, ApprovalBudget) => "Bu çalıştırmada çok sayıda yıkıcı işlem yapıldı.",
-        (De, ApprovalBudget) => "In diesem Durchlauf wurden bereits viele destruktive Aktionen ausgeführt.",
+        (De, ApprovalBudget) => {
+            "In diesem Durchlauf wurden bereits viele destruktive Aktionen ausgeführt."
+        }
         (Fr, ApprovalBudget) => "De nombreuses actions destructrices ont déjà été exécutées.",
         (Es, ApprovalBudget) => "Ya se ejecutaron muchas acciones destructivas en este turno.",
 
@@ -586,26 +594,69 @@ mod tests {
         // Listing keys explicitly — a new key added without a test entry is
         // still caught by the exhaustive match in `t()`.
         let keys = [
-            Key::Ready, Key::NoApiKey, Key::TryLocal, Key::HelpHint,
-            Key::HistoryRestored, Key::Thinking, Key::Listening, Key::Speaking,
-            Key::WaitingReply, Key::TypeSomething, Key::EmptyResponse,
-            Key::PreviousStillRunning, Key::SpeechInterrupted, Key::HistoryCleared,
-            Key::MemoryKept, Key::KeySaved, Key::NoKeysStored, Key::KeysStored,
-            Key::UnknownProvider, Key::ProviderOptions, Key::ModelSet,
-            Key::FetchingModels, Key::NoModelsFound, Key::ModelCount,
-            Key::ErrInvalidKey, Key::ErrRateLimit, Key::ErrModelNotFound,
-            Key::ErrRequestTooLong, Key::ErrTimeout, Key::ErrNoConnection,
-            Key::ErrConfigSave, Key::VoiceOff, Key::VoiceContinuous,
-            Key::VoiceWakeWord, Key::VoiceNeedsKey, Key::MicFailed,
-            Key::ListeningNow, Key::SpeechNotRecognised, Key::ApprovalNeeded,
-            Key::ApprovalIrreversible, Key::ApprovalBudget, Key::Allow,
-            Key::AllowAlways, Key::Deny, Key::UserDenied,
-            Key::SettingsRestartNeeded, Key::UnknownSetting, Key::InvalidLanguage,
-            Key::InvalidFontSize, Key::InvalidWindowMode, Key::AutomationFired,
-            Key::AutomationSkippedBusy, Key::HealthTitle, Key::HealthVersion,
-            Key::HealthProvider, Key::HealthModel, Key::HealthKeys,
-            Key::HealthTools, Key::HealthHistory, Key::HealthMemory,
-            Key::HealthAutomations, Key::HealthVoice, Key::HealthDataDir,
+            Key::Ready,
+            Key::NoApiKey,
+            Key::TryLocal,
+            Key::HelpHint,
+            Key::HistoryRestored,
+            Key::Thinking,
+            Key::Listening,
+            Key::Speaking,
+            Key::WaitingReply,
+            Key::TypeSomething,
+            Key::EmptyResponse,
+            Key::PreviousStillRunning,
+            Key::SpeechInterrupted,
+            Key::HistoryCleared,
+            Key::MemoryKept,
+            Key::KeySaved,
+            Key::NoKeysStored,
+            Key::KeysStored,
+            Key::UnknownProvider,
+            Key::ProviderOptions,
+            Key::ModelSet,
+            Key::FetchingModels,
+            Key::NoModelsFound,
+            Key::ModelCount,
+            Key::ErrInvalidKey,
+            Key::ErrRateLimit,
+            Key::ErrModelNotFound,
+            Key::ErrRequestTooLong,
+            Key::ErrTimeout,
+            Key::ErrNoConnection,
+            Key::ErrConfigSave,
+            Key::VoiceOff,
+            Key::VoiceContinuous,
+            Key::VoiceWakeWord,
+            Key::VoiceNeedsKey,
+            Key::MicFailed,
+            Key::ListeningNow,
+            Key::SpeechNotRecognised,
+            Key::ApprovalNeeded,
+            Key::ApprovalIrreversible,
+            Key::ApprovalBudget,
+            Key::Allow,
+            Key::AllowAlways,
+            Key::Deny,
+            Key::UserDenied,
+            Key::SettingsRestartNeeded,
+            Key::UnknownSetting,
+            Key::InvalidLanguage,
+            Key::InvalidFontSize,
+            Key::InvalidWindowMode,
+            Key::AutomationFired,
+            Key::AutomationSkippedBusy,
+            Key::HealthTitle,
+            Key::HealthVersion,
+            Key::HealthProvider,
+            Key::HealthModel,
+            Key::HealthKeys,
+            Key::HealthTools,
+            Key::HealthHistory,
+            Key::HealthMemory,
+            Key::HealthAutomations,
+            Key::HealthVoice,
+            Key::HealthDataDir,
             Key::HealthNone,
         ];
 

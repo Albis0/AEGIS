@@ -352,7 +352,10 @@ impl Tool for WriteClipboard {
 fn write_clipboard_platform(text: &str) -> ToolOutcome {
     let safe = text.replace('\'', "''");
     match run_powershell(&format!("Set-Clipboard -Value '{safe}'")) {
-        Ok(_) => ToolOutcome::ok(format!("panoya kopyalandı ({} karakter)", text.chars().count())),
+        Ok(_) => ToolOutcome::ok(format!(
+            "panoya kopyalandı ({} karakter)",
+            text.chars().count()
+        )),
         Err(e) => ToolOutcome::err(format!("panoya yazılamadı: {e}")),
     }
 }

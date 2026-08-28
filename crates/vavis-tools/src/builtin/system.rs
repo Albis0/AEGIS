@@ -33,7 +33,15 @@ impl Tool for SystemInfo {
     }
 
     fn keywords(&self) -> &'static [&'static str] {
-        &["cpu", "ram", "bellek", "disk", "performans", "sistem", "durum"]
+        &[
+            "cpu",
+            "ram",
+            "bellek",
+            "disk",
+            "performans",
+            "sistem",
+            "durum",
+        ]
     }
 
     fn run(&self, _args: &Value) -> ToolOutcome {

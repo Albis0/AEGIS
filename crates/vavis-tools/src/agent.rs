@@ -27,8 +27,12 @@ const REPEAT_LIMIT: usize = 2;
 /// bağlı olmayan mantığın tamamı böylece doğrulanabiliyor.
 pub trait AgentHost {
     /// Kullanıcıya onay sor.
-    fn ask_approval(&mut self, tool: &str, args: &str, reason: crate::permission::ApprovalReason)
-        -> Approval;
+    fn ask_approval(
+        &mut self,
+        tool: &str,
+        args: &str,
+        reason: crate::permission::ApprovalReason,
+    ) -> Approval;
 
     /// Bir tool çalıştırıldığını bildir (arayüzde göstermek için).
     fn on_tool_start(&mut self, _tool: &str, _args: &str) {}
@@ -118,7 +122,9 @@ impl Agent {
             if !self.guard.check(name, args_json) {
                 results.push(Message::tool_result(
                     &call.id,
-                    format!("HATA: '{name}' aynı argümanlarla tekrar tekrar çağrıldı — döngü kesildi"),
+                    format!(
+                        "HATA: '{name}' aynı argümanlarla tekrar tekrar çağrıldı — döngü kesildi"
+                    ),
                 ));
                 continue;
             }
@@ -237,7 +243,10 @@ mod tests {
         let results = agent.execute_calls(&[call("simdiki_zaman", "{}")], &mut host);
 
         assert_eq!(results.len(), 1);
-        assert!(host.approvals_asked.is_empty(), "güvenli tool onay sormamalı");
+        assert!(
+            host.approvals_asked.is_empty(),
+            "güvenli tool onay sormamalı"
+        );
         assert!(host.tools_run.contains(&"simdiki_zaman".to_string()));
     }
 
@@ -248,7 +257,11 @@ mod tests {
 
         agent.execute_calls(&[call("unut", r#"{"numara":"1"}"#)], &mut host);
 
-        assert_eq!(host.approvals_asked, vec!["unut"], "yıkıcı tool onay sormalı");
+        assert_eq!(
+            host.approvals_asked,
+            vec!["unut"],
+            "yıkıcı tool onay sormalı"
+        );
     }
 
     #[test]
@@ -269,7 +282,10 @@ mod tests {
 
         let results = agent.execute_calls(&[call("uydurma_tool", "{}")], &mut host);
 
-        assert!(results[0].content.contains("yok"), "model bilgilendirilmeli");
+        assert!(
+            results[0].content.contains("yok"),
+            "model bilgilendirilmeli"
+        );
         assert!(host.tools_run.is_empty());
     }
 
@@ -280,7 +296,11 @@ mod tests {
 
         let results = agent.execute_calls(&[call("hesapla", "{bozuk")], &mut host);
 
-        assert!(results[0].content.contains("JSON"), "içerik: {}", results[0].content);
+        assert!(
+            results[0].content.contains("JSON"),
+            "içerik: {}",
+            results[0].content
+        );
     }
 
     #[test]
@@ -289,7 +309,11 @@ mod tests {
         let mut host = AllowAll::default();
 
         let results = agent.execute_calls(&[call("simdiki_zaman", "")], &mut host);
-        assert!(!results[0].content.starts_with("HATA"), "{}", results[0].content);
+        assert!(
+            !results[0].content.starts_with("HATA"),
+            "{}",
+            results[0].content
+        );
     }
 
     #[test]
@@ -303,7 +327,11 @@ mod tests {
         agent.execute_calls(std::slice::from_ref(&c), &mut host);
         let third = agent.execute_calls(std::slice::from_ref(&c), &mut host);
 
-        assert!(third[0].content.contains("döngü"), "içerik: {}", third[0].content);
+        assert!(
+            third[0].content.contains("döngü"),
+            "içerik: {}",
+            third[0].content
+        );
     }
 
     #[test]
@@ -365,6 +393,9 @@ mod tests {
         agent.start_run(); // yeni istek
 
         let after = agent.execute_calls(std::slice::from_ref(&c), &mut host);
-        assert!(!after[0].content.contains("döngü"), "yeni istekte sayaç sıfırlanmalı");
+        assert!(
+            !after[0].content.contains("döngü"),
+            "yeni istekte sayaç sıfırlanmalı"
+        );
     }
 }

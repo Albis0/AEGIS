@@ -53,10 +53,7 @@ pub fn parse_trigger(input: &str) -> Option<Trigger> {
 
     // Saat: "09:00" veya "9.30"
     if let Some((h, m)) = parse_clock(&s) {
-        return Some(Trigger::Daily {
-            hour: h,
-            minute: m,
-        });
+        return Some(Trigger::Daily { hour: h, minute: m });
     }
 
     // Aralık: "30 dakika", "2 saat"
@@ -279,7 +276,10 @@ mod tests {
         // Nokta da kabul.
         assert_eq!(
             parse_trigger("7.30"),
-            Some(Trigger::Daily { hour: 7, minute: 30 })
+            Some(Trigger::Daily {
+                hour: 7,
+                minute: 30
+            })
         );
     }
 
@@ -295,7 +295,10 @@ mod tests {
             parse_trigger("30 dakika"),
             Some(Trigger::Every { minutes: 30 })
         );
-        assert_eq!(parse_trigger("2 saat"), Some(Trigger::Every { minutes: 120 }));
+        assert_eq!(
+            parse_trigger("2 saat"),
+            Some(Trigger::Every { minutes: 120 })
+        );
         assert_eq!(parse_trigger("15 dk"), Some(Trigger::Every { minutes: 15 }));
     }
 
@@ -356,9 +359,11 @@ mod tests {
     fn create_requires_both_parameters() {
         ensure_store();
         assert!(!CreateAutomation.run(&serde_json::json!({})).ok);
-        assert!(!CreateAutomation
-            .run(&serde_json::json!({"ne_zaman": "09:00"}))
-            .ok);
+        assert!(
+            !CreateAutomation
+                .run(&serde_json::json!({"ne_zaman": "09:00"}))
+                .ok
+        );
     }
 
     #[test]

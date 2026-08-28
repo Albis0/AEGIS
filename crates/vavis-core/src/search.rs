@@ -218,9 +218,18 @@ mod tests {
     #[test]
     fn rare_terms_outweigh_common_ones() {
         let idx = SearchIndex::build(vec![
-            Document { id: 1, text: "bir bir bir nadir".into() },
-            Document { id: 2, text: "bir bir bir bir bir".into() },
-            Document { id: 3, text: "bir kelime burada".into() },
+            Document {
+                id: 1,
+                text: "bir bir bir nadir".into(),
+            },
+            Document {
+                id: 2,
+                text: "bir bir bir bir bir".into(),
+            },
+            Document {
+                id: 3,
+                text: "bir kelime burada".into(),
+            },
         ]);
         let hits = idx.search("nadir", 10);
         assert_eq!(hits.len(), 1);
@@ -307,9 +316,18 @@ mod turkish_suffix_tests {
     #[test]
     fn query_matches_suffixed_forms() {
         let idx = SearchIndex::build(vec![
-            Document { id: 1, text: "kahveyi sade içerim".into() },
-            Document { id: 2, text: "kahvede buluşalım".into() },
-            Document { id: 3, text: "kitap okumayı severim".into() },
+            Document {
+                id: 1,
+                text: "kahveyi sade içerim".into(),
+            },
+            Document {
+                id: 2,
+                text: "kahvede buluşalım".into(),
+            },
+            Document {
+                id: 3,
+                text: "kitap okumayı severim".into(),
+            },
         ]);
 
         let ids: Vec<i64> = idx.search("kahve", 10).iter().map(|h| h.id).collect();
@@ -321,8 +339,14 @@ mod turkish_suffix_tests {
     #[test]
     fn exact_match_outranks_prefix_match() {
         let idx = SearchIndex::build(vec![
-            Document { id: 1, text: "kahveyi severim".into() },
-            Document { id: 2, text: "kahve severim".into() },
+            Document {
+                id: 1,
+                text: "kahveyi severim".into(),
+            },
+            Document {
+                id: 2,
+                text: "kahve severim".into(),
+            },
         ]);
         let hits = idx.search("kahve", 10);
         assert_eq!(hits[0].id, 2, "tam eşleşme önde olmalı");
@@ -333,8 +357,14 @@ mod turkish_suffix_tests {
         // "kap" araması "kapı"yı bulur (meşru) ama "kitap"ı bulmamalı —
         // önek eşleşmesi, içerme değil.
         let idx = SearchIndex::build(vec![
-            Document { id: 1, text: "kapı açık kaldı".into() },
-            Document { id: 2, text: "kitap masada duruyor".into() },
+            Document {
+                id: 1,
+                text: "kapı açık kaldı".into(),
+            },
+            Document {
+                id: 2,
+                text: "kitap masada duruyor".into(),
+            },
         ]);
         let ids: Vec<i64> = idx.search("kap", 10).iter().map(|h| h.id).collect();
         assert!(ids.contains(&1));

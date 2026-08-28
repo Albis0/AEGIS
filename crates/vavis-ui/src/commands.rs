@@ -13,7 +13,10 @@ pub enum Command {
     Clear,
     Quit,
     /// `/key groq gsk_...`
-    SetKey { provider: String, key: String },
+    SetKey {
+        provider: String,
+        key: String,
+    },
     /// `/keys` — hangi sağlayıcıların anahtarı var
     ListKeys,
     /// `/provider groq`
@@ -25,7 +28,10 @@ pub enum Command {
     /// `/ses` — ses modunu değiştir
     Voice(String),
     /// `/ayar <alan> <değer>`
-    Set { field: String, value: String },
+    Set {
+        field: String,
+        value: String,
+    },
     /// `/ayarlar` — mevcut ayarları göster
     ShowSettings,
     /// Komut değil — LLM'e gidecek düz metin.
@@ -60,7 +66,8 @@ pub fn parse(input: &str) -> Command {
         "ayar" | "set" => {
             if arg1.is_empty() || arg2.is_empty() {
                 Command::Unknown(
-                    "kullanım: /ayar <alan> <değer>  (alanlar: isim, dil, yazitipi, pencere)".into(),
+                    "kullanım: /ayar <alan> <değer>  (alanlar: isim, dil, yazitipi, pencere)"
+                        .into(),
                 )
             } else {
                 Command::Set {

@@ -79,7 +79,9 @@ fn offered_tool_eval_scores_100_percent() {
     for (msg, expected) in EXPECT_OFFERED {
         let offered = selection::select_named(&reg, msg);
         if !offered.contains(expected) {
-            failures.push(format!("  '{msg}' → {expected} bekleniyordu, sunulan: {offered:?}"));
+            failures.push(format!(
+                "  '{msg}' → {expected} bekleniyordu, sunulan: {offered:?}"
+            ));
         }
     }
 
@@ -203,6 +205,10 @@ fn no_duplicate_tools_are_offered() {
         sorted.sort_unstable();
         let before = sorted.len();
         sorted.dedup();
-        assert_eq!(before, sorted.len(), "'{msg}' tekrarlı tool içeriyor: {offered:?}");
+        assert_eq!(
+            before,
+            sorted.len(),
+            "'{msg}' tekrarlı tool içeriyor: {offered:?}"
+        );
     }
 }

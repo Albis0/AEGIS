@@ -107,7 +107,9 @@ impl VoiceManager {
                         tracing::info!(?mode, "mikrofon açıldı");
                     }
                     Err(e) => {
-                        let _ = self.tx.send(VoiceEvent::Notice(format!("mikrofon açılamadı: {e}")));
+                        let _ = self
+                            .tx
+                            .send(VoiceEvent::Notice(format!("mikrofon açılamadı: {e}")));
                         self.mode = VoiceMode::Off;
                     }
                 }

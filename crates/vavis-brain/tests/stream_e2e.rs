@@ -69,7 +69,11 @@ async fn full_stream_is_assembled_in_order() {
         .unwrap();
 
     assert_eq!(full, "Merhaba dünya");
-    assert_eq!(deltas, vec!["Mer", "haba", " dünya"], "parçalar sırayla gelmeli");
+    assert_eq!(
+        deltas,
+        vec!["Mer", "haba", " dünya"],
+        "parçalar sırayla gelmeli"
+    );
 }
 
 #[tokio::test]
@@ -117,7 +121,12 @@ async fn tool_call_fragments_are_merged_across_chunks() {
     let port = spawn_sse_server(body);
 
     let resp = BrainClient::new()
-        .chat_stream_with_tools(&config_for(port), vec![Message::user("dosyayı oku")], &[], |_| {})
+        .chat_stream_with_tools(
+            &config_for(port),
+            vec![Message::user("dosyayı oku")],
+            &[],
+            |_| {},
+        )
         .await
         .unwrap();
 

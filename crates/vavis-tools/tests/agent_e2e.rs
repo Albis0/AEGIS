@@ -77,7 +77,11 @@ fn full_flow_from_message_to_tool_result() {
 
     // 3) Sonuç modele dönmeli
     assert_eq!(results.len(), 1);
-    assert!(!results[0].content.starts_with("HATA"), "{}", results[0].content);
+    assert!(
+        !results[0].content.starts_with("HATA"),
+        "{}",
+        results[0].content
+    );
     assert!(
         results[0].content.contains("CPU"),
         "gerçek telemetri dönmeli: {}",
@@ -130,11 +134,18 @@ fn tool_error_is_reported_to_model_not_swallowed() {
 
     // Var olmayan dosya → tool hata döner, ama akış devam etmeli.
     let results = agent.execute_calls(
-        &[call("dosya_oku", r#"{"yol":"C:/kesinlikle/yok/dosya.txt"}"#)],
+        &[call(
+            "dosya_oku",
+            r#"{"yol":"C:/kesinlikle/yok/dosya.txt"}"#,
+        )],
         &mut host,
     );
 
-    assert!(results[0].content.starts_with("HATA"), "{}", results[0].content);
+    assert!(
+        results[0].content.starts_with("HATA"),
+        "{}",
+        results[0].content
+    );
     assert_eq!(host.finished, vec![("dosya_oku".to_string(), false)]);
 }
 
@@ -188,10 +199,7 @@ fn memory_round_trip_through_the_agent() {
     let mut agent = agent();
     let mut host = ScriptedHost::new(Approval::Allow);
 
-    let results = agent.execute_calls(
-        &[call("hatirla", r#"{"bilgi":"test bilgisi"}"#)],
-        &mut host,
-    );
+    let results = agent.execute_calls(&[call("hatirla", r#"{"bilgi":"test bilgisi"}"#)], &mut host);
 
     assert_eq!(results.len(), 1, "her çağrı bir sonuç üretmeli");
     assert_eq!(host.started.len(), 1);
@@ -203,14 +211,15 @@ fn unknown_tool_does_not_abort_remaining_calls() {
     let mut host = ScriptedHost::new(Approval::Allow);
 
     let results = agent.execute_calls(
-        &[
-            call("uydurma_tool", "{}"),
-            call("simdiki_zaman", "{}"),
-        ],
+        &[call("uydurma_tool", "{}"), call("simdiki_zaman", "{}")],
         &mut host,
     );
 
-    assert_eq!(results.len(), 2, "ilk çağrı hatalı olsa da ikincisi çalışmalı");
+    assert_eq!(
+        results.len(),
+        2,
+        "ilk çağrı hatalı olsa da ikincisi çalışmalı"
+    );
     assert!(results[0].content.contains("yok"));
     assert!(!results[1].content.starts_with("HATA"));
 }
@@ -265,9 +274,6 @@ fn tool_names_are_unique_and_lowercase() {
             name.to_lowercase(),
             "tool adları küçük harf olmalı: {name}"
         );
-        assert!(
-            !name.contains(' '),
-            "tool adında boşluk olmamalı: {name}"
-        );
+        assert!(!name.contains(' '), "tool adında boşluk olmamalı: {name}");
     }
 }

@@ -49,7 +49,9 @@ const GEC_VERSION: &str = "1-130.0.2849.68";
 /// `windows_ticks`: 1601-01-01'den bu yana geçen 100 nanosaniyelik aralık
 /// sayısı, en yakın 5 dakikaya yuvarlanmış.
 /// Teshis icin disa acilan imza uretici.
-pub fn debug_gec() -> String { gec_token() }
+pub fn debug_gec() -> String {
+    gec_token()
+}
 
 fn gec_token() -> String {
     use sha2::{Digest, Sha256};
@@ -193,7 +195,10 @@ pub fn synthesize(text: &str, voice: &str, rate: i32, volume: i32) -> Result<Vec
     let request = tungstenite::http::Request::builder()
         .uri(build_url(&connection_id))
         // Bu başlıklar olmadan servis 403 döner.
-        .header("Origin", "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold")
+        .header(
+            "Origin",
+            "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        )
         .header(
             "User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -203,7 +208,10 @@ pub fn synthesize(text: &str, voice: &str, rate: i32, volume: i32) -> Result<Vec
         .header("Connection", "Upgrade")
         .header("Upgrade", "websocket")
         .header("Sec-WebSocket-Version", "13")
-        .header("Sec-WebSocket-Key", tungstenite::handshake::client::generate_key())
+        .header(
+            "Sec-WebSocket-Key",
+            tungstenite::handshake::client::generate_key(),
+        )
         .body(())
         .map_err(|e| EdgeError::Connect(e.to_string()))?;
 
@@ -492,7 +500,9 @@ mod tests {
     fn empty_text_synthesizes_to_nothing_without_network() {
         // Ağa çıkmadan dönmeli.
         assert!(synthesize("", VOICE_TR_FEMALE, 0, 100).unwrap().is_empty());
-        assert!(synthesize("   ", VOICE_TR_FEMALE, 0, 100).unwrap().is_empty());
+        assert!(synthesize("   ", VOICE_TR_FEMALE, 0, 100)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

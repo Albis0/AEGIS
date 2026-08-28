@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest a capability or improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you're hitting rather than the solution you have
+        in mind — that usually leads somewhere better.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation where VAVIS falls short today
+      placeholder: |
+        I want the assistant to summarise my unread email each morning,
+        but there's no way to reach my inbox.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What did you have in mind?
+      description: Optional — a rough shape is fine
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - New tool / capability
+        - Voice (speech recognition, speech synthesis)
+        - Interface
+        - LLM providers / models
+        - Automation
+        - Memory
+        - Performance
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the README to see whether this already exists
+        - label: I searched existing issues

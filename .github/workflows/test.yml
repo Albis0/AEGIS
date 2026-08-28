@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    # Windows-only: the app links against Win32 APIs (DPAPI, screen capture,
+    # media keys) that have no cross-platform stand-in.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --all
+
+      - name: Tool selection quality
+        # Guards the core invariant: the model must never see more than 12
+        # tools, and the selection eval must stay at 100%.
+        run: cargo test -p vavis-tools --test selection_eval -- --nocapture

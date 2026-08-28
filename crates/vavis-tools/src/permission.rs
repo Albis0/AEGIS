@@ -119,7 +119,10 @@ mod tests {
     #[test]
     fn moderate_asks_until_granted() {
         let mut gate = PermissionGate::new();
-        assert!(matches!(gate.check("set_volume", Risk::Moderate), Decision::Ask(_)));
+        assert!(matches!(
+            gate.check("set_volume", Risk::Moderate),
+            Decision::Ask(_)
+        ));
 
         gate.grant_always("set_volume");
         assert_eq!(gate.check("set_volume", Risk::Moderate), Decision::Allow);
@@ -142,7 +145,10 @@ mod tests {
 
         // Bütçe içindeyken izin geçerli.
         for _ in 0..DESTRUCTIVE_BUDGET {
-            assert_eq!(gate.check("delete_file", Risk::Destructive), Decision::Allow);
+            assert_eq!(
+                gate.check("delete_file", Risk::Destructive),
+                Decision::Allow
+            );
             gate.record_execution(Risk::Destructive);
         }
 

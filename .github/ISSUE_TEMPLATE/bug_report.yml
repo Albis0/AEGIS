@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in VAVIS doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Fill in what you can — nothing here needs to be perfect.
+
+        One request: if this is a **security vulnerability**, email instead of
+        posting it publicly (see [SECURITY.md](../blob/main/SECURITY.md)) so a
+        fix can land before the details are out.
+
+  - type: input
+    id: version
+    attributes:
+      label: VAVIS version
+      description: Press F1, or use the filename you downloaded
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: LLM provider
+      options:
+        - Groq
+        - Anthropic (Claude)
+        - OpenAI
+        - Gemini
+        - Mistral
+        - DeepSeek
+        - xAI
+        - Local (Ollama / LM Studio)
+        - Not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Which model was selected (F1 shows it)
+      placeholder: "llama-3.3-70b-versatile"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what happened instead of what you expected
+      placeholder: |
+        I asked "take a screenshot and tell me what's on screen".
+        The screenshot was taken but the assistant said it couldn't see anything.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: |
+        From `%APPDATA%\vavis\data\logs\`. The daily log is usually enough;
+        include `cokme.log` if it exists (that file only appears after a crash).
+
+        **Check for API keys before pasting** — keys should never appear in
+        logs, but glance anyway.
+      render: text
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: Does it happen every time?
+      options:
+        - Every time
+        - Sometimes
+        - Happened once
+        - Not sure
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"

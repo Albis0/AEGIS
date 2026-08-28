@@ -64,7 +64,9 @@ fn html_to_text(html: &str) -> String {
 
         if c == '<' {
             // script/style bloklarını tamamen atla.
-            let rest: String = lower_chars[i..(i + 8).min(lower_chars.len())].iter().collect();
+            let rest: String = lower_chars[i..(i + 8).min(lower_chars.len())]
+                .iter()
+                .collect();
             if rest.starts_with("<script") || rest.starts_with("<style") {
                 skip_depth += 1;
             } else if rest.starts_with("</script") || rest.starts_with("</style") {

@@ -118,7 +118,11 @@ pub fn build_messages(messages: &[Message]) -> (String, Vec<Value>) {
     }
 
     // Anthropic ilk mesajın "user" olmasını ister.
-    if out.first().map(|m| m["role"] == "assistant").unwrap_or(false) {
+    if out
+        .first()
+        .map(|m| m["role"] == "assistant")
+        .unwrap_or(false)
+    {
         out.insert(0, json!({"role": "user", "content": "(devam)"}));
     }
 
@@ -224,14 +228,13 @@ impl StreamState {
             "content_block_delta" => {
                 let delta = &event["delta"];
                 match delta["type"].as_str().unwrap_or_default() {
-                    "text_delta" => Chunk::Text(
-                        delta["text"].as_str().unwrap_or_default().to_string(),
-                    ),
+                    "text_delta" => {
+                        Chunk::Text(delta["text"].as_str().unwrap_or_default().to_string())
+                    }
                     "input_json_delta" => {
                         let index = event["index"].as_u64().unwrap_or(0) as usize;
                         let partial = delta["partial_json"].as_str().unwrap_or_default();
-                        if let Some(slot) =
-                            self.tool_blocks.iter_mut().find(|(i, ..)| *i == index)
+                        if let Some(slot) = self.tool_blocks.iter_mut().find(|(i, ..)| *i == index)
                         {
                             slot.3.push_str(partial);
                         }
@@ -297,10 +300,7 @@ mod tests {
 
     #[test]
     fn system_message_becomes_top_level_field() {
-        let msgs = vec![
-            Message::system("sen vavis'sin"),
-            Message::user("selam"),
-        ];
+        let msgs = vec![Message::system("sen vavis'sin"), Message::user("selam")];
         let (system, out) = build_messages(&msgs);
 
         assert_eq!(system, "sen vavis'sin");
@@ -407,7 +407,10 @@ mod tests {
         assert_eq!(converted[0]["name"], "dosya_oku");
         assert_eq!(converted[0]["description"], "dosya okur");
         assert!(converted[0]["input_schema"]["properties"]["yol"].is_object());
-        assert!(converted[0].get("function").is_none(), "sarmalayıcı kalmamalı");
+        assert!(
+            converted[0].get("function").is_none(),
+            "sarmalayıcı kalmamalı"
+        );
     }
 
     #[test]
@@ -505,7 +508,10 @@ mod tests {
         );
 
         let calls = state.finish();
-        assert_eq!(calls[0].function.arguments, "{}", "boş argüman geçerli JSON olmalı");
+        assert_eq!(
+            calls[0].function.arguments, "{}",
+            "boş argüman geçerli JSON olmalı"
+        );
     }
 
     #[test]

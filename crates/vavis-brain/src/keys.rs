@@ -19,7 +19,10 @@ pub struct KeyStore {
 
 impl KeyStore {
     pub fn get(&self, provider: &str) -> Option<&str> {
-        self.keys.get(provider).map(String::as_str).filter(|k| !k.trim().is_empty())
+        self.keys
+            .get(provider)
+            .map(String::as_str)
+            .filter(|k| !k.trim().is_empty())
     }
 
     pub fn set(&mut self, provider: impl Into<String>, key: impl Into<String>) {

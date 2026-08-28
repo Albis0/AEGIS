@@ -63,10 +63,7 @@ fn install_panic_hook(paths: &Paths) {
 
         // Loglama altyapısı da bozulmuş olabilir; ayrı bir dosyaya da yaz.
         let crash_file = log_dir.join("cokme.log");
-        let entry = format!(
-            "[{}] {location}\n{message}\n\n",
-            chrono_like_timestamp()
-        );
+        let entry = format!("[{}] {location}\n{message}\n\n", chrono_like_timestamp());
         let _ = std::fs::OpenOptions::new()
             .create(true)
             .append(true)

@@ -72,9 +72,8 @@ impl Tool for Click {
             "orta" | "middle" => MouseButton::Middle,
             _ => MouseButton::Left,
         };
-        let double = arg_str(args, "cift").is_some_and(|v| {
-            matches!(v.to_lowercase().as_str(), "evet" | "true" | "yes" | "1")
-        });
+        let double = arg_str(args, "cift")
+            .is_some_and(|v| matches!(v.to_lowercase().as_str(), "evet" | "true" | "yes" | "1"));
 
         click_platform(x as i32, y as i32, button, double)
     }
@@ -332,7 +331,11 @@ fn click_platform(x: i32, y: i32, button: MouseButton, double: bool) -> ToolOutc
         }
     }
 
-    let kind = if double { "çift tıklandı" } else { "tıklandı" };
+    let kind = if double {
+        "çift tıklandı"
+    } else {
+        "tıklandı"
+    };
     ToolOutcome::ok(format!("({x},{y}) noktasına {kind}"))
 }
 

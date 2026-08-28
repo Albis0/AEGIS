@@ -9,12 +9,12 @@ use crate::bridge::{Bridge, UiEvent};
 use crate::commands::{self, Command};
 use crate::feed::{Feed, Speaker};
 use crate::theme::Theme;
-use eframe::egui;
-use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
-use vavis_tools::{Agent, Approval, ApprovalReason};
 use crate::ticker::Ticker;
 use crate::voice::{VoiceEvent, VoiceManager};
+use eframe::egui;
+use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
 use vavis_core::{App as CoreApp, VERSION};
+use vavis_tools::{Agent, Approval, ApprovalReason};
 
 pub struct VavisUi {
     core: CoreApp,
@@ -287,13 +287,8 @@ impl VavisUi {
             &self.core.config.general.language,
         ));
 
-        self.bridge.send_chat(
-            cfg,
-            system,
-            self.history.clone(),
-            text,
-            Some(ctx.clone()),
-        );
+        self.bridge
+            .send_chat(cfg, system, self.history.clone(), text, Some(ctx.clone()));
     }
 
     /// Mevcut ayarları listeler.
@@ -324,8 +319,7 @@ impl VavisUi {
         match field {
             "isim" | "name" => {
                 self.core.config.general.assistant_name = value.clone();
-                self.feed
-                    .push(Speaker::System, format!("isim: {value}"));
+                self.feed.push(Speaker::System, format!("isim: {value}"));
             }
             "dil" | "language" | "lang" => {
                 let lang = value.to_lowercase();
@@ -349,7 +343,8 @@ impl VavisUi {
                 }
                 self.core.config.ui.font_size = size;
                 needs_restart = true;
-                self.feed.push(Speaker::System, format!("yazı tipi: {size}"));
+                self.feed
+                    .push(Speaker::System, format!("yazı tipi: {size}"));
             }
             "pencere" | "window" => {
                 let mode = value.to_lowercase();
@@ -362,7 +357,8 @@ impl VavisUi {
                 }
                 self.core.config.ui.window_mode = mode.clone();
                 needs_restart = true;
-                self.feed.push(Speaker::System, format!("pencere modu: {mode}"));
+                self.feed
+                    .push(Speaker::System, format!("pencere modu: {mode}"));
             }
             other => {
                 self.feed.push(
@@ -412,8 +408,10 @@ impl VavisUi {
         }
 
         self.voice.set_mode(mode);
-        self.feed
-            .push(Speaker::System, format!("ses: {}", self.voice.mode().label()));
+        self.feed.push(
+            Speaker::System,
+            format!("ses: {}", self.voice.mode().label()),
+        );
     }
 
     fn set_key(&mut self, provider_name: &str, key: String) {
@@ -446,13 +444,20 @@ impl VavisUi {
     }
 
     fn list_keys(&mut self) {
-        let configured: Vec<String> = self.keys.configured().iter().map(|s| s.to_string()).collect();
+        let configured: Vec<String> = self
+            .keys
+            .configured()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         if configured.is_empty() {
             self.feed.push(Speaker::System, "kayıtlı anahtar yok");
         } else {
             // Anahtarın kendisi ASLA gösterilmez — sadece hangi sağlayıcı.
-            self.feed
-                .push(Speaker::System, format!("anahtarı olanlar: {}", configured.join(", ")));
+            self.feed.push(
+                Speaker::System,
+                format!("anahtarı olanlar: {}", configured.join(", ")),
+            );
         }
     }
 
@@ -476,8 +481,10 @@ impl VavisUi {
             format!("sağlayıcı: {provider} · model: {}", self.model()),
         );
         if provider.needs_key() && self.keys.get(provider.key_name()).is_none() {
-            self.feed
-                .push(Speaker::System, format!("anahtar gerek → /key {provider} <anahtar>"));
+            self.feed.push(
+                Speaker::System,
+                format!("anahtar gerek → /key {provider} <anahtar>"),
+            );
         }
     }
 
@@ -490,9 +497,15 @@ impl VavisUi {
 
     fn fetch_models(&mut self, ctx: &egui::Context) {
         let provider = self.provider();
-        let key = self.keys.get(provider.key_name()).unwrap_or_default().to_string();
-        self.feed
-            .push(Speaker::System, format!("{provider} model listesi alınıyor…"));
+        let key = self
+            .keys
+            .get(provider.key_name())
+            .unwrap_or_default()
+            .to_string();
+        self.feed.push(
+            Speaker::System,
+            format!("{provider} model listesi alınıyor…"),
+        );
         self.bridge.fetch_models(provider, key, Some(ctx.clone()));
     }
 
@@ -681,7 +694,11 @@ impl VavisUi {
                 [ui.available_width(), ui.spacing().interact_size.y],
                 egui::TextEdit::singleline(&mut self.input)
                     .frame(false)
-                    .hint_text(if busy { "cevap bekleniyor…" } else { "bir şeyler yaz…" })
+                    .hint_text(if busy {
+                        "cevap bekleniyor…"
+                    } else {
+                        "bir şeyler yaz…"
+                    })
                     .text_color(Theme::FG),
             );
 
@@ -724,8 +741,18 @@ impl VavisUi {
                     ("sürüm", VERSION.to_string()),
                     ("sağlayıcı", self.provider().to_string()),
                     ("model", self.model()),
-                    ("anahtarlar", if keys.is_empty() { "yok".into() } else { keys }),
-                    ("tool sayısı", format!("{} kayıtlı · en fazla {} sunulur", self.bridge.tool_count(), vavis_tools::MAX_TOOLS)),
+                    (
+                        "anahtarlar",
+                        if keys.is_empty() { "yok".into() } else { keys },
+                    ),
+                    (
+                        "tool sayısı",
+                        format!(
+                            "{} kayıtlı · en fazla {} sunulur",
+                            self.bridge.tool_count(),
+                            vavis_tools::MAX_TOOLS
+                        ),
+                    ),
                     ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
                     ("veritabanı", format!("{msgs} mesaj")),
                     ("hafıza", format!("{facts} olgu")),
@@ -734,13 +761,16 @@ impl VavisUi {
                     ("veri dizini", self.core.paths.root().display().to_string()),
                 ];
 
-                egui::Grid::new("health").num_columns(2).spacing([12.0, 4.0]).show(ui, |ui| {
-                    for (k, v) in rows {
-                        ui.colored_label(Theme::FG_DIM, k);
-                        ui.colored_label(Theme::FG, v);
-                        ui.end_row();
-                    }
-                });
+                egui::Grid::new("health")
+                    .num_columns(2)
+                    .spacing([12.0, 4.0])
+                    .show(ui, |ui| {
+                        for (k, v) in rows {
+                            ui.colored_label(Theme::FG_DIM, k);
+                            ui.colored_label(Theme::FG, v);
+                            ui.end_row();
+                        }
+                    });
             });
         self.show_health = open;
     }
@@ -775,7 +805,8 @@ impl VavisUi {
         // kutusuna "m" yazmak modu değiştirmemeli.)
         if ctrl_m {
             let mode = self.voice.cycle_mode();
-            self.feed.push(Speaker::System, format!("ses: {}", mode.label()));
+            self.feed
+                .push(Speaker::System, format!("ses: {}", mode.label()));
 
             // STT için anahtar gerekiyor — kullanıcı bilsin.
             if mode.is_listening() {

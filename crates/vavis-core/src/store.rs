@@ -62,7 +62,9 @@ impl Store {
 
         let current: Option<i64> = self
             .conn
-            .query_row("SELECT version FROM schema_version LIMIT 1", [], |r| r.get(0))
+            .query_row("SELECT version FROM schema_version LIMIT 1", [], |r| {
+                r.get(0)
+            })
             .ok();
 
         match current {
@@ -98,8 +100,10 @@ impl Store {
         self.migrate_automations()?;
 
         self.conn.execute("DELETE FROM schema_version", [])?;
-        self.conn
-            .execute("INSERT INTO schema_version (version) VALUES (?1)", [SCHEMA_VERSION])?;
+        self.conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            [SCHEMA_VERSION],
+        )?;
         Ok(())
     }
 
@@ -185,7 +189,9 @@ impl Store {
     pub fn schema_version(&self) -> Result<i64> {
         Ok(self
             .conn
-            .query_row("SELECT version FROM schema_version LIMIT 1", [], |r| r.get(0))?)
+            .query_row("SELECT version FROM schema_version LIMIT 1", [], |r| {
+                r.get(0)
+            })?)
     }
 
     /// Sağlık ekranı için mesaj sayısı.
@@ -216,7 +222,10 @@ mod tests {
             let store = Store::open(&paths).unwrap();
             store
                 .conn
-                .execute("INSERT INTO messages (role, content) VALUES ('user', 'selam')", [])
+                .execute(
+                    "INSERT INTO messages (role, content) VALUES ('user', 'selam')",
+                    [],
+                )
                 .unwrap();
         }
 

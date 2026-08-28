@@ -21,7 +21,7 @@ pub use i18n::{t, Key, Lang};
 pub use paths::Paths;
 pub use scheduler::{Automation, Trigger};
 pub use search::{Document, Hit, SearchIndex};
-pub use store::{Fact, StoredMessage, Store};
+pub use store::{Fact, Store, StoredMessage};
 
 /// `Cargo.toml`'dan gelen sürüm — arayüzdeki sağlık ekranı bunu gösterir.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -50,7 +50,11 @@ impl App {
             "vavis açıldı"
         );
 
-        Ok(Self { paths, config, store })
+        Ok(Self {
+            paths,
+            config,
+            store,
+        })
     }
 }
 

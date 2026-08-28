@@ -61,7 +61,10 @@ impl Tool for Calculate {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("ifade", "Hesaplanacak ifade, örn: 15 * 3 + 2")]
+        vec![Param::required(
+            "ifade",
+            "Hesaplanacak ifade, örn: 15 * 3 + 2",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {

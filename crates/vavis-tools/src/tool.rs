@@ -198,7 +198,10 @@ pub trait Tool: Send + Sync {
 
 /// Argümanlardan string okuma yardımcıları.
 pub fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
-    args.get(key)?.as_str().map(str::trim).filter(|s| !s.is_empty())
+    args.get(key)?
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
 }
 
 /// Sayısal argüman — model string de gönderebilir, ikisini de kabul et.
@@ -283,7 +286,9 @@ mod tests {
     #[test]
     fn schema_marks_required_params_only() {
         let schema = Dummy.schema();
-        let required = schema["function"]["parameters"]["required"].as_array().unwrap();
+        let required = schema["function"]["parameters"]["required"]
+            .as_array()
+            .unwrap();
         assert_eq!(required.len(), 1);
         assert_eq!(required[0], "a");
     }
