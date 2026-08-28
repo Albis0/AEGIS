@@ -6,6 +6,7 @@
 //! dışarı verir. Tool'ları da tanımaz (F3'te `vavis-tools` bu katmanı kullanacak,
 //! tersi değil).
 
+pub mod anthropic;
 pub mod budget;
 pub mod client;
 pub mod keys;

@@ -4,6 +4,7 @@
 //! tool tanımlanmıştı. Burada bilinçli olarak **az sayıda, geniş kapsamlı**
 //! tool var — model az seçenek arasından daha isabetli seçer.
 
+pub mod control;
 pub mod core;
 pub mod files;
 pub mod memory;
@@ -23,6 +24,13 @@ pub fn register_all(registry: &mut Registry) {
     registry.register(Box::new(system::ListProcesses));
     registry.register(Box::new(system::Battery));
     registry.register(Box::new(system::SetVolume));
+    registry.register(Box::new(control::SetBrightness));
+    registry.register(Box::new(control::LaunchApp));
+    registry.register(Box::new(control::CloseApp));
+    registry.register(Box::new(control::RunCommand));
+    registry.register(Box::new(control::ReadClipboard));
+    registry.register(Box::new(control::WriteClipboard));
+    registry.register(Box::new(control::ListWindows));
 
     // Dosya.
     registry.register(Box::new(files::ReadFile));

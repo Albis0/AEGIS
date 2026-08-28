@@ -153,6 +153,13 @@ impl BrainClient {
             .map(|t| estimate_tokens(&t.to_string()))
             .sum();
 
+        // Anthropic tamamen farklı gövde/akış şeması kullanıyor — ayrı yol.
+        if cfg.provider == Provider::Anthropic {
+            return self
+                .anthropic_stream(cfg, messages, tools, caps, on_event)
+                .await;
+        }
+
         let fitted = fit_request(messages, tool_tokens, caps);
         if fitted.history_dropped > 0 {
             tracing::info!(
@@ -253,6 +260,109 @@ impl BrainClient {
 
         // [DONE] gelmeden akış bitti (bazı sağlayıcılar göndermiyor).
         let calls = finish_calls(pending);
+        if !calls.is_empty() {
+            on_event(StreamEvent::ToolCalls(calls.clone()));
+        }
+        on_event(StreamEvent::Done);
+        Ok(ChatResponse {
+            text: full,
+            tool_calls: calls,
+        })
+    }
+
+    /// Anthropic Messages API akışı.
+    ///
+    /// OpenAI yolundan ayrı tutuluyor çünkü hemen her şey farklı: kimlik
+    /// başlıkları, sistem isteminin yeri, tool şeması, SSE olay tipleri.
+    /// Dönüşüm `crate::anthropic` modülünde; burası sadece HTTP.
+    async fn anthropic_stream<F>(
+        &self,
+        cfg: &ChatConfig,
+        messages: Vec<Message>,
+        tools: &[serde_json::Value],
+        caps: ModelCaps,
+        mut on_event: F,
+    ) -> Result<ChatResponse>
+    where
+        F: FnMut(StreamEvent),
+    {
+        use crate::anthropic::{self, Chunk, StreamState};
+
+        let tool_tokens: usize = tools.iter().map(|t| estimate_tokens(&t.to_string())).sum();
+        let fitted = fit_request(messages, tool_tokens, caps);
+
+        let body = anthropic::build_body(
+            &cfg.model,
+            &fitted.messages,
+            tools,
+            caps.max_output,
+            cfg.temperature,
+        );
+
+        let resp = self
+            .http
+            .post(cfg.chat_url())
+            // Anthropic Bearer değil x-api-key kullanıyor.
+            .header("x-api-key", &cfg.api_key)
+            .header("anthropic-version", anthropic::API_VERSION)
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(BrainError::Api {
+                status: status.as_u16(),
+                body: body.chars().take(500).collect(),
+            });
+        }
+
+        let mut full = String::new();
+        let mut buf = String::new();
+        let mut state = StreamState::default();
+        let mut stream = resp.bytes_stream();
+
+        while let Some(chunk) = stream.next().await {
+            buf.push_str(&String::from_utf8_lossy(&chunk?));
+
+            while let Some(nl) = buf.find('\n') {
+                let line = buf[..nl].trim().to_string();
+                buf.drain(..=nl);
+
+                // `event:` satırları yok sayılır — tip zaten veri içinde.
+                let Some(data) = line.strip_prefix("data:") else {
+                    continue;
+                };
+                let data = data.trim();
+                if data.is_empty() {
+                    continue;
+                }
+
+                match state.feed(data) {
+                    Chunk::Text(text) => {
+                        full.push_str(&text);
+                        on_event(StreamEvent::Delta(text));
+                    }
+                    Chunk::Done => {
+                        let calls = state.finish();
+                        if !calls.is_empty() {
+                            on_event(StreamEvent::ToolCalls(calls.clone()));
+                        }
+                        on_event(StreamEvent::Done);
+                        return Ok(ChatResponse {
+                            text: full,
+                            tool_calls: calls,
+                        });
+                    }
+                    Chunk::Nothing => {}
+                }
+            }
+        }
+
+        // Akış `message_stop` gelmeden bitti.
+        let calls = state.finish();
         if !calls.is_empty() {
             on_event(StreamEvent::ToolCalls(calls.clone()));
         }

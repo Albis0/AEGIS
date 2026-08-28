@@ -16,6 +16,7 @@
 //! imkânsız kılar — ayrıntı o modülün belgesinde.
 
 pub mod capture;
+pub mod edge_tts;
 pub mod queue;
 pub mod stt;
 pub mod tts;

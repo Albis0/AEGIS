@@ -197,7 +197,7 @@ impl Tool for SetVolume {
     }
 
     fn domain(&self) -> Domain {
-        Domain::System
+        Domain::Control
     }
 
     /// Geri alınabilir ama kullanıcıyı şaşırtabilir → onay ister.

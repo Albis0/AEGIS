@@ -33,7 +33,16 @@ const EXPECT_OFFERED: &[(&str, &str)] = &[
     ("şunu unutma: toplantı salı günü", "hatirla"),
     ("hakkımda ne biliyorsun", "hafizada_ara"),
     ("sana ne söylemiştim", "hafizada_ara"),
-    // Çekirdek (alan tetiklendiğinde birlikte gelir)
+    // Kontrol (sistem degistirme)
+    ("parlaklığı azalt", "parlaklik_ayarla"),
+    ("ekranı karart", "parlaklik_ayarla"),
+    ("notepad aç", "uygulama_ac"),
+    ("chrome başlat", "uygulama_ac"),
+    ("spotify uygulamasını kapat", "uygulama_kapat"),
+    ("panodaki metni oku", "pano_oku"),
+    ("şunu panoya kopyala", "pano_yaz"),
+    ("bir powershell komutu çalıştır", "komut_calistir"),
+    // Cekirdek (alan tetiklendiginde birlikte gelir)
     ("cpu durumu ve saat", "simdiki_zaman"),
 ];
 

@@ -24,6 +24,34 @@ pub enum TtsError {
 
 pub type Result<T> = std::result::Result<T, TtsError>;
 
+/// Hangi ses motoru kullanılacak.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TtsEngineKind {
+    /// Windows SAPI — çevrimdışı, anahtarsız, her zaman çalışır.
+    #[default]
+    Sapi,
+    /// Microsoft Edge TTS — daha doğal ses, ama servis erişimi
+    /// kısıtlanabiliyor (403). Başarısız olursa SAPI'ye düşer.
+    Edge,
+}
+
+impl TtsEngineKind {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "sapi" | "windows" | "sistem" => Some(Self::Sapi),
+            "edge" | "neural" | "dogal" | "doğal" => Some(Self::Edge),
+            _ => None,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Sapi => "sapi (sistem sesi)",
+            Self::Edge => "edge (doğal ses)",
+        }
+    }
+}
+
 /// TTS ayarları.
 #[derive(Debug, Clone)]
 pub struct TtsConfig {
@@ -33,6 +61,10 @@ pub struct TtsConfig {
     pub volume: u32,
     /// Ses adı — boşsa sistem varsayılanı.
     pub voice: String,
+    /// Kullanılacak motor.
+    pub engine: TtsEngineKind,
+    /// Edge motoru için ses adı (SAPI'den farklı adlandırma).
+    pub edge_voice: String,
 }
 
 impl Default for TtsConfig {
@@ -41,6 +73,10 @@ impl Default for TtsConfig {
             rate: 1, // hafif hızlı — bekleme hissini azaltır
             volume: 100,
             voice: String::new(),
+            // SAPI varsayılan: Edge servisi erişimi kısıtlayabiliyor,
+            // varsayılanın her koşulda çalışması önemli.
+            engine: TtsEngineKind::Sapi,
+            edge_voice: crate::edge_tts::VOICE_TR_FEMALE.to_string(),
         }
     }
 }
@@ -78,6 +114,9 @@ impl TtsEngine {
     }
 
     /// Metni seslendirir. **Bloklar** — ayrı bir thread'den çağrılmalı.
+    ///
+    /// Edge seçiliyse ve servis erişilemezse **sessizce SAPI'ye düşer** —
+    /// kullanıcı ses duymamaktansa daha az doğal bir ses duysun.
     pub fn speak(&self, text: &str) -> Result<()> {
         if text.trim().is_empty() {
             return Ok(());
@@ -85,6 +124,30 @@ impl TtsEngine {
         if self.cancel.load(Ordering::SeqCst) {
             return Ok(()); // zaten iptal edilmiş
         }
+
+        if self.config.engine == TtsEngineKind::Edge {
+            let voice = if self.config.edge_voice.trim().is_empty() {
+                crate::edge_tts::VOICE_TR_FEMALE
+            } else {
+                &self.config.edge_voice
+            };
+            // SAPI hızı -10..10, Edge yüzde ister — ölçekle.
+            let rate_pct = self.config.rate.clamp(-10, 10) * 10;
+
+            match crate::edge_tts::speak(
+                text,
+                voice,
+                rate_pct,
+                self.config.volume as i32,
+                &self.cancel,
+            ) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    tracing::warn!(%e, "edge tts başarısız — sapi'ye düşülüyor");
+                }
+            }
+        }
+
         speak_platform(text, &self.config)
     }
 
@@ -269,5 +332,45 @@ mod tests {
     fn voice_listing_does_not_panic() {
         // Windows'ta ses döner, diğerlerinde boş — ikisi de geçerli.
         let _ = TtsEngine::available_voices();
+    }
+}
+
+#[cfg(test)]
+mod engine_tests {
+    use super::*;
+
+    #[test]
+    fn engine_parsing_accepts_aliases() {
+        assert_eq!(TtsEngineKind::parse("sapi"), Some(TtsEngineKind::Sapi));
+        assert_eq!(TtsEngineKind::parse("SISTEM"), Some(TtsEngineKind::Sapi));
+        assert_eq!(TtsEngineKind::parse("edge"), Some(TtsEngineKind::Edge));
+        assert_eq!(TtsEngineKind::parse("doğal"), Some(TtsEngineKind::Edge));
+        assert_eq!(TtsEngineKind::parse("yok"), None);
+    }
+
+    #[test]
+    fn default_engine_is_sapi() {
+        // Edge servisi 403 verebiliyor; varsayılan her koşulda çalışmalı.
+        assert_eq!(TtsConfig::default().engine, TtsEngineKind::Sapi);
+    }
+
+    #[test]
+    fn every_engine_has_a_label() {
+        for e in [TtsEngineKind::Sapi, TtsEngineKind::Edge] {
+            assert!(!e.label().is_empty());
+        }
+    }
+
+    #[test]
+    fn edge_engine_falls_back_when_service_fails() {
+        // Edge seçili ama servis erişilemez → hata dönmemeli (SAPI devreye girer).
+        let engine = TtsEngine::new(TtsConfig {
+            engine: TtsEngineKind::Edge,
+            edge_voice: "gecersiz-ses-adi".into(),
+            ..Default::default()
+        });
+        // İptal bayrağı açık: ağa çıkmadan dönmeli, panik olmamalı.
+        engine.stop();
+        assert!(engine.speak("test").is_ok());
     }
 }

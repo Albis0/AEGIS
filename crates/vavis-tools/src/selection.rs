@@ -60,15 +60,30 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
             "yol", "belge", "txt", "içerik", "icerik",
         ],
     },
+    // OKUMA — durum sorgulama.
     DomainKeywords {
         domain: Domain::System,
         words: &[
-            "ses", "sesi", "volume", "parlaklık", "parlaklik", "brightness", "cpu", "ram",
-            "bellek", "memory", "disk", "pil", "batarya", "battery", "sistem", "system",
-            "işlem", "islem", "süreç", "surec", "process", "uygulama", "program", "çalıştır",
-            "calistir", "komut", "command", "performans", "durum", "telemetri", "kapat",
-            "sarj", "şarj", "prize", "fis", "fiş",
-            "aç", "ac", "başlat", "baslat",
+            "cpu", "ram", "bellek", "memory", "disk", "pil", "batarya", "battery",
+            "sistem", "system", "işlem", "islem", "süreç", "surec", "process",
+            "performans", "durum", "telemetri", "sarj", "şarj", "prize",
+            "pencere", "window", "calisan", "çalışan", "calisiyor", "çalışıyor",
+            "acik", "açık", "kullanan", "yiyen", "tuketiyor", "tüketiyor",
+        ],
+    },
+    // DEĞİŞTİRME — ayar yapma, uygulama, komut, pano.
+    //
+    // Okumadan ayrı: tek alanda 11 tool birikince çekirdek tool'lar
+    // sınırın dışına itiliyordu (eval %95'e düşmüştü).
+    DomainKeywords {
+        domain: Domain::Control,
+        words: &[
+            "ses", "sesi", "volume", "sessiz", "kis", "kıs",
+            "parlak", "brightness", "karart", "aydinlat", "aydınlat", "isik", "ışık",
+            "uygulama", "program", "başlat", "baslat", "kapat", "sonlandir", "sonlandır",
+            "komut", "command", "powershell", "script",
+            "pano", "clipboard", "kopyala", "yapistir", "yapıştır",
+            "notepad", "chrome", "spotify", "explorer",
         ],
     },
     DomainKeywords {
@@ -269,10 +284,10 @@ mod tests {
             ("move_file", Domain::Files),
             ("find_file", Domain::Files),
             ("sys_info", Domain::System),
-            ("set_volume", Domain::System),
-            ("set_brightness", Domain::System),
+            ("set_volume", Domain::Control),
+            ("set_brightness", Domain::Control),
             ("list_processes", Domain::System),
-            ("run_command", Domain::System),
+            ("run_command", Domain::Control),
             ("battery", Domain::System),
             ("web_search", Domain::Web),
             ("fetch_url", Domain::Web),
@@ -358,7 +373,7 @@ mod tests {
     fn ascii_turkish_also_matches() {
         // Kullanıcılar sıklıkla şapkasız yazıyor.
         let d = match_domains("parlaklik arttir");
-        assert!(d.contains(&Domain::System), "ASCII yazım da eşleşmeli: {d:?}");
+        assert!(d.contains(&Domain::Control), "ASCII yazım da eşleşmeli: {d:?}");
     }
 
     #[test]

@@ -19,8 +19,15 @@ pub enum Domain {
     Core,
     /// Dosya okuma/yazma/listeleme.
     Files,
-    /// Sistem durumu, ses, parlaklık, süreçler.
+    /// Sistem durumu **okuma** — CPU, RAM, pil, süreçler, pencereler.
     System,
+    /// Sistem **değiştirme** — ses, parlaklık, uygulama açma/kapatma,
+    /// komut çalıştırma, pano.
+    ///
+    /// Okumadan ayrı tutuluyor: "cpu durumu nasıl" sorusuna `komut_calistir`
+    /// sunmak hem gereksiz hem riskli. Ayrıca tek alanda 11 tool birikince
+    /// çekirdek tool'lar sınırın dışına itiliyordu.
+    Control,
     /// Web arama, sayfa okuma.
     Web,
     /// Hafıza — hatırla/unut/ara.
@@ -28,10 +35,11 @@ pub enum Domain {
 }
 
 impl Domain {
-    pub const ALL: [Domain; 5] = [
+    pub const ALL: [Domain; 6] = [
         Self::Core,
         Self::Files,
         Self::System,
+        Self::Control,
         Self::Web,
         Self::Memory,
     ];
@@ -41,6 +49,7 @@ impl Domain {
             Self::Core => "core",
             Self::Files => "files",
             Self::System => "system",
+            Self::Control => "control",
             Self::Web => "web",
             Self::Memory => "memory",
         }
