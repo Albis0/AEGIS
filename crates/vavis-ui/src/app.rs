@@ -35,6 +35,8 @@ pub struct VavisUi {
     ran_tool_this_turn: bool,
     /// Ses katmanı — mikrofon, STT, TTS.
     voice: VoiceManager,
+    /// Kalıcı depo — hafıza ve sohbet geçmişi.
+    store: std::sync::Arc<std::sync::Mutex<vavis_core::Store>>,
 }
 
 #[derive(Clone)]
@@ -49,6 +51,13 @@ impl VavisUi {
         Theme::apply(&cc.egui_ctx, core.config.ui.font_size);
 
         let keys = KeyStore::load(core.paths.root());
+
+        // Hafıza tool'ları depoyu buradan alır — tek kaynak.
+        let store = std::sync::Arc::new(std::sync::Mutex::new(
+            vavis_core::Store::open(&core.paths).expect("veritabanı açılamadı"),
+        ));
+        vavis_tools::builtin::memory::attach_store(store.clone());
+
         let agent = Agent::new(vavis_tools::default_registry());
         let bridge = Bridge::new(agent).expect("tokio çalışma zamanı kurulamadı");
 
@@ -75,9 +84,80 @@ impl VavisUi {
             pending_approval: None,
             ran_tool_this_turn: false,
             voice,
+            store,
         };
+        ui.restore_history();
         ui.greet();
         ui
+    }
+
+    /// Önceki oturumun sohbetini geri yükler.
+    ///
+    /// Sadece son birkaç tur — tüm geçmişi yüklemek bağlam bütçesini
+    /// baştan doldururdu.
+    fn restore_history(&mut self) {
+        const RESTORE_COUNT: usize = 20;
+
+        let stored = {
+            let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
+            guard.recent_messages(RESTORE_COUNT)
+        };
+
+        let Ok(messages) = stored else {
+            return;
+        };
+        if messages.is_empty() {
+            return;
+        }
+
+        for m in &messages {
+            let (role, speaker) = match m.role.as_str() {
+                "user" => (Role::User, Speaker::User),
+                "assistant" => (Role::Assistant, Speaker::Assistant),
+                _ => continue, // tool/system mesajları geri yüklenmez
+            };
+            self.feed.push(speaker, m.content.clone());
+            self.history.push(Message {
+                role,
+                content: m.content.clone(),
+                tool_call_id: None,
+                tool_calls: None,
+            });
+        }
+
+        self.feed.push(
+            Speaker::System,
+            format!("— önceki oturumdan {} mesaj yüklendi —", messages.len()),
+        );
+    }
+
+    /// Bir mesajı kalıcı depoya yazar.
+    fn persist(&self, role: &str, content: &str) {
+        let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
+        if let Err(e) = guard.add_message(role, content) {
+            tracing::warn!(%e, "mesaj kaydedilemedi");
+        }
+    }
+
+    /// Sohbeti temizler — ekran, bellek ve depo.
+    ///
+    /// Hafızadaki **olgular silinmez**: kullanıcı "beni hatırla" diye
+    /// kaydettirdiği şeyi /clear ile kaybetmemeli.
+    fn clear_history(&mut self) {
+        self.feed.clear();
+        self.history.clear();
+
+        let cleared = {
+            let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
+            guard.clear_messages()
+        };
+        if let Err(e) = cleared {
+            tracing::warn!(%e, "geçmiş silinemedi");
+        }
+
+        self.feed
+            .push(Speaker::System, "sohbet temizlendi (hafıza korundu)");
+        self.focus_input = true;
     }
 
     fn greet(&mut self) {
@@ -146,11 +226,7 @@ impl VavisUi {
                 }
             }
             Command::Health => self.show_health = true,
-            Command::Clear => {
-                self.feed.clear();
-                self.history.clear();
-                self.feed.push(Speaker::System, "geçmiş temizlendi");
-            }
+            Command::Clear => self.clear_history(),
             Command::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Command::SetKey { provider, key } => self.set_key(&provider, key),
             Command::ListKeys => self.list_keys(),
@@ -178,6 +254,7 @@ impl VavisUi {
         }
 
         self.history.push(Message::user(text.clone()));
+        self.persist("user", &text);
         self.ran_tool_this_turn = false;
 
         let cfg = ChatConfig::new(
@@ -317,6 +394,7 @@ impl VavisUi {
                     } else {
                         // Cevabı seslendir — ses açıksa.
                         self.voice.speak(&full, Some(ctx.clone()));
+                        self.persist("assistant", &full);
                         self.history.push(Message::assistant(full));
                     }
                     self.ran_tool_this_turn = false;
@@ -496,7 +574,11 @@ impl VavisUi {
                     .unwrap_or_else(|e| format!("hata: {e}"));
 
                 let keys = self.keys.configured().join(", ");
-                let rows: [(&str, String); 9] = [
+                let facts = {
+                    let g = self.store.lock().unwrap_or_else(|e| e.into_inner());
+                    g.fact_count().unwrap_or(0)
+                };
+                let rows: [(&str, String); 10] = [
                     ("sürüm", VERSION.to_string()),
                     ("sağlayıcı", self.provider().to_string()),
                     ("model", self.model()),
@@ -504,6 +586,7 @@ impl VavisUi {
                     ("tool sayısı", format!("{} kayıtlı · en fazla {} sunulur", self.bridge.tool_count(), vavis_tools::MAX_TOOLS)),
                     ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
                     ("veritabanı", format!("{msgs} mesaj")),
+                    ("hafıza", format!("{facts} olgu")),
                     ("ses", self.voice.mode().label().to_string()),
                     ("veri dizini", self.core.paths.root().display().to_string()),
                 ];
@@ -534,10 +617,7 @@ impl VavisUi {
         }
 
         if ctrl_l {
-            self.feed.clear();
-            self.history.clear();
-            self.feed.push(Speaker::System, "geçmiş temizlendi");
-            self.focus_input = true;
+            self.clear_history();
         }
 
         // ── BARGE-IN ────────────────────────────────────────────────────

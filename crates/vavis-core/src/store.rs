@@ -9,7 +9,24 @@ use crate::paths::Paths;
 use rusqlite::Connection;
 
 /// Kodun beklediği şema sürümü. Yeni göç eklendikçe artar.
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
+
+/// Kalıcı bir olgu (kullanıcı hakkında hatırlanan bilgi).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Fact {
+    pub id: i64,
+    pub text: String,
+    pub created_at: i64,
+}
+
+/// Kayıtlı bir sohbet mesajı.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredMessage {
+    pub id: i64,
+    pub role: String,
+    pub content: String,
+    pub created_at: i64,
+}
 
 pub struct Store {
     conn: Connection,
@@ -54,7 +71,9 @@ impl Store {
             None => tracing::info!(version = SCHEMA_VERSION, "şema oluşturuluyor"),
         }
 
-        // v1 — sohbet kaydı (F2'de doldurulacak).
+        // Göçler biriktirilerek uygulanır: v1'den gelen veritabanı da,
+        // sıfırdan kurulan da aynı sonuca varır.
+        // v1 — sohbet kaydı.
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS messages (
                  id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,9 +84,90 @@ impl Store {
              CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);",
         )?;
 
+        // v2 — kalıcı hafıza (olgular).
+        self.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS facts (
+                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                 text       TEXT    NOT NULL,
+                 created_at INTEGER NOT NULL DEFAULT (unixepoch())
+             );
+             CREATE INDEX IF NOT EXISTS idx_facts_created ON facts(created_at);",
+        )?;
+
         self.conn.execute("DELETE FROM schema_version", [])?;
         self.conn
             .execute("INSERT INTO schema_version (version) VALUES (?1)", [SCHEMA_VERSION])?;
+        Ok(())
+    }
+
+    // ── Hafıza ──────────────────────────────────────────────────────────
+
+    /// Yeni bir olgu kaydeder, id'sini döner.
+    pub fn add_fact(&self, text: &str) -> Result<i64> {
+        self.conn
+            .execute("INSERT INTO facts (text) VALUES (?1)", [text])?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn all_facts(&self) -> Result<Vec<Fact>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, text, created_at FROM facts ORDER BY id")?;
+        let rows = stmt.query_map([], |r| {
+            Ok(Fact {
+                id: r.get(0)?,
+                text: r.get(1)?,
+                created_at: r.get(2)?,
+            })
+        })?;
+        Ok(rows.filter_map(std::result::Result::ok).collect())
+    }
+
+    /// Olguyu siler. Silinen satır sayısı > 0 ise true.
+    pub fn delete_fact(&self, id: i64) -> Result<bool> {
+        let n = self.conn.execute("DELETE FROM facts WHERE id = ?1", [id])?;
+        Ok(n > 0)
+    }
+
+    pub fn fact_count(&self) -> Result<i64> {
+        Ok(self
+            .conn
+            .query_row("SELECT COUNT(*) FROM facts", [], |r| r.get(0))?)
+    }
+
+    // ── Sohbet geçmişi ──────────────────────────────────────────────────
+
+    pub fn add_message(&self, role: &str, content: &str) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO messages (role, content) VALUES (?1, ?2)",
+            [role, content],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Son N mesaj, **eskiden yeniye** sıralı (sohbet sırası).
+    pub fn recent_messages(&self, limit: usize) -> Result<Vec<StoredMessage>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, role, content, created_at FROM messages
+             ORDER BY id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map([limit as i64], |r| {
+            Ok(StoredMessage {
+                id: r.get(0)?,
+                role: r.get(1)?,
+                content: r.get(2)?,
+                created_at: r.get(3)?,
+            })
+        })?;
+
+        let mut out: Vec<StoredMessage> = rows.filter_map(std::result::Result::ok).collect();
+        out.reverse(); // sohbet sırasına çevir
+        Ok(out)
+    }
+
+    /// Tüm sohbet geçmişini siler (olgular kalır).
+    pub fn clear_messages(&self) -> Result<()> {
+        self.conn.execute("DELETE FROM messages", [])?;
         Ok(())
     }
 
@@ -112,5 +212,117 @@ mod tests {
         let store = Store::open(&paths).unwrap(); // ikinci açılış = göç tekrar çalışır
         assert_eq!(store.message_count().unwrap(), 1);
         assert_eq!(store.schema_version().unwrap(), SCHEMA_VERSION);
+    }
+}
+
+#[cfg(test)]
+mod store_v2_tests {
+    use super::*;
+
+    #[test]
+    fn facts_round_trip() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.add_fact("kahveyi sade içerim").unwrap();
+
+        let facts = store.all_facts().unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].id, id);
+        assert_eq!(facts[0].text, "kahveyi sade içerim");
+        assert!(facts[0].created_at > 0, "zaman damgası konmalı");
+    }
+
+    #[test]
+    fn fact_ids_increment_and_do_not_repeat() {
+        let store = Store::open_in_memory().unwrap();
+        let a = store.add_fact("bir").unwrap();
+        let b = store.add_fact("iki").unwrap();
+        assert!(b > a);
+    }
+
+    #[test]
+    fn deleting_a_fact_removes_only_that_one() {
+        let store = Store::open_in_memory().unwrap();
+        let a = store.add_fact("bir").unwrap();
+        store.add_fact("iki").unwrap();
+
+        assert!(store.delete_fact(a).unwrap());
+        let remaining = store.all_facts().unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].text, "iki");
+    }
+
+    #[test]
+    fn deleting_a_missing_fact_reports_false() {
+        let store = Store::open_in_memory().unwrap();
+        assert!(!store.delete_fact(9999).unwrap());
+    }
+
+    #[test]
+    fn messages_come_back_in_conversation_order() {
+        let store = Store::open_in_memory().unwrap();
+        store.add_message("user", "soru").unwrap();
+        store.add_message("assistant", "cevap").unwrap();
+        store.add_message("user", "ikinci soru").unwrap();
+
+        let msgs = store.recent_messages(10).unwrap();
+        assert_eq!(msgs.len(), 3);
+        assert_eq!(msgs[0].content, "soru", "en eski başta olmalı");
+        assert_eq!(msgs[2].content, "ikinci soru");
+    }
+
+    #[test]
+    fn recent_messages_returns_the_newest_when_limited() {
+        let store = Store::open_in_memory().unwrap();
+        for i in 1..=10 {
+            store.add_message("user", &format!("mesaj {i}")).unwrap();
+        }
+
+        let msgs = store.recent_messages(3).unwrap();
+        assert_eq!(msgs.len(), 3);
+        assert_eq!(msgs[0].content, "mesaj 8", "son 3 alınmalı");
+        assert_eq!(msgs[2].content, "mesaj 10");
+    }
+
+    #[test]
+    fn clearing_messages_keeps_facts() {
+        let store = Store::open_in_memory().unwrap();
+        store.add_fact("kalıcı bilgi").unwrap();
+        store.add_message("user", "geçici").unwrap();
+
+        store.clear_messages().unwrap();
+
+        assert_eq!(store.message_count().unwrap(), 0);
+        assert_eq!(store.fact_count().unwrap(), 1, "olgular silinmemeli");
+    }
+
+    #[test]
+    fn v1_database_upgrades_to_v2_without_data_loss() {
+        // Eski sürümden gelen veritabanı: sadece messages tablosu var.
+        let tmp = tempfile::tempdir().unwrap();
+        let paths = Paths::with_root(tmp.path());
+        paths.ensure().unwrap();
+
+        {
+            let conn = Connection::open(paths.database_file()).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_version (version INTEGER NOT NULL);
+                 INSERT INTO schema_version VALUES (1);
+                 CREATE TABLE messages (
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     role TEXT NOT NULL,
+                     content TEXT NOT NULL,
+                     created_at INTEGER NOT NULL DEFAULT (unixepoch()));
+                 INSERT INTO messages (role, content) VALUES ('user', 'eski mesaj');",
+            )
+            .unwrap();
+        }
+
+        let store = Store::open(&paths).unwrap();
+
+        assert_eq!(store.schema_version().unwrap(), SCHEMA_VERSION);
+        assert_eq!(store.message_count().unwrap(), 1, "eski veri korunmalı");
+        // Yeni tablo kullanılabilir olmalı.
+        store.add_fact("yeni olgu").unwrap();
+        assert_eq!(store.fact_count().unwrap(), 1);
     }
 }

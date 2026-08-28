@@ -8,6 +8,7 @@ pub mod core;
 pub mod files;
 pub mod memory;
 pub mod system;
+pub mod web;
 
 use crate::tool::Registry;
 
@@ -28,6 +29,10 @@ pub fn register_all(registry: &mut Registry) {
     registry.register(Box::new(files::ListDir));
     registry.register(Box::new(files::WriteFile));
     registry.register(Box::new(files::FindFile));
+
+    // Web.
+    registry.register(Box::new(web::WebSearch));
+    registry.register(Box::new(web::FetchUrl));
 
     // Hafıza.
     registry.register(Box::new(memory::Remember));
