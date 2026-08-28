@@ -1,0 +1,22 @@
+[package]
+name = "vavis-audio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "VAVIS duyular katmani — STT, TTS, VAD, barge-in"
+
+[dependencies]
+vavis-core = { path = "../vavis-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+tracing.workspace = true
+cpal = "0.15"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -89,6 +89,8 @@ pub fn help_lines() -> Vec<&'static str> {
         "/health                  sistem durumu (F1)",
         "/clear                   ekranı ve geçmişi temizle (Ctrl+L)",
         "/quit                    çık",
+        "",
+        "Kısayollar: ESC konuşmayı kes · Ctrl+M ses modu · Ctrl+L temizle · F1 durum",
     ]
 }
 

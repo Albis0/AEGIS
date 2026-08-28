@@ -12,6 +12,7 @@ use crate::theme::Theme;
 use eframe::egui;
 use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
 use vavis_tools::{Agent, Approval, ApprovalReason};
+use crate::voice::{VoiceEvent, VoiceManager};
 use vavis_core::{App as CoreApp, VERSION};
 
 pub struct VavisUi {
@@ -32,6 +33,8 @@ pub struct VavisUi {
     pending_approval: Option<PendingApproval>,
     /// Bu turda tool çalıştı mı — boş cevabın normal olup olmadığını belirler.
     ran_tool_this_turn: bool,
+    /// Ses katmanı — mikrofon, STT, TTS.
+    voice: VoiceManager,
 }
 
 #[derive(Clone)]
@@ -49,6 +52,16 @@ impl VavisUi {
         let agent = Agent::new(vavis_tools::default_registry());
         let bridge = Bridge::new(agent).expect("tokio çalışma zamanı kurulamadı");
 
+        let mut voice = VoiceManager::new(
+            core.config.general.assistant_name.to_lowercase(),
+            core.config.general.language.clone(),
+        )
+        .expect("ses katmanı kurulamadı");
+        // STT Groq'un Whisper'ını kullanıyor — anahtar zaten varsa devral.
+        if let Some(key) = keys.get("groq") {
+            voice.set_api_key(key.to_string());
+        }
+
         let mut ui = Self {
             core,
             keys,
@@ -61,6 +74,7 @@ impl VavisUi {
             spinner_frame: 0,
             pending_approval: None,
             ran_tool_this_turn: false,
+            voice,
         };
         ui.greet();
         ui
@@ -197,6 +211,14 @@ impl VavisUi {
         };
 
         self.keys.set(provider.key_name(), key);
+
+        // STT de Groq'un Whisper'ını kullanıyor — anahtarı ses katmanına geçir.
+        if provider == Provider::Groq {
+            if let Some(k) = self.keys.get("groq") {
+                self.voice.set_api_key(k.to_string());
+            }
+        }
+
         match self.keys.save(self.core.paths.root()) {
             Ok(()) => self.feed.push(
                 Speaker::System,
@@ -261,7 +283,7 @@ impl VavisUi {
 
     // ── Beyin olaylarını işle ───────────────────────────────────────────────
 
-    fn pump_events(&mut self) {
+    fn pump_events(&mut self, ctx: &egui::Context) {
         for event in self.bridge.drain() {
             match event {
                 UiEvent::Delta(text) => self.feed.push_delta(Speaker::Assistant, &text),
@@ -293,6 +315,8 @@ impl VavisUi {
                             self.history.pop();
                         }
                     } else {
+                        // Cevabı seslendir — ses açıksa.
+                        self.voice.speak(&full, Some(ctx.clone()));
                         self.history.push(Message::assistant(full));
                     }
                     self.ran_tool_this_turn = false;
@@ -426,6 +450,13 @@ impl VavisUi {
                 self.spinner_frame = self.spinner_frame.wrapping_add(1);
                 let f = FRAMES[(self.spinner_frame / 8) % FRAMES.len()];
                 ui.colored_label(Theme::SYSTEM, f);
+            } else if self.voice.is_speaking() {
+                // Konuşurken ESC'nin kestiğini hatırlat.
+                ui.colored_label(Theme::ASSISTANT, "♪")
+                    .on_hover_text("konuşuyor — ESC keser");
+            } else if self.voice.mode().is_listening() {
+                ui.colored_label(Theme::ACCENT, "◉")
+                    .on_hover_text(self.voice.mode().label());
             } else {
                 ui.colored_label(Theme::ACCENT, "❯");
             }
@@ -465,7 +496,7 @@ impl VavisUi {
                     .unwrap_or_else(|e| format!("hata: {e}"));
 
                 let keys = self.keys.configured().join(", ");
-                let rows: [(&str, String); 8] = [
+                let rows: [(&str, String); 9] = [
                     ("sürüm", VERSION.to_string()),
                     ("sağlayıcı", self.provider().to_string()),
                     ("model", self.model()),
@@ -473,6 +504,7 @@ impl VavisUi {
                     ("tool sayısı", format!("{} kayıtlı · en fazla {} sunulur", self.bridge.tool_count(), vavis_tools::MAX_TOOLS)),
                     ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
                     ("veritabanı", format!("{msgs} mesaj")),
+                    ("ses", self.voice.mode().label().to_string()),
                     ("veri dizini", self.core.paths.root().display().to_string()),
                 ];
 
@@ -488,27 +520,82 @@ impl VavisUi {
     }
 
     fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        let (f1, ctrl_l) = ctx.input(|i| {
+        let (f1, ctrl_l, esc, ctrl_m) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::F1),
                 i.modifiers.ctrl && i.key_pressed(egui::Key::L),
+                i.key_pressed(egui::Key::Escape),
+                i.modifiers.ctrl && i.key_pressed(egui::Key::M),
             )
         });
+
         if f1 {
             self.show_health = !self.show_health;
         }
+
         if ctrl_l {
             self.feed.clear();
             self.history.clear();
             self.feed.push(Speaker::System, "geçmiş temizlendi");
             self.focus_input = true;
         }
+
+        // ── BARGE-IN ────────────────────────────────────────────────────
+        // Eski projede bu, sıradaki cümleyi başlatıyordu. Burada kuyruk
+        // yapısal olarak buna izin vermiyor (vavis_audio::queue).
+        if esc && self.voice.is_speaking() {
+            self.voice.stop_speaking();
+            self.feed.push(Speaker::System, "konuşma kesildi");
+        }
+
+        // Ctrl+M: ses modunu değiştir. (Yalın M kullanılmıyor — giriş
+        // kutusuna "m" yazmak modu değiştirmemeli.)
+        if ctrl_m {
+            let mode = self.voice.cycle_mode();
+            self.feed.push(Speaker::System, format!("ses: {}", mode.label()));
+
+            // STT için anahtar gerekiyor — kullanıcı bilsin.
+            if mode.is_listening() {
+                let key = self.keys.get("groq").unwrap_or_default().to_string();
+                if key.is_empty() {
+                    self.feed.push(
+                        Speaker::Error,
+                        "ses tanıma için Groq anahtarı gerekli → /key groq <anahtar>",
+                    );
+                } else {
+                    self.voice.set_api_key(key);
+                }
+            }
+        }
+    }
+
+    /// Ses katmanından gelen olayları işler.
+    fn pump_voice(&mut self, ctx: &egui::Context) {
+        let events = self.voice.poll(Some(ctx.clone()));
+        for event in events {
+            match event {
+                VoiceEvent::Heard(text) => {
+                    self.feed.push(Speaker::User, format!("🎤 {text}"));
+                    self.start_chat(text, ctx);
+                }
+                VoiceEvent::Woke => {
+                    self.feed.push(Speaker::System, "dinliyorum…");
+                }
+                VoiceEvent::Notice(msg) => {
+                    self.feed.push(Speaker::System, msg);
+                }
+                VoiceEvent::SpeakingChanged(_) => {
+                    // Gösterge `is_speaking()` ile okunuyor; ek iş yok.
+                }
+            }
+        }
     }
 }
 
 impl eframe::App for VavisUi {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.pump_events();
+        self.pump_events(ctx);
+        self.pump_voice(ctx);
         self.handle_shortcuts(ctx);
         self.draw_health(ctx);
         self.draw_approval(ctx);
