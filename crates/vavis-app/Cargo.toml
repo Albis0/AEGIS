@@ -1,0 +1,18 @@
+[package]
+name = "vavis-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "VAVIS — kişisel asistan"
+
+# Üretilen dosya: vavis.exe
+[[bin]]
+name = "vavis"
+path = "src/main.rs"
+
+[dependencies]
+vavis-core = { path = "../vavis-core" }
+vavis-ui = { path = "../vavis-ui" }
+anyhow.workspace = true
+tracing.workspace = true

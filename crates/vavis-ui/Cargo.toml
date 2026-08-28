@@ -1,0 +1,13 @@
+[package]
+name = "vavis-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "VAVIS kabuk katmanı — terminal görünümlü arayüz"
+
+[dependencies]
+vavis-core = { path = "../vavis-core" }
+eframe.workspace = true
+egui.workspace = true
+tracing.workspace = true

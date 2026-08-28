@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/vavis-core",
+    "crates/vavis-ui",
+    "crates/vavis-app",
+]
+
+# Bağımlılıklar burada tek yerde sabitlenir; crate'ler `workspace = true` ile alır.
+# Böylece sürüm çakışması olmaz ve derleme süresi düşer.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+directories = "5"
+rusqlite = { version = "0.32", features = ["bundled"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+egui = "0.29"
+
+# Sürüm profili: tek dosya, küçük binary.
+# Hedef ~15MB — LTO + symbol strip + panic=abort bunun için.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
