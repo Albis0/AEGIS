@@ -233,6 +233,9 @@ impl VavisUi {
             Command::SetProvider(name) => self.set_provider(&name),
             Command::SetModel(name) => self.set_model(name),
             Command::ListModels => self.fetch_models(ctx),
+            Command::ShowSettings => self.show_settings(),
+            Command::Voice(mode) => self.set_voice_mode(&mode),
+            Command::Set { field, value } => self.set_setting(&field, value),
             Command::Unknown(msg) => self.feed.push(Speaker::Error, msg),
         }
     }
@@ -276,6 +279,126 @@ impl VavisUi {
             text,
             Some(ctx.clone()),
         );
+    }
+
+    /// Mevcut ayarları listeler.
+    fn show_settings(&mut self) {
+        let cfg = &self.core.config;
+        let rows = [
+            format!("isim       {}", cfg.general.assistant_name),
+            format!("dil        {}", cfg.general.language),
+            format!("yazitipi   {}", cfg.ui.font_size),
+            format!("pencere    {}", cfg.ui.window_mode),
+            format!("saglayici  {}", cfg.llm.provider),
+            format!("model      {}", self.model()),
+        ];
+        for r in rows {
+            self.feed.push(Speaker::System, r);
+        }
+        self.feed
+            .push(Speaker::System, "değiştirmek için: /ayar <alan> <değer>");
+    }
+
+    /// Tek bir ayarı değiştirir.
+    ///
+    /// Ayarlar hemen diske yazılır; bazıları (yazı tipi, pencere modu)
+    /// yeniden başlatma ister — kullanıcıya söyleniyor.
+    fn set_setting(&mut self, field: &str, value: String) {
+        let mut needs_restart = false;
+
+        match field {
+            "isim" | "name" => {
+                self.core.config.general.assistant_name = value.clone();
+                self.feed
+                    .push(Speaker::System, format!("isim: {value}"));
+            }
+            "dil" | "language" | "lang" => {
+                let lang = value.to_lowercase();
+                if !["tr", "en"].contains(&lang.as_str()) {
+                    self.feed
+                        .push(Speaker::Error, "dil sadece 'tr' veya 'en' olabilir");
+                    return;
+                }
+                self.core.config.general.language = lang.clone();
+                self.feed.push(Speaker::System, format!("dil: {lang}"));
+            }
+            "yazitipi" | "yazıtipi" | "font" => {
+                let Ok(size) = value.trim().parse::<f32>() else {
+                    self.feed.push(Speaker::Error, "yazı tipi bir sayı olmalı");
+                    return;
+                };
+                if !(8.0..=32.0).contains(&size) {
+                    self.feed
+                        .push(Speaker::Error, "yazı tipi 8-32 arasında olmalı");
+                    return;
+                }
+                self.core.config.ui.font_size = size;
+                needs_restart = true;
+                self.feed.push(Speaker::System, format!("yazı tipi: {size}"));
+            }
+            "pencere" | "window" => {
+                let mode = value.to_lowercase();
+                if !["windowed", "borderless", "fullscreen"].contains(&mode.as_str()) {
+                    self.feed.push(
+                        Speaker::Error,
+                        "pencere: windowed · borderless · fullscreen",
+                    );
+                    return;
+                }
+                self.core.config.ui.window_mode = mode.clone();
+                needs_restart = true;
+                self.feed.push(Speaker::System, format!("pencere modu: {mode}"));
+            }
+            other => {
+                self.feed.push(
+                    Speaker::Error,
+                    format!("bilinmeyen ayar: {other} — /ayarlar ile listeyi gör"),
+                );
+                return;
+            }
+        }
+
+        self.save_config();
+        if needs_restart {
+            self.feed
+                .push(Speaker::System, "(yeniden başlatınca etkili olacak)");
+        }
+    }
+
+    /// Ses modunu adıyla ayarlar.
+    fn set_voice_mode(&mut self, name: &str) {
+        use vavis_audio::VoiceMode;
+
+        let mode = match name {
+            "kapali" | "kapalı" | "off" | "" => VoiceMode::Off,
+            "surekli" | "sürekli" | "on" | "continuous" => VoiceMode::Continuous,
+            "uyandirma" | "uyandırma" | "wake" | "wakeword" => VoiceMode::WakeWord,
+            other => {
+                self.feed.push(
+                    Speaker::Error,
+                    format!("bilinmeyen mod: {other} — kapali · surekli · uyandirma"),
+                );
+                return;
+            }
+        };
+
+        // Dinlemeye geçiyorsak STT anahtarı şart.
+        if mode.is_listening() {
+            match self.keys.get("groq") {
+                Some(key) => self.voice.set_api_key(key.to_string()),
+                None => {
+                    self.feed.push(
+                        Speaker::Error,
+                        "ses tanıma için Groq anahtarı gerekli → /key groq <anahtar>",
+                    );
+                    return;
+                }
+            }
+        }
+
+        self.voice.set_mode(mode);
+        self.feed
+            .push(Speaker::System, format!("ses: {}", self.voice.mode().label()));
     }
 
     fn set_key(&mut self, provider_name: &str, key: String) {

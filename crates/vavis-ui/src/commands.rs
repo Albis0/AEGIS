@@ -22,6 +22,12 @@ pub enum Command {
     SetModel(String),
     /// `/models` — canlı liste çek
     ListModels,
+    /// `/ses` — ses modunu değiştir
+    Voice(String),
+    /// `/ayar <alan> <değer>`
+    Set { field: String, value: String },
+    /// `/ayarlar` — mevcut ayarları göster
+    ShowSettings,
     /// Komut değil — LLM'e gidecek düz metin.
     Chat(String),
     /// Bilinmeyen komut.
@@ -49,6 +55,20 @@ pub fn parse(input: &str) -> Command {
         "quit" | "exit" | "cik" | "çık" => Command::Quit,
         "keys" | "anahtarlar" => Command::ListKeys,
         "models" | "modeller" => Command::ListModels,
+        "ayarlar" | "settings" | "config" => Command::ShowSettings,
+        "ses" | "voice" => Command::Voice(arg1.to_ascii_lowercase()),
+        "ayar" | "set" => {
+            if arg1.is_empty() || arg2.is_empty() {
+                Command::Unknown(
+                    "kullanım: /ayar <alan> <değer>  (alanlar: isim, dil, yazitipi, pencere)".into(),
+                )
+            } else {
+                Command::Set {
+                    field: arg1.to_ascii_lowercase(),
+                    value: arg2,
+                }
+            }
+        }
         "key" | "anahtar" => {
             if arg1.is_empty() || arg2.is_empty() {
                 Command::Unknown("kullanım: /key <sağlayıcı> <anahtar>".into())
@@ -86,6 +106,9 @@ pub fn help_lines() -> Vec<&'static str> {
         "/provider <ad>           groq · openai · gemini · mistral · deepseek · xai · local",
         "/model <ad>              kullanılacak model",
         "/models                  sağlayıcıdan canlı model listesi",
+        "/ses <mod>               kapali | surekli | uyandirma",
+        "/ayar <alan> <değer>     isim · dil · yazitipi · pencere",
+        "/ayarlar                 mevcut ayarları göster",
         "/health                  sistem durumu (F1)",
         "/clear                   ekranı ve geçmişi temizle (Ctrl+L)",
         "/quit                    çık",
@@ -166,5 +189,62 @@ mod tests {
     #[test]
     fn empty_input_is_empty_chat() {
         assert_eq!(parse("   "), Command::Chat(String::new()));
+    }
+}
+
+#[cfg(test)]
+mod settings_command_tests {
+    use super::*;
+
+    #[test]
+    fn settings_listing_is_recognised() {
+        assert_eq!(parse("/ayarlar"), Command::ShowSettings);
+        assert_eq!(parse("/settings"), Command::ShowSettings);
+    }
+
+    #[test]
+    fn voice_command_captures_mode() {
+        assert_eq!(parse("/ses surekli"), Command::Voice("surekli".into()));
+        assert_eq!(parse("/voice off"), Command::Voice("off".into()));
+    }
+
+    #[test]
+    fn set_command_captures_field_and_value() {
+        assert_eq!(
+            parse("/ayar isim Jarvis"),
+            Command::Set {
+                field: "isim".into(),
+                value: "Jarvis".into()
+            }
+        );
+    }
+
+    #[test]
+    fn set_value_may_contain_spaces() {
+        assert_eq!(
+            parse("/ayar isim Kişisel Asistan"),
+            Command::Set {
+                field: "isim".into(),
+                value: "Kişisel Asistan".into()
+            }
+        );
+    }
+
+    #[test]
+    fn incomplete_set_explains_available_fields() {
+        match parse("/ayar isim") {
+            Command::Unknown(msg) => {
+                assert!(msg.contains("isim"), "alanlar listelenmeli: {msg}");
+                assert!(msg.contains("pencere"));
+            }
+            other => panic!("beklenmeyen: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn help_mentions_the_new_commands() {
+        let help = help_lines().join("\n");
+        assert!(help.contains("/ses"));
+        assert!(help.contains("/ayar"));
     }
 }
