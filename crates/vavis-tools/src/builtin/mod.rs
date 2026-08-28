@@ -4,6 +4,7 @@
 //! tool tanımlanmıştı. Burada bilinçli olarak **az sayıda, geniş kapsamlı**
 //! tool var — model az seçenek arasından daha isabetli seçer.
 
+pub mod automation;
 pub mod computer;
 pub mod control;
 pub mod core;
@@ -50,6 +51,11 @@ pub fn register_all(registry: &mut Registry) {
     // Web.
     registry.register(Box::new(web::WebSearch));
     registry.register(Box::new(web::FetchUrl));
+
+    // Otomasyon.
+    registry.register(Box::new(automation::CreateAutomation));
+    registry.register(Box::new(automation::ListAutomations));
+    registry.register(Box::new(automation::DeleteAutomation));
 
     // Hafıza.
     registry.register(Box::new(memory::Remember));

@@ -10,10 +10,12 @@ pub mod commands;
 pub mod voice;
 pub mod feed;
 pub mod theme;
+pub mod ticker;
 
 pub use app::VavisUi;
 pub use bridge::{Bridge, UiEvent};
 pub use commands::Command;
+pub use ticker::{Fired, Ticker};
 pub use voice::{VoiceEvent, VoiceManager};
 pub use feed::{Feed, Line, Speaker};
 

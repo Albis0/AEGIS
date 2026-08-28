@@ -12,6 +12,7 @@ use crate::theme::Theme;
 use eframe::egui;
 use vavis_brain::{system_prompt, ChatConfig, KeyStore, Message, Provider, Role};
 use vavis_tools::{Agent, Approval, ApprovalReason};
+use crate::ticker::Ticker;
 use crate::voice::{VoiceEvent, VoiceManager};
 use vavis_core::{App as CoreApp, VERSION};
 
@@ -37,6 +38,8 @@ pub struct VavisUi {
     voice: VoiceManager,
     /// Kalıcı depo — hafıza ve sohbet geçmişi.
     store: std::sync::Arc<std::sync::Mutex<vavis_core::Store>>,
+    /// Otomasyon zamanlayıcısı — arka planda tetikleyicileri izler.
+    ticker: Ticker,
 }
 
 #[derive(Clone)]
@@ -57,6 +60,16 @@ impl VavisUi {
             vavis_core::Store::open(&core.paths).expect("veritabanı açılamadı"),
         ));
         vavis_tools::builtin::memory::attach_store(store.clone());
+        vavis_tools::builtin::automation::attach_store(store.clone());
+
+        // Otomasyon zamanlayıcısı: koşullu tetikleyiciler için pil ve CPU
+        // ölçümünü tool katmanından alıyor — ölçüm mantığı tek yerde.
+        let ticker = Ticker::start(store.clone(), Some(cc.egui_ctx.clone()), || {
+            (
+                vavis_tools::builtin::system::battery_percent(),
+                vavis_tools::builtin::system::cpu_percent(),
+            )
+        });
 
         let agent = Agent::new(vavis_tools::default_registry());
         let bridge = Bridge::new(agent).expect("tokio çalışma zamanı kurulamadı");
@@ -85,6 +98,7 @@ impl VavisUi {
             ran_tool_this_turn: false,
             voice,
             store,
+            ticker,
         };
         ui.restore_history();
         ui.greet();
@@ -122,6 +136,7 @@ impl VavisUi {
                 content: m.content.clone(),
                 tool_call_id: None,
                 tool_calls: None,
+                image: None,
             });
         }
 
@@ -701,7 +716,11 @@ impl VavisUi {
                     let g = self.store.lock().unwrap_or_else(|e| e.into_inner());
                     g.fact_count().unwrap_or(0)
                 };
-                let rows: [(&str, String); 10] = [
+                let automations = {
+                    let g = self.store.lock().unwrap_or_else(|e| e.into_inner());
+                    g.all_automations().map(|a| a.len()).unwrap_or(0)
+                };
+                let rows: [(&str, String); 11] = [
                     ("sürüm", VERSION.to_string()),
                     ("sağlayıcı", self.provider().to_string()),
                     ("model", self.model()),
@@ -710,6 +729,7 @@ impl VavisUi {
                     ("geçmiş", format!("{} mesaj (bellekte)", self.history.len())),
                     ("veritabanı", format!("{msgs} mesaj")),
                     ("hafıza", format!("{facts} olgu")),
+                    ("otomasyon", format!("{automations} kurulu")),
                     ("ses", self.voice.mode().label().to_string()),
                     ("veri dizini", self.core.paths.root().display().to_string()),
                 ];
@@ -772,6 +792,32 @@ impl VavisUi {
         }
     }
 
+    /// Tetiklenen otomasyonları işler.
+    ///
+    /// Otomasyon, kullanıcı yazmış gibi asistana bir istek gönderir.
+    /// Asistan meşgulse **atlanmaz, ertelenir**: bir sonraki turda
+    /// tekrar denenmez (tetiklendi işareti konuldu), o yüzden burada
+    /// meşgulse kullanıcıya haber verilir.
+    fn pump_ticker(&mut self, ctx: &egui::Context) {
+        for fired in self.ticker.poll() {
+            self.feed.push(
+                Speaker::System,
+                format!("⏰ otomasyon #{} ({})", fired.id, fired.trigger),
+            );
+
+            if self.bridge.is_busy() {
+                self.feed.push(
+                    Speaker::Error,
+                    format!("asistan meşgul — otomasyon atlandı: {}", fired.prompt),
+                );
+                continue;
+            }
+
+            self.feed.push(Speaker::User, fired.prompt.clone());
+            self.start_chat(fired.prompt, ctx);
+        }
+    }
+
     /// Ses katmanından gelen olayları işler.
     fn pump_voice(&mut self, ctx: &egui::Context) {
         let events = self.voice.poll(Some(ctx.clone()));
@@ -799,6 +845,7 @@ impl eframe::App for VavisUi {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.pump_events(ctx);
         self.pump_voice(ctx);
+        self.pump_ticker(ctx);
         self.handle_shortcuts(ctx);
         self.draw_health(ctx);
         self.draw_approval(ctx);

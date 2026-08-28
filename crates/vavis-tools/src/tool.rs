@@ -32,18 +32,21 @@ pub enum Domain {
     Vision,
     /// Web arama, sayfa okuma.
     Web,
+    /// Otomasyon — zamanlanmış görevler, koşullu tetikleyiciler.
+    Automation,
     /// Hafıza — hatırla/unut/ara.
     Memory,
 }
 
 impl Domain {
-    pub const ALL: [Domain; 7] = [
+    pub const ALL: [Domain; 8] = [
         Self::Core,
         Self::Files,
         Self::System,
         Self::Control,
         Self::Vision,
         Self::Web,
+        Self::Automation,
         Self::Memory,
     ];
 
@@ -55,6 +58,7 @@ impl Domain {
             Self::Control => "control",
             Self::Vision => "vision",
             Self::Web => "web",
+            Self::Automation => "automation",
             Self::Memory => "memory",
         }
     }

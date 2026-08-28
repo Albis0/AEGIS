@@ -9,7 +9,7 @@ use crate::paths::Paths;
 use rusqlite::Connection;
 
 /// Kodun beklediği şema sürümü. Yeni göç eklendikçe artar.
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Kalıcı bir olgu (kullanıcı hakkında hatırlanan bilgi).
 #[derive(Debug, Clone, PartialEq)]
@@ -94,6 +94,9 @@ impl Store {
              CREATE INDEX IF NOT EXISTS idx_facts_created ON facts(created_at);",
         )?;
 
+        // v3 — otomasyonlar.
+        self.migrate_automations()?;
+
         self.conn.execute("DELETE FROM schema_version", [])?;
         self.conn
             .execute("INSERT INTO schema_version (version) VALUES (?1)", [SCHEMA_VERSION])?;
@@ -169,6 +172,14 @@ impl Store {
     pub fn clear_messages(&self) -> Result<()> {
         self.conn.execute("DELETE FROM messages", [])?;
         Ok(())
+    }
+
+    /// Alt modüllerin (scheduler) kendi tablolarına erişmesi için.
+    ///
+    /// `pub(crate)`: dışarıya ham SQL erişimi açmıyoruz — depo API'si
+    /// tek giriş noktası olarak kalsın.
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.conn
     }
 
     pub fn schema_version(&self) -> Result<i64> {

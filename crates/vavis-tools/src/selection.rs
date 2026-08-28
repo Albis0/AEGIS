@@ -104,6 +104,14 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
         ],
     },
     DomainKeywords {
+        domain: Domain::Automation,
+        words: &[
+            "otomasyon", "zamanla", "zamanlanmis", "zamanlanmış", "otomatik",
+            "her gun", "her gün", "hergun", "periyodik", "tekrarla",
+            "hatirlat", "hatırlat", "uyar", "alarm", "gorev", "görev",
+        ],
+    },
+    DomainKeywords {
         domain: Domain::Memory,
         words: &[
             "hatırla", "hatirla", "hatırlat", "hatirlat", "unut", "hafıza", "hafiza",

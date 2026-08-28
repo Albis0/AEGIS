@@ -229,6 +229,7 @@ async fn run_agent_turn(
             content: response.text.clone(),
             tool_call_id: None,
             tool_calls: Some(response.tool_calls.clone()),
+            image: None,
         });
 
         // Tool'ları çalıştır (bloklayan iş → ayrı thread).

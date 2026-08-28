@@ -351,3 +351,55 @@ mod tests {
         }
     }
 }
+
+// ── Otomasyon zamanlayıcısı için ölçümler ───────────────────────────────────
+//
+// Koşullu tetikleyiciler (pil %20 altına inince…) bu değerleri okur.
+// Tool'lardan ayrı fonksiyonlar: zamanlayıcı tool çalıştırmadan ölçmeli.
+
+/// Pil yüzdesi. Pil yoksa (masaüstü) `None`.
+pub fn battery_percent() -> Option<u32> {
+    #[cfg(windows)]
+    {
+        let text = windows_battery()?;
+        // "Pil: %85 (şarjda)" biçiminden sayıyı çıkar.
+        let digits: String = text
+            .chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(char::is_ascii_digit)
+            .collect();
+        digits.parse().ok()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+/// Anlık CPU kullanım yüzdesi.
+pub fn cpu_percent() -> Option<u32> {
+    let usage = with_system(|sys| sys.global_cpu_usage());
+    if usage.is_nan() {
+        return None;
+    }
+    Some(usage.clamp(0.0, 100.0) as u32)
+}
+
+#[cfg(test)]
+mod measurement_tests {
+    use super::*;
+
+    #[test]
+    fn cpu_measurement_is_a_valid_percentage() {
+        let cpu = cpu_percent().expect("cpu ölçülebilmeli");
+        assert!(cpu <= 100, "cpu %{cpu} geçersiz");
+    }
+
+    #[test]
+    fn battery_measurement_is_valid_or_absent() {
+        // Masaüstünde None dönmesi doğru davranış.
+        if let Some(pct) = battery_percent() {
+            assert!(pct <= 100, "pil %{pct} geçersiz");
+        }
+    }
+}

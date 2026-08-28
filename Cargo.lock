@@ -3837,6 +3837,7 @@ dependencies = [
  "directories",
  "rusqlite",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.20",
  "toml",
@@ -3867,6 +3868,7 @@ dependencies = [
 name = "vavis-ui"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "eframe",
  "egui",
  "tokio",

@@ -10,12 +10,14 @@ pub mod config;
 pub mod error;
 pub mod logging;
 pub mod paths;
+pub mod scheduler;
 pub mod search;
 pub mod store;
 
 pub use config::{Config, Llm, WindowMode};
 pub use error::{CoreError, Result};
 pub use paths::Paths;
+pub use scheduler::{Automation, Trigger};
 pub use search::{Document, Hit, SearchIndex};
 pub use store::{Fact, StoredMessage, Store};
 
