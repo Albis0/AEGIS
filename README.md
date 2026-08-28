@@ -1,7 +1,7 @@
 # VAVIS
 
 > Telaffuz: **veyvis**
-> Windows için kişisel AI asistanı. Tek `.exe`, ~8 MB, kurulum yok.
+> Windows için kişisel AI asistanı. Tek `.exe`, ~9 MB, kurulum yok.
 
 AEGIS/RealJarvis'in (TypeScript + Electron, ~1 GB) yerine sıfırdan Rust'la yazıldı.
 
@@ -34,7 +34,7 @@ cargo run --release
 | `/help` | Tüm komutlar |
 | `/key <sağlayıcı> <anahtar>` | API anahtarı kaydeder (DPAPI ile şifreli) |
 | `/keys` | Hangi sağlayıcıların anahtarı var (anahtar gösterilmez) |
-| `/provider <ad>` | groq · openai · gemini · mistral · deepseek · xai · local |
+| `/provider <ad>` | groq · openai · gemini · anthropic · mistral · deepseek · xai · local |
 | `/model <ad>` | Kullanılacak model |
 | `/models` | Sağlayıcıdan canlı model listesi |
 | `/ses <mod>` | kapali · surekli · uyandirma |
@@ -55,18 +55,46 @@ cargo run --release
 
 ---
 
-## Yetenekler
+## Yetenekler — 32 tool, 9 alan
 
-Asistan 15 tool kullanabiliyor:
+| Alan | Tool'lar |
+|---|---|
+| **Çekirdek** | tarih/saat, hesaplama |
+| **Sistem (okuma)** | CPU/RAM/disk durumu, çalışan uygulamalar, pil |
+| **Kontrol** | ses, parlaklık, uygulama aç/kapat, PowerShell, pano oku/yaz, pencereler |
+| **Dosya** | okuma, yazma, listeleme, arama |
+| **Görü** | ekran görüntüsü, tıklama, klavye, tuş kombinasyonu, ekran boyutu |
+| **Web** | arama (DuckDuckGo), sayfa okuma |
+| **Medya** | oynat/duraklat/sonraki/önceki, çalan parça (Spotify · YouTube · VLC) |
+| **Otomasyon** | zamanlanmış görev kur, listele, sil |
+| **Hafıza** | kalıcı bilgi kaydet, ara, sil |
 
-- **Sistem** — CPU/RAM/disk durumu, çalışan uygulamalar, pil, ses seviyesi
-- **Dosya** — okuma, yazma, listeleme, arama
-- **Web** — arama, sayfa okuma
-- **Hafıza** — kalıcı bilgi kaydetme, arama, silme
-- **Çekirdek** — tarih/saat, hesaplama
+**Yıkıcı işlemler onay ister** (dosya yazma, uygulama kapatma, komut çalıştırma,
+tıklama, klavye). Tek çalıştırmada 3'ten fazla yıkıcı işlem yapılırsa "hep izin
+ver" seçilmiş olsa bile tekrar sorulur.
 
-**Yıkıcı işlemler onay ister** (dosya yazma, hafızadan silme). Tek çalıştırmada
-3'ten fazla yıkıcı işlem yapılırsa "hep izin ver" seçilmiş olsa bile tekrar sorulur.
+### Otomasyon örnekleri
+
+```
+her sabah 09:00'da hava durumunu söyle     → günlük
+her 30 dakikada cpu durumunu kontrol et    → aralıklı
+pil 20'nin altına inince beni uyar         → koşullu
+cpu 80'in üstüne çıkınca haber ver         → koşullu
+```
+
+---
+
+## LLM sağlayıcıları
+
+| Sağlayıcı | Not |
+|---|---|
+| **Groq** | Varsayılan. Ücretsiz katman var, hızlı. Ses tanıma da bunu kullanır. |
+| **Anthropic** | Claude. Ayrı API şeması (x-api-key, top-level system, farklı tool biçimi). |
+| OpenAI · Gemini · Mistral · DeepSeek · xAI | OpenAI-uyumlu, tek kod yolu. |
+| **Local** | Ollama / LM Studio — anahtar istemez. `/provider local` |
+
+Görüntü desteği (ekran görüntüsü modele gösterme) hem OpenAI-uyumlu
+sağlayıcılarda hem Anthropic'te çalışır.
 
 ---
 
@@ -78,11 +106,11 @@ Asistan 15 tool kullanabiliyor:
 ├──────────────────────────────────┤
 │  vavis-brain   BEYİN             │  LLM, bağlam bütçesi, anahtarlar
 ├──────────────────────────────────┤
-│  vavis-tools   ELLER             │  tool'lar, izin kapısı, ajan döngüsü
+│  vavis-tools   ELLER             │  32 tool, izin kapısı, ajan döngüsü
 ├──────────────────────────────────┤
 │  vavis-audio   DUYULAR           │  STT · TTS · VAD · barge-in
 ├──────────────────────────────────┤
-│  vavis-core    ÇEKİRDEK          │  ayarlar, SQLite, arama, loglama
+│  vavis-core    ÇEKİRDEK          │  ayarlar, SQLite, arama, zamanlayıcı
 └──────────────────────────────────┘
 ```
 
@@ -91,18 +119,25 @@ değişse alt katmanlara dokunulmaz.
 
 ---
 
-## Tasarımın iki kritik kararı
+## Tasarımın kritik kararları
 
 ### 1. Modele asla 12'den fazla tool gönderilmez
 
 Eski projede 353 tool tanımlıydı ve modele her istekte **64 tanesi**
 gönderiliyordu. Hiçbir LLM 64 seçenek arasından güvenilir seçim yapamaz.
 
-Burada iki kademeli seçim var: mesajdan **alan** çıkarılır (dosya/sistem/web/
-hafıza), sadece o alanın tool'ları sunulur. Ortalama **6.2 tool** gidiyor.
+Burada iki kademeli seçim var: mesajdan **alan** çıkarılır, sadece o alanın
+tool'ları sunulur. 32 tool var ama **ortalama 7.8 tanesi** gidiyor.
 
-Sohbet mesajlarına (`merhaba`, `bana bir şiir yaz`) **hiç tool gönderilmez** —
-modeli boş yere kışkırtmamak için.
+Sohbet mesajlarına (`merhaba`, `bana bir şiir yaz`, `iyi geceler`) **hiç tool
+gönderilmez** — modeli boş yere kışkırtmamak için.
+
+Bunu koruyan iki mekanizma:
+
+- **Zayıf fiil kuralı**: "yaz", "oku", "aç" gibi genel fiiller tek başına alan
+  tetiklemez. "dosya yaz" → Files ✓ · "şiir yaz" → hiçbir şey ✓
+- **Alan ayrımı**: Sistem okuma ve sistem değiştirme ayrı alanlar. "cpu durumu"
+  sorusuna `komut_calistir` sunmak hem gereksiz hem riskli.
 
 ### 2. Barge-in yapısal olarak doğru
 
@@ -114,15 +149,24 @@ Burada kuyruk ve oynatma durumu tek kilit altında, geri çağırma yok —
 yeniden başlatacak bir yol da yok. `generation` sayacı sayesinde durdurulmuş
 bir konuşmanın geç gelen sesi yeni konuşmaya karışamaz.
 
+### 3. Bağlam bütçesinde her şey sayılır
+
+Eski projedeki 413 ("message too long") hatasının sebebi tool şemalarının
+sayılmamasıydı. Burada tool token'ları **ve** görüntüler bütçeye dahil.
+Görüntü sabit 1100 token sayılır — base64 uzunluğu sayılsaydı 2 MB'lık bir
+PNG bütçeyi anında patlatırdı.
+
 ---
 
 ## Geliştirme
 
 ```bash
-cargo test              # tüm testler (258)
+cargo test                    # 393 test
+cargo test -- --ignored       # gerçek ekran görüntüsü alan test
+cargo build --release         # ~9 MB tek exe
+
+# Tool seçim kalitesi ölçümü
 cargo test -p vavis-tools --test selection_eval -- --nocapture
-                        # tool seçim kalitesi ölçümü
-cargo build --release   # ~8 MB tek exe
 ```
 
 ### Veri konumu
@@ -132,7 +176,7 @@ cargo build --release   # ~8 MB tek exe
 | Dosya | İçerik |
 |---|---|
 | `vavis.toml` | Ayarlar |
-| `vavis.db` | Sohbet geçmişi + hafıza (SQLite) |
+| `vavis.db` | Sohbet geçmişi + hafıza + otomasyonlar (SQLite) |
 | `keys.dat` | API anahtarları (DPAPI ile şifreli) |
 | `logs/` | Günlük log dosyaları + çökme kaydı |
 
@@ -142,12 +186,28 @@ cargo build --release   # ~8 MB tek exe
 
 | | AEGIS (eski) | VAVIS |
 |---|---|---|
-| Paket boyutu | ~1 GB | **8.4 MB** |
+| Paket boyutu | ~1 GB | **8.9 MB** |
+| Kod | 31.813 satır | 14.544 satır |
 | RAM (boşta) | ~400 MB | ~30 MB |
 | Açılış | 3-5 sn | anında |
-| Modele sunulan tool | 64 | **≤ 12** (ort. 6.2) |
+| Tool sayısı | 353 tanım | 32 |
+| Modele sunulan | 64 | **≤ 12** (ort. 7.8) |
+| Tool seçim skoru | — | **%100** (36 senaryo) |
+| Test | 58 dosya | **393 test** |
 | Ses duraklaması | var (GC) | yok |
 | Dağıtım | kurulum gerekli | tek `.exe` |
+
+---
+
+## Bilinen sınırlar
+
+- **Edge TTS** kodu yazıldı ama servis 403 döndürüyor (Microsoft tarafı
+  kısıtlama). Varsayılan Windows SAPI; Edge seçilirse başarısızlıkta
+  otomatik SAPI'ye düşer.
+- **STT bulut** (Groq Whisper) — yerel whisper eklenmedi.
+- **Parlaklık** sadece dizüstü panelinde çalışır, harici monitörde değil.
+- **Medya kontrolü** sistem tuşlarıyla — "şu şarkıyı çal" gibi arama
+  gerektiren komutlar için Spotify'ı `uygulama_ac` ile açıp arama yapılmalı.
 
 ---
 

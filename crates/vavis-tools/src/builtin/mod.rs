@@ -9,6 +9,7 @@ pub mod computer;
 pub mod control;
 pub mod core;
 pub mod files;
+pub mod media;
 pub mod memory;
 pub mod system;
 pub mod vision;
@@ -51,6 +52,10 @@ pub fn register_all(registry: &mut Registry) {
     // Web.
     registry.register(Box::new(web::WebSearch));
     registry.register(Box::new(web::FetchUrl));
+
+    // Medya.
+    registry.register(Box::new(media::MediaControl));
+    registry.register(Box::new(media::NowPlaying));
 
     // Otomasyon.
     registry.register(Box::new(automation::CreateAutomation));

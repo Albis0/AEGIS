@@ -104,10 +104,23 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
         ],
     },
     DomainKeywords {
+        domain: Domain::Media,
+        words: &[
+            "muzik", "müzik", "sarki", "şarkı", "parca", "parça", "spotify",
+            "cal", "çal", "oynat", "duraklat", "sonraki", "onceki", "önceki",
+            "medya", "video", "youtube", "vlc", "album", "albüm", "calan", "çalan",
+        ],
+    },
+    DomainKeywords {
         domain: Domain::Automation,
         words: &[
             "otomasyon", "zamanla", "zamanlanmis", "zamanlanmış", "otomatik",
-            "her gun", "her gün", "hergun", "periyodik", "tekrarla",
+            // "gece" YOK: "iyi geceler" selamlaması otomasyon tetikliyordu.
+            // Saat ifadeleri zaten "09:00" biçiminde geliyor.
+            // "sabah" burada güvenli: "iyi geceler"i bozmuyor, "her sabah X yap"
+            // cümlesini yakalıyor. "gece" ise selamlamaya çarptığı için YOK.
+            "periyodik", "tekrarla", "sabah",
+            "azalinca", "azalınca", "olunca", "inince", "cikinca", "çıkınca",
             "hatirlat", "hatırlat", "uyar", "alarm", "gorev", "görev",
         ],
     },
@@ -197,7 +210,18 @@ pub fn match_domains(message: &str) -> Vec<Domain> {
             }
 
             // Sadece zayıf fiil eşleşti → bu alan değil ("şiir yaz").
-            let score = if strong == 0 { 0 } else { strong * 2 + weak_hits };
+            let mut score = if strong == 0 { 0 } else { strong * 2 + weak_hits };
+
+            // Otomasyon niyeti diğer alanları GÖLGELER.
+            //
+            // "her sabah 9'da hava durumunu söyle" cümlesinde "hava" (Web) ve
+            // "durum" (System) de eşleşiyor — ama kullanıcı bir otomasyon
+            // kuruyor, hava durumu sormuyor. İç istek (hava) otomasyon
+            // tetiklendiğinde ayrıca çalışacak.
+            if dk.domain == Domain::Automation && score > 0 {
+                score += 6;
+            }
+
             (dk.domain, score)
         })
         .filter(|(_, score)| *score > 0)
@@ -409,7 +433,8 @@ mod tests {
             "bana bir şiir yaz",
             "bir hikaye yaz",
             "şunu oku bakalım",       // nesne yok
-            "bir şarkı bul",
+            // ("bir şarkı bul" artık Media alanını tetikliyor — DOĞRU davranış,
+            //  medya tool'ları eklendikten sonra. Bu yüzden listeden çıkarıldı.)
             "espri yap ve yaz",
         ] {
             let d = match_domains(msg);

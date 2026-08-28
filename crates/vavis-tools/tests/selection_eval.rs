@@ -42,6 +42,17 @@ const EXPECT_OFFERED: &[(&str, &str)] = &[
     ("panodaki metni oku", "pano_oku"),
     ("şunu panoya kopyala", "pano_yaz"),
     ("bir powershell komutu çalıştır", "komut_calistir"),
+    // Medya
+    ("müziği duraklat", "medya_kontrol"),
+    ("sonraki şarkıya geç", "medya_kontrol"),
+    ("spotify'da ne çalıyor", "calan_parca"),
+    // Otomasyon
+    ("her sabah 9da hava durumunu söyle", "otomasyon_kur"),
+    ("pil azalınca beni uyar", "otomasyon_kur"),
+    ("kurulu otomasyonları listele", "otomasyonlari_listele"),
+    // Görü
+    ("ekranımda ne var", "ekran_goruntusu"),
+    ("ekran görüntüsü al", "ekran_goruntusu"),
     // Cekirdek (alan tetiklendiginde birlikte gelir)
     ("cpu durumu ve saat", "simdiki_zaman"),
 ];
