@@ -23,7 +23,15 @@ vavis-audio = { path = "../vavis-audio" }
 # them through IPC as base64 would mean megabytes per tile; the asset protocol
 # streams them from disk instead. The scope stays empty in config and is opened
 # at startup to the media directory alone.
-tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
+#
+# custom-protocol is what makes the built frontend get embedded and served from
+# inside the binary. Tauri decides dev-vs-release from this feature alone --
+# `tauri::is_dev()` is `!cfg!(feature = "custom-protocol")`, not
+# `debug_assertions` -- so without it even a `--release` build points the
+# webview at the dev server and opens to ERR_CONNECTION_REFUSED. `tauri build`
+# turns it on for you; we ship with plain `cargo build --release`, which does
+# not, so it is on by default here.
+tauri = { version = "2", features = ["tray-icon", "protocol-asset", "custom-protocol"] }
 tauri-plugin-clipboard-manager = "2"
 serde.workspace = true
 serde_json.workspace = true

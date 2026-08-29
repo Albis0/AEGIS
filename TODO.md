@@ -88,6 +88,15 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
 - Model prices in `vavis-brain/src/budget.rs` go stale. Everything derived
   from them is labelled an estimate, and an unknown model reports nothing
   rather than a confident wrong number.
+- The `custom-protocol` feature on the tauri dependency is what embeds the
+  built frontend. `tauri::is_dev()` is `!cfg!(feature = "custom-protocol")`
+  and never looks at `debug_assertions`, so without it a `--release` build
+  still points the webview at the dev server and the window opens to
+  ERR_CONNECTION_REFUSED. `tauri build` sets it; this project ships with
+  `cargo build --release`, which does not, so it is on by default in
+  `crates/vavis-shell/Cargo.toml`. `release_builds_embed_the_frontend` in
+  `main.rs` fails if it is removed, and the release workflow runs that test
+  in release mode because `cargo test --all` runs in debug and cannot see it.
 - The release profile deliberately keeps the symbol table and the unwind
   tables. `strip = "symbols"` plus `panic = "abort"` produced a binary with
   neither, which is the shape of a packed executable: Defender's ML model

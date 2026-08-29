@@ -304,3 +304,29 @@ fn install_panic_hook(paths: &Paths) {
 fn timestamp() -> String {
     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    /// A release binary must serve the interface from inside itself.
+    ///
+    /// Tauri decides dev-vs-release from the `custom-protocol` feature alone:
+    /// `tauri::is_dev()` is `!cfg!(feature = "custom-protocol")`, and it never
+    /// looks at `debug_assertions`. Without the feature, `cargo build
+    /// --release` still points the webview at the dev server, so the shipped
+    /// exe opens to ERR_CONNECTION_REFUSED and nothing in the build says a
+    /// word about it. That is exactly how 0.4.1 shipped broken.
+    ///
+    /// `tauri build` enables the feature for you. This project ships with
+    /// plain `cargo build --release`, so it is enabled by default in
+    /// Cargo.toml, and this test fails if anyone takes it back out.
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn release_builds_embed_the_frontend() {
+        assert!(
+            !tauri::is_dev(),
+            "release build is in dev mode: the frontend is not embedded and \
+             the window will open to ERR_CONNECTION_REFUSED. Restore the \
+             `custom-protocol` feature on the tauri dependency."
+        );
+    }
+}

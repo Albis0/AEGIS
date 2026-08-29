@@ -34,6 +34,12 @@ jobs:
       - name: Build release binary
         run: cargo build --release -p vavis-shell
 
+      # The frontend-embedding check only means anything in release mode, and
+      # `cargo test --all` above runs in debug. 0.4.1 shipped a binary whose
+      # window opened to ERR_CONNECTION_REFUSED and every step above was green.
+      - name: Verify the frontend is embedded
+        run: cargo test --release -p vavis-shell release_builds_embed_the_frontend
+
       - name: Name the artifact after the tag
         shell: pwsh
         run: |
