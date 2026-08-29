@@ -52,6 +52,13 @@ export interface Drive {
 export interface Reactor {
     /** The mutable drive state. Assign to its fields to steer the visual. */
     drive: Drive;
+    /**
+     * The canvas, so the caller can style the cursor over it.
+     *
+     * Exposed rather than guessed at: the element is created here and appended
+     * to the host, so this is the only reliable reference to it.
+     */
+    readonly canvas: HTMLCanvasElement;
     /** Tears down the loop, the listeners and every GPU resource. */
     dispose(): void;
 }
@@ -767,7 +774,175 @@ export function createReactor(host: HTMLElement): Reactor {
     }
     matchTheme();
 
+    // -- Pointer control --------------------------------------------------
+
+    /**
+     * How far the reactor can be turned by hand, in radians.
+     *
+     * Bounded rather than free. The back of the housing is a closed plate with
+     * nothing on it -- the coils, the core and every lit surface face forward
+     * -- so a full orbit lets the user turn the object around and find nothing
+     * there, which reads as a bug rather than a feature. Just under a quarter
+     * turn each way shows the depth of the assembly from the side without ever
+     * reaching that dead face.
+     */
+    const YAW_LIMIT = 1.15;
+    /**
+     * Vertical range, deliberately smaller than the horizontal one.
+     *
+     * The rings are stacked along Z and splay outward, so tilting reveals much
+     * more per degree than turning does; matching the two makes the vertical
+     * axis feel violently oversensitive by comparison.
+     */
+    const PITCH_LIMIT = 0.62;
+    /** Radians of rotation per pixel dragged. */
+    const DRAG_SPEED = 0.0075;
+    /**
+     * Seconds of stillness before the reactor eases back to its resting angle.
+     *
+     * Long enough to look at it from an angle without it sliding away while
+     * you do, short enough that a window left alone returns to the shape the
+     * interface is designed around.
+     */
+    const RETURN_AFTER = 4;
+    /** Zoom range, as a multiplier on the camera distance `resize` computes. */
+    const ZOOM_MIN = 0.55;
+    const ZOOM_MAX = 1.6;
+
+    /** Where the user has dragged to. */
+    let userYaw = 0;
+    let userPitch = 0;
+    /** Momentum, so a flick keeps turning and settles instead of stopping dead. */
+    let yawVelocity = 0;
+    let pitchVelocity = 0;
+    /** Zoom factor, eased toward `zoomTarget`. */
+    let zoom = 1;
+    let zoomTarget = 1;
+    /** Whether the user has taken control; the idle drift stops while true. */
+    let held = false;
+    /**
+     * Seconds since the last interaction.
+     *
+     * Drives the return home: after a while untouched, the reactor eases back
+     * to its resting angle and the ambient drift fades in again, so an
+     * abandoned window does not sit at whatever angle it was left at.
+     */
+    let idleFor = 0;
+    /** Set on pointer down, cleared once the pointer has moved far enough. */
+    let dragOrigin: { x: number; y: number } | null = null;
+    let activePointer: number | null = null;
+
+    const canvas = renderer.domElement;
+    // Without this a drag on a touchscreen scrolls the page instead of turning
+    // the reactor, and the pointermove events stop arriving mid-gesture.
+    canvas.style.touchAction = "none";
+    canvas.style.cursor = "grab";
+    // The reactor was decorative and marked `aria-hidden`; it can be turned by
+    // hand now, so it is announced instead. It carries no information a screen
+    // reader needs -- the assistant's state is in the status bar as text -- so
+    // this describes the control, not the state.
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Reactor. Drag to turn, scroll to zoom, double click to reset.");
+
+    function onPointerDown(event: PointerEvent) {
+        // Only the primary button drags -- right click belongs to the context
+        // menu, and middle click to the browser's own scroll gesture.
+        if (event.button !== 0) return;
+        activePointer = event.pointerId;
+        // Capture, so a drag that leaves the canvas (or the window) still ends
+        // with a matching up event. Without it, dragging off the edge leaves
+        // the reactor stuck to the cursor forever.
+        canvas.setPointerCapture(event.pointerId);
+        held = true;
+        idleFor = 0;
+        dragOrigin = { x: event.clientX, y: event.clientY };
+        yawVelocity = 0;
+        pitchVelocity = 0;
+        canvas.style.cursor = "grabbing";
+    }
+
+    function onPointerMove(event: PointerEvent) {
+        if (!held || event.pointerId !== activePointer || !dragOrigin) return;
+
+        const dx = event.clientX - dragOrigin.x;
+        const dy = event.clientY - dragOrigin.y;
+        dragOrigin = { x: event.clientX, y: event.clientY };
+
+        userYaw = THREE.MathUtils.clamp(userYaw + dx * DRAG_SPEED, -YAW_LIMIT, YAW_LIMIT);
+        userPitch = THREE.MathUtils.clamp(
+            userPitch + dy * DRAG_SPEED,
+            -PITCH_LIMIT,
+            PITCH_LIMIT,
+        );
+
+        // Momentum for the release. Taken from this event rather than
+        // accumulated, so it reflects how fast the pointer was moving at the
+        // end of the drag rather than its average over the whole gesture.
+        yawVelocity = dx * DRAG_SPEED;
+        pitchVelocity = dy * DRAG_SPEED;
+        idleFor = 0;
+    }
+
+    function endDrag(event: PointerEvent) {
+        if (event.pointerId !== activePointer) return;
+        held = false;
+        activePointer = null;
+        dragOrigin = null;
+        idleFor = 0;
+        canvas.style.cursor = "grab";
+        if (canvas.hasPointerCapture(event.pointerId)) {
+            canvas.releasePointerCapture(event.pointerId);
+        }
+    }
+
+    function onWheel(event: WheelEvent) {
+        // The stage has nothing to scroll, so the gesture is free to mean
+        // zoom. Prevented so the page behind does not scroll as well.
+        event.preventDefault();
+        // `deltaMode` differs between mice and trackpads: some report lines
+        // rather than pixels, which is a factor of ~16. Normalising keeps one
+        // notch of a wheel and one trackpad swipe roughly comparable.
+        const lines = event.deltaMode === 1 ? 16 : 1;
+        zoomTarget = THREE.MathUtils.clamp(
+            zoomTarget * Math.exp(event.deltaY * lines * 0.0012),
+            ZOOM_MIN,
+            ZOOM_MAX,
+        );
+        idleFor = 0;
+    }
+
+    /** Double click puts it back where it started. */
+    function onDoubleClick() {
+        userYaw = 0;
+        userPitch = 0;
+        yawVelocity = 0;
+        pitchVelocity = 0;
+        zoomTarget = 1;
+        idleFor = 0;
+    }
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    // Not passive: the handler calls `preventDefault`, and Chrome treats wheel
+    // listeners as passive by default, which would make that call a no-op and
+    // log a warning for every notch.
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("dblclick", onDoubleClick);
+
     // -- Sizing -----------------------------------------------------------
+
+    /**
+     * Camera distance for the current window, before the user's zoom.
+     *
+     * Kept separate from `camera.position.z` because both a resize and the
+     * wheel want to set it. If `resize` wrote the position directly, resizing
+     * the window would silently throw away the zoom; if the wheel wrote it, the
+     * next resize would. The loop multiplies the two together instead, so each
+     * one owns exactly one number.
+     */
+    let baseDistance = 7.4;
 
     function resize() {
         const { clientWidth: w, clientHeight: h } = host;
@@ -807,7 +982,11 @@ export function createReactor(host: HTMLElement): Reactor {
         // camera has to pull back by the aspect ratio to keep it in frame.
         if (w < h) distance *= h / Math.max(w, 1);
 
-        camera.position.z = THREE.MathUtils.clamp(distance, 5.5, 16);
+        baseDistance = THREE.MathUtils.clamp(distance, 5.5, 16);
+        // Applied here as well as in the loop: `resize` runs once before the
+        // first frame, and the reactor should be framed correctly on that
+        // frame rather than easing into position from wherever it started.
+        camera.position.z = baseDistance * zoom;
 
         camera.updateProjectionMatrix();
     }
@@ -828,6 +1007,13 @@ export function createReactor(host: HTMLElement): Reactor {
 
     let rotorAngle = 0;
     let counterAngle = 0;
+    /**
+     * How much of the ambient drift is currently mixed in, 0-1.
+     *
+     * Eased rather than switched, so grabbing the reactor stops the drift
+     * smoothly and letting go brings it back the same way.
+     */
+    let driftWeight = 1;
     let waveClock = 0;
     let frame = 0;
     let running = true;
@@ -861,13 +1047,62 @@ export function createReactor(host: HTMLElement): Reactor {
         rotor.rotation.z = rotorAngle;
         counter.rotation.z = counterAngle;
 
-        // A slow drift on the whole assembly. This is not only life -- it is what
-        // makes the staggered depth legible: dead-on, the rings still project
-        // onto one plane, and only the parallax from turning shows that they are
-        // at different distances. The angles are large enough to reveal the side
-        // of the housing without ever showing the back.
-        rig.rotation.y = Math.sin(time * 0.23) * 0.16 + 0.08;
-        rig.rotation.x = Math.sin(time * 0.31) * 0.07 + 0.05;
+        // Orientation: the user's drag, plus a slow drift when they are not
+        // touching it.
+        //
+        // The drift is not only life -- it is what makes the staggered depth
+        // legible. Dead-on, the rings project onto one plane, and only the
+        // parallax from turning shows that they sit at different distances.
+        if (!held) {
+            idleFor += dt;
+
+            // Momentum from a flick, bled off rather than stopped: an object
+            // with this much apparent mass should not halt the instant the
+            // pointer lifts.
+            if (Math.abs(yawVelocity) > 1e-4 || Math.abs(pitchVelocity) > 1e-4) {
+                userYaw = THREE.MathUtils.clamp(
+                    userYaw + yawVelocity,
+                    -YAW_LIMIT,
+                    YAW_LIMIT,
+                );
+                userPitch = THREE.MathUtils.clamp(
+                    userPitch + pitchVelocity,
+                    -PITCH_LIMIT,
+                    PITCH_LIMIT,
+                );
+                // Frame-rate independent decay, so a 144 Hz screen does not
+                // kill the glide five times faster than a 30 Hz one.
+                const decay = Math.exp(-4.5 * dt);
+                yawVelocity *= decay;
+                pitchVelocity *= decay;
+            }
+
+            // After a while untouched, ease back to rest. Ramped in over a
+            // second rather than switched on, or the reactor visibly lurches
+            // the moment the timer expires.
+            if (idleFor > RETURN_AFTER) {
+                const strength = Math.min((idleFor - RETURN_AFTER) / 1, 1);
+                userYaw = approach(userYaw, 0, 1.1 * strength, dt);
+                userPitch = approach(userPitch, 0, 1.1 * strength, dt);
+            }
+        }
+
+        // The ambient drift fades out while the reactor is being held, and
+        // back in once it has returned to rest -- two motions at once reads as
+        // the object fighting the cursor.
+        const drift = held ? 0 : Math.min(idleFor / 1.5, 1);
+        driftWeight = approach(driftWeight, drift, 3, dt);
+
+        rig.rotation.y =
+            userYaw + (Math.sin(time * 0.23) * 0.16 + 0.08) * driftWeight;
+        rig.rotation.x =
+            userPitch + (Math.sin(time * 0.31) * 0.07 + 0.05) * driftWeight;
+
+        // Zoom rides on whatever distance `resize` computed for the current
+        // window, so it stays correct across a resize instead of being an
+        // absolute position that a resize would overwrite.
+        zoom = approach(zoom, zoomTarget, 6, dt);
+        camera.position.z = baseDistance * zoom;
 
         // The core breathes, and spikes with the microphone.
         const breath = 1 + Math.sin(time * 1.7) * 0.045;
@@ -936,10 +1171,17 @@ export function createReactor(host: HTMLElement): Reactor {
 
     return {
         drive,
+        canvas,
         dispose() {
             running = false;
             cancelAnimationFrame(frame);
             document.removeEventListener("visibilitychange", onVisibility);
+            canvas.removeEventListener("pointerdown", onPointerDown);
+            canvas.removeEventListener("pointermove", onPointerMove);
+            canvas.removeEventListener("pointerup", endDrag);
+            canvas.removeEventListener("pointercancel", endDrag);
+            canvas.removeEventListener("wheel", onWheel);
+            canvas.removeEventListener("dblclick", onDoubleClick);
             observer.disconnect();
             themeObserver.disconnect();
             target.dispose();

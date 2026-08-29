@@ -77,7 +77,7 @@
     });
 </script>
 
-<div class="stage" aria-hidden="true">
+<div class="stage">
     <div class="host" bind:this={host}></div>
 
     {#if failed}
@@ -95,8 +95,9 @@
        itself through the camera. A grid would size the host to its content
        and leave the canvas as a box in the middle of the stage. */
         display: block;
-        /* Purely decorative: it must never eat a click meant for the stage
-       behind it. */
+        /* The stage itself stays transparent to the pointer; only the canvas
+       inside it takes events. The reactor can be dragged, but the empty
+       space around it must not swallow a click meant for the page. */
         pointer-events: none;
     }
 
@@ -108,6 +109,12 @@
     .host {
         width: 100%;
         height: 100%;
+        /* Re-enabled over the canvas: the reactor is draggable, and the
+       stage above sets `none` for everything else. The canvas is
+       full-bleed, so this does cover the whole stage -- but it sits
+       behind the chat panel and the status bar in the stacking order,
+       and those take their own events first. */
+        pointer-events: auto;
     }
 
     .fallback {

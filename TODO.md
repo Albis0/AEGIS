@@ -32,6 +32,9 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   - [x] the reactor is a real 3D object (Three.js, WebGL): PBR housing lit by
         an environment map built at runtime, emissive plasma, bloom. Its hue
         and speed say what the assistant is doing. `ui/src/lib/reactor.ts`
+  - [x] the reactor is turned by hand — drag to orbit, wheel to zoom, double
+        click to reset. A flick keeps turning and settles; left alone for a
+        few seconds it eases back to rest and the ambient drift fades in.
   - [x] command palette — every action in one searchable list, which is what
         lets the stage stay empty. `ui/src/lib/CommandPalette.svelte`
   - [x] chat panel resizable by its left edge, width persisted, `Ctrl+B` to
@@ -120,6 +123,27 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   runtime when there is one. `tools_run_from_inside_a_runtime` in `agent.rs`
   drives a real tool through the agent from inside a runtime, and
   `the_old_pattern_panics_inside_a_runtime` pins down why the helper exists.
+- `max_output` was 1024 for every model, so any long answer stopped
+  mid-sentence and a code block stopped mid-line, with nothing to say it had
+  been truncated — providers just stop at the number they are given. The reply
+  limit is per family now, and held to a quarter of the window by
+  `ModelCaps::new` so it cannot starve the input instead.
+  `every_model_can_write_a_long_answer` guards it.
+- A Spotify client id that is really the redirect URI produces a blank
+  `client_id: Not present` page — Spotify does not say the id was malformed,
+  so it is unreportable from the response. The settings screen prints the
+  redirect URI directly above the input, which is what makes the paste easy,
+  so `spotify::auth::check_client_id` rejects it before the browser opens.
+- The reactor canvas takes pointer events, but the stage around it does not:
+  the canvas is full-bleed, so `pointer-events: none` on `.stage` with `auto`
+  on `.host` is what keeps empty space from swallowing clicks meant for the
+  page. The wheel listener is registered non-passive on purpose — Chrome
+  defaults wheel listeners to passive, which silently voids `preventDefault`
+  and lets the page scroll behind the zoom.
+- Camera distance is split in two: `resize` owns `baseDistance` and the wheel
+  owns `zoom`, multiplied in the loop. Writing `camera.position.z` from both
+  means whichever fires last discards the other, so resizing the window would
+  throw away the zoom.
 - The reactor's core is built only from additive layers; there is no opaque
   sphere at its centre. An emissive sphere is the obvious way and hides the
   very glow layers meant to give it depth, so it renders as a flat pale disc
@@ -149,7 +173,7 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
 ## Checks
 
 ```
-cargo test --workspace          # 632 passing
+cargo test --workspace          # 644 passing
 cargo clippy --workspace --all-targets
 cd ui && npm run check && npm run build
 ```
