@@ -47,7 +47,8 @@ impl Token {
 /// What the tools need to talk to Spotify.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Settings {
-    /// From the user's Spotify developer dashboard. No secret: PKCE.
+    /// The user's own client id, if they set one. Empty means the built-in
+    /// application, which is the ordinary case. No secret either way: PKCE.
     pub client_id: String,
     pub token: Token,
 }
@@ -82,7 +83,7 @@ impl std::fmt::Display for SpotifyError {
             ),
             Self::NoActiveDevice => write!(
                 f,
-                "Spotify'da aktif cihaz yok — telefonunda veya bilgisayarında bir şey çal"
+                "no active Spotify device -- start playing something on your phone or computer"
             ),
             Self::Failed(e) => write!(f, "{e}"),
         }
@@ -224,9 +225,6 @@ fn post_token(params: &[(&str, &str)]) -> Result<Token, SpotifyError> {
 /// A usable access token, refreshing first if it is close to expiry.
 fn access_token() -> Result<String, SpotifyError> {
     let s = current();
-    if s.client_id.trim().is_empty() {
-        return Err(SpotifyError::NotConnected);
-    }
     if s.token.is_fresh() {
         return Ok(s.token.access);
     }
@@ -234,7 +232,11 @@ fn access_token() -> Result<String, SpotifyError> {
         return Err(SpotifyError::NotConnected);
     }
 
-    let token = refresh_token(&s.client_id, &s.token.refresh)?;
+    // An empty client id is not a failure any more: it means the built-in
+    // application, which is what almost every install uses. The refresh token
+    // alone decides whether this is connected.
+    let client_id = auth::client_id_or_default(&s.client_id);
+    let token = refresh_token(client_id, &s.token.refresh)?;
     let access = token.access.clone();
     store_token(&token);
     Ok(access)
@@ -609,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn calls_without_a_client_id_stop_before_the_network() {
+    fn calls_without_authorisation_stop_before_the_network() {
         let _guard = test_lock();
         configure(Settings::default());
         assert_eq!(access_token().unwrap_err(), SpotifyError::NotConnected);
@@ -623,6 +625,31 @@ mod tests {
             token: Token::default(),
         });
         assert_eq!(access_token().unwrap_err(), SpotifyError::NotConnected);
+    }
+
+    /// The point of the built-in client id: an install that has never been
+    /// near the developer dashboard still has an id to authorise with.
+    #[test]
+    fn an_empty_client_id_resolves_to_the_built_in_one() {
+        assert_eq!(
+            auth::client_id_or_default(""),
+            auth::DEFAULT_CLIENT_ID,
+            "empty must mean the built-in application, not a broken request"
+        );
+        assert_eq!(auth::client_id_or_default("   "), auth::DEFAULT_CLIENT_ID);
+        assert_eq!(auth::client_id_or_default(" mine "), "mine");
+    }
+
+    /// The built-in id is only useful if the redirect URI the app listens on
+    /// is the one registered against it, so this pins the pair together.
+    #[test]
+    fn the_built_in_client_id_matches_its_registered_redirect_uri() {
+        assert!(auth::check_client_id(auth::DEFAULT_CLIENT_ID).is_ok());
+        assert_eq!(
+            auth::redirect_uri(),
+            "http://127.0.0.1:17832/callback",
+            "changing the callback port orphans the built-in client id"
+        );
     }
 
     #[test]

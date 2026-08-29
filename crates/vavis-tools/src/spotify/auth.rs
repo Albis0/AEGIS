@@ -18,10 +18,45 @@ use std::time::{Duration, Instant};
 /// Loopback port for the redirect.
 ///
 /// Fixed rather than random: Spotify requires the exact redirect URI to be
-/// registered on the developer dashboard, so it cannot change per run.
-pub const CALLBACK_PORT: u16 = 8888;
+/// registered on the developer dashboard, so it cannot change per run. This
+/// particular number is the one registered against [`DEFAULT_CLIENT_ID`], so
+/// changing it breaks connecting for everyone who has not registered an app
+/// of their own.
+pub const CALLBACK_PORT: u16 = 17832;
+
+/// The application's own Spotify client id.
+///
+/// This is why connecting is one click: without it every user would have to
+/// visit the developer dashboard, register an app, copy the redirect URI in
+/// and the id back out before the button did anything.
+///
+/// It is not a secret and does not belong in `keys.dat`. PKCE exists
+/// precisely because a desktop app cannot keep a secret, so a public client
+/// has no secret to keep: the client id is shipped inside every native
+/// Spotify integration there is, and on its own it authorises nothing. The
+/// tokens it eventually yields are secrets, and those do go to `keys.dat`.
+pub const DEFAULT_CLIENT_ID: &str = "3650da8ef6774cc99e857cfdc1d9999a";
+
+/// The client id to actually use.
+///
+/// A configured id overrides the built-in one, which is what someone wants if
+/// they would rather the consent screen carried their own app's name, or they
+/// need scopes this build does not ask for. Empty means the built-in one, so
+/// clearing the box in settings goes back to the zero-setup path rather than
+/// breaking the integration.
+pub fn client_id_or_default(configured: &str) -> &str {
+    let trimmed = configured.trim();
+    if trimmed.is_empty() {
+        DEFAULT_CLIENT_ID
+    } else {
+        trimmed
+    }
+}
 
 /// The redirect URI that must be registered in the Spotify app settings.
+///
+/// Only relevant to someone bringing their own client id; the built-in app
+/// already has it registered.
 pub fn redirect_uri() -> String {
     format!("http://127.0.0.1:{CALLBACK_PORT}/callback")
 }
@@ -261,17 +296,19 @@ pub enum Callback {
 pub fn wait_for_callback(expected_state: &str) -> Result<Callback, String> {
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, CALLBACK_PORT));
     let listener = TcpListener::bind(addr).map_err(|e| {
-        format!("{CALLBACK_PORT} portu dinlenemedi ({e}) — başka bir uygulama kullanıyor olabilir")
+        format!(
+            "could not listen on port {CALLBACK_PORT} ({e}) -- another application may be using it"
+        )
     })?;
     listener
         .set_nonblocking(true)
-        .map_err(|e| format!("dinleyici ayarlanamadı: {e}"))?;
+        .map_err(|e| format!("could not configure the callback listener: {e}"))?;
 
     let started = Instant::now();
 
     loop {
         if started.elapsed() > LISTEN_TIMEOUT {
-            return Err("Spotify izni zaman aşımına uğradı".into());
+            return Err("the Spotify consent step timed out".into());
         }
 
         match listener.accept() {
@@ -291,23 +328,24 @@ pub fn wait_for_callback(expected_state: &str) -> Result<Callback, String> {
                 let state = query_param(query, "state").unwrap_or_default();
                 let outcome = if state != expected_state {
                     // Not our redirect: something else hit the port.
-                    Err("beklenmeyen bir istek geldi".to_string())
+                    Err("an unexpected request arrived on the callback port".to_string())
                 } else if let Some(code) = query_param(query, "code") {
                     Ok(Callback::Code(code))
                 } else {
                     Ok(Callback::Denied(
-                        query_param(query, "error").unwrap_or_else(|| "izin verilmedi".into()),
+                        query_param(query, "error")
+                            .unwrap_or_else(|| "access was not granted".into()),
                     ))
                 };
 
                 let body = match &outcome {
                     Ok(Callback::Code(_)) => result_page(
-                        "Bağlandı",
-                        "Spotify hesabın Vavis'e bağlandı. Bu sekmeyi kapatabilirsin.",
+                        "Connected",
+                        "Your Spotify account is connected to Vavis. You can close this tab.",
                         false,
                     ),
-                    Ok(Callback::Denied(reason)) => result_page("İzin verilmedi", reason, true),
-                    Err(reason) => result_page("Olmadı", reason, true),
+                    Ok(Callback::Denied(reason)) => result_page("Not granted", reason, true),
+                    Err(reason) => result_page("Something went wrong", reason, true),
                 };
 
                 let response = format!(
@@ -398,8 +436,28 @@ mod tests {
         assert!(url.contains("client_id=abc123"));
     }
 
-    /// The exact mistake that produced a blank `client_id: Not present` page:
-    /// the redirect URI is printed above the input, so it gets pasted in.
+    /// Everything that matters is behind an `&`.
+    ///
+    /// Worth stating outright, because whatever opens this URL must not go
+    /// through a Windows command shell: `&` separates commands there, so the
+    /// browser is handed `...authorize?response_type=code` and nothing else.
+    /// Spotify answers with a blank `client_id: Not present` page and no step
+    /// in the chain reports a failure. See `open_in_browser` in the shell.
+    #[test]
+    fn every_parameter_but_the_first_is_behind_an_ampersand() {
+        let url = authorize_url("abc123", &Pkce::generate());
+        let (head, _) = url.split_once('&').expect("the URL must have parameters");
+
+        assert!(
+            !head.contains("client_id"),
+            "a shell that cuts at the first & would drop the client id: {head}"
+        );
+        assert!(url.matches('&').count() >= 5, "{url}");
+    }
+
+    /// The exact mistake that produced a blank `client_id: Not present` page
+    /// from the other direction: the redirect URI is printed above the input,
+    /// so it gets pasted in.
     #[test]
     fn the_redirect_uri_is_not_accepted_as_a_client_id() {
         let err = check_client_id(&redirect_uri()).expect_err("should be rejected");
@@ -456,7 +514,7 @@ mod tests {
 
     #[test]
     fn the_result_page_is_self_contained() {
-        let page = result_page("Bağlandı", "tamam", false);
+        let page = result_page("Connected", "ok", false);
         // Nothing external: the page has to render with no network at all.
         assert!(!page.contains("http://"), "no external references allowed");
         assert!(!page.contains("https://"), "no external references allowed");

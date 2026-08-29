@@ -123,6 +123,14 @@
     let steamIdDraft = $state("");
     let steamKeyDraft = $state("");
     let spotifyIdDraft = $state("");
+    /**
+     * Whether the client id box is showing.
+     *
+     * Folded away by default because the built-in application means nobody
+     * has to touch it. It was the first thing on the screen, which made a one
+     * click integration read as a form to fill in.
+     */
+    let spotifyOwnApp = $state(false);
 
     let dragFrom = $state<number | null>(null);
     let canvasDragFrom = $state<number | null>(null);
@@ -905,23 +913,35 @@
                 {/if}
             {:else}
                 <p class="hint">
-                    Create an app on the Spotify developer dashboard, paste its client id
-                    here, and register this exact redirect URI on it:
+                    Opens Spotify in your browser. Approve there and you are done —
+                    there is nothing to set up first.
                 </p>
-                <p class="path selectable">{spotify?.redirectUri ?? ""}</p>
-                <input bind:value={spotifyIdDraft} placeholder="client id" />
                 <div class="actions">
                     <button class="primary" onclick={connectSpotify}>connect</button>
-                    <button
-                        onclick={() =>
-                            run(async () => {
-                                await api.setSpotifyClientId(spotifyIdDraft.trim());
-                                spotify = await api.spotifySettings();
-                            }, "Client id saved.")}
-                    >
-                        save id only
-                    </button>
                 </div>
+                <button class="disclosure" onclick={() => (spotifyOwnApp = !spotifyOwnApp)}>
+                    {spotifyOwnApp ? "▾" : "▸"} use my own Spotify app
+                </button>
+                {#if spotifyOwnApp}
+                    <p class="hint">
+                        Only worth doing if you want your own name on the consent screen.
+                        Register this exact redirect URI on the app, then paste its client
+                        id here. Leaving it empty goes back to the built-in one.
+                    </p>
+                    <p class="path selectable">{spotify?.redirectUri ?? ""}</p>
+                    <input bind:value={spotifyIdDraft} placeholder="client id (optional)" />
+                    <div class="actions">
+                        <button
+                            onclick={() =>
+                                run(async () => {
+                                    await api.setSpotifyClientId(spotifyIdDraft.trim());
+                                    spotify = await api.spotifySettings();
+                                }, "Client id saved.")}
+                        >
+                            save id
+                        </button>
+                    </div>
+                {/if}
             {/if}
         {:else if active === "steam"}
             <h2>Steam</h2>
@@ -1285,6 +1305,20 @@
         font-size: var(--text-xs);
         color: var(--text-muted);
         word-break: break-all;
+    }
+
+    /* A section header that happens to be clickable, not a control competing
+       with the action above it. */
+    .disclosure {
+        align-self: flex-start;
+        padding: 0;
+        border: none;
+        background: none;
+        font-size: var(--text-xs);
+        color: var(--text-faint);
+    }
+    .disclosure:hover {
+        color: var(--text-muted);
     }
 
     .chips {

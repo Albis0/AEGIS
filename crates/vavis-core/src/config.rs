@@ -67,12 +67,15 @@ pub struct McpServer {
 
 /// Spotify.
 ///
-/// PKCE akışı kullanıldığı için istemci sırrı yok; sadece kullanıcının kendi
-/// geliştirici panelinden aldığı istemci kimliği gerekiyor. Token'lar burada
-/// değil, şifreli `keys.dat` içinde `spotify_token` adıyla durur.
+/// No client secret: the flow is PKCE, which exists because a desktop app
+/// cannot keep one. Tokens do not live here — they go in the encrypted
+/// `keys.dat` under `spotify_token`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Spotify {
+    /// A client id of the user's own, from their Spotify developer dashboard.
+    /// Optional, and empty for almost everyone: empty means the application's
+    /// built-in id, which is what makes connecting one click.
     pub client_id: String,
 }
 

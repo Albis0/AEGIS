@@ -1051,9 +1051,11 @@ pub fn toggle_mcp_tool(
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpotifySettings {
+    /// The user's own id, if they set one. Empty means the built-in app.
     pub client_id: String,
     pub connected: bool,
-    /// The URI the user must register on their Spotify dashboard.
+    /// Only needed by someone registering an app of their own; the built-in
+    /// one already has this URI on it.
     pub redirect_uri: String,
 }
 
@@ -1186,13 +1188,20 @@ pub fn spotify_control(action: String) -> Result<(), String> {
     vavis_tools::spotify::transport(mapped).map_err(|e| e.to_string())
 }
 
-/// Saves the Spotify client id.
+/// Saves a Spotify client id of the user's own.
 ///
-/// Validated before it is stored: an id that is really the redirect URI gets
-/// no error from Spotify, just a blank page, so the check has to happen here.
+/// Optional. Empty clears it and puts the built-in application back, which is
+/// the path almost everyone stays on; only someone who wants their own name on
+/// the consent screen sets one.
+///
+/// A non-empty id is validated before it is stored: an id that is really the
+/// redirect URI gets no error from Spotify, just a blank page, so the check
+/// has to happen here.
 #[tauri::command]
 pub fn set_spotify_client_id(state: State<AppState>, client_id: String) -> Result<(), String> {
-    vavis_tools::spotify::auth::check_client_id(&client_id)?;
+    if !client_id.trim().is_empty() {
+        vavis_tools::spotify::auth::check_client_id(&client_id)?;
+    }
     {
         let mut core = AppState::lock(&state.core);
         core.config.spotify.client_id = client_id.trim().to_string();
@@ -1209,10 +1218,13 @@ pub fn set_spotify_client_id(state: State<AppState>, client_id: String) -> Resul
 /// ninety seconds someone might spend logging in would freeze the interface.
 #[tauri::command]
 pub fn connect_spotify(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
-    let client_id = AppState::lock(&state.core).config.spotify.client_id.clone();
-    // Also checked here, not only on save: a config file edited by hand, or
-    // written by an older build without the check, would otherwise open a
-    // browser tab that can only fail.
+    let configured = AppState::lock(&state.core).config.spotify.client_id.clone();
+    // Empty is the ordinary case and means the built-in application, so there
+    // is nothing to set up before pressing connect.
+    let client_id = vavis_tools::spotify::auth::client_id_or_default(&configured).to_string();
+    // Checked here as well as on save: a config file edited by hand, or written
+    // by an older build without the check, would otherwise open a browser tab
+    // that can only fail.
     vavis_tools::spotify::auth::check_client_id(&client_id)?;
 
     let pkce = vavis_tools::spotify::auth::Pkce::generate();
@@ -1240,7 +1252,7 @@ pub fn connect_spotify(app: tauri::AppHandle, state: State<AppState>) -> Result<
                 if let Some(state) = app.try_state::<AppState>() {
                     state.save_spotify_token(&token);
                 }
-                serde_json::json!({ "ok": true, "message": "Spotify bağlandı." })
+                serde_json::json!({ "ok": true, "message": "Spotify connected." })
             }
             Err(message) => serde_json::json!({ "ok": false, "message": message }),
         };
@@ -1264,18 +1276,34 @@ pub fn disconnect_spotify(state: State<AppState>) -> Result<(), String> {
 }
 
 /// Opens a URL in the user's default browser.
+///
+/// Never through `cmd /C start`, which is the obvious way and silently
+/// mangles exactly the URLs this is for. `&` separates commands in `cmd`, and
+/// an argument is only quoted on the way out if it contains a space, so an
+/// authorisation URL arrives at the browser truncated at its first parameter
+/// separator. Spotify then answers with a bare `client_id: Not present` page
+/// and nothing anywhere reports an error: the process spawned fine, the
+/// browser opened fine, and the request was simply not the one that was
+/// built. Connecting could not work on Windows at all.
+///
+/// `url.dll,FileProtocolHandler` is the protocol handler itself, so the URL
+/// reaches the browser exactly as built, query string and all. `explorer` is
+/// the other obvious candidate and is worse: given a URL it does not
+/// recognise as one it opens Documents instead, with no error either.
 fn open_in_browser(url: &str) -> Result<(), String> {
     use std::process::Command;
 
     #[cfg(windows)]
-    let result = Command::new("cmd").args(["/C", "start", "", url]).spawn();
+    let result = Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .spawn();
 
     #[cfg(not(windows))]
     let result = Command::new("xdg-open").arg(url).spawn();
 
     result
         .map(|_| ())
-        .map_err(|e| format!("tarayıcı açılamadı: {e}"))
+        .map_err(|e| format!("could not open the browser: {e}"))
 }
 
 // ---------------------------------------------------------------------------
