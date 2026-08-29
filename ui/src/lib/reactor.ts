@@ -149,37 +149,62 @@ function environment(
 }
 
 /**
- * Ring of segmented blocks around the housing.
+ * A ring with a profile, revolved around the Z axis.
  *
- * One `InstancedMesh` rather than N meshes: this is drawn every frame and
- * the difference is one draw call against forty.
+ * `TorusGeometry` can only make a round tube, which is why the first version
+ * of this reactor read as a stack of hoops: real machined parts have square
+ * shoulders, chamfers and steps, and those edges are what catch the light and
+ * tell the eye how thick something is.
+ *
+ * `points` is the cross-section in the XZ plane -- x is distance from the
+ * axis, y of the Vector2 is depth along Z -- traced in order. `LatheGeometry`
+ * revolves it around Y, so the result is rotated a quarter turn to face the
+ * camera.
  */
-function segmentRing(
+function profileRing(
+    points: THREE.Vector2[],
+    segments: number,
+    material: THREE.Material,
+): THREE.Mesh {
+    const geometry = new THREE.LatheGeometry(points, segments);
+    // Lathe revolves around Y; the reactor faces Z.
+    geometry.rotateX(Math.PI / 2);
+    // Smooths the revolved surface without softening the profile's corners,
+    // so a chamfer still reads as an edge rather than a gradient.
+    geometry.computeVertexNormals();
+    return new THREE.Mesh(geometry, material);
+}
+
+/**
+ * Places `count` copies of a mesh evenly around the Z axis.
+ *
+ * Each instance is rotated to face outward and can be tilted, which is what
+ * makes a coil bobbin sit *in* the ring rather than merely near it.
+ */
+function radialArray(
+    mesh: THREE.InstancedMesh,
     count: number,
     radius: number,
-    material: THREE.Material,
-    box: [number, number, number],
-): THREE.InstancedMesh {
-    const geometry = new THREE.BoxGeometry(...box);
-    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    depth = 0,
+    tilt = 0,
+) {
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const quaternion = new THREE.Quaternion();
+    const euler = new THREE.Euler();
     const scale = new THREE.Vector3(1, 1, 1);
-    const axis = new THREE.Vector3(0, 0, 1);
 
     for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2;
-        position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
-        // Each block is rotated to face outward, so the ring reads as machined
-        // segments rather than scattered cubes.
-        quaternion.setFromAxisAngle(axis, angle);
+        position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, depth);
+        // Roll to face outward, then pitch by `tilt` about that new axis.
+        euler.set(tilt, 0, angle, "ZYX");
+        quaternion.setFromEuler(euler);
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(i, matrix);
     }
 
     mesh.instanceMatrix.needsUpdate = true;
-    return mesh;
 }
 
 /**
@@ -342,23 +367,9 @@ export function createReactor(host: HTMLElement): Reactor {
         roughness: 0.45,
         emissive: new THREE.Color(0x4aa8ff),
         emissiveIntensity: 2,
-    });
-
-    /**
-     * The core sphere.
-     *
-     * Emissive intensity is kept near 1 rather than pushed high. ACES tone
-     * mapping desaturates as it rolls off, so an over-driven emissive does not
-     * read as "brighter blue" -- it clips to white and the plasma loses its
-     * colour entirely. The brightness comes from the bloom pass instead, which
-     * spreads the light without washing out the source.
-     */
-    const coreMaterial = new THREE.MeshStandardMaterial({
-        color: 0x0d1420,
-        metalness: 0,
-        roughness: 1,
-        emissive: new THREE.Color(0x6cc0ff),
-        emissiveIntensity: 1.1,
+        // The winding is an open-ended sleeve, so its inside surface has to be
+        // drawn too -- otherwise the coils facing away show as hollow gaps.
+        side: THREE.DoubleSide,
     });
 
     // -- Assembly ---------------------------------------------------------
@@ -381,24 +392,46 @@ export function createReactor(host: HTMLElement): Reactor {
     // the depth has to be in the geometry, and the drift on `rig.rotation.y`
     // below is what lets the eye see it.
 
-    // Outer housing: a wide, shallow torus, the frontmost part. The high
-    // segment count matters -- this is the silhouette, and a coarse torus
-    // shows facets against the dark background.
-    const housing = new THREE.Mesh(
-        new THREE.TorusGeometry(2.15, 0.16, 24, 160),
+    // Outer casing: a machined rim with a chamfered front lip, a flat outer
+    // wall and a shoulder that steps down into the well. Traced as a profile
+    // rather than a torus, because the flat faces and hard edges are what read
+    // as a turned metal part -- a round tube reads as a hoop no matter how it
+    // is lit.
+    //
+    // Coordinates are (radius, depth): the outline is walked from the inner
+    // shoulder at the back, out and around the front lip, and back in.
+    const casing = profileRing(
+        [
+            new THREE.Vector2(1.62, -0.34), // inner wall, back
+            new THREE.Vector2(1.62, 0.1), // inner wall, front
+            new THREE.Vector2(1.72, 0.2), // shoulder chamfer
+            new THREE.Vector2(2.0, 0.2), // flat face
+            new THREE.Vector2(2.12, 0.12), // front lip chamfer
+            new THREE.Vector2(2.18, -0.02), // outer edge
+            new THREE.Vector2(2.18, -0.26), // outer wall
+            new THREE.Vector2(2.04, -0.4), // rear chamfer
+            new THREE.Vector2(1.62, -0.4), // back face
+        ],
+        192,
         trim,
     );
-    housing.position.z = 0.16;
-    rig.add(housing);
+    rig.add(casing);
 
-    // Inner housing, thicker and darker, set well back so the outer ring
-    // visibly floats in front of it.
-    const innerHousing = new THREE.Mesh(
-        new THREE.TorusGeometry(1.55, 0.22, 20, 140),
+    // Inner bezel: a narrower stepped ring inside the casing, set back, which
+    // gives the well a visible depth instead of a painted floor.
+    const bezel = profileRing(
+        [
+            new THREE.Vector2(1.12, -0.3),
+            new THREE.Vector2(1.12, -0.02),
+            new THREE.Vector2(1.2, 0.06),
+            new THREE.Vector2(1.48, 0.06),
+            new THREE.Vector2(1.56, -0.02),
+            new THREE.Vector2(1.56, -0.3),
+        ],
+        160,
         shell,
     );
-    innerHousing.position.z = -0.22;
-    rig.add(innerHousing);
+    rig.add(bezel);
 
     // A solid back plate, so the reactor has a body instead of being a set of
     // rings you can see the background through. It also gives the core
@@ -410,57 +443,172 @@ export function createReactor(host: HTMLElement): Reactor {
         envMapIntensity: 2.0,
     });
     const backPlate = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.72, 1.72, 0.18, 96),
+        new THREE.CylinderGeometry(1.66, 1.66, 0.16, 96),
         plateMaterial,
     );
     // The cylinder is built standing up the Y axis; the reactor faces Z.
     backPlate.rotation.x = Math.PI / 2;
-    backPlate.position.z = -0.42;
+    // Just behind the casing's back face, so it closes the well without
+    // poking through it.
+    backPlate.position.z = -0.44;
     rig.add(backPlate);
 
-    // Segmented rings. The outer one turns with the rotor, the inner one
-    // against it.
-    const outerSegments = segmentRing(36, 1.9, shell, [0.13, 0.2, 0.34]);
-    outerSegments.position.z = 0.04;
-    rotor.add(outerSegments);
+    // Fine teeth around the outer face. Small, many, and shallow: they catch
+    // the key light one at a time as the ring turns, which is what makes the
+    // rotation legible on a part that is otherwise a smooth circle.
+    const teeth = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.05, 0.12, 0.055),
+        shell,
+        72,
+    );
+    radialArray(teeth, 72, 1.86, 0.21);
+    rotor.add(teeth);
 
-    const innerSegments = segmentRing(24, 1.22, trim, [0.1, 0.14, 0.26]);
-    innerSegments.position.z = -0.1;
-    counter.add(innerSegments);
+    // The coils. This is the part that makes it a reactor rather than a
+    // wheel, so they are built as real objects: a metal bobbin, a glowing
+    // winding wrapped around it, and a cap on the front.
+    //
+    // Each sits *in* the well and is pitched inward toward the core, so the
+    // ring of them forms a shallow cone. Laid flat they read as a printed
+    // pattern; tilted, the near ones occlude the far ones as the assembly
+    // drifts, and that parallax is what sells the depth.
+    const COIL_COUNT = 10;
+    const COIL_RADIUS = 1.02;
+    const COIL_TILT = -0.42;
 
-    // The coils: glowing blocks set into the inner ring. These are what makes
-    // it a reactor rather than a wheel. Recessed behind the rings, so their
-    // light is partly occluded as the assembly turns -- a glow that is
-    // sometimes hidden reads as coming from inside the object.
-    const coils = segmentRing(12, 0.95, plasma, [0.14, 0.3, 0.2]);
-    coils.position.z = -0.16;
+    const coilCores = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.13, 0.15, 0.34, 20),
+        shell,
+        COIL_COUNT,
+    );
+    radialArray(coilCores, COIL_COUNT, COIL_RADIUS, -0.08, COIL_TILT);
+    rotor.add(coilCores);
+
+    // The winding: a glowing sleeve around the bobbin, and the only emissive
+    // part of the assembly besides the core.
+    //
+    // A cylinder rather than a torus. A torus is a ring with a hole, so it
+    // only reads as a winding when seen face-on; around the ring the far
+    // coils turn edge-on and it collapses into a bright C. A sleeve looks the
+    // same from every angle, which is what a wound coil actually does.
+    const coils = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.165, 0.175, 0.2, 24, 1, true),
+        plasma,
+        COIL_COUNT,
+    );
+    radialArray(coils, COIL_COUNT, COIL_RADIUS, -0.08, COIL_TILT);
     rotor.add(coils);
 
-    // Spokes from the core out to the inner housing.
-    const spokeGeometry = new THREE.BoxGeometry(0.055, 0.62, 0.1);
-    const spokes = new THREE.InstancedMesh(spokeGeometry, trim, 8);
+    const coilCaps = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.17, 0.17, 0.04, 20),
+        trim,
+        COIL_COUNT,
+    );
+    radialArray(coilCaps, COIL_COUNT, COIL_RADIUS, 0.11, COIL_TILT);
+    rotor.add(coilCaps);
+
+    // Struts bridging the core housing to the bezel, counter-rotating. Long
+    // and thin, so they read as structure holding the core rather than as
+    // more decoration.
+    const struts = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.045, 0.52, 0.07),
+        trim,
+        6,
+    );
     {
         const matrix = new THREE.Matrix4();
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3(1, 1, 1);
         const axis = new THREE.Vector3(0, 0, 1);
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const radius = 0.62;
-            position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const radius = 0.58;
+            position.set(
+                Math.cos(angle) * radius,
+                Math.sin(angle) * radius,
+                -0.12,
+            );
+            // Rotated a quarter turn past the angle so the long axis points
+            // outward along the radius.
             quaternion.setFromAxisAngle(axis, angle + Math.PI / 2);
             matrix.compose(position, quaternion, scale);
-            spokes.setMatrixAt(i, matrix);
+            struts.setMatrixAt(i, matrix);
         }
-        spokes.instanceMatrix.needsUpdate = true;
+        struts.instanceMatrix.needsUpdate = true;
     }
-    counter.add(spokes);
+    counter.add(struts);
 
-    // The core: a sphere, plus a larger transparent shell around it that
-    // fakes the volume of glowing gas.
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.34, 48, 32), coreMaterial);
-    rig.add(core);
+    // The housing the core sits in: a short collar with a chamfered mouth, so
+    // the core is recessed in a well rather than stuck on a flat plate.
+    const coreHousing = profileRing(
+        [
+            new THREE.Vector2(0.3, -0.34),
+            new THREE.Vector2(0.3, -0.06),
+            new THREE.Vector2(0.4, 0.04),
+            new THREE.Vector2(0.52, 0.04),
+            new THREE.Vector2(0.52, -0.34),
+        ],
+        96,
+        trim,
+    );
+    rig.add(coreHousing);
+
+    // The core is built entirely from additive layers -- there is no opaque
+    // sphere at its centre.
+    //
+    // An emissive sphere was the obvious way and it is what made the core read
+    // as a flat pale disc for so long: being opaque, it hid the very glow
+    // layers meant to give it depth, and no amount of extra brightness could
+    // show through something drawn in front. Light has no surface, so the core
+    // does not get one.
+
+    // A brighter pip inside the core.
+    //
+    // One emissive sphere renders as a flat disc: every point on it emits the
+    // same amount, so there is no gradient and nothing to read as depth. A
+    // second, smaller and hotter sphere just behind the surface gives the
+    // falloff that makes it look like light coming from inside something,
+    // rather than a circle painted the colour of light.
+    // Additive, so it adds light to the core behind it and crosses the bloom
+    // threshold. A plain opaque sphere just paints a lighter circle: it never
+    // blooms, which is why the core kept reading as a flat disc.
+    const pipMaterial = new THREE.MeshBasicMaterial({
+        color: 0xbfe4ff,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+    const pip = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 24), pipMaterial);
+    pip.position.z = 0.06;
+    // Drawn after the opaque core, so the additive layers land on top of it
+    // rather than being depth-rejected by the sphere in front of them.
+    pip.renderOrder = 2;
+    rig.add(pip);
+
+    // A soft shell over the core, brightest at its rim.
+    //
+    // `BackSide` means only the far surface is drawn, so the shell is thinnest
+    // where it faces the camera and thickest around the edge -- which stacks
+    // additively into a falloff from the middle outward. That gradient is what
+    // a glowing volume looks like, and it is the piece a solid sphere cannot
+    // produce however bright it is set.
+    const bloomShellMaterial = new THREE.MeshBasicMaterial({
+        color: 0x8ed0ff,
+        transparent: true,
+        opacity: 0.28,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+    const bloomShell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.33, 32, 24),
+        bloomShellMaterial,
+    );
+    bloomShell.position.z = 0.03;
+    bloomShell.renderOrder = 3;
+    rig.add(bloomShell);
 
     const haloMaterial = new THREE.MeshBasicMaterial({
         color: 0x5cb8ff,
@@ -471,7 +619,11 @@ export function createReactor(host: HTMLElement): Reactor {
         blending: THREE.AdditiveBlending,
         depthWrite: false,
     });
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.52, 32, 24), haloMaterial);
+    const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(0.46, 32, 24),
+        haloMaterial,
+    );
+    halo.position.z = 0.02;
     rig.add(halo);
 
     // The pressure wave, shown while speaking. A flat ring scaled outward and
@@ -580,7 +732,6 @@ export function createReactor(host: HTMLElement): Reactor {
         // nearly black and all their colour comes from the glow, which would
         // leave them as dark holes here.
         plasma.color.set(light ? 0x2f6ea8 : 0x0a0f18);
-        coreMaterial.color.set(light ? 0x3f8bcc : 0x0d1420);
 
         // Bloom is a glow *added* to the image. On a dark ground that reads as
         // light; on a white one there is no headroom left to add to, so the same
@@ -683,6 +834,8 @@ export function createReactor(host: HTMLElement): Reactor {
 
     const clock = new THREE.Clock();
     const emissive = new THREE.Color();
+    /** Reused for the pip tint; allocating a Color per frame would churn. */
+    const WHITE = new THREE.Color(0xffffff);
 
     /** Frame-rate independent easing toward a target. */
     function approach(current: number, target: number, rate: number, dt: number) {
@@ -719,11 +872,11 @@ export function createReactor(host: HTMLElement): Reactor {
         // The core breathes, and spikes with the microphone.
         const breath = 1 + Math.sin(time * 1.7) * 0.045;
         const spike = 1 + level * 0.55;
-        core.scale.setScalar(breath * spike);
+        pip.scale.setScalar(breath * spike);
+        bloomShell.scale.setScalar(breath * (1 + level * 0.25));
         halo.scale.setScalar(breath * (1 + level * 0.3));
 
         emissive.setHSL(hue / 360, 0.85, 0.6);
-        coreMaterial.emissive.copy(emissive);
         // Kept low deliberately. Emissive above roughly 1.5 saturates every
         // channel and the plasma renders white instead of blue -- the apparent
         // brightness has to come from the bloom pass, not from driving the
@@ -732,13 +885,20 @@ export function createReactor(host: HTMLElement): Reactor {
         // painted plastic; much above 1.5 every channel saturates and the plasma
         // renders white, losing the hue that is the whole point of it. These sit
         // deliberately just over the threshold, and the bloom does the rest.
-        coreMaterial.emissiveIntensity = (1.25 + level * 0.6) * glow * themeGlow;
         plasma.emissive.copy(emissive);
-        plasma.emissiveIntensity = 1.05 * glow * themeGlow;
+        plasma.emissiveIntensity = 1.6 * glow * themeGlow;
         coreLight.color.copy(emissive);
-        coreLight.intensity = (3.2 + level * 3) * glow * themeGlow;
+        coreLight.intensity = (2.4 + level * 2.2) * glow * themeGlow;
         haloMaterial.color.copy(emissive);
-        haloMaterial.opacity = 0.07 * themeGlow;
+        haloMaterial.opacity = 0.05 * themeGlow;
+
+        // The pip is what actually reads as the light source, so it tracks the
+        // hue but stays close to white -- a hot core is white at its centre
+        // whatever colour it throws.
+        pipMaterial.color.copy(emissive).lerp(WHITE, 0.55);
+        pipMaterial.opacity = Math.min(0.95 * glow * themeGlow, 1);
+        bloomShellMaterial.color.copy(emissive);
+        bloomShellMaterial.opacity = 0.45 * glow * themeGlow;
 
         // The pressure wave. Driven by a clock that only advances while
         // `drive.pulse` is up, so it always starts from the core.
