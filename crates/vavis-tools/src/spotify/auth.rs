@@ -96,6 +96,50 @@ impl Pkce {
     }
 }
 
+/// Checks that a string looks like a Spotify client id.
+///
+/// Worth doing because of one specific mistake, which is easy to make and
+/// impossible to diagnose from the result: the settings screen prints the
+/// redirect URI directly above the client id box, and pasting the URI into
+/// the box is the obvious slip. Spotify then answers the authorise request
+/// with a bare `client_id: Not present` page -- it does not say the id was
+/// malformed, or echo what it received, so the user is left staring at a
+/// blank white page with no way to tell what went wrong.
+///
+/// The id is a 32-character lowercase hex string. Rather than insist on that
+/// exactly -- Spotify has never promised the format, and a future change
+/// would lock people out of their own settings -- this rejects only what is
+/// definitely not an id: something with a scheme, a slash, or whitespace in
+/// it, or something far from the right length.
+pub fn check_client_id(raw: &str) -> Result<(), String> {
+    let id = raw.trim();
+
+    if id.is_empty() {
+        return Err("client id is empty".into());
+    }
+    if id.contains("://") || id.starts_with("http") {
+        return Err(format!(
+            "that is a URL, not a client id -- {} goes on the Spotify              dashboard as the redirect URI, and the client id is the 32              character code the dashboard shows next to it",
+            redirect_uri()
+        ));
+    }
+    if id.contains('/') || id.contains(char::is_whitespace) {
+        return Err("a client id has no slashes or spaces in it".into());
+    }
+    if !id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("a client id is letters and digits only".into());
+    }
+    // The real ones are exactly 32; allow a little room rather than break if
+    // Spotify ever changes the length.
+    if !(20..=64).contains(&id.chars().count()) {
+        return Err(format!(
+            "a client id is 32 characters long -- this one is {}",
+            id.chars().count()
+        ));
+    }
+    Ok(())
+}
+
 /// The URL to open in the browser.
 pub fn authorize_url(client_id: &str, pkce: &Pkce) -> String {
     format!(
@@ -352,6 +396,46 @@ mod tests {
             "the verifier must never leave the machine until redemption"
         );
         assert!(url.contains("client_id=abc123"));
+    }
+
+    /// The exact mistake that produced a blank `client_id: Not present` page:
+    /// the redirect URI is printed above the input, so it gets pasted in.
+    #[test]
+    fn the_redirect_uri_is_not_accepted_as_a_client_id() {
+        let err = check_client_id(&redirect_uri()).expect_err("should be rejected");
+        assert!(
+            err.contains("URL"),
+            "the message should say what is wrong: {err}"
+        );
+    }
+
+    #[test]
+    fn a_real_looking_client_id_is_accepted() {
+        assert!(check_client_id("4c2a1f9e8b7d6c5a4f3e2d1c0b9a8f7e").is_ok());
+        // Surrounding whitespace comes free with any paste.
+        assert!(check_client_id(
+            "  4c2a1f9e8b7d6c5a4f3e2d1c0b9a8f7e
+"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn obviously_wrong_ids_are_rejected() {
+        for bad in [
+            "",
+            "   ",
+            "short",
+            "has spaces in it aaaaaaaaaaaaaaaa",
+            "https://example.com/callback",
+            "path/like/this/aaaaaaaaaaaaaaaaaa",
+            "punctuation!!!!!!!!!!!!!!!!!!!!!!",
+        ] {
+            assert!(
+                check_client_id(bad).is_err(),
+                "should have been rejected: {bad:?}"
+            );
+        }
     }
 
     #[test]

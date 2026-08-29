@@ -1187,8 +1187,12 @@ pub fn spotify_control(action: String) -> Result<(), String> {
 }
 
 /// Saves the Spotify client id.
+///
+/// Validated before it is stored: an id that is really the redirect URI gets
+/// no error from Spotify, just a blank page, so the check has to happen here.
 #[tauri::command]
 pub fn set_spotify_client_id(state: State<AppState>, client_id: String) -> Result<(), String> {
+    vavis_tools::spotify::auth::check_client_id(&client_id)?;
     {
         let mut core = AppState::lock(&state.core);
         core.config.spotify.client_id = client_id.trim().to_string();
@@ -1206,9 +1210,10 @@ pub fn set_spotify_client_id(state: State<AppState>, client_id: String) -> Resul
 #[tauri::command]
 pub fn connect_spotify(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
     let client_id = AppState::lock(&state.core).config.spotify.client_id.clone();
-    if client_id.trim().is_empty() {
-        return Err("önce Spotify istemci kimliğini gir".into());
-    }
+    // Also checked here, not only on save: a config file edited by hand, or
+    // written by an older build without the check, would otherwise open a
+    // browser tab that can only fail.
+    vavis_tools::spotify::auth::check_client_id(&client_id)?;
 
     let pkce = vavis_tools::spotify::auth::Pkce::generate();
     let url = vavis_tools::spotify::auth::authorize_url(&client_id, &pkce);
