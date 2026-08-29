@@ -1,73 +1,134 @@
 /*
- * VAVIS design system.
+ * Vavis design system.
  *
- * Everything visual traces back to the tokens below. Components never
- * hardcode a colour or a spacing value — changing the look means editing
- * this file, not hunting through markup.
+ * Every visual value traces back to a token here. Components never hardcode
+ * a colour, a radius or a spacing step, so changing the look means editing
+ * this file rather than hunting through markup.
  *
- * The palette is Iron Man HUD: cyan carries the interface, amber is the
- * accent used sparingly (an accent everywhere stops being an accent), and
- * the background is near-black rather than pure black so glowing elements
- * have a surface to sit on.
+ * Two layers of tokens:
+ *
+ *   1. A palette of raw values. Nothing outside this file should name one.
+ *   2. Semantic tokens (`--surface`, `--text-muted`) that say what a value
+ *      is *for*. Components use only these, which is what lets the whole
+ *      interface re-theme by swapping one block.
+ *
+ * The accent is a single hue defined once as `--accent-h/s/l`. It is not
+ * baked into anything, so moving those three numbers moves the entire
+ * interface: the design is deliberately not tied to one colour.
  */
 
 :root {
-  /* ── Surfaces ────────────────────────────────────────────────── */
-  --bg: #05080d;
-  --bg-panel: #0a111a;
-  --bg-card: #0d1621;
-  --bg-code: #070c13;
-  --bg-hover: rgba(34, 211, 238, 0.08);
+  /* -- Accent, as separable channels ----------------------------- */
+  /* Everything accent-coloured is derived from these three numbers. */
+  --accent-h: 213;
+  --accent-s: 92%;
+  --accent-l: 60%;
 
-  /* ── Text ────────────────────────────────────────────────────── */
-  --fg: #c8e4f0;
-  --fg-dim: #5a7a8c;
-  --fg-faint: #2a4353;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-hover: hsl(
+    var(--accent-h) var(--accent-s) calc(var(--accent-l) + 7%)
+  );
+  --accent-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.14);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-text: hsl(var(--accent-h) 90% 72%);
 
-  /* ── Accents ─────────────────────────────────────────────────── */
-  --cyan: #22d3ee;
-  --cyan-bright: #67e8f9;
-  --cyan-dim: #0e7490;
-  --amber: #f59e0b;
-  --blue: #60a5fa;
-  --red: #f87171;
-  --green: #4ade80;
+  /* -- Surfaces -------------------------------------------------- */
+  /* A short, even ramp. Depth comes from these plus one shadow, never
+     from borders on everything. */
+  --bg: #0b0d10;
+  --surface: #121519;
+  --surface-raised: #171b21;
+  --surface-sunken: #0e1114;
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-active: rgba(255, 255, 255, 0.07);
 
-  /* ── Lines ───────────────────────────────────────────────────── */
-  --border: #143848;
-  --border-bright: #1a5570;
+  /* -- Text ------------------------------------------------------ */
+  --text: #e8eaed;
+  --text-muted: #9aa2ad;
+  --text-faint: #646c78;
 
-  /* ── Glow ────────────────────────────────────────────────────── */
-  --glow-cyan: 0 0 12px rgba(34, 211, 238, 0.35);
-  --glow-cyan-soft: 0 0 24px rgba(34, 211, 238, 0.15);
-  --glow-amber: 0 0 12px rgba(245, 158, 11, 0.4);
+  /* -- Lines ----------------------------------------------------- */
+  /* Hairlines, not boxes. Anything heavier reads as a wireframe. */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
 
-  /* ── Spacing ─────────────────────────────────────────────────── */
+  /* -- Status ---------------------------------------------------- */
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
+
+  /* -- Radii ----------------------------------------------------- */
+  /* Soft corners throughout. Small controls get less, so they do not
+     turn into pills by accident. */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-full: 999px;
+
+  /* -- Spacing --------------------------------------------------- */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 24px;
   --sp-6: 32px;
+  --sp-7: 48px;
 
-  --radius: 6px;
-  --radius-lg: 10px;
+  /* -- Elevation ------------------------------------------------- */
+  /* Two shadows per level: a tight one for the edge, a wide soft one for
+     the lift. One shadow alone always looks like a drop shadow. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.32), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.36), 0 20px 56px rgba(0, 0, 0, 0.42);
 
-  /* ── Type ────────────────────────────────────────────────────── */
-  --font-mono: "JetBrains Mono", "Cascadia Code", "Consolas", ui-monospace,
-    monospace;
-  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* -- Type ------------------------------------------------------ */
+  --font: "Inter", -apple-system, "Segoe UI Variable Display", "Segoe UI",
+    system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas,
+    ui-monospace, monospace;
 
-  --text-xs: 11px;
-  --text-sm: 12px;
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
   --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 20px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 21px;
 
-  /* ── Motion ──────────────────────────────────────────────────── */
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* -- Motion ---------------------------------------------------- */
+  /* Decelerating curves only. Things arrive; they never bounce. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
   --fast: 120ms;
-  --normal: 220ms;
+  --normal: 200ms;
+  --slow: 320ms;
+}
+
+/* Light theme, set as `data-theme="light"` on <html>.
+
+   The accent channels are almost untouched: the same hue reads correctly on
+   both grounds because only its lightness role changes. */
+:root[data-theme="light"] {
+  --accent-l: 48%;
+  --accent-text: hsl(var(--accent-h) 80% 40%);
+
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f0f2f5;
+  --surface-hover: rgba(0, 0, 0, 0.04);
+  --surface-active: rgba(0, 0, 0, 0.07);
+
+  --text: #16191d;
+  --text-muted: #5c636e;
+  --text-faint: #8b929c;
+
+  --line: rgba(0, 0, 0, 0.09);
+  --line-strong: rgba(0, 0, 0, 0.16);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.09), 0 20px 56px rgba(0, 0, 0, 0.11);
 }
 
 * {
@@ -85,93 +146,119 @@ body,
 
 body {
   background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-ui);
+  color: var(--text);
+  font-family: var(--font);
   font-size: var(--text-base);
-  line-height: 1.55;
-  /* The window is frameless; nothing should be selectable by accident
-     while dragging it around. Individual text areas opt back in. */
+  line-height: 1.6;
+  /* The window is frameless, so nothing should be selectable by accident
+     while dragging it. Prose opts back in via `.selectable`. */
   user-select: none;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Text the user should be able to copy. */
 .selectable {
   user-select: text;
-  cursor: text;
+  cursor: auto;
 }
 
-/* ── Scrollbars ────────────────────────────────────────────────── */
-/* Thin and dim: present when needed, invisible otherwise. */
+/* -- Scrollbars --------------------------------------------------- */
+/* Present when needed, invisible otherwise. */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: var(--line-strong);
+  border-radius: var(--r-full);
+  /* A transparent border shrinks the visible thumb without shrinking the
+     hit target. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--cyan-dim);
+  background: var(--text-faint);
+  background-clip: padding-box;
 }
 
-/* ── Focus ─────────────────────────────────────────────────────── */
-/* Keyboard users must see where they are; mouse users shouldn't get
-   a ring on every click. */
+/* -- Focus -------------------------------------------------------- */
 :focus {
   outline: none;
 }
 :focus-visible {
-  outline: 1px solid var(--cyan);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: var(--r-sm);
 }
 
-/* ── Shared primitives ─────────────────────────────────────────── */
+/* -- Buttons ------------------------------------------------------ */
+/* The default is a quiet ghost button: no border, no fill until hovered.
+   Borders on every control are what made the old interface a wireframe. */
 
 button {
   font-family: inherit;
   font-size: var(--text-sm);
-  color: var(--fg-dim);
+  color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--sp-1) var(--sp-3);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
   transition:
     color var(--fast) var(--ease),
-    border-color var(--fast) var(--ease),
-    background var(--fast) var(--ease);
+    background var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
 }
 
-button:hover {
-  color: var(--cyan-bright);
-  border-color: var(--cyan-dim);
-  background: var(--bg-hover);
+button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
 }
 
-button:active {
-  transform: translateY(1px);
+button:active:not(:disabled) {
+  background: var(--surface-active);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 button.primary {
-  color: var(--cyan);
-  border-color: var(--cyan-dim);
+  color: #fff;
+  background: var(--accent);
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: #fff;
 }
 
-button.danger:hover {
-  color: var(--red);
-  border-color: var(--red);
-  background: rgba(248, 113, 113, 0.08);
+button.outline {
+  border: 1px solid var(--line-strong);
 }
+
+button.danger {
+  color: var(--danger);
+}
+button.danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
+}
+
+/* -- Fields ------------------------------------------------------- */
 
 input,
-textarea {
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
-  color: var(--fg);
+  color: var(--text);
   background: transparent;
   border: none;
   width: 100%;
@@ -180,29 +267,39 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--fg-faint);
+  color: var(--text-faint);
 }
 
-/* ── Panel chrome ──────────────────────────────────────────────── */
+/* A bordered field, for forms. */
+.field {
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  transition: border-color var(--fast) var(--ease);
+}
+.field:focus-within {
+  border-color: var(--accent-line);
+}
 
-.panel-title {
-  font-family: var(--font-mono);
+/* -- Section headings --------------------------------------------- */
+/* Small, muted, plain case. The old all-caps monospace labels were the
+   loudest thing on screen and said the least. */
+
+.section-label {
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.12em;
-  color: var(--cyan);
-  opacity: 0.75;
-  padding-bottom: var(--sp-1);
-  border-bottom: 1px solid rgba(14, 116, 144, 0.4);
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
   margin-bottom: var(--sp-2);
 }
 
-/* ── Animation ─────────────────────────────────────────────────── */
+/* -- Animation ---------------------------------------------------- */
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -210,10 +307,19 @@ textarea::placeholder {
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {
-    opacity: 0.4;
+    opacity: 0.45;
   }
   50% {
     opacity: 1;
@@ -226,8 +332,8 @@ textarea::placeholder {
   }
 }
 
-/* Respect the user's motion preference — animation is decoration here,
-   never the only signal. */
+/* Animation is decoration here, never the only signal, so it is safe to
+   switch off wholesale. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -137,9 +137,9 @@
     flex-direction: column;
     gap: var(--sp-1);
     padding: var(--sp-2);
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     min-width: 0;
   }
 
@@ -162,8 +162,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-code);
-    color: var(--cyan-dim);
+    background: var(--surface-sunken);
+    color: var(--accent-line);
     font-size: 18px;
   }
 
@@ -183,29 +183,29 @@
 
   .track {
     font-size: var(--text-xs);
-    color: var(--fg);
+    color: var(--text);
   }
 
   .artist {
     font-size: 10px;
-    color: var(--fg-dim);
+    color: var(--text-muted);
   }
 
   .device {
     font-size: 10px;
-    color: var(--cyan-dim);
+    color: var(--accent-line);
   }
 
   .bar {
     height: 2px;
-    background: var(--bg-code);
+    background: var(--surface-sunken);
     border-radius: 1px;
     overflow: hidden;
   }
 
   .fill {
     height: 100%;
-    background: var(--cyan);
+    background: var(--accent);
     transition: width 1s linear;
   }
 
@@ -214,7 +214,7 @@
     justify-content: space-between;
     font-family: var(--font-mono);
     font-size: 9px;
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
 
   .controls {
@@ -227,10 +227,10 @@
     border: none;
     padding: 1px 5px;
     font-size: var(--text-xs);
-    color: var(--fg-dim);
+    color: var(--text-muted);
     background: none;
   }
   .controls button:hover {
-    color: var(--cyan);
+    color: var(--accent);
   }
 </style>

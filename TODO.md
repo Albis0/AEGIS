@@ -24,17 +24,32 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
 
 ## Interfaces
 
-- [~] **Main interface** — the three distinctive items from the note are done:
+- [~] **Main interface** — an empty stage with the reactor at its centre and a
+      resizable chat panel docked right. Everything the old layout kept on
+      screen permanently — two telemetry rails, meters, a shortcut list, a view
+      switcher — is now in the command palette on `Ctrl+K`, and what is left is
+      one status line along the bottom.
+  - [x] the reactor is a real 3D object (Three.js, WebGL): PBR housing lit by
+        an environment map built at runtime, emissive plasma, bloom. Its hue
+        and speed say what the assistant is doing. `ui/src/lib/reactor.ts`
+  - [x] command palette — every action in one searchable list, which is what
+        lets the stage stay empty. `ui/src/lib/CommandPalette.svelte`
+  - [x] chat panel resizable by its left edge, width persisted, `Ctrl+B` to
+        hide. `ui/src/lib/ChatPanel.svelte`
+  - [x] light and dark themes, accent derived from one hue in `styles.css`.
+        The reactor rebuilds its environment map to match.
   - [x] approvals inline in the message flow. They are messages now, answered
         where they appear and left in the feed marked with what was decided.
         The modal is gone; it stole the keyboard mid-sentence every time.
-  - [x] microphone next to send, same size, with a live level bar. The level
-        is its own command polled at 10 Hz — `get_status` is far too heavy
-        for that — and only while something is listening.
+  - [x] microphone in the composer, with the live level as a ring around it.
+        The level is its own command polled at 10 Hz — `get_status` is far
+        too heavy for that — and only while something is listening.
   - [x] tool calls collapsed to one line, expandable to show what the tool was
         called with and what it returned.
-  - [ ] conversation list on the left — the note's "solda konuşma listesi".
-        Needs sessions in the database; the app has one conversation today.
+  - [ ] conversation list — the note's "solda konuşma listesi". Needs sessions
+        in the database; the app has one conversation today. The left rail it
+        was meant for is gone, so it now belongs in the panel header or the
+        palette.
 - [~] **Code interface** — workspace backend done and tested (tree, read,
       write, search, path-escape refusal). View written.
       `crates/vavis-shell/src/workspace.rs`, `ui/src/lib/CodeView.svelte`
@@ -97,6 +112,19 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   `crates/vavis-shell/Cargo.toml`. `release_builds_embed_the_frontend` in
   `main.rs` fails if it is removed, and the release workflow runs that test
   in release mode because `cargo test --all` runs in debug and cannot see it.
+- The reactor's environment map must outlive the `PMREMGenerator` that made
+  it. `pmrem.dispose()` frees the render target the returned texture lives in,
+  so calling it at build time leaves every metal surface reflecting a released
+  buffer: the housing renders near-black and nothing reports an error. Both are
+  released together in the reactor's own `dispose`.
+- Bloom is a screen-space pass and ignores materials, so it is switched off
+  entirely in the light theme rather than merely reduced. On a light ground the
+  page is already near the threshold and any strength at all smears a halo over
+  the housing that no material setting can undo.
+- The theme is applied to `<html>` in `main.ts`, before the app mounts, not
+  from an effect inside it. Components read `data-theme` as they initialise —
+  the reactor builds a whole environment map from it — and a child's `onMount`
+  runs before the parent's `$effect`.
 - The release profile deliberately keeps the symbol table and the unwind
   tables. `strip = "symbols"` plus `panic = "abort"` produced a binary with
   neither, which is the shape of a packed executable: Defender's ML model

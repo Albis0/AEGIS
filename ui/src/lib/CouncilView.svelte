@@ -313,20 +313,20 @@
     display: flex;
     gap: var(--sp-2);
     padding: var(--sp-3);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--line);
   }
 
   .task {
     flex: 1;
     min-width: 0;
     resize: vertical;
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     padding: var(--sp-2);
     font-family: inherit;
     font-size: var(--text-sm);
-    color: var(--fg);
+    color: var(--text);
   }
 
   .go-column {
@@ -339,12 +339,12 @@
   .go {
     padding: var(--sp-2);
     font-size: var(--text-xs);
-    color: var(--cyan-bright);
-    border-color: var(--cyan-dim);
+    color: var(--accent-hover);
+    border-color: var(--accent-line);
   }
   .go:disabled {
-    color: var(--fg-faint);
-    border-color: var(--border);
+    color: var(--text-faint);
+    border-color: var(--line);
   }
 
   .forecast,
@@ -352,14 +352,14 @@
   .notice {
     font-size: 10px;
     font-family: var(--font-mono);
-    color: var(--fg-faint);
+    color: var(--text-faint);
     line-height: 1.4;
   }
   .summary {
-    color: var(--cyan);
+    color: var(--accent);
   }
   .notice {
-    color: var(--amber);
+    color: var(--warning);
   }
 
   .seats {
@@ -377,13 +377,13 @@
     display: flex;
     flex-direction: column;
     gap: var(--sp-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     padding: var(--sp-2);
     min-height: 0;
   }
   .panel[data-phase="streaming"] {
-    border-color: var(--cyan-dim);
+    border-color: var(--accent-line);
   }
   .panel[data-phase="failed"] {
     border-color: rgba(245, 158, 11, 0.4);
@@ -397,12 +397,12 @@
   .panel-head select,
   .panel-head input,
   .brief {
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     padding: 2px var(--sp-1);
     font-size: 10px;
-    color: var(--fg);
+    color: var(--text);
     min-width: 0;
   }
   .panel-head select {
@@ -422,7 +422,7 @@
     align-items: center;
     gap: 4px;
     font-size: 10px;
-    color: var(--fg-faint);
+    color: var(--text-faint);
     white-space: nowrap;
   }
   .brief {
@@ -434,7 +434,7 @@
     overflow-y: auto;
     font-size: var(--text-xs);
     line-height: 1.55;
-    color: var(--fg-dim);
+    color: var(--text-muted);
     min-height: 0;
   }
   .answer :global(pre) {
@@ -442,11 +442,11 @@
   }
 
   .dim {
-    color: var(--fg-faint);
+    color: var(--text-faint);
     font-size: var(--text-xs);
   }
   .failed {
-    color: var(--amber);
+    color: var(--warning);
     font-size: var(--text-xs);
   }
 
@@ -461,7 +461,7 @@
   .stats {
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
 
   .panel-actions {

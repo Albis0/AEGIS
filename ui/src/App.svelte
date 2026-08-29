@@ -1,467 +1,410 @@
 <!--
   The window.
 
-  Layout: a slim draggable title strip, three columns (telemetry, feed,
-  core), and the input bar. The window is undecorated, so the strip is
-  what the user grabs to move it.
+  A single full-bleed stage with the reactor at its centre and nothing else,
+  and a chat panel docked to the right that can be resized or hidden. That is
+  the whole layout. Everything the old interface kept permanently on screen --
+  telemetry rails, meters, a shortcut list, a view switcher -- now lives in
+  the command palette on Ctrl+K, where it is one keystroke away instead of
+  occupying a column full time.
+
+  The other interfaces (code, canvas, council) take the stage over when they
+  are open, keeping the chat panel beside them so the conversation is never
+  left behind.
 -->
 <script lang="ts">
-    import {getCurrentWindow} from "@tauri-apps/api/window";
-    import {api} from "./lib/api";
-    import CodeView from "./lib/CodeView.svelte";
-    import CanvasView from "./lib/CanvasView.svelte";
-    import CouncilView from "./lib/CouncilView.svelte";
-    import Settings from "./lib/Settings.svelte";
-    import Message from "./lib/Message.svelte";
-    import RightRail from "./lib/RightRail.svelte";
-    import Sidebar from "./lib/Sidebar.svelte";
-    import {chat} from "./lib/store.svelte";
-    import {onMount} from "svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { onMount } from "svelte";
+  import { api } from "./lib/api";
+  import CanvasView from "./lib/CanvasView.svelte";
+  import ChatPanel from "./lib/ChatPanel.svelte";
+  import CodeView from "./lib/CodeView.svelte";
+  import CommandPalette, { type Command } from "./lib/CommandPalette.svelte";
+  import CouncilView from "./lib/CouncilView.svelte";
+  import Icon from "./lib/Icon.svelte";
+  import Panels from "./lib/Panels.svelte";
+  import Reactor from "./lib/Reactor.svelte";
+  import Settings from "./lib/Settings.svelte";
+  import StatusBar from "./lib/StatusBar.svelte";
+  import { chat } from "./lib/store.svelte";
 
-    let feedEl = $state<HTMLElement | null>(null);
-    let inputEl = $state<HTMLTextAreaElement | null>(null);
-    let atBottom = $state(true);
+  const appWindow = getCurrentWindow();
 
-    const appWindow = getCurrentWindow();
+  const THEME_KEY = "vavis.theme";
 
-    onMount(() => {
-        void chat.start();
-        inputEl?.focus();
-        return () => chat.stop();
-    });
+  let chatOpen = $state(true);
+  let paletteOpen = $state(false);
+  // Seeded from the DOM rather than from storage. `main.ts` has already
+  // applied the saved theme before the app mounted -- components read
+  // `data-theme` as they initialise, so it cannot wait for an effect here --
+  // and reading it back keeps this the single source of truth afterwards.
+  let theme = $state<"dark" | "light">(
+    document.documentElement.dataset.theme === "light" ? "light" : "dark",
+  );
+  let chatPanel = $state<ChatPanel | null>(null);
 
-    /**
-     * Follows the conversation as it grows — but only if the user is
-     * already at the bottom. Yanking the view while they read back is
-     * the fastest way to make a chat feel hostile.
-     */
-    $effect(() => {
-        void chat.messages.length;
-        void chat.messages[chat.messages.length - 1]?.text;
+  const status = $derived(chat.status);
 
-        if (atBottom && feedEl) {
-            queueMicrotask(() => {
-                feedEl?.scrollTo({top: feedEl.scrollHeight, behavior: "smooth"});
-            });
-        }
-    });
+  onMount(() => {
+    void chat.start();
+    return () => chat.stop();
+  });
 
-    function trackScroll() {
-        if (!feedEl) return;
-        const slack = feedEl.scrollHeight - feedEl.scrollTop - feedEl.clientHeight;
-        atBottom = slack < 80;
+  // Theme is presentation and per-machine, so it lives in localStorage rather
+  // than in the app config: there is nothing for the backend or another
+  // device to do with it.
+  $effect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  });
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    // Opening the panel should put the caret in it. Making the user click
+    // into a panel they just summoned is exactly the friction this layout
+    // is meant to remove.
+    if (chatOpen) queueMicrotask(() => chatPanel?.focus());
+  }
+
+  async function cycleWindowMode() {
+    const order = ["windowed", "borderless", "fullscreen"];
+    const current = status?.windowMode ?? "windowed";
+    const next = order[(order.indexOf(current) + 1) % order.length];
+
+    // Applied first so the change is instant, then persisted.
+    //
+    // Decorations stay off throughout: the interface draws its own title
+    // strip, and turning the OS one back on gives two of them.
+    await appWindow.setFullscreen(next === "fullscreen");
+    if (next !== "fullscreen") {
+      if (next === "borderless") await appWindow.maximize();
+      else await appWindow.unmaximize();
     }
 
-    function submit() {
-        void chat.send(chat.input);
-        // Reset the height the textarea grew to while typing.
-        if (inputEl) inputEl.style.height = "auto";
+    await api.setSetting("windowMode", next);
+    await chat.refresh();
+  }
+
+  /**
+   * Everything the interface can do, in one list.
+   *
+   * This is the only registry of actions: the palette reads it, and so does
+   * the shortcut handler below, so a command and its key can never drift
+   * apart.
+   */
+  const commands = $derived<Command[]>([
+    {
+      id: "view.chat",
+      label: "Reactor",
+      group: "Go to",
+      icon: "chat",
+      keywords: "home stage main",
+      run: () => (chat.view = "chat"),
+    },
+    {
+      id: "view.code",
+      label: "Code",
+      group: "Go to",
+      icon: "code",
+      keywords: "workspace files editor",
+      run: () => (chat.view = "code"),
+    },
+    {
+      id: "view.canvas",
+      label: "Canvas",
+      group: "Go to",
+      icon: "canvas",
+      keywords: "image video generate gallery",
+      run: () => (chat.view = "canvas"),
+    },
+    {
+      id: "view.council",
+      label: "Council",
+      group: "Go to",
+      icon: "council",
+      keywords: "models compare panel",
+      run: () => (chat.view = "council"),
+    },
+
+    {
+      id: "chat.toggle",
+      label: chatOpen ? "Hide chat panel" : "Show chat panel",
+      group: "Chat",
+      icon: "panelRight",
+      hint: "Ctrl+B",
+      run: toggleChat,
+    },
+    {
+      id: "chat.clear",
+      label: "New conversation",
+      group: "Chat",
+      icon: "plus",
+      hint: "Ctrl+L",
+      keywords: "clear reset",
+      run: () => void chat.clear(),
+    },
+    {
+      id: "voice.cycle",
+      label: `Voice: ${status?.voiceMode ?? "off"}`,
+      group: "Chat",
+      icon: status?.voiceMode === "off" ? "micOff" : "mic",
+      hint: "Ctrl+M",
+      keywords: "microphone listen speech wake",
+      run: () => void chat.cycleVoice(),
+    },
+
+    {
+      id: "app.settings",
+      label: "Settings",
+      group: "Application",
+      icon: "settings",
+      hint: "Ctrl+,",
+      keywords: "keys providers preferences api language",
+      run: () => (chat.panel = "settings"),
+    },
+    {
+      id: "app.theme",
+      label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+      group: "Application",
+      icon: theme === "dark" ? "sun" : "moon",
+      keywords: "appearance colour color mode",
+      run: () => (theme = theme === "dark" ? "light" : "dark"),
+    },
+    {
+      id: "app.window",
+      label: `Window: ${status?.windowMode ?? "windowed"}`,
+      group: "Application",
+      icon: "maximise",
+      hint: "F11",
+      keywords: "fullscreen borderless maximise",
+      run: () => void cycleWindowMode(),
+    },
+    {
+      id: "app.memory",
+      label: "Remembered facts",
+      group: "Application",
+      icon: "memory",
+      keywords: "memory knows about me",
+      run: () => (chat.panel = "memory"),
+    },
+    {
+      id: "app.automations",
+      label: "Automations",
+      group: "Application",
+      icon: "clock",
+      keywords: "schedule triggers timers",
+      run: () => (chat.panel = "automations"),
+    },
+    {
+      id: "app.tools",
+      label: "Tools",
+      group: "Application",
+      icon: "tool",
+      keywords: "abilities capabilities integrations",
+      run: () => (chat.panel = "tools"),
+    },
+  ]);
+
+  function onGlobalKey(event: KeyboardEvent) {
+    const ctrl = event.ctrlKey || event.metaKey;
+
+    if (event.key === "Escape") {
+      // Escape unwinds one layer at a time, most transient first. Closing
+      // everything at once would lose a panel the user was reading because
+      // they wanted the speech to stop.
+      if (paletteOpen) paletteOpen = false;
+      else if (status?.speaking) void chat.stopSpeaking();
+      else if (chat.approval) void chat.answerApproval("deny");
+      else if (chat.panel !== "none") chat.panel = "none";
+      else if (chat.view !== "chat") chat.view = "chat";
+      return;
     }
 
-    function onKeydown(event: KeyboardEvent) {
-        // Enter sends; Shift+Enter writes a newline. Multi-line input matters
-        // when pasting code or a log.
-        if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            submit();
-        }
+    if (ctrl && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      paletteOpen = !paletteOpen;
+      return;
     }
-
-    /** Grows the input up to a limit, then scrolls inside itself. */
-    function autoGrow() {
-        if (!inputEl) return;
-        inputEl.style.height = "auto";
-        inputEl.style.height = `${Math.min(inputEl.scrollHeight, 160)}px`;
+    if (ctrl && event.key.toLowerCase() === "b") {
+      event.preventDefault();
+      toggleChat();
+      return;
     }
-
-    async function cycleWindowMode() {
-        const order = ["windowed", "borderless", "fullscreen"];
-        const current = chat.status?.windowMode ?? "windowed";
-        const next = order[(order.indexOf(current) + 1) % order.length];
-
-        // Apply first so the change is instant, then persist.
-        //
-        // Decorations stay off throughout: the interface draws its own title
-        // strip, and turning the OS one back on gives two of them.
-        await appWindow.setFullscreen(next === "fullscreen");
-        if (next !== "fullscreen") {
-            if (next === "borderless") await appWindow.maximize();
-            else await appWindow.unmaximize();
-        }
-
-        await api.setSetting("windowMode", next);
-        await chat.refresh();
+    if (ctrl && event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      void chat.cycleVoice();
+      return;
     }
-
-    function onGlobalKey(event: KeyboardEvent) {
-        // Escape: stop speech first, then close a panel, then a dialog.
-        if (event.key === "Escape") {
-            if (chat.status?.speaking) {
-                void chat.stopSpeaking();
-            } else if (chat.approval) {
-                void chat.answerApproval("deny");
-            } else if (chat.panel !== "none") {
-                chat.panel = "none";
-            }
-            return;
-        }
-
-        if (event.ctrlKey && event.key.toLowerCase() === "m") {
-            event.preventDefault();
-            void chat.cycleVoice();
-        }
-        if (event.ctrlKey && event.key.toLowerCase() === "l") {
-            event.preventDefault();
-            void chat.clear();
-        }
-        if (event.ctrlKey && event.key === ",") {
-            event.preventDefault();
-            chat.panel = chat.panel === "settings" ? "none" : "settings";
-        }
-        if (event.key === "F11") {
-            event.preventDefault();
-            void cycleWindowMode();
-        }
+    if (ctrl && event.key.toLowerCase() === "l") {
+      event.preventDefault();
+      void chat.clear();
+      return;
     }
+    if (ctrl && event.key === ",") {
+      event.preventDefault();
+      chat.panel = chat.panel === "settings" ? "none" : "settings";
+      return;
+    }
+    if (event.key === "F11") {
+      event.preventDefault();
+      void cycleWindowMode();
+    }
+  }
 </script>
 
 <svelte:window onkeydown={onGlobalKey} />
 
 <div class="shell">
-    <!-- Drag strip: the window has no title bar of its own. -->
-    <div class="titlebar" data-tauri-drag-region>
-        <span class="brand" data-tauri-drag-region>
-            VAVIS
-            <span class="sub">{chat.status?.assistantName ?? ""}</span>
-        </span>
+  <!-- Title strip. The window is undecorated, so this is what the user
+       grabs to move it. It stays deliberately sparse: a name, and the
+       window controls. -->
+  <div class="titlebar" data-tauri-drag-region>
+    <span class="brand" data-tauri-drag-region>Vavis</span>
 
-        <div class="window-buttons">
-            <button class="wb" title="settings" onclick={() => (chat.panel = chat.panel === "settings" ? "none" : "settings")}>⚙</button>
-            <button class="wb" title="minimise" onclick={() => appWindow.minimize()}>—</button>
-            <button class="wb" title="window mode (F11)" onclick={cycleWindowMode}>□</button>
-            <button class="wb close" title="close" onclick={() => appWindow.close()}>✕</button>
-        </div>
+    <div class="titlebar-actions">
+      <button
+        class="chip"
+        onclick={() => (paletteOpen = true)}
+        title="Commands (Ctrl+K)"
+      >
+        <Icon name="chevronRight" size={13} />
+        <span>Commands</span>
+        <kbd>Ctrl K</kbd>
+      </button>
+
+      {#if !chatOpen}
+        <button class="wb" title="Show chat (Ctrl+B)" onclick={toggleChat}>
+          <Icon name="panelRight" size={15} />
+        </button>
+      {/if}
+
+      <button class="wb" title="Minimise" onclick={() => appWindow.minimize()}>
+        <Icon name="minimise" size={15} />
+      </button>
+      <button class="wb" title="Window mode (F11)" onclick={cycleWindowMode}>
+        <Icon name="maximise" size={15} />
+      </button>
+      <button class="wb close" title="Close" onclick={() => appWindow.close()}>
+        <Icon name="close" size={15} />
+      </button>
     </div>
+  </div>
 
-    <div class="body">
-        <Sidebar />
+  <div class="body">
+    <main class="stage">
+      {#if chat.view === "code"}
+        <CodeView />
+      {:else if chat.view === "canvas"}
+        <CanvasView />
+      {:else if chat.view === "council"}
+        <CouncilView />
+      {:else}
+        <!-- The stage: the reactor, and nothing else. -->
+        <Reactor mode={chat.coreState} level={chat.micLevel} />
+      {/if}
+    </main>
 
-        {#if chat.view === "code"}
-            <CodeView />
-        {:else if chat.view === "canvas"}
-            <CanvasView />
-        {:else if chat.view === "council"}
-            <CouncilView />
-        {:else}
-        <main>
-            <div class="feed" bind:this={feedEl} onscroll={trackScroll}>
-                {#each chat.messages as message (message.id)}
-                    <Message {message} />
-                {/each}
+    {#if chatOpen}
+      <ChatPanel bind:this={chatPanel} onClose={toggleChat} />
+    {/if}
+  </div>
 
-                {#if chat.messages.length === 0}
-                    <div class="welcome">
-                        <p>Ready.</p>
-                        <p class="dim">
-                            Ask anything, or press <kbd>Ctrl</kbd>+<kbd>,</kbd> to set an API key.
-                        </p>
-                    </div>
-                {/if}
-            </div>
-
-            {#if !atBottom}
-                <button
-                    class="jump"
-                    onclick={() => {
-                        atBottom = true;
-                        feedEl?.scrollTo({top: feedEl.scrollHeight, behavior: "smooth"});
-                    }}>↓ latest</button
-                >
-            {/if}
-
-            <div class="composer" class:busy={chat.status?.busy}>
-                <span class="prompt" data-state={chat.coreState}>
-                    {#if chat.coreState === "thinking"}◈
-                    {:else if chat.coreState === "speaking"}♪
-                    {:else if chat.coreState === "working"}⚙
-                    {:else if chat.coreState === "listening"}◉
-                    {:else}❯{/if}
-                </span>
-
-                <textarea
-                    bind:this={inputEl}
-                    bind:value={chat.input}
-                    onkeydown={onKeydown}
-                    oninput={autoGrow}
-                    placeholder={chat.status?.busy ? "waiting for a reply…" : "message…"}
-                    rows="1"
-                    spellcheck="false"
-                ></textarea>
-
-                <!--
-                    The microphone sits next to send, the same size, because
-                    voice is a primary way to use this and not an afterthought
-                    tucked into a corner. The bar under it is the live level:
-                    it answers "is it hearing me" while you are still talking,
-                    which no amount of status text does.
-                -->
-                <button
-                    class="mic"
-                    data-mode={chat.status?.voiceMode ?? "off"}
-                    onclick={() => chat.cycleVoice()}
-                    title="voice: {chat.status?.voiceMode ?? 'off'} — click to cycle (Ctrl+M)"
-                >
-                    <span class="mic-glyph">
-                        {#if chat.status?.voiceMode === "off"}◌{:else}◉{/if}
-                    </span>
-                    <span class="level" aria-hidden="true">
-                        <span
-                            class="level-fill"
-                            style:width="{Math.min(chat.micLevel * 100, 100)}%"
-                        ></span>
-                    </span>
-                </button>
-
-                <button class="send" onclick={submit} disabled={!chat.input.trim() || chat.status?.busy} title="send (Enter)">↵</button>
-            </div>
-        </main>
-        {/if}
-
-        <RightRail />
-    </div>
+  <StatusBar onOpenSettings={() => (chat.panel = "settings")} />
 </div>
 
-<!-- Settings: a window over the interface rather than a rail panel. Fourteen
-     categories never fit in a 260-pixel column. -->
-{#if chat.panel === "settings"}
-    <Settings />
+{#if paletteOpen}
+  <CommandPalette {commands} onClose={() => (paletteOpen = false)} />
 {/if}
 
-<!--
-    Permission requests are answered inline, in the feed — see Message.svelte.
-    They used to be a modal here, which stole the keyboard mid-sentence every
-    time a destructive tool came up.
--->
+<!-- Settings is a window of its own rather than a sheet: fourteen
+     categories never fit the shape the other panels use. -->
+{#if chat.panel === "settings"}
+  <Settings />
+{:else if chat.panel !== "none"}
+  <Panels />
+{/if}
 
 <style>
-    .shell {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        /* A faint grid gives the empty space some texture without competing
-       with the content. */
-        background-image: linear-gradient(rgba(30, 51, 66, 0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 51, 66, 0.25) 1px, transparent 1px);
-        background-size: 48px 48px;
-    }
+  .shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+  }
 
-    .titlebar {
-        height: 34px;
-        flex: 0 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 var(--sp-2) 0 var(--sp-4);
-        background: rgba(5, 8, 13, 0.9);
-        border-bottom: 1px solid var(--border);
-    }
+  /* -- Title strip --------------------------------------------------- */
 
-    .brand {
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        letter-spacing: 0.22em;
-        color: var(--cyan);
-        text-shadow: var(--glow-cyan);
-    }
+  .titlebar {
+    height: 38px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--sp-2) 0 var(--sp-4);
+    /* No border: a line under the title strip boxes the window in. The
+       strip is told apart from the stage by its content, not a rule. */
+    z-index: 10;
+  }
 
-    .brand .sub {
-        margin-left: var(--sp-2);
-        letter-spacing: normal;
-        color: var(--fg-faint);
-        font-size: var(--text-xs);
-    }
+  .brand {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-muted);
+  }
 
-    .window-buttons {
-        display: flex;
-        gap: 2px;
-    }
+  .titlebar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+  }
 
-    .wb {
-        border: none;
-        background: transparent;
-        color: var(--fg-dim);
-        width: 30px;
-        height: 24px;
-        font-size: var(--text-sm);
-        border-radius: 3px;
-    }
-    .wb:hover {
-        background: var(--bg-hover);
-        color: var(--cyan-bright);
-    }
-    .wb.close:hover {
-        background: rgba(248, 113, 113, 0.18);
-        color: var(--red);
-    }
+  /* The palette's own affordance. Without it Ctrl+K is a secret, and the
+     brief was explicit that nothing should have to be memorised. */
+  .chip {
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-full);
+    margin-right: var(--sp-2);
+  }
+  .chip kbd {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    background: var(--surface-hover);
+    border-radius: var(--r-sm);
+    padding: 1px 5px;
+  }
 
-    .body {
-        flex: 1;
-        display: flex;
-        min-height: 0;
-    }
+  .wb {
+    padding: var(--sp-2);
+    color: var(--text-faint);
+    border-radius: var(--r-sm);
+  }
+  .wb:hover {
+    color: var(--text);
+  }
+  .wb.close:hover {
+    background: var(--danger);
+    color: #fff;
+  }
 
-    main {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        position: relative;
-    }
+  /* -- Body ---------------------------------------------------------- */
 
-    .feed {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--sp-4) var(--sp-5);
-        scroll-behavior: smooth;
-    }
+  .body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
 
-    .welcome {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: var(--sp-2);
-        color: var(--fg-dim);
-    }
-    .welcome .dim {
-        font-size: var(--text-sm);
-        color: var(--fg-faint);
-    }
-    .welcome kbd {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        color: var(--cyan-dim);
-        border: 1px solid var(--border);
-        border-radius: 3px;
-        padding: 0 4px;
-    }
-
-    .jump {
-        position: absolute;
-        bottom: 78px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: var(--text-xs);
-        background: var(--bg-panel);
-        box-shadow: var(--glow-cyan-soft);
-        z-index: 5;
-    }
-
-    .composer {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: flex-end;
-        gap: var(--sp-2);
-        padding: var(--sp-3) var(--sp-4);
-        background: rgba(10, 17, 26, 0.92);
-        border-top: 1px solid var(--border);
-        transition: border-color var(--normal) var(--ease);
-    }
-    .composer:focus-within {
-        border-top-color: var(--cyan-dim);
-    }
-
-    .prompt {
-        font-family: var(--font-mono);
-        font-size: var(--text-lg);
-        color: var(--cyan);
-        line-height: 1.4;
-        flex: 0 0 auto;
-    }
-    .prompt[data-state="thinking"] {
-        color: var(--amber);
-        animation: pulse 1.2s ease-in-out infinite;
-    }
-    .prompt[data-state="speaking"] {
-        color: var(--blue);
-    }
-    .prompt[data-state="listening"] {
-        color: var(--cyan-bright);
-        animation: pulse 2s ease-in-out infinite;
-    }
-    .prompt[data-state="working"] {
-        color: var(--amber);
-    }
-
-    textarea {
-        flex: 1;
-        resize: none;
-        line-height: 1.5;
-        max-height: 160px;
-        padding: 2px 0;
-        font-size: var(--text-base);
-    }
-
-    /* ── Microphone ────────────────────────────────────────────────── */
-
-    .mic {
-        flex: 0 0 auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 3px;
-        padding: 2px 10px;
-        line-height: 1.2;
-    }
-
-    .mic-glyph {
-        font-size: var(--text-lg);
-        color: var(--fg-faint);
-    }
-    .mic[data-mode="continuous"] .mic-glyph {
-        color: var(--cyan-bright);
-        text-shadow: var(--glow-cyan);
-    }
-    .mic[data-mode="wake"] .mic-glyph {
-        color: var(--cyan-dim);
-    }
-
-    .level {
-        display: block;
-        width: 20px;
-        height: 2px;
-        background: var(--border);
-        border-radius: 1px;
-        overflow: hidden;
-    }
-
-    .level-fill {
-        display: block;
-        height: 100%;
-        background: var(--cyan);
-        /* Short enough to feel live, long enough not to strobe on every
-           audio frame. */
-        transition: width 80ms linear;
-    }
-    /* Off means no signal, so the bar is not merely empty — it is absent. */
-    .mic[data-mode="off"] .level {
-        opacity: 0.35;
-    }
-
-    .send {
-        flex: 0 0 auto;
-        font-size: var(--text-lg);
-        padding: 2px 10px;
-        line-height: 1.2;
-    }
-    .send:disabled {
-        opacity: 0.3;
-        cursor: default;
-    }
-    .send:disabled:hover {
-        color: var(--fg-dim);
-        border-color: var(--border);
-        background: transparent;
-    }
-
+  .stage {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 </style>

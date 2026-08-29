@@ -117,7 +117,7 @@
   function ask() {
     if (!file) return;
     chat.view = "chat";
-    chat.input = `${file} dosyasında `;
+    chat.input = `In ${file}, `;
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -261,7 +261,7 @@
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-2);
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--line);
     overflow: hidden;
   }
 
@@ -275,12 +275,12 @@
   .search input {
     flex: 1;
     min-width: 0;
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     padding: 2px var(--sp-1);
     font-size: var(--text-xs);
-    color: var(--fg);
+    color: var(--text);
   }
 
   .entries,
@@ -299,7 +299,7 @@
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--cyan);
+    color: var(--accent);
     padding: var(--sp-1) 0;
   }
 
@@ -311,24 +311,24 @@
     background: none;
     text-align: left;
     font-size: var(--text-xs);
-    color: var(--fg-dim);
+    color: var(--text-muted);
     padding: 2px var(--sp-1);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .entry:hover {
-    color: var(--fg);
-    background: var(--bg-hover);
+    color: var(--text);
+    background: var(--surface-hover);
   }
   .entry.active {
-    color: var(--cyan-bright);
+    color: var(--accent-hover);
   }
 
   .icon {
     width: 10px;
     flex: 0 0 auto;
-    color: var(--cyan-dim);
+    color: var(--accent-line);
   }
 
   .hit {
@@ -342,18 +342,18 @@
     overflow: hidden;
   }
   .hit:hover {
-    background: var(--bg-hover);
+    background: var(--surface-hover);
   }
 
   .hit-path {
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--cyan);
+    color: var(--accent);
   }
 
   .hit-text {
     font-size: 10px;
-    color: var(--fg-dim);
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -374,13 +374,13 @@
     justify-content: space-between;
     gap: var(--sp-2);
     padding: var(--sp-1) var(--sp-2);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--line);
   }
 
   .filename {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--fg-dim);
+    color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -406,8 +406,8 @@
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     line-height: 1.5;
-    color: var(--fg-faint);
-    background: var(--bg-code);
+    color: var(--text-faint);
+    background: var(--surface-sunken);
     user-select: none;
     overflow: hidden;
   }
@@ -420,7 +420,7 @@
     resize: none;
     padding: var(--sp-2);
     background: transparent;
-    color: var(--fg);
+    color: var(--text);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     line-height: 1.5;
@@ -432,14 +432,14 @@
   .empty {
     padding: var(--sp-4);
     font-size: var(--text-xs);
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
 
   .notice {
     padding: var(--sp-1) var(--sp-2);
     font-size: var(--text-xs);
-    color: var(--cyan);
-    border-top: 1px solid var(--border);
+    color: var(--accent);
+    border-top: 1px solid var(--line);
   }
 
   .tiny {

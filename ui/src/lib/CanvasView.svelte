@@ -499,7 +499,7 @@
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-3);
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--line);
     overflow-y: auto;
   }
 
@@ -513,9 +513,9 @@
     padding: 3px;
   }
   .kinds button.active {
-    color: var(--cyan-bright);
-    border-color: var(--cyan-dim);
-    background: var(--bg-hover);
+    color: var(--accent-hover);
+    border-color: var(--accent-line);
+    background: var(--surface-hover);
   }
 
   .source {
@@ -523,8 +523,8 @@
     gap: var(--sp-2);
     align-items: center;
     padding: var(--sp-1);
-    border: 1px solid var(--cyan-dim);
-    border-radius: var(--radius);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-md);
   }
   .source img {
     width: 44px;
@@ -538,19 +538,19 @@
     align-items: flex-start;
     gap: 2px;
     font-size: 10px;
-    color: var(--fg-dim);
+    color: var(--text-muted);
   }
 
   .prompt,
   .field,
   .row input,
   .row select {
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     padding: var(--sp-1);
     font-size: var(--text-xs);
-    color: var(--fg);
+    color: var(--text);
     font-family: inherit;
     width: 100%;
     min-width: 0;
@@ -570,51 +570,51 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
   .row .value {
     flex: 0 0 auto;
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--cyan);
+    color: var(--accent);
   }
 
   .go {
     margin-top: var(--sp-1);
     padding: var(--sp-2);
     font-size: var(--text-xs);
-    color: var(--cyan-bright);
-    border-color: var(--cyan-dim);
+    color: var(--accent-hover);
+    border-color: var(--accent-line);
   }
   .go:disabled {
-    color: var(--fg-faint);
-    border-color: var(--border);
+    color: var(--text-faint);
+    border-color: var(--line);
   }
 
   .notice,
   .warn,
   .empty {
     font-size: var(--text-xs);
-    color: var(--fg-dim);
+    color: var(--text-muted);
     margin: 0;
   }
   .warn {
-    color: var(--amber);
+    color: var(--warning);
   }
   .empty {
     padding: var(--sp-4);
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
 
   .usage {
     margin-top: auto;
     padding-top: var(--sp-2);
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     gap: var(--sp-1);
     font-size: 10px;
-    color: var(--fg-faint);
+    color: var(--text-faint);
   }
   .usage-actions {
     display: flex;
@@ -638,13 +638,13 @@
     position: relative;
     aspect-ratio: 1;
     padding: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
     overflow: hidden;
-    background: var(--bg-code);
+    background: var(--surface-sunken);
   }
   .tile:hover {
-    border-color: var(--cyan-dim);
+    border-color: var(--accent-line);
   }
   .tile img,
   .tile video {
@@ -663,11 +663,11 @@
   }
   .badge {
     left: 6px;
-    color: var(--cyan-bright);
+    color: var(--accent-hover);
   }
   .star {
     right: 6px;
-    color: var(--amber);
+    color: var(--warning);
   }
 
   .detail {
@@ -677,7 +677,7 @@
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-3);
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--line);
     overflow-y: auto;
   }
 
@@ -689,20 +689,20 @@
   .detail-title {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--cyan);
+    color: var(--accent);
   }
 
   .preview img,
   .preview video {
     width: 100%;
-    border-radius: var(--radius);
+    border-radius: var(--r-md);
     display: block;
   }
 
   .detail-prompt {
     margin: 0;
     font-size: var(--text-xs);
-    color: var(--fg);
+    color: var(--text);
   }
 
   .facts {
@@ -713,18 +713,18 @@
     font-size: 10px;
   }
   .facts dt {
-    color: var(--fg-faint);
+    color: var(--text-faint);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
   .facts dd {
     margin: 0;
-    color: var(--fg-dim);
+    color: var(--text-muted);
     font-family: var(--font-mono);
     word-break: break-word;
   }
   .facts dd.missing {
-    color: var(--amber);
+    color: var(--warning);
     font-family: inherit;
   }
 
@@ -738,7 +738,7 @@
     padding: 2px 8px;
   }
   .detail-actions .danger {
-    color: var(--amber);
+    color: var(--warning);
     border-color: rgba(245, 158, 11, 0.4);
   }
 

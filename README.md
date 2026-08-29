@@ -102,11 +102,11 @@ sağlayıcılarda hem Anthropic'te çalışır.
 
 ```
 ┌──────────────────────────────────┐
-│  vavis-ui      KABUK             │  terminal görünümlü arayüz (egui)
+│  vavis-shell   KABUK             │  Tauri penceresi + Svelte arayüz
 ├──────────────────────────────────┤
 │  vavis-brain   BEYİN             │  LLM, bağlam bütçesi, anahtarlar
 ├──────────────────────────────────┤
-│  vavis-tools   ELLER             │  32 tool, izin kapısı, ajan döngüsü
+│  vavis-tools   ELLER             │  57 tool, izin kapısı, ajan döngüsü
 ├──────────────────────────────────┤
 │  vavis-audio   DUYULAR           │  STT · TTS · VAD · barge-in
 ├──────────────────────────────────┤
