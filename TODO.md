@@ -29,23 +29,24 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
       screen permanently — two telemetry rails, meters, a shortcut list, a view
       switcher — is now in the command palette on `Ctrl+K`, and what is left is
       one status line along the bottom.
-  - [x] the reactor is a real 3D object (Three.js, WebGL): PBR housing lit by
-        an environment map built at runtime, emissive plasma, bloom. Its hue
-        and speed say what the assistant is doing. `ui/src/lib/reactor.ts`
-  - [x] the reactor is turned by hand — drag to orbit, wheel to zoom, double
-        click to reset. A flick keeps turning and settles; left alone for a
-        few seconds it eases back to rest and the ambient drift fades in.
-        Bounded to about thirty degrees each way: it is a disc, and past that
-        it foreshortens into an ellipse.
-  - [x] the coils are wound copper on plasma bobbins, with machined flanges
-        and a lit bore. They were emissive sleeves, which had to be driven
-        past the bloom threshold to glow and clipped to white doing it.
+  - [x] the reactor is an instrument face drawn on a 2D canvas: a turned
+        housing, ten wound coils in a machined track, a graduated bezel and a
+        layered core, with bloom taken from an emissive layer of its own. Its
+        hue and speed say what the assistant is doing. `ui/src/lib/reactor.ts`
+  - [x] the reactor is turned by hand — grab it anywhere and it follows the
+        bearing of the pointer, wheel to zoom, double click to reset. A flick
+        carries and settles. There is no limit on the rotation: it turns in
+        its own plane, so it cannot foreshorten.
+  - [x] the coils are wound copper seated in a recess, each turn a dark stroke
+        for the gap with a lit one beside it for the crown of the wire, and
+        the core's light caught along the inner face of every one.
   - [x] command palette — every action in one searchable list, which is what
         lets the stage stay empty. `ui/src/lib/CommandPalette.svelte`
   - [x] chat panel resizable by its left edge, width persisted, `Ctrl+B` to
         hide. `ui/src/lib/ChatPanel.svelte`
   - [x] light and dark themes, accent derived from one hue in `styles.css`.
-        The reactor rebuilds its environment map to match.
+        The reactor keeps a full palette for each and swaps it on the
+        attribute change.
   - [x] approvals inline in the message flow. They are messages now, answered
         where they appear and left in the feed marked with what was decided.
         The modal is gone; it stole the keyboard mid-sentence every time.
@@ -139,53 +140,46 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   so it is unreportable from the response. The settings screen prints the
   redirect URI directly above the input, which is what makes the paste easy,
   so `spotify::auth::check_client_id` rejects it before the browser opens.
-- The rotation the drag allows is small on purpose. A disc foreshortens by the
-  cosine of the angle it is turned through, so at the 66 degrees this first
-  allowed it collapsed to a third of its width: the coil ring closed up, the
-  core hid behind its own housing, and the staggered rings read as loose
-  plates. Half a radian costs a tenth of the width and is where the parallax
-  is worth the most.
-- One environment map serves both themes. There used to be a paler room for
-  the light theme, and the housing was de-metalled to 0.15 metalness to keep it
-  dark against a white page — which is the definition of plastic, and it is
-  exactly what the reactor looked like there. A dark object in a dark studio,
-  set on a white page, is what a product shot is.
-- The bloom threshold has to sit above the *housing*, not merely above mid
-  grey. Bloom is screen-space and cannot tell metal from plasma, so at 0.5 the
-  pale housing bloomed along with the core and the whole assembly came back as
-  one milky wash. It is 0.72, and the metal is dark enough to stay under it.
-- `computeVertexNormals` on a `LatheGeometry` draws a seam down the housing. A
-  revolution ends on a duplicate of its first column of vertices, and
-  face-averaged normals give the two columns different answers because each
-  only sees the faces on its own side. Lathe's own normals average the ends
-  explicitly; keep them.
-- Two coplanar surfaces z-fight, and it does not look like z-fighting at this
-  scale — the lit end of each coil came out as a torn asterisk when the plasma
-  cylinder ended exactly level with the flange face. Anything meant to sit
-  flush is recessed instead.
+- The reactor is drawn in 2D, and was a WebGL object before that. The three
+  things that forced the change were all lighting problems, and a face with no
+  lighting has none of them:
+  - A disc foreshortens by the cosine of the angle it is turned through, so
+    every drag that made the object feel handled also flattened it. At the 66
+    degrees first allowed it collapsed to a third of its width; clamped to the
+    half radian that looked right, the perspective was never really seen.
+  - Bloom is screen-space and cannot tell metal from plasma, so the threshold
+    had to be tuned against the housing's own luminance, and the answer was
+    different in each theme. Below it the whole assembly came back as one
+    milky wash.
+  - Metal is entirely reflection. Keeping a metal housing dark on a white page
+    meant de-metalling it to 0.15 metalness, which is the definition of
+    plastic and is exactly what it looked like.
+- Bloom is now an explicit blur of a separate emissive canvas, so it is
+  thresholded by construction: the housing is not in that buffer and cannot
+  bloom whatever the palette does. It runs in both themes for that reason,
+  gently on a light page rather than switched off.
+- The two palettes are not inversions of each other. A dark instrument on a
+  dark page and a pale one on a white page are both real objects; a dark
+  instrument on a white page is a hole. What does not change is the bore,
+  which is dark in both, because it is the only thing guaranteeing the core
+  reads as hot rather than as a coloured circle. The emissive layer is
+  composited additively on the dark face and normally on the pale one, for the
+  same reason the wave blending is switched rather than merely dimmed.
 - The reactor canvas takes pointer events, but the stage around it does not:
   the canvas is full-bleed, so `pointer-events: none` on `.stage` with `auto`
   on `.host` is what keeps empty space from swallowing clicks meant for the
   page. The wheel listener is registered non-passive on purpose — Chrome
   defaults wheel listeners to passive, which silently voids `preventDefault`
   and lets the page scroll behind the zoom.
-- Camera distance is split in two: `resize` owns `baseDistance` and the wheel
-  owns `zoom`, multiplied in the loop. Writing `camera.position.z` from both
-  means whichever fires last discards the other, so resizing the window would
-  throw away the zoom.
+- The reactor's radius is derived every frame from the host size and the zoom
+  together, never written from both. The 3D version kept a base distance owned
+  by `resize` and a zoom owned by the wheel, and writing the camera from each
+  meant whichever fired last discarded the other: resizing the window threw
+  away the zoom.
 - The reactor's core is built only from additive layers; there is no opaque
-  sphere at its centre. An emissive sphere is the obvious way and hides the
-  very glow layers meant to give it depth, so it renders as a flat pale disc
+  disc at its centre. A solid bright circle is the obvious way and hides the
+  very glow layers meant to give it depth, so it renders as a flat pale coin
   no matter how bright it is driven.
-- The reactor's environment map must outlive the `PMREMGenerator` that made
-  it. `pmrem.dispose()` frees the render target the returned texture lives in,
-  so calling it at build time leaves every metal surface reflecting a released
-  buffer: the housing renders near-black and nothing reports an error. Both are
-  released together in the reactor's own `dispose`.
-- Bloom is a screen-space pass and ignores materials, so it is switched off
-  entirely in the light theme rather than merely reduced. On a light ground the
-  page is already near the threshold and any strength at all smears a halo over
-  the housing that no material setting can undo.
 - The theme is applied to `<html>` in `main.ts`, before the app mounts, not
   from an effect inside it. Components read `data-theme` as they initialise —
   the reactor builds a whole environment map from it — and a child's `onMount`

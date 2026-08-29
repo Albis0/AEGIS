@@ -1,9 +1,9 @@
 <!--
     The reactor, mounted.
 
-    This component owns the lifetime of the WebGL context and translates
-    assistant state into the reactor's drive values. The 3D work itself lives
-    in `reactor.ts`, which knows nothing about the app.
+    This component owns the lifetime of the canvas and translates assistant
+    state into the reactor's drive values. The drawing itself lives in
+    `reactor.ts`, which knows nothing about the app.
 
     The mapping below is the whole vocabulary of the visual: hue says what kind
     of thing is happening, speed says how hard it is working, and the pulse
@@ -32,7 +32,7 @@
 
     let host = $state<HTMLDivElement | null>(null);
     let reactor: Reactor | null = null;
-    /** Set when WebGL is unavailable, so the fallback can take over. */
+    /** Set when a 2D context cannot be had, so the fallback can take over. */
     let failed = $state(false);
 
     /**
@@ -55,9 +55,9 @@
         try {
             reactor = createReactor(host);
         } catch (error) {
-            // Software rendering, a driver reset, or a WebView2 without GPU
-            // access. The interface must still work, so fall back rather than
-            // leaving a blank hole in the middle of the window.
+            // A 2D context is refused only when the process is out of canvas
+            // memory, which is rare and recoverable. The interface must still
+            // work, so fall back rather than leaving a hole in the window.
             console.error("reactor failed to start", error);
             failed = true;
         }
@@ -81,7 +81,7 @@
     <div class="host" bind:this={host}></div>
 
     {#if failed}
-        <!-- No WebGL: a plain CSS ring, so the centre of the window is still
+        <!-- No canvas: a plain CSS ring, so the centre of the window is still
          something rather than nothing. -->
         <div class="fallback" data-state={mode}></div>
     {/if}
@@ -92,8 +92,8 @@
         position: absolute;
         inset: 0;
         /* Not a centring grid: the canvas is full-bleed and centres the reactor
-       itself through the camera. A grid would size the host to its content
-       and leave the canvas as a box in the middle of the stage. */
+       itself, on its own transform. A grid would size the host to its
+       content and leave the canvas as a box in the middle of the stage. */
         display: block;
         /* The stage itself stays transparent to the pointer; only the canvas
        inside it takes events. The reactor can be dragged, but the empty
@@ -102,10 +102,11 @@
     }
 
     /* The canvas fills the whole stage rather than being a square in the
-     middle of it. The reactor paints its own background (the bloom pass
-     cannot preserve transparency), so anything less than full bleed shows
-     as a visible box against the page. How large the reactor appears is set
-     by the camera distance in `reactor.ts`, not by this element. */
+     middle of it: the core's halo and its bloom reach most of the way to
+     the rim, and a tighter box would clip them into a visible edge. The
+     canvas itself is transparent, so the page shows through around the
+     reactor. How large the reactor appears is `FRACTION` in `reactor.ts`,
+     not this element. */
     .host {
         width: 100%;
         height: 100%;
