@@ -1,0 +1,25 @@
+# Indentation is 4 spaces, everywhere.
+#
+# Rust already defaults to this through rustfmt; the frontend did not, and
+# this is what keeps an editor from quietly reintroducing 2-space indents in
+# the Svelte and TypeScript files.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Lock files and generated schemas are written by their tools, not by hand.
+[{**/bun.lock,**/package-lock.json,**/gen/schemas/*.json}]
+indent_size = unset
+trim_trailing_whitespace = unset
+insert_final_newline = unset
+
+[*.md]
+# Trailing double-space is a hard line break in Markdown.
+trim_trailing_whitespace = false

@@ -11,11 +11,11 @@ import "./styles.css";
 // also removes the flash of the wrong background on a light-theme start.
 const savedTheme = localStorage.getItem("vavis.theme");
 document.documentElement.dataset.theme =
-  savedTheme === "light" ? "light" : "dark";
+    savedTheme === "light" ? "light" : "dark";
 
 const target = document.getElementById("app");
 if (!target) {
-  throw new Error("mount point #app is missing from index.html");
+    throw new Error("mount point #app is missing from index.html");
 }
 
 export default mount(App, { target });
