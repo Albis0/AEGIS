@@ -291,7 +291,8 @@ fn link_matches(link: &str, stem: &str) -> bool {
 }
 
 fn collect(root: &Path, dir: &Path, out: &mut Vec<Note>) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir).map_err(|e| format!("{} unreadable: {e}", dir.display()))?;
+    let entries =
+        std::fs::read_dir(dir).map_err(|e| format!("{} unreadable: {e}", dir.display()))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -464,7 +465,11 @@ pub fn discover() -> Vec<PathBuf> {
 #[cfg(windows)]
 fn obsidian_config_path() -> Option<PathBuf> {
     let appdata = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(appdata).join("obsidian").join("obsidian.json"))
+    Some(
+        PathBuf::from(appdata)
+            .join("obsidian")
+            .join("obsidian.json"),
+    )
 }
 
 #[cfg(not(windows))]
@@ -559,8 +564,14 @@ mod tests {
     #[test]
     fn title_matches_outrank_body_mentions() {
         let (_tmp, vault) = vault_with(&[
-            ("spotify integration.md", "# Spotify integration\nsome text\n"),
-            ("other.md", &format!("# Other\n{}\nspotify\n", "filler ".repeat(80))),
+            (
+                "spotify integration.md",
+                "# Spotify integration\nsome text\n",
+            ),
+            (
+                "other.md",
+                &format!("# Other\n{}\nspotify\n", "filler ".repeat(80)),
+            ),
         ]);
 
         let results = vault.search("spotify integration", 5).unwrap();
@@ -711,10 +722,7 @@ mod tests {
 
     #[test]
     fn tags_are_counted_across_the_vault() {
-        let (_tmp, vault) = vault_with(&[
-            ("a.md", "#project #idea\n"),
-            ("b.md", "#project\n"),
-        ]);
+        let (_tmp, vault) = vault_with(&[("a.md", "#project #idea\n"), ("b.md", "#project\n")]);
         let tags = vault.tags().unwrap();
         assert_eq!(tags[0], ("project".to_string(), 2), "most used comes first");
         assert!(tags.contains(&("idea".to_string(), 1)));
@@ -756,12 +764,21 @@ mod tests {
         assert!(!notes.is_empty(), "a real vault should have notes");
 
         for note in notes.iter().take(5) {
-            println!("  {} — {} ({} tags)", note.title, note.path, note.tags.len());
+            println!(
+                "  {} — {} ({} tags)",
+                note.title,
+                note.path,
+                note.tags.len()
+            );
         }
 
         // Reading must never mutate; the scan is repeatable.
         let again = vault.scan().unwrap();
-        assert_eq!(notes.len(), again.len(), "scanning must not change the vault");
+        assert_eq!(
+            notes.len(),
+            again.len(),
+            "scanning must not change the vault"
+        );
     }
 
     #[test]

@@ -95,7 +95,11 @@ impl Tool for NowPlaying {
     fn run(&self, _args: &Value) -> ToolOutcome {
         match spotify::now_playing() {
             Ok(Some(np)) => {
-                let state = if np.playing { "çalıyor" } else { "duraklatıldı" };
+                let state = if np.playing {
+                    "çalıyor"
+                } else {
+                    "duraklatıldı"
+                };
                 let mut out = format!("{} — {} ({state})", np.track, np.artist);
                 if let Some(device) = &np.device {
                     out.push_str(&format!(", {device} üzerinde"));
@@ -132,7 +136,10 @@ impl Tool for PlaySearch {
     fn params(&self) -> Vec<Param> {
         vec![
             Param::required("ne", "Şarkı, albüm, sanatçı veya playlist adı"),
-            Param::optional("tur", "track | album | artist | playlist (varsayılan track)"),
+            Param::optional(
+                "tur",
+                "track | album | artist | playlist (varsayılan track)",
+            ),
             Param::optional("calma", "'hayir' ise sadece arar, çalmaz"),
         ]
     }
@@ -255,7 +262,15 @@ impl Tool for PlayerSettings {
     }
 
     fn keywords(&self) -> &'static [&'static str] {
-        &["ses", "karıştır", "karistir", "shuffle", "tekrar", "repeat", "spotify"]
+        &[
+            "ses",
+            "karıştır",
+            "karistir",
+            "shuffle",
+            "tekrar",
+            "repeat",
+            "spotify",
+        ]
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
@@ -270,7 +285,10 @@ impl Tool for PlayerSettings {
         }
 
         if let Some(shuffle) = arg_str(args, "karistir") {
-            let on = matches!(shuffle.to_lowercase().as_str(), "acik" | "açık" | "on" | "evet");
+            let on = matches!(
+                shuffle.to_lowercase().as_str(),
+                "acik" | "açık" | "on" | "evet"
+            );
             if let Err(e) = spotify::set_shuffle(on) {
                 return explain(e);
             }
@@ -411,11 +429,18 @@ mod tests {
 
         for (name, out) in [
             ("calan", NowPlaying.run(&serde_json::json!({}))),
-            ("kontrol", Playback.run(&serde_json::json!({"islem": "cal"}))),
+            (
+                "kontrol",
+                Playback.run(&serde_json::json!({"islem": "cal"})),
+            ),
             ("begen", Like.run(&serde_json::json!({}))),
         ] {
             assert!(!out.ok, "{name} bağlantısız başarılı olmamalı");
-            assert!(out.content.contains("bağlı değil"), "{name}: {}", out.content);
+            assert!(
+                out.content.contains("bağlı değil"),
+                "{name}: {}",
+                out.content
+            );
         }
     }
 

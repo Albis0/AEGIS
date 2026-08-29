@@ -106,12 +106,7 @@ pub fn frontmatter_field(frontmatter: &str, key: &str) -> Vec<String> {
             // The values are on the following lines.
             in_list = true;
         } else if let Some(inner) = value.strip_prefix('[').and_then(|v| v.strip_suffix(']')) {
-            values.extend(
-                inner
-                    .split(',')
-                    .map(clean_scalar)
-                    .filter(|s| !s.is_empty()),
-            );
+            values.extend(inner.split(',').map(clean_scalar).filter(|s| !s.is_empty()));
         } else {
             values.push(clean_scalar(value));
         }

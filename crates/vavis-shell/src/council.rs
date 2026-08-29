@@ -223,7 +223,10 @@ mod tests {
     #[test]
     fn an_informed_seat_receives_the_earlier_answers() {
         let prior = vec![
-            ("groq · llama".to_string(), "Rayleigh scattering.".to_string()),
+            (
+                "groq · llama".to_string(),
+                "Rayleigh scattering.".to_string(),
+            ),
             ("openai · gpt".to_string(), "Short wavelengths.".to_string()),
         ];
         let messages = build_messages("why is the sky blue", &seat("critic", true), &prior);

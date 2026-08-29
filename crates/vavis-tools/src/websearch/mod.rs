@@ -104,7 +104,9 @@ impl Cooldowns {
 
     /// True while `id` is serving a cooldown.
     pub fn is_cooling(&self, id: &str) -> bool {
-        self.map().get(id).is_some_and(|until| Instant::now() < *until)
+        self.map()
+            .get(id)
+            .is_some_and(|until| Instant::now() < *until)
     }
 
     pub fn start(&self, id: &str) {
@@ -251,10 +253,7 @@ pub fn configure(new: Settings) {
 
 /// Reads back the installed settings.
 pub fn current() -> Settings {
-    settings()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
+    settings().lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// Searches using the configured chain.
@@ -431,7 +430,10 @@ mod tests {
 
         // First search trips the cooldown.
         run_chain(&providers, &chain, "q", 5, &cooldowns).unwrap();
-        assert!(cooldowns.is_cooling("a"), "rate limit must start a cooldown");
+        assert!(
+            cooldowns.is_cooling("a"),
+            "rate limit must start a cooldown"
+        );
 
         // Second search reports it as skipped rather than calling it again.
         let (resp, attempts) = run_chain(&providers, &chain, "q", 5, &cooldowns).unwrap();

@@ -88,9 +88,7 @@ impl Tool for Generate {
             _ => (1024, 1024),
         };
 
-        let count = arg_num(args, "adet")
-            .map_or(1, |n| n as u32)
-            .clamp(1, 4);
+        let count = arg_num(args, "adet").map_or(1, |n| n as u32).clamp(1, 4);
 
         let request = canvas::Request {
             prompt: prompt.clone(),
@@ -132,7 +130,11 @@ impl Tool for Generate {
                 params: format!(r#"{{"size":"{width}x{height}","count":{count}}}"#),
                 seed: asset.seed,
                 width: i64::from(if asset.width > 0 { asset.width } else { width }),
-                height: i64::from(if asset.height > 0 { asset.height } else { height }),
+                height: i64::from(if asset.height > 0 {
+                    asset.height
+                } else {
+                    height
+                }),
                 bytes: bytes as i64,
                 parent_id: None,
             };

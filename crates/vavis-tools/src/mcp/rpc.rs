@@ -296,7 +296,10 @@ mod tests {
     #[test]
     fn a_result_is_unwrapped() {
         let value = serde_json::json!({"jsonrpc": "2.0", "id": 1, "result": {"ok": true}});
-        assert_eq!(parse_response(&value).unwrap(), serde_json::json!({"ok": true}));
+        assert_eq!(
+            parse_response(&value).unwrap(),
+            serde_json::json!({"ok": true})
+        );
     }
 
     #[test]

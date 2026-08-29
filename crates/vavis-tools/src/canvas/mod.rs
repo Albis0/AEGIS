@@ -181,7 +181,9 @@ pub fn sniff_format(bytes: &[u8]) -> Option<&'static str> {
         [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some("png"),
         [0xFF, 0xD8, 0xFF, ..] => Some("jpg"),
         [b'G', b'I', b'F', b'8', ..] => Some("gif"),
-        _ if bytes.len() > 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" => Some("webp"),
+        _ if bytes.len() > 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" => {
+            Some("webp")
+        }
         // MP4 and friends: a `ftyp` box at offset 4.
         _ if bytes.len() > 12 && &bytes[4..8] == b"ftyp" => Some("mp4"),
         _ => None,
@@ -215,8 +217,8 @@ pub fn dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 /// walked rather than indexed.
 fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     let mut i = 2; // past the SOI marker
-    // `<=`: a frame header ends exactly at `i + 9`, and a file trimmed to the
-    // header is still a file whose size we can read.
+                   // `<=`: a frame header ends exactly at `i + 9`, and a file trimmed to the
+                   // header is still a file whose size we can read.
     while i + 9 <= bytes.len() {
         if bytes[i] != 0xFF {
             i += 1;
@@ -224,8 +226,8 @@ fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
         }
         let marker = bytes[i + 1];
         // SOF0..SOF15, minus the four that are not frame headers.
-        let is_frame = (0xC0..=0xCF).contains(&marker)
-            && !matches!(marker, 0xC4 | 0xC8 | 0xCC | 0xD8 | 0xD9);
+        let is_frame =
+            (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC | 0xD8 | 0xD9);
         if is_frame {
             let h = u16::from_be_bytes(bytes.get(i + 5..i + 7)?.try_into().ok()?);
             let w = u16::from_be_bytes(bytes.get(i + 7..i + 9)?.try_into().ok()?);
@@ -297,7 +299,9 @@ impl Cooldowns {
     }
 
     pub fn is_cooling(&self, id: &str) -> bool {
-        self.map().get(id).is_some_and(|until| Instant::now() < *until)
+        self.map()
+            .get(id)
+            .is_some_and(|until| Instant::now() < *until)
     }
 
     pub fn start(&self, id: &str) {
@@ -524,14 +528,11 @@ pub fn can_upscale() -> bool {
 pub fn is_ready(kind: Kind) -> bool {
     let current = settings();
     let providers = current.build_providers();
-    current
-        .effective_order(kind)
-        .iter()
-        .any(|id| {
-            providers
-                .iter()
-                .any(|p| p.id() == id && p.supports(kind) && p.available())
-        })
+    current.effective_order(kind).iter().any(|id| {
+        providers
+            .iter()
+            .any(|p| p.id() == id && p.supports(kind) && p.available())
+    })
 }
 
 /// Generates with the configured providers.
@@ -680,7 +681,10 @@ mod tests {
 
     #[test]
     fn a_provider_without_a_key_is_skipped_not_failed() {
-        let providers = vec![Fake::unavailable("a"), Fake::working("b", Ok(vec![asset(1)]))];
+        let providers = vec![
+            Fake::unavailable("a"),
+            Fake::working("b", Ok(vec![asset(1)])),
+        ];
         let got = run_chain(
             &providers,
             &order(&["a", "b"]),
@@ -757,7 +761,10 @@ mod tests {
 
     #[test]
     fn an_empty_result_counts_as_a_failure() {
-        let providers = vec![Fake::working("a", Ok(vec![])), Fake::working("b", Ok(vec![asset(1)]))];
+        let providers = vec![
+            Fake::working("a", Ok(vec![])),
+            Fake::working("b", Ok(vec![asset(1)])),
+        ];
         let got = run_chain(
             &providers,
             &order(&["a", "b"]),

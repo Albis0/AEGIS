@@ -125,7 +125,10 @@ impl Tool for ReadNote {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("yol", "Kasa içindeki yol, örn. projeler/vavis.md")]
+        vec![Param::required(
+            "yol",
+            "Kasa içindeki yol, örn. projeler/vavis.md",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -145,19 +148,14 @@ impl Tool for ReadNote {
             Ok((note, raw)) => {
                 let mut header = format!("# {}\n{}\n", note.title, note.path);
                 if !note.tags.is_empty() {
-                    let tags: Vec<String> =
-                        note.tags.iter().map(|t| format!("#{t}")).collect();
+                    let tags: Vec<String> = note.tags.iter().map(|t| format!("#{t}")).collect();
                     header.push_str(&format!("etiketler: {}\n", tags.join(" ")));
                 }
                 // Gömülü notlar açılmıyor: beş not gömen bir not bağlam
                 // maliyetini sessizce katlar. Sadece bildiriliyor.
                 if !note.embeds.is_empty() {
-                    let embeds: Vec<&str> =
-                        note.embeds.iter().map(String::as_str).collect();
-                    header.push_str(&format!(
-                        "gömülü (açılmadı): {}\n",
-                        embeds.join(", ")
-                    ));
+                    let embeds: Vec<&str> = note.embeds.iter().map(String::as_str).collect();
+                    header.push_str(&format!("gömülü (açılmadı): {}\n", embeds.join(", ")));
                 }
                 ToolOutcome::ok(format!("{header}\n{}", obsidian::clip(&raw)))
             }
@@ -410,10 +408,7 @@ impl Tool for EditNote {
             return ToolOutcome::err("yol ve eski parametreleri gerekli");
         };
         // Boş "yeni" silme demektir; arg_str boş dizeyi eleyeceği için ayrı okunuyor.
-        let new = args
-            .get("yeni")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
+        let new = args.get("yeni").and_then(Value::as_str).unwrap_or_default();
 
         match vault.edit(path, old, new) {
             Ok(written) => ToolOutcome::ok(format!("düzenlendi: {written}")),
@@ -643,7 +638,10 @@ mod tests {
         obsidian::set_active(None);
 
         for (name, out) in [
-            ("not_ara", SearchNotes.run(&serde_json::json!({"sorgu": "x"}))),
+            (
+                "not_ara",
+                SearchNotes.run(&serde_json::json!({"sorgu": "x"})),
+            ),
             ("not_oku", ReadNote.run(&serde_json::json!({"yol": "a.md"}))),
             ("not_listele", ListNotes.run(&serde_json::json!({}))),
         ] {
@@ -756,9 +754,8 @@ mod tests {
     #[test]
     fn a_full_create_read_edit_delete_cycle_works() {
         with_vault(&[], |vault| {
-            let created = CreateNote.run(
-                &serde_json::json!({"yol": "fikirler/yeni.md", "icerik": "ilk satır"}),
-            );
+            let created = CreateNote
+                .run(&serde_json::json!({"yol": "fikirler/yeni.md", "icerik": "ilk satır"}));
             assert!(created.ok, "{}", created.content);
 
             let read = ReadNote.run(&serde_json::json!({"yol": "fikirler/yeni.md"}));

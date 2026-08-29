@@ -288,7 +288,10 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
         let id = store.add_gallery_item(&item("a.png")).unwrap();
 
-        assert_eq!(store.delete_gallery_item(id).unwrap().as_deref(), Some("a.png"));
+        assert_eq!(
+            store.delete_gallery_item(id).unwrap().as_deref(),
+            Some("a.png")
+        );
         assert!(store.gallery_item(id).unwrap().is_none());
         // A second delete is not an error, it just has no file to report.
         assert_eq!(store.delete_gallery_item(id).unwrap(), None);

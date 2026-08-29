@@ -202,7 +202,10 @@ impl AppState {
 ///
 /// Secrets live in the key store, so `{key}` placeholders are filled here
 /// rather than being written into the settings file.
-pub fn mcp_server_config(server: &vavis_core::McpServer, secret: &str) -> vavis_tools::mcp::ServerConfig {
+pub fn mcp_server_config(
+    server: &vavis_core::McpServer,
+    secret: &str,
+) -> vavis_tools::mcp::ServerConfig {
     let transport = if server.transport.eq_ignore_ascii_case("http") {
         vavis_tools::mcp::Transport::Http {
             url: server.url.clone(),
@@ -245,7 +248,8 @@ fn build_registry(config: &vavis_core::Config, keys: &KeyStore) -> vavis_tools::
             .get(&format!("mcp_{}", server.id))
             .unwrap_or_default()
             .to_string();
-        let status = vavis_tools::mcp::connect(&mut registry, &mcp_server_config(server, &secret), &secret);
+        let status =
+            vavis_tools::mcp::connect(&mut registry, &mcp_server_config(server, &secret), &secret);
         if let Some(error) = &status.error {
             tracing::warn!(server = %server.id, %error, "mcp server unavailable");
         } else {

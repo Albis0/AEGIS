@@ -462,7 +462,10 @@ mod tests {
         // Raw RMS at this amplitude is about 0.035 — a bar 3.5% full, which
         // reads as broken. The curve is what makes it visible.
         let level = level_permille(&tone(100, 0.05));
-        assert!(level > 100, "a real voice must not look like silence: {level}");
+        assert!(
+            level > 100,
+            "a real voice must not look like silence: {level}"
+        );
     }
 
     #[test]

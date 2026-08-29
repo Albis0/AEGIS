@@ -85,7 +85,12 @@ enum Connection {
 }
 
 impl Connection {
-    fn request(&mut self, method: &str, params: Value, timeout: std::time::Duration) -> Result<Value, RpcError> {
+    fn request(
+        &mut self,
+        method: &str,
+        params: Value,
+        timeout: std::time::Duration,
+    ) -> Result<Value, RpcError> {
         match self {
             Self::Stdio(t) => t.request(method, params, timeout),
             Self::Http(t) => t.request(method, params, timeout),
@@ -97,7 +102,9 @@ impl Connection {
             Self::Stdio(t) => t.notify(method, params),
             // HTTP has no separate notification channel worth maintaining;
             // servers accept the initialized notice as a plain request.
-            Self::Http(t) => t.request(method, params, rpc::handshake_timeout()).map(|_| ()),
+            Self::Http(t) => t
+                .request(method, params, rpc::handshake_timeout())
+                .map(|_| ()),
         }
     }
 }
@@ -113,9 +120,9 @@ impl Server {
     /// Connects and performs the MCP handshake, then lists the tools.
     pub fn connect(config: &ServerConfig, secret: &str) -> Result<Self, String> {
         let connection = match &config.transport {
-            Transport::Stdio { command, args, env } => {
-                Connection::Stdio(StdioTransport::spawn(command, args, env).map_err(|e| e.to_string())?)
-            }
+            Transport::Stdio { command, args, env } => Connection::Stdio(
+                StdioTransport::spawn(command, args, env).map_err(|e| e.to_string())?,
+            ),
             Transport::Http {
                 url,
                 header_name,
@@ -150,7 +157,11 @@ impl Server {
         let _ = connection.notify("notifications/initialized", serde_json::json!({}));
 
         let listed = connection
-            .request("tools/list", serde_json::json!({}), rpc::handshake_timeout())
+            .request(
+                "tools/list",
+                serde_json::json!({}),
+                rpc::handshake_timeout(),
+            )
             .map_err(|e| format!("tool listesi alınamadı: {e}"))?;
 
         let tools = parse_tool_list(&listed);
@@ -333,11 +344,7 @@ pub struct ServerStatus {
 ///
 /// Returns what happened so the settings panel can show it. A server that
 /// fails is reported, not retried — the others carry on.
-pub fn connect(
-    registry: &mut Registry,
-    config: &ServerConfig,
-    secret: &str,
-) -> ServerStatus {
+pub fn connect(registry: &mut Registry, config: &ServerConfig, secret: &str) -> ServerStatus {
     if !config.enabled {
         return ServerStatus {
             id: config.id.clone(),
@@ -406,10 +413,7 @@ pub fn connect(
 
 /// Drops every connection. Child processes are killed on drop.
 pub fn disconnect_all() {
-    servers()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clear();
+    servers().lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
 /// Ids of the servers currently connected.
@@ -464,7 +468,10 @@ mod tests {
         assert_eq!(tools.len(), 2);
         assert_eq!(tools[0].name, "search");
         assert_eq!(tools[0].description, "Search things");
-        assert_eq!(tools[1].description, "", "a missing description is not fatal");
+        assert_eq!(
+            tools[1].description, "",
+            "a missing description is not fatal"
+        );
     }
 
     #[test]
@@ -495,7 +502,10 @@ mod tests {
         });
         let text = flatten_content(&result);
         assert!(text.contains("görsel"), "{text}");
-        assert!(!text.contains("AAAA"), "image data must not reach the model");
+        assert!(
+            !text.contains("AAAA"),
+            "image data must not reach the model"
+        );
     }
 
     #[test]

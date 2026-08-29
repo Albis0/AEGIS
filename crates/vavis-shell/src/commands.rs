@@ -882,7 +882,9 @@ pub fn list_mcp_servers(state: State<AppState>) -> Vec<McpServerInfo> {
             command_line: if s.transport.eq_ignore_ascii_case("http") {
                 s.url.clone()
             } else {
-                format!("{} {}", s.command, s.args.join(" ")).trim().to_string()
+                format!("{} {}", s.command, s.args.join(" "))
+                    .trim()
+                    .to_string()
             },
             enabled: s.enabled,
             connected: connected.contains(&s.id),
@@ -1129,8 +1131,7 @@ pub fn spotify_album_art(state: State<AppState>, url: String) -> Result<String, 
     let bytes = match std::fs::read(&file) {
         Ok(bytes) => bytes,
         Err(_) => {
-            let fetched =
-                vavis_tools::spotify::fetch_album_art(&url).map_err(|e| e.to_string())?;
+            let fetched = vavis_tools::spotify::fetch_album_art(&url).map_err(|e| e.to_string())?;
             // A failed write is not fatal; the art still displays this time.
             if let Err(e) = std::fs::write(&file, &fetched) {
                 tracing::debug!(%e, "album art not cached");
@@ -1300,11 +1301,7 @@ pub fn get_steam_settings(state: State<AppState>) -> SteamSettings {
 /// with an empty list, so without it every later question would come back
 /// "you own no games" and the user would have no idea why.
 #[tauri::command]
-pub fn set_steam(
-    state: State<AppState>,
-    steam_id: String,
-    key: String,
-) -> Result<String, String> {
+pub fn set_steam(state: State<AppState>, steam_id: String, key: String) -> Result<String, String> {
     let id = steam_id.trim().to_string();
     if !id.is_empty() && (id.len() != 17 || !id.chars().all(|c| c.is_ascii_digit())) {
         return Err("SteamID64 17 haneli bir sayı olmalı".into());
@@ -2241,11 +2238,8 @@ async fn run_council(
                 match stream {
                     Ok(text) => {
                         let output_tokens = vavis_brain::estimate_tokens(&text);
-                        let cost = vavis_brain::estimate_cost(
-                            &config.model,
-                            input_tokens,
-                            output_tokens,
-                        );
+                        let cost =
+                            vavis_brain::estimate_cost(&config.model, input_tokens, output_tokens);
                         let _ = app.emit(
                             "council:seat-done",
                             CouncilSeatDonePayload {
@@ -2258,7 +2252,13 @@ async fn run_council(
                                 elapsed_ms: started.elapsed().as_millis(),
                             },
                         );
-                        (seat, Some(SeatResult { text, dollars: cost }))
+                        (
+                            seat,
+                            Some(SeatResult {
+                                text,
+                                dollars: cost,
+                            }),
+                        )
                     }
                     Err(e) => {
                         // This seat is done; the others carry on. Having other
@@ -2364,11 +2364,9 @@ pub fn test_connection(state: State<AppState>, target: String) -> ConnectionTest
     match target.as_str() {
         "obsidian" => match vavis_tools::obsidian::current() {
             Some(vault) => match vault.scan() {
-                Ok(notes) => ConnectionTest::ok(format!(
-                    "{} notes in {}",
-                    notes.len(),
-                    vault.root.display()
-                )),
+                Ok(notes) => {
+                    ConnectionTest::ok(format!("{} notes in {}", notes.len(), vault.root.display()))
+                }
                 Err(e) => ConnectionTest::bad(e.to_string()),
             },
             None => ConnectionTest::bad("no vault selected"),

@@ -11,7 +11,13 @@ use crate::tool::{arg_num, arg_str, Domain, Param, Risk, Tool, ToolOutcome};
 use serde_json::Value;
 
 const VAULT_WORDS: &[&str] = &[
-    "steam", "oyun", "game", "oynadım", "oynadim", "kütüphane", "kutuphane",
+    "steam",
+    "oyun",
+    "game",
+    "oynadım",
+    "oynadim",
+    "kütüphane",
+    "kutuphane",
 ];
 
 /// Bir oyunu ada göre bulur — model AppID bilmiyor, isim biliyor.
@@ -170,7 +176,9 @@ impl Tool for LaunchGame {
     }
 
     fn keywords(&self) -> &'static [&'static str] {
-        &["steam", "oyun", "başlat", "baslat", "aç", "ac", "launch", "play"]
+        &[
+            "steam", "oyun", "başlat", "baslat", "aç", "ac", "launch", "play",
+        ]
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
@@ -309,7 +317,15 @@ impl Tool for StorePrice {
     }
 
     fn keywords(&self) -> &'static [&'static str] {
-        &["fiyat", "indirim", "kaç para", "kac para", "steam", "price", "sale"]
+        &[
+            "fiyat",
+            "indirim",
+            "kaç para",
+            "kac para",
+            "steam",
+            "price",
+            "sale",
+        ]
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
@@ -436,11 +452,21 @@ impl Tool for Friends {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::optional("adet", "Kaç kişi gösterilsin (varsayılan 15)")]
+        vec![Param::optional(
+            "adet",
+            "Kaç kişi gösterilsin (varsayılan 15)",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
-        &["arkadaş", "arkadas", "friend", "steam", "online", "çevrimiçi"]
+        &[
+            "arkadaş",
+            "arkadas",
+            "friend",
+            "steam",
+            "online",
+            "çevrimiçi",
+        ]
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
@@ -479,7 +505,10 @@ mod tests {
 
         for (name, out) in [
             ("kutuphane", Library.run(&serde_json::json!({}))),
-            ("basarimlar", Achievements.run(&serde_json::json!({"oyun": "x"}))),
+            (
+                "basarimlar",
+                Achievements.run(&serde_json::json!({"oyun": "x"})),
+            ),
             ("arkadaslar", Friends.run(&serde_json::json!({}))),
         ] {
             assert!(!out.ok, "{name} ayarsız başarılı olmamalı");

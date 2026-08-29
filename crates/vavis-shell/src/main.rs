@@ -10,9 +10,9 @@
 
 mod commands;
 mod council;
-mod workspace;
 mod state;
 mod voice;
+mod workspace;
 
 use state::AppState;
 use tauri::{Emitter, Manager};

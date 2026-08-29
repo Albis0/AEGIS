@@ -105,7 +105,10 @@ fn classify(status: u16, body: &str) -> Option<GenError> {
         401 | 403 if !looks_like_refusal => Some(GenError::Failed("key rejected".into())),
         402 | 429 => Some(GenError::RateLimited),
         _ if looks_like_refusal => Some(GenError::Refused(short_error(body))),
-        _ => Some(GenError::Failed(format!("HTTP {status}: {}", short_error(body)))),
+        _ => Some(GenError::Failed(format!(
+            "HTTP {status}: {}",
+            short_error(body)
+        ))),
     }
 }
 
@@ -252,8 +255,7 @@ fn parse_openai(text: &str) -> Result<Vec<Asset>, GenError> {
     let mut assets = Vec::new();
     for item in items {
         if let Some(b64) = item.get("b64_json").and_then(Value::as_str) {
-            let bytes =
-                base64_decode(b64).ok_or_else(|| GenError::Failed("bad base64".into()))?;
+            let bytes = base64_decode(b64).ok_or_else(|| GenError::Failed("bad base64".into()))?;
             assets.push(Asset::from_bytes(bytes, "png", None));
         } else if let Some(url) = item.get("url").and_then(Value::as_str) {
             assets.push(Asset::from_bytes(fetch(url)?, "png", None));
@@ -476,7 +478,11 @@ impl Provider for Replicate {
             return Err(err);
         }
 
-        let fallback = if req.kind == Kind::Video { "mp4" } else { "png" };
+        let fallback = if req.kind == Kind::Video {
+            "mp4"
+        } else {
+            "png"
+        };
         let (urls, seed) = parse_replicate(&text)?;
 
         let mut assets = Vec::new();
@@ -690,7 +696,8 @@ mod tests {
         let one = json!({ "status": "succeeded", "output": "https://x/a.png" });
         assert_eq!(parse_replicate(&one.to_string()).unwrap().0.len(), 1);
 
-        let many = json!({ "status": "succeeded", "output": ["https://x/a.png", "https://x/b.png"] });
+        let many =
+            json!({ "status": "succeeded", "output": ["https://x/a.png", "https://x/b.png"] });
         assert_eq!(parse_replicate(&many.to_string()).unwrap().0.len(), 2);
 
         let wrapped = json!({ "status": "succeeded", "output": { "video": "https://x/a.mp4" } });

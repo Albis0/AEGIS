@@ -105,10 +105,7 @@ pub fn configure(new: Settings) {
 }
 
 pub fn current() -> Settings {
-    settings()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
+    settings().lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// A library response and the moment it arrived.
@@ -370,10 +367,7 @@ pub fn wishlist() -> Result<Vec<(u32, String)>, SteamError> {
     let mut out: Vec<(u32, String)> = map
         .iter()
         .filter_map(|(id, entry)| {
-            Some((
-                id.parse::<u32>().ok()?,
-                entry["name"].as_str()?.to_string(),
-            ))
+            Some((id.parse::<u32>().ok()?, entry["name"].as_str()?.to_string()))
         })
         .collect();
     out.sort_by(|a, b| a.1.cmp(&b.1));
@@ -429,7 +423,8 @@ fn library_folders() -> Vec<std::path::PathBuf> {
     if let Ok(text) = std::fs::read_to_string(&vdf) {
         for line in text.lines() {
             if let Some(path) = vdf_value(line.trim(), "path") {
-                let candidate = std::path::PathBuf::from(path.replace("\\\\", "\\")).join("steamapps");
+                let candidate =
+                    std::path::PathBuf::from(path.replace("\\\\", "\\")).join("steamapps");
                 if candidate.is_dir() && !folders.contains(&candidate) {
                     folders.push(candidate);
                 }
@@ -489,9 +484,9 @@ pub fn installed() -> Vec<Installed> {
 /// tools in `appinfo.vdf`, but that file is a binary format; a short list of
 /// the usual suspects buys the same result for none of the complexity.
 const NON_GAME_APPIDS: [u32; 6] = [
-    228980, // Steamworks Common Redistributables
-    431960, // Wallpaper Engine
-    250820, // SteamVR
+    228980,  // Steamworks Common Redistributables
+    431960,  // Wallpaper Engine
+    250820,  // SteamVR
     1070560, // Steam Linux Runtime
     1391110, // Steam Linux Runtime 2.0
     1493710, // Proton Experimental
@@ -507,7 +502,10 @@ fn is_game(appid: u32) -> bool {
 /// which is where every Steam game lives. Instant, and unlike the Web API it
 /// works on a private profile.
 pub fn running_game() -> Option<Installed> {
-    let games: Vec<Installed> = installed().into_iter().filter(|g| is_game(g.appid)).collect();
+    let games: Vec<Installed> = installed()
+        .into_iter()
+        .filter(|g| is_game(g.appid))
+        .collect();
     if games.is_empty() {
         return None;
     }
@@ -587,11 +585,40 @@ mod tests {
 
     #[test]
     fn playtime_reads_the_way_a_person_says_it() {
-        assert_eq!(Game { appid: 1, name: "x".into(), minutes: 0 }.playtime(), "hiç oynanmamış");
-        assert_eq!(Game { appid: 1, name: "x".into(), minutes: 45 }.playtime(), "45 dk");
-        assert_eq!(Game { appid: 1, name: "x".into(), minutes: 120 }.playtime(), "2 saat");
         assert_eq!(
-            Game { appid: 1, name: "x".into(), minutes: 134 }.playtime(),
+            Game {
+                appid: 1,
+                name: "x".into(),
+                minutes: 0
+            }
+            .playtime(),
+            "hiç oynanmamış"
+        );
+        assert_eq!(
+            Game {
+                appid: 1,
+                name: "x".into(),
+                minutes: 45
+            }
+            .playtime(),
+            "45 dk"
+        );
+        assert_eq!(
+            Game {
+                appid: 1,
+                name: "x".into(),
+                minutes: 120
+            }
+            .playtime(),
+            "2 saat"
+        );
+        assert_eq!(
+            Game {
+                appid: 1,
+                name: "x".into(),
+                minutes: 134
+            }
+            .playtime(),
             "2 saat 14 dk"
         );
     }
@@ -599,9 +626,21 @@ mod tests {
     #[test]
     fn settings_need_both_a_key_and_an_id() {
         assert!(!Settings::default().is_configured());
-        assert!(!Settings { api_key: "k".into(), steam_id: String::new() }.is_configured());
-        assert!(!Settings { api_key: String::new(), steam_id: "7656".into() }.is_configured());
-        assert!(Settings { api_key: "k".into(), steam_id: "7656".into() }.is_configured());
+        assert!(!Settings {
+            api_key: "k".into(),
+            steam_id: String::new()
+        }
+        .is_configured());
+        assert!(!Settings {
+            api_key: String::new(),
+            steam_id: "7656".into()
+        }
+        .is_configured());
+        assert!(Settings {
+            api_key: "k".into(),
+            steam_id: "7656".into()
+        }
+        .is_configured());
     }
 
     #[test]
@@ -616,7 +655,10 @@ mod tests {
             vdf_value("\"installdir\"\t\t\"Elden Ring\"", "installdir").as_deref(),
             Some("Elden Ring")
         );
-        assert_eq!(vdf_value("\"appid\"  \"1245620\"", "appid").as_deref(), Some("1245620"));
+        assert_eq!(
+            vdf_value("\"appid\"  \"1245620\"", "appid").as_deref(),
+            Some("1245620")
+        );
         // A different key must not match.
         assert_eq!(vdf_value("\"name\" \"x\"", "appid"), None);
     }

@@ -511,10 +511,7 @@ mod tests {
     #[test]
     fn providers_without_keys_report_unavailable() {
         assert!(!Tavily { key: String::new() }.available());
-        assert!(!Brave {
-            key: "   ".into()
-        }
-        .available());
+        assert!(!Brave { key: "   ".into() }.available());
         // DuckDuckGo needs no key, so it is always the working floor.
         assert!(DuckDuckGo.available());
     }
@@ -604,7 +601,10 @@ mod tests {
             url: "https://example.com/search".into(),
             ..Default::default()
         };
-        assert!(!cfg.is_usable(), "no placeholder means we cannot substitute");
+        assert!(
+            !cfg.is_usable(),
+            "no placeholder means we cannot substitute"
+        );
 
         cfg.url = "https://example.com/search?q={query}".into();
         assert!(cfg.is_usable());

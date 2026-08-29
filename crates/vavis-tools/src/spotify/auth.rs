@@ -262,9 +262,7 @@ pub fn wait_for_callback(expected_state: &str) -> Result<Callback, String> {
                         "Spotify hesabın Vavis'e bağlandı. Bu sekmeyi kapatabilirsin.",
                         false,
                     ),
-                    Ok(Callback::Denied(reason)) => {
-                        result_page("İzin verilmedi", reason, true)
-                    }
+                    Ok(Callback::Denied(reason)) => result_page("İzin verilmedi", reason, true),
                     Err(reason) => result_page("Olmadı", reason, true),
                 };
 
@@ -306,8 +304,14 @@ mod tests {
     fn base64url_never_emits_padding_or_unsafe_characters() {
         let encoded = base64url(&[251, 255, 190, 0, 1, 2]);
         assert!(!encoded.contains('='), "padding is not allowed: {encoded}");
-        assert!(!encoded.contains('+'), "must use the URL alphabet: {encoded}");
-        assert!(!encoded.contains('/'), "must use the URL alphabet: {encoded}");
+        assert!(
+            !encoded.contains('+'),
+            "must use the URL alphabet: {encoded}"
+        );
+        assert!(
+            !encoded.contains('/'),
+            "must use the URL alphabet: {encoded}"
+        );
     }
 
     #[test]

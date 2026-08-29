@@ -94,7 +94,8 @@ pub fn list(relative: &str) -> Result<Vec<Entry>, String> {
         resolve(relative)?
     };
 
-    let entries = std::fs::read_dir(&dir).map_err(|e| format!("{} unreadable: {e}", dir.display()))?;
+    let entries =
+        std::fs::read_dir(&dir).map_err(|e| format!("{} unreadable: {e}", dir.display()))?;
     let root = current_root().ok_or("no folder is open")?;
 
     let mut out: Vec<Entry> = entries
@@ -120,7 +121,11 @@ pub fn list(relative: &str) -> Result<Vec<Entry>, String> {
         })
         .collect();
 
-    out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    out.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
     Ok(out)
 }
 
@@ -186,7 +191,11 @@ pub fn grep(query: &str, limit: usize) -> Result<Vec<(String, usize, String)>, S
                 return;
             }
             if line.to_lowercase().contains(&needle) {
-                hits.push((relative.to_string(), number + 1, line.trim().chars().take(200).collect()));
+                hits.push((
+                    relative.to_string(),
+                    number + 1,
+                    line.trim().chars().take(200).collect(),
+                ));
             }
         }
     });

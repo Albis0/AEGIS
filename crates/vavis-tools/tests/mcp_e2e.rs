@@ -129,7 +129,10 @@ fn naming_a_server_offers_its_tools_and_respects_the_cap() {
         offered.contains(&"weatherly_echo"),
         "naming the server should offer its tools: {offered:?}"
     );
-    assert!(offered.len() <= MAX_TOOLS, "the cap still applies: {offered:?}");
+    assert!(
+        offered.len() <= MAX_TOOLS,
+        "the cap still applies: {offered:?}"
+    );
 
     // A message about something else must not drag the server in.
     let unrelated = selection::select_named(&registry, "pil yüzde kaç");

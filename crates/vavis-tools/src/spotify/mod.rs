@@ -100,10 +100,7 @@ pub fn configure(new: Settings) {
 }
 
 pub fn current() -> Settings {
-    settings()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
+    settings().lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// Set by the shell so a refreshed token survives a restart.
@@ -324,7 +321,9 @@ fn now_playing_cache() -> &'static Mutex<CachedNowPlaying> {
 }
 
 pub fn clear_now_playing_cache() {
-    *now_playing_cache().lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *now_playing_cache()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 fn parse_now_playing(json: &Value) -> Option<NowPlaying> {
@@ -362,7 +361,9 @@ fn parse_now_playing(json: &Value) -> Option<NowPlaying> {
 /// The current track, cached for the status poll.
 pub fn now_playing() -> Result<Option<NowPlaying>, SpotifyError> {
     {
-        let cache = now_playing_cache().lock().unwrap_or_else(|e| e.into_inner());
+        let cache = now_playing_cache()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some((at, ref found)) = *cache {
             if at.elapsed() < NOW_PLAYING_TTL {
                 return Ok(found.clone());
@@ -377,8 +378,9 @@ pub fn now_playing() -> Result<Option<NowPlaying>, SpotifyError> {
         parse_now_playing(&json)
     };
 
-    *now_playing_cache().lock().unwrap_or_else(|e| e.into_inner()) =
-        Some((Instant::now(), found.clone()));
+    *now_playing_cache()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), found.clone()));
     Ok(found)
 }
 
@@ -397,7 +399,11 @@ pub fn transport(action: &str) -> Result<(), SpotifyError> {
 }
 
 /// Searches the catalogue. `kind` is `track`, `album`, `artist` or `playlist`.
-pub fn search(query: &str, kind: &str, limit: usize) -> Result<Vec<(String, String)>, SpotifyError> {
+pub fn search(
+    query: &str,
+    kind: &str,
+    limit: usize,
+) -> Result<Vec<(String, String)>, SpotifyError> {
     let path = format!(
         "/search?q={}&type={kind}&limit={}",
         urlencode(query),
@@ -406,7 +412,10 @@ pub fn search(query: &str, kind: &str, limit: usize) -> Result<Vec<(String, Stri
     let json = call(reqwest::Method::GET, &path, None)?;
 
     let plural = format!("{kind}s");
-    let items = json[&plural]["items"].as_array().cloned().unwrap_or_default();
+    let items = json[&plural]["items"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
 
     Ok(items
         .iter()
@@ -629,7 +638,10 @@ mod tests {
         // say so rather than leaking a status code.
         let msg = SpotifyError::NeedsPremium.to_string();
         assert!(msg.contains("Premium"), "{msg}");
-        assert!(msg.contains("medya tuş"), "should offer the fallback: {msg}");
+        assert!(
+            msg.contains("medya tuş"),
+            "should offer the fallback: {msg}"
+        );
     }
 
     #[test]

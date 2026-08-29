@@ -905,7 +905,10 @@ mod human_tests {
     fn a_resolution_change_is_reported_as_a_full_change() {
         let before = vec![0u8; 10];
         let after = vec![0u8; 20];
-        assert_eq!(changed_cells(&before, &after, CELL_CHANGE_THRESHOLD).len(), 20);
+        assert_eq!(
+            changed_cells(&before, &after, CELL_CHANGE_THRESHOLD).len(),
+            20
+        );
     }
 
     #[test]
@@ -959,7 +962,11 @@ mod live_screen_tests {
         // An all-identical map means the scaling silently produced nothing.
         let distinct = signature.iter().collect::<std::collections::HashSet<_>>();
         assert!(distinct.len() > 1, "the screen came back uniform");
-        println!("{} cells, {} distinct values", signature.len(), distinct.len());
+        println!(
+            "{} cells, {} distinct values",
+            signature.len(),
+            distinct.len()
+        );
     }
 
     #[test]
