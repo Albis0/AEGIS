@@ -71,11 +71,18 @@ export interface Reactor {
  * and for a dark interface with one bright object the difference is not
  * visible. The bright band across the top acts as a key light and is what
  * produces the highlight running along the top of each ring.
+ *
+ * The same dark studio in both themes. There used to be a second, paler room
+ * for the light theme, on the reasoning that a dark housing disappears against
+ * a white page -- and the way it disappeared it was fixed was by turning the
+ * metalness down until the housing had no reflections left, which is the
+ * definition of plastic. That is what the reactor looked like on a light page:
+ * a moulded toy. A dark object photographed in a dark studio and set on white
+ * paper is what a product shot is; the contrast comes from the object being
+ * darker than the page, and the highlights survive because the metal is still
+ * metal.
  */
-function environment(
-    renderer: THREE.WebGLRenderer,
-    light: boolean,
-): {
+function environment(renderer: THREE.WebGLRenderer): {
     texture: THREE.Texture;
     pmrem: THREE.PMREMGenerator;
 } {
@@ -91,22 +98,10 @@ function environment(
     // however bright, reflects as an even wash and the object reads as a flat
     // silhouette no matter how high `envMapIntensity` goes.
     //
-    // The room is built to match the theme. On a white page a dark room makes
-    // the housing reflect nothing but shadow, and the reactor turns into a
-    // pale ghost; the light room gives it something to be darker *than*.
     const sky = ctx.createLinearGradient(0, 0, 0, size);
-    if (light) {
-        // Mid-greys, not white. A white room reflects to white on a housing that
-        // is already meant to be the dark thing on the page, and the reactor
-        // washes out into the background it is supposed to stand against.
-        sky.addColorStop(0.0, "#9aa6b6");
-        sky.addColorStop(0.5, "#5f6a78");
-        sky.addColorStop(1.0, "#39424e");
-    } else {
-        sky.addColorStop(0.0, "#243040");
-        sky.addColorStop(0.5, "#0d1219");
-        sky.addColorStop(1.0, "#05070a");
-    }
+    sky.addColorStop(0.0, "#243040");
+    sky.addColorStop(0.5, "#0d1219");
+    sky.addColorStop(1.0, "#05070a");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, size, size);
 
@@ -125,10 +120,7 @@ function environment(
         ctx.save();
         ctx.translate(x, y);
         ctx.scale(rx / ry, 1);
-        // Softboxes are dimmed for the light room: there the surrounding ground
-        // is already bright, so a full-strength highlight has almost nothing to
-        // contrast with and only serves to blow the housing out.
-        const a = alpha * (light ? 0.45 : 1);
+        const a = alpha;
         const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
         glow.addColorStop(0, `rgba(255, 255, 255, ${a})`);
         glow.addColorStop(0.45, `rgba(214, 232, 255, ${a * 0.5})`);
@@ -176,10 +168,41 @@ function profileRing(
     const geometry = new THREE.LatheGeometry(points, segments);
     // Lathe revolves around Y; the reactor faces Z.
     geometry.rotateX(Math.PI / 2);
-    // Smooths the revolved surface without softening the profile's corners,
-    // so a chamfer still reads as an edge rather than a gradient.
-    geometry.computeVertexNormals();
+    // The normals `LatheGeometry` computes are deliberately kept.
+    // `computeVertexNormals` looks like the tidy thing to call here and draws a
+    // seam down the housing: a revolution ends on a duplicate of its first
+    // column of vertices, and face-averaged normals give those two columns
+    // different answers because each only sees the faces on its own side.
+    // Lathe derives its normals from the profile instead and averages the two
+    // ends explicitly, so the join is invisible.
     return new THREE.Mesh(geometry, material);
+}
+
+/**
+ * A helix around the Y axis.
+ *
+ * Exists so the coil windings can be swept along it with `TubeGeometry`. Built
+ * on Y because `CylinderGeometry` is, and `radialArray` places every part on
+ * that assumption -- a winding built on any other axis would need a correction
+ * to sit on its own bobbin.
+ */
+class Helix extends THREE.Curve<THREE.Vector3> {
+    constructor(
+        readonly radius: number,
+        readonly length: number,
+        readonly turns: number,
+    ) {
+        super();
+    }
+
+    getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
+        const angle = t * this.turns * Math.PI * 2;
+        return target.set(
+            Math.cos(angle) * this.radius,
+            (t - 0.5) * this.length,
+            Math.sin(angle) * this.radius,
+        );
+    }
 }
 
 /**
@@ -187,6 +210,11 @@ function profileRing(
  *
  * Each instance is rotated to face outward and can be tilted, which is what
  * makes a coil bobbin sit *in* the ring rather than merely near it.
+ *
+ * `along` slides each instance down its own long axis after that rotation,
+ * which is how a flange lands on the end of a coil. Offsetting in `depth`
+ * instead moves it in world Z, and on a coil that is tilted out of the plane
+ * that slides the flange off the side of the winding rather than onto its end.
  */
 function radialArray(
     mesh: THREE.InstancedMesh,
@@ -194,11 +222,13 @@ function radialArray(
     radius: number,
     depth = 0,
     tilt = 0,
+    along = 0,
 ) {
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const quaternion = new THREE.Quaternion();
     const euler = new THREE.Euler();
+    const axis = new THREE.Vector3();
     const scale = new THREE.Vector3(1, 1, 1);
 
     for (let i = 0; i < count; i++) {
@@ -207,6 +237,10 @@ function radialArray(
         // Roll to face outward, then pitch by `tilt` about that new axis.
         euler.set(tilt, 0, angle, "ZYX");
         quaternion.setFromEuler(euler);
+        if (along !== 0) {
+            axis.set(0, 1, 0).applyQuaternion(quaternion).multiplyScalar(along);
+            position.add(axis);
+        }
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(i, matrix);
     }
@@ -244,10 +278,7 @@ export function createReactor(host: HTMLElement): Reactor {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    // Tracks which room the environment map was built for, so a theme change
-    // can tell whether it needs rebuilding.
-    let builtForLight = document.documentElement.dataset.theme === "light";
-    let env = environment(renderer, builtForLight);
+    const env = environment(renderer);
     scene.environment = env.texture;
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
@@ -280,11 +311,18 @@ export function createReactor(host: HTMLElement): Reactor {
     const composer = new EffectComposer(renderer, target);
     composer.addPass(new RenderPass(scene, camera));
 
+    // `threshold` is the number that matters, and it is set high on purpose.
+    // Bloom is a screen-space pass: it spreads whatever is bright in the
+    // rendered image and has no idea which material produced it. At 0.5 the
+    // pale housing itself qualified, so the metal bloomed along with the
+    // plasma and the whole assembly came back as one milky wash with no shape
+    // left in it. Above 0.7 only genuinely emissive surfaces reach it, and the
+    // glow lands on the housing instead of coming out of it.
     const bloom = new UnrealBloomPass(
         new THREE.Vector2(1, 1),
-        0.75, // strength
-        0.55, // radius
-        0.5, // threshold
+        0.9, // strength
+        0.72, // radius
+        0.72, // threshold
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -351,32 +389,59 @@ export function createReactor(host: HTMLElement): Reactor {
     // the housing its form. The lower value is doing the same job a real
     // product render does with a much brighter studio.
 
-    /** Dark machined metal. The housing and the segment rings. */
+    /**
+     * Dark machined metal. The housing, the bobbins and the segment rings.
+     *
+     * Much darker than it looks like it ought to be, and that is the point. A
+     * lit object only reads as bright because of what it sits against; when
+     * this was a pale grey the metal was itself within reach of the bloom
+     * threshold, so it glowed too and there was nothing left in the image for
+     * the plasma to be brighter than.
+     */
     const shell = new THREE.MeshStandardMaterial({
-        color: 0x5a636e,
-        metalness: 0.72,
-        roughness: 0.38,
-        envMapIntensity: 2.4,
+        color: 0x2c333c,
+        metalness: 0.86,
+        roughness: 0.42,
+        envMapIntensity: 1.7,
     });
 
-    /** Lighter metal, for the parts that catch the key light. */
+    /** Lighter metal, for the machined edges that catch the key light. */
     const trim = new THREE.MeshStandardMaterial({
-        color: 0x9aa5b2,
-        metalness: 0.78,
-        roughness: 0.24,
-        envMapIntensity: 2.8,
+        color: 0x6d7885,
+        metalness: 0.9,
+        roughness: 0.26,
+        envMapIntensity: 2.0,
+    });
+
+    /**
+     * Copper, for the coil windings.
+     *
+     * This is the single thing that makes the object read as a reactor rather
+     * than as a wheel with lights on it, and it works because the coils are
+     * *lit* now instead of emitting. As emissive sleeves they had to be driven
+     * past the bloom threshold to glow at all, which clipped every channel to
+     * white and destroyed the shape along with it -- that is what the
+     * unreadable pale shards were. Metal keeps its form however bright the
+     * scene gets, and the glow moves to the plasma cylinder underneath, which
+     * shows through the gaps between the turns.
+     *
+     * Fully metallic, which is only viable because there is an environment map
+     * to reflect -- see `environment` above.
+     */
+    const copper = new THREE.MeshStandardMaterial({
+        color: 0xb26a33,
+        metalness: 1,
+        roughness: 0.31,
+        envMapIntensity: 2.2,
     });
 
     /** The glowing parts. Emissive colour is driven by `drive.hue`. */
     const plasma = new THREE.MeshStandardMaterial({
-        color: 0x0a0f18,
+        color: 0x070b12,
         metalness: 0.1,
-        roughness: 0.45,
+        roughness: 0.5,
         emissive: new THREE.Color(0x4aa8ff),
-        emissiveIntensity: 2,
-        // The winding is an open-ended sleeve, so its inside surface has to be
-        // drawn too -- otherwise the coils facing away show as hollow gaps.
-        side: THREE.DoubleSide,
+        emissiveIntensity: 1.45,
     });
 
     // -- Assembly ---------------------------------------------------------
@@ -440,6 +505,33 @@ export function createReactor(host: HTMLElement): Reactor {
     );
     rig.add(bezel);
 
+    // Fasteners around the bezel face. Eight of them, hex, and deliberately
+    // on the part that does *not* turn: a fixed detail next to a moving one is
+    // what tells the eye which pieces are structure and which are mechanism,
+    // and a housing with nothing holding it together reads as a shape rather
+    // than as something built.
+    const boltGeometry = new THREE.CylinderGeometry(0.052, 0.052, 0.05, 6);
+    // Lathe-built parts face Z; a cylinder is built standing up Y, and
+    // `radialArray` only spins instances about Z, so the axis is corrected
+    // here rather than per instance.
+    boltGeometry.rotateX(Math.PI / 2);
+    const bolts = new THREE.InstancedMesh(boltGeometry, trim, 8);
+    radialArray(bolts, 8, 1.34, 0.07);
+    rig.add(bolts);
+
+    // A fine scale around the outside of the bezel. The band between the
+    // coils and the casing is the widest unbroken surface on the front, and a
+    // machined part that size would be graduated rather than blank. Small
+    // enough that it reads as texture at rest and only resolves into separate
+    // marks when the reactor is zoomed into.
+    const graduations = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.05, 0.016, 0.016),
+        trim,
+        90,
+    );
+    radialArray(graduations, 90, 1.5, 0.068);
+    rig.add(graduations);
+
     // A solid back plate, so the reactor has a body instead of being a set of
     // rings you can see the background through. It also gives the core
     // something to cast its light onto, which is most of what sells the glow.
@@ -472,8 +564,16 @@ export function createReactor(host: HTMLElement): Reactor {
     rotor.add(teeth);
 
     // The coils. This is the part that makes it a reactor rather than a
-    // wheel, so they are built as real objects: a metal bobbin, a glowing
-    // winding wrapped around it, and a cap on the front.
+    // wheel, so each one is built the way a real coil is: a plasma cylinder
+    // for the core, copper wire wound around it in visible turns, and a
+    // machined flange at each end holding the winding on.
+    //
+    // The winding is a tube swept along a helix, not a smooth sleeve, and the
+    // discrete turns are the entire point. Each one takes the key light as its
+    // own small highlight, so the coil reads as wire from any angle, and the
+    // plasma underneath shows through the gaps between them. A sleeve has no
+    // turns and no gaps; it could only suggest a coil by being bright, which
+    // is what drove it past the point where it clipped to white.
     //
     // Each sits *in* the well and is pitched inward toward the core, so the
     // ring of them forms a shallow cone. Laid flat they read as a printed
@@ -482,37 +582,111 @@ export function createReactor(host: HTMLElement): Reactor {
     const COIL_COUNT = 10;
     const COIL_RADIUS = 1.02;
     const COIL_TILT = -0.42;
+    /** Radius of the plasma cylinder the wire is wound onto. */
+    const COIL_CORE_RADIUS = 0.155;
+    const WINDING_LENGTH = 0.36;
+    /**
+     * Turns of wire, and how thick each one is.
+     *
+     * Six fat turns rather than twenty fine ones. The reactor is about two
+     * thirds of the window tall, which puts one turn at a handful of pixels;
+     * any more of them and the pitch falls below what the screen can resolve,
+     * the gaps close up, and the winding goes back to looking like the sleeve
+     * it replaced. The wire radius is set so the turns leave roughly a quarter
+     * of the pitch as a gap for the plasma to come through.
+     */
+    const WIRE_TURNS = 6;
+    const WIRE_RADIUS = 0.023;
 
-    const coilCores = new THREE.InstancedMesh(
-        new THREE.CylinderGeometry(0.13, 0.15, 0.34, 20),
-        shell,
-        COIL_COUNT,
-    );
-    radialArray(coilCores, COIL_COUNT, COIL_RADIUS, -0.08, COIL_TILT);
-    rotor.add(coilCores);
+    /** How far each flange sits from the middle of its coil. */
+    const FLANGE_OFFSET = WINDING_LENGTH / 2 + 0.02;
 
-    // The winding: a glowing sleeve around the bobbin, and the only emissive
-    // part of the assembly besides the core.
+    // The plasma the wire is wound onto. Solid: the sleeve it replaces was
+    // open-ended and double-sided, so every coil facing away showed its own
+    // hollow interior as a dark notch.
     //
-    // A cylinder rather than a torus. A torus is a ring with a hole, so it
-    // only reads as a winding when seen face-on; around the ring the far
-    // coils turn edge-on and it collapses into a bright C. A sleeve looks the
-    // same from every angle, which is what a wound coil actually does.
-    const coils = new THREE.InstancedMesh(
-        new THREE.CylinderGeometry(0.165, 0.175, 0.2, 24, 1, true),
+    // Long enough to reach the outer face of both flanges, so a coil turned
+    // end-on shows a lit centre instead of a blank grey disc. The coils are
+    // wound on tangential axes, so two of the ten always face the camera
+    // squarely; behind an unbroken flange those two read as a stack of coins
+    // rather than as coils.
+    //
+    // Recessed into the flange rather than flush with its face. Standing the
+    // cylinder proud put a lit disc its own full width on the end of every
+    // coil, and ten of those in a ring pull the eye away from the core they
+    // are supposed to be feeding; ending it exactly level with the face was
+    // worse still, because two coplanar surfaces z-fight and the lit end came
+    // out as a torn asterisk. Sunk a little way into the bore, it reads as a
+    // lit well -- and the depth is what the bore of a real bobbin shows.
+    const coilCores = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(
+            COIL_CORE_RADIUS,
+            COIL_CORE_RADIUS,
+            (FLANGE_OFFSET + 0.004) * 2,
+            24,
+        ),
         plasma,
         COIL_COUNT,
     );
-    radialArray(coils, COIL_COUNT, COIL_RADIUS, -0.08, COIL_TILT);
-    rotor.add(coils);
+    radialArray(coilCores, COIL_COUNT, COIL_RADIUS, -0.06, COIL_TILT);
+    rotor.add(coilCores);
 
-    const coilCaps = new THREE.InstancedMesh(
-        new THREE.CylinderGeometry(0.17, 0.17, 0.04, 20),
-        trim,
+    // The winding itself. Sunk slightly into the plasma cylinder rather than
+    // resting on it, so there is no hairline of background visible under the
+    // wire where the two surfaces would otherwise only just touch.
+    const coils = new THREE.InstancedMesh(
+        new THREE.TubeGeometry(
+            new Helix(
+                COIL_CORE_RADIUS + WIRE_RADIUS * 0.75,
+                WINDING_LENGTH,
+                WIRE_TURNS,
+            ),
+            WIRE_TURNS * 28,
+            WIRE_RADIUS,
+            8,
+            false,
+        ),
+        copper,
         COIL_COUNT,
     );
-    radialArray(coilCaps, COIL_COUNT, COIL_RADIUS, 0.11, COIL_TILT);
-    rotor.add(coilCaps);
+    radialArray(coils, COIL_COUNT, COIL_RADIUS, -0.06, COIL_TILT);
+    rotor.add(coils);
+
+    // Flanges at both ends, offset along each coil's own axis. They hold the
+    // winding on and, being the brightest metal in the assembly, they are what
+    // draws the ring of coils as a ring rather than as ten separate objects.
+    //
+    // A washer, not a disc: the bore is narrower than the plasma cylinder it
+    // is threaded onto, so the hole is filled by the lit core rather than
+    // showing through to the housing behind. Built with `LatheGeometry`
+    // directly rather than through `profileRing`, which turns its result to
+    // face Z -- these are placed by `radialArray`, which expects a part built
+    // on Y.
+    const flangeGeometry = new THREE.LatheGeometry(
+        [
+            new THREE.Vector2(0.078, -0.016),
+            new THREE.Vector2(0.206, -0.016),
+            new THREE.Vector2(0.206, 0.016),
+            new THREE.Vector2(0.078, 0.016),
+        ],
+        28,
+    );
+    for (const end of [-1, 1]) {
+        const flange = new THREE.InstancedMesh(
+            flangeGeometry,
+            trim,
+            COIL_COUNT,
+        );
+        radialArray(
+            flange,
+            COIL_COUNT,
+            COIL_RADIUS,
+            -0.06,
+            COIL_TILT,
+            end * FLANGE_OFFSET,
+        );
+        rotor.add(flange);
+    }
 
     // Struts bridging the core housing to the bezel, counter-rotating. Long
     // and thin, so they read as structure holding the core rather than as
@@ -546,6 +720,19 @@ export function createReactor(host: HTMLElement): Reactor {
     }
     counter.add(struts);
 
+    // A ring of lit graduations between the core and the coils. That annulus
+    // was the emptiest part of the face -- a wide plate with a few spokes
+    // crossing it -- and an instrument ring is what a machine would have
+    // there. It turns with the rotor, against the struts, so the gap between
+    // the core and the coils has two speeds crossing in it instead of none.
+    const ticks = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.075, 0.026, 0.022),
+        plasma,
+        36,
+    );
+    radialArray(ticks, 36, 0.72, -0.05);
+    rotor.add(ticks);
+
     // The housing the core sits in: a short collar with a chamfered mouth, so
     // the core is recessed in a well rather than stuck on a flat plate.
     const coreHousing = profileRing(
@@ -560,6 +747,15 @@ export function createReactor(host: HTMLElement): Reactor {
         trim,
     );
     rig.add(coreHousing);
+
+    // A thin lit rim seated in the mouth of the well, so the core reads as
+    // something set into the housing rather than as a glow floating in a hole.
+    const aperture = new THREE.Mesh(
+        new THREE.TorusGeometry(0.455, 0.016, 12, 96),
+        plasma,
+    );
+    aperture.position.z = 0.045;
+    rig.add(aperture);
 
     // The core is built entirely from additive layers -- there is no opaque
     // sphere at its centre.
@@ -610,7 +806,7 @@ export function createReactor(host: HTMLElement): Reactor {
         depthWrite: false,
     });
     const bloomShell = new THREE.Mesh(
-        new THREE.SphereGeometry(0.33, 32, 24),
+        new THREE.SphereGeometry(0.37, 32, 24),
         bloomShellMaterial,
     );
     bloomShell.position.z = 0.03;
@@ -627,7 +823,7 @@ export function createReactor(host: HTMLElement): Reactor {
         depthWrite: false,
     });
     const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(0.46, 32, 24),
+        new THREE.SphereGeometry(0.62, 32, 24),
         haloMaterial,
     );
     halo.position.z = 0.02;
@@ -656,14 +852,17 @@ export function createReactor(host: HTMLElement): Reactor {
     const coreLight = new THREE.PointLight(0x6cc0ff, 12, 9, 2);
     rig.add(coreLight);
 
-    const key = new THREE.DirectionalLight(0xbdd4ff, 0.9);
+    const key = new THREE.DirectionalLight(0xbdd4ff, 1.1);
     key.position.set(-3, 4, 5);
     scene.add(key);
 
     // Ambient sky/ground fill. Lifts the housing off the background without
     // flattening it: a plain AmbientLight would raise every surface by the
     // same amount and erase the shading the other lights just produced.
-    const ambient = new THREE.HemisphereLight(0x8fa8c8, 0x141a22, 1.15);
+    // Kept low. Fill lifts every surface by the same amount, so a generous
+    // one erases the shading the key and the environment just produced -- the
+    // housing goes evenly grey, which is half of why it looked washed out.
+    const ambient = new THREE.HemisphereLight(0x8fa8c8, 0x141a22, 0.55);
     scene.add(ambient);
 
     /**
@@ -675,7 +874,7 @@ export function createReactor(host: HTMLElement): Reactor {
     // Declared before `matchTheme`, which adjusts its intensity: a `const`
     // reached before its declaration is a TDZ error, and `matchTheme` runs
     // during construction.
-    const rim = new THREE.DirectionalLight(0x6f9bd8, 0.55);
+    const rim = new THREE.DirectionalLight(0x6f9bd8, 0.7);
     rim.position.set(4, -2, -4);
     scene.add(rim);
 
@@ -692,84 +891,50 @@ export function createReactor(host: HTMLElement): Reactor {
     function matchTheme() {
         const light = document.documentElement.dataset.theme === "light";
 
-        // The room itself is rebuilt, not just re-tinted: which way the metal has
-        // to contrast against the page is the thing that changes, and no material
-        // tweak fixes a housing reflecting the wrong room. It costs one PMREM
-        // pass, so it is skipped when the room already matches -- including on
-        // the first call, where `environment` has just built the right one.
-        if (light !== builtForLight) {
-            builtForLight = light;
-            env.texture.dispose();
-            env.pmrem.dispose();
-            env = environment(renderer, light);
-            scene.environment = env.texture;
-        }
+        // The housing is identical in both themes, and that is the change.
+        // It used to be re-tinted, de-metalled and roughened for the light
+        // theme, on the reasoning that a dark object needs help to stand out
+        // against a white page. What it actually produced was a flat blue-grey
+        // moulding with no reflections in it -- the reactor read as a plastic
+        // toy rather than as machined metal, because a surface with the
+        // metalness turned down to 0.15 *is* plastic. It contrasts against a
+        // white page by being dark, which it already is, and it keeps its
+        // highlights because it is still metal. See `environment` for the
+        // matching half of this: one dark studio, both themes.
+        //
+        // What genuinely has to change between them is the light the reactor
+        // *adds* to the image, and that is all that is left below.
 
-        // On a light page the reactor becomes a dark object, and it gets there by
-        // being made *less* metallic rather than merely darker in colour. A
-        // metallic surface takes its brightness from the room, so against a light
-        // room it stays bright no matter how dark its base colour is set -- which
-        // is why simply darkening the colour above did nothing. Dropping
-        // metalness lets the base colour actually show, and the reflection is cut
-        // right back so it reads as a highlight rather than as the whole surface.
-        shell.color.set(light ? 0x39424e : 0x5a636e);
-        trim.color.set(light ? 0x8790a0 : 0x9aa5b2);
-        shell.metalness = light ? 0.15 : 0.72;
-        trim.metalness = light ? 0.2 : 0.78;
-        shell.envMapIntensity = light ? 0.18 : 2.4;
-        trim.envMapIntensity = light ? 0.22 : 2.8;
-        // Rough, so the key light spreads into a broad sheen instead of a hard
-        // specular hit. At the dark theme's roughness the segments each catch the
-        // softbox as a small bright spot, and around a ring of forty that reads
-        // as one solid white band.
-        shell.roughness = light ? 0.72 : 0.38;
-        trim.roughness = light ? 0.6 : 0.24;
-
-        ambient.groundColor.set(light ? 0x9aa5b2 : 0x141a22);
-        ambient.intensity = light ? 0.5 : 1.15;
-        key.intensity = light ? 0.6 : 0.9;
-        rim.intensity = light ? 0.35 : 0.55;
-
-        plateMaterial.color.set(light ? 0x252b33 : 0x0f1319);
-        plateMaterial.metalness = light ? 0.35 : 0.9;
-        plateMaterial.envMapIntensity = light ? 0.4 : 2.0;
-
-        // With the emissive turned right down for the light theme, the coils and
-        // the core need a base colour to actually be: on the dark theme they are
-        // nearly black and all their colour comes from the glow, which would
-        // leave them as dark holes here.
-        plasma.color.set(light ? 0x2f6ea8 : 0x0a0f18);
-
-        // Bloom is a glow *added* to the image. On a dark ground that reads as
-        // light; on a white one there is no headroom left to add to, so the same
-        // settings erase the object into a white blob. It is cut hard, and the
-        // threshold raised so only the core itself blooms at all.
-        // Switched off entirely for the light theme, not merely reduced. Bloom is
-        // a screen-space pass: it takes whatever is bright in the rendered image
-        // and spreads it, with no idea which material produced it. On a white
-        // page the page itself is near the threshold, so any strength at all
-        // smears a halo over the housing that no material setting can undo --
-        // which is exactly what the stubborn white ring was.
+        // Bloom is a screen-space pass: it spreads whatever is bright in the
+        // rendered image with no idea which material produced it. On a light
+        // page the page itself sits above any usable threshold, so every
+        // setting smears a halo over the housing that no material change can
+        // undo. Off, rather than merely reduced.
         bloom.enabled = !light;
-        bloom.strength = 0.75;
-        bloom.threshold = 0.5;
+        bloom.strength = 0.9;
+        bloom.threshold = 0.72;
 
-        // The emissive is what the core is made of, so it is dimmed with the
-        // bloom rather than left to burn out on its own. It has to go a long way
-        // down: emissive is added on top of the surface, and on a light page even
-        // a modest value lands at the top of the range and renders as white --
-        // which is what the bright ring of coils was.
-        themeGlow = light ? 0.16 : 1;
+        // Emissive scale for the theme, multiplied into the loop's own glow.
+        //
+        // Held back on a light page, but nothing like as far as it was. At the
+        // 0.16 it used to run at, the core was a dull olive smudge and the lit
+        // bore of every coil went the same grey as the metal around it -- the
+        // machine simply looked switched off. That number was set when the
+        // housing was pale enough to blow out on its own; against the dark one
+        // it is now, the glow has somewhere to land. It stays below the dark
+        // theme because there is no bloom here to carry it, so the emissive
+        // has to read as the light itself rather than as the source of a
+        // spread, and because a value that reaches the top of the range
+        // renders as white and loses the hue that is the whole point of it.
+        themeGlow = light ? 0.9 : 1;
 
-        // Additive blending only works over a dark ground: it adds light, and on
-        // a near-white page every pixel it touches is already at the top of the
-        // range, so the halo and the wave spread as flat white over whatever is
-        // behind them -- which is what was bleaching the housing. Normal blending
-        // keeps them as translucent glows instead.
-        const blending = light ? THREE.NormalBlending : THREE.AdditiveBlending;
-        haloMaterial.blending = blending;
-        waveMaterial.blending = blending;
-        haloMaterial.needsUpdate = true;
+        // Additive blending adds light, which needs somewhere dark to add to.
+        // The core layers always sit over the housing, so they stay additive
+        // in both themes; the pressure wave is the one that expands past the
+        // casing and out over the page, where additive spreads as flat white.
+        waveMaterial.blending = light
+            ? THREE.NormalBlending
+            : THREE.AdditiveBlending;
         waveMaterial.needsUpdate = true;
     }
     matchTheme();
@@ -779,14 +944,19 @@ export function createReactor(host: HTMLElement): Reactor {
     /**
      * How far the reactor can be turned by hand, in radians.
      *
-     * Bounded rather than free. The back of the housing is a closed plate with
-     * nothing on it -- the coils, the core and every lit surface face forward
-     * -- so a full orbit lets the user turn the object around and find nothing
-     * there, which reads as a bug rather than a feature. Just under a quarter
-     * turn each way shows the depth of the assembly from the side without ever
-     * reaching that dead face.
+     * Small, and much smaller than it first was. The reactor is a disc, and a
+     * disc turned away from the camera foreshortens by the cosine of the
+     * angle: at the 66 degrees this used to allow it collapses to a third of
+     * its width and the whole design goes with it -- the coil ring closes up,
+     * the core disappears behind its own housing, and the staggered rings read
+     * as a stack of loose plates rather than as one machine. Half a radian is
+     * about thirty degrees, which costs a tenth of the width and is where the
+     * parallax is worth the most: enough to see that the parts sit at
+     * different depths, never enough to flatten it.
+     *
+     * It also keeps the closed back plate out of view, which has nothing on it.
      */
-    const YAW_LIMIT = 1.15;
+    const YAW_LIMIT = 0.5;
     /**
      * Vertical range, deliberately smaller than the horizontal one.
      *
@@ -794,9 +964,17 @@ export function createReactor(host: HTMLElement): Reactor {
      * more per degree than turning does; matching the two makes the vertical
      * axis feel violently oversensitive by comparison.
      */
-    const PITCH_LIMIT = 0.62;
-    /** Radians of rotation per pixel dragged. */
-    const DRAG_SPEED = 0.0075;
+    const PITCH_LIMIT = 0.36;
+    /**
+     * Radians of rotation per pixel dragged.
+     *
+     * Slower than it was, because the range above is now small enough that the
+     * old speed crossed it in about sixty pixels -- an ordinary drag slammed
+     * into the stop and stayed there, which feels like a broken control rather
+     * than a heavy one. At this rate the full sweep takes most of the width of
+     * the stage.
+     */
+    const DRAG_SPEED = 0.0034;
     /**
      * Seconds of stillness before the reactor eases back to its resting angle.
      *
@@ -968,9 +1146,12 @@ export function createReactor(host: HTMLElement): Reactor {
         // Pulling the camera back is the right lever: scaling the rig instead
         // would change how much perspective the object shows, and the
         // foreshortening is what makes it read as solid.
-        const REACTOR_RADIUS = 2.4;
+        // The casing's own outer radius, so the fraction below means what it
+        // says. It used to be padded to 2.4, which quietly shrank the object
+        // by a tenth on top of the fraction.
+        const REACTOR_RADIUS = 2.2;
         /** How much of the constraining dimension the reactor should cover. */
-        const FRACTION = 0.78;
+        const FRACTION = 0.84;
 
         // How far back the camera must sit for an object of that radius to cover
         // `FRACTION` of the viewport height at this field of view.
@@ -1071,8 +1252,10 @@ export function createReactor(host: HTMLElement): Reactor {
                     PITCH_LIMIT,
                 );
                 // Frame-rate independent decay, so a 144 Hz screen does not
-                // kill the glide five times faster than a 30 Hz one.
-                const decay = Math.exp(-4.5 * dt);
+                // kill the glide five times faster than a 30 Hz one. Bled off
+                // faster than it used to be: against a range this short, a long
+                // glide only means arriving at the stop and sitting there.
+                const decay = Math.exp(-7 * dt);
                 yawVelocity *= decay;
                 pitchVelocity *= decay;
             }
@@ -1121,11 +1304,21 @@ export function createReactor(host: HTMLElement): Reactor {
         // renders white, losing the hue that is the whole point of it. These sit
         // deliberately just over the threshold, and the bloom does the rest.
         plasma.emissive.copy(emissive);
-        plasma.emissiveIntensity = 1.6 * glow * themeGlow;
+        plasma.emissiveIntensity = 1.45 * glow * themeGlow;
         coreLight.color.copy(emissive);
-        coreLight.intensity = (2.4 + level * 2.2) * glow * themeGlow;
+        // Driven considerably harder than it used to be, because it now has a
+        // job beyond atmosphere: the windings are metal, so what makes them
+        // read as copper lit from within rather than as orange paint is this
+        // light actually reaching them. Below about four they only ever show
+        // what the room gives them, which is blue.
+        coreLight.intensity = (4.6 + level * 3.2) * glow * themeGlow;
         haloMaterial.color.copy(emissive);
-        haloMaterial.opacity = 0.05 * themeGlow;
+        // Carries the whole bleed on the light theme, where the bloom pass is
+        // off: without it the core is a pale disc with a hard edge, which
+        // reads as a lens rather than as something lit. Geometry rather than a
+        // screen-space effect, so it stays inside the housing and never
+        // touches the page.
+        haloMaterial.opacity = 0.09 * themeGlow;
 
         // The pip is what actually reads as the light source, so it tracks the
         // hue but stays close to white -- a hot core is white at its centre

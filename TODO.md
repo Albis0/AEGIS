@@ -35,6 +35,11 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   - [x] the reactor is turned by hand — drag to orbit, wheel to zoom, double
         click to reset. A flick keeps turning and settles; left alone for a
         few seconds it eases back to rest and the ambient drift fades in.
+        Bounded to about thirty degrees each way: it is a disc, and past that
+        it foreshortens into an ellipse.
+  - [x] the coils are wound copper on plasma bobbins, with machined flanges
+        and a lit bore. They were emissive sleeves, which had to be driven
+        past the bloom threshold to glow and clipped to white doing it.
   - [x] command palette — every action in one searchable list, which is what
         lets the stage stay empty. `ui/src/lib/CommandPalette.svelte`
   - [x] chat panel resizable by its left edge, width persisted, `Ctrl+B` to
@@ -134,6 +139,30 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   so it is unreportable from the response. The settings screen prints the
   redirect URI directly above the input, which is what makes the paste easy,
   so `spotify::auth::check_client_id` rejects it before the browser opens.
+- The rotation the drag allows is small on purpose. A disc foreshortens by the
+  cosine of the angle it is turned through, so at the 66 degrees this first
+  allowed it collapsed to a third of its width: the coil ring closed up, the
+  core hid behind its own housing, and the staggered rings read as loose
+  plates. Half a radian costs a tenth of the width and is where the parallax
+  is worth the most.
+- One environment map serves both themes. There used to be a paler room for
+  the light theme, and the housing was de-metalled to 0.15 metalness to keep it
+  dark against a white page — which is the definition of plastic, and it is
+  exactly what the reactor looked like there. A dark object in a dark studio,
+  set on a white page, is what a product shot is.
+- The bloom threshold has to sit above the *housing*, not merely above mid
+  grey. Bloom is screen-space and cannot tell metal from plasma, so at 0.5 the
+  pale housing bloomed along with the core and the whole assembly came back as
+  one milky wash. It is 0.72, and the metal is dark enough to stay under it.
+- `computeVertexNormals` on a `LatheGeometry` draws a seam down the housing. A
+  revolution ends on a duplicate of its first column of vertices, and
+  face-averaged normals give the two columns different answers because each
+  only sees the faces on its own side. Lathe's own normals average the ends
+  explicitly; keep them.
+- Two coplanar surfaces z-fight, and it does not look like z-fighting at this
+  scale — the lit end of each coil came out as a torn asterisk when the plasma
+  cylinder ended exactly level with the flange face. Anything meant to sit
+  flush is recessed instead.
 - The reactor canvas takes pointer events, but the stage around it does not:
   the canvas is full-bleed, so `pointer-events: none` on `.stage` with `auto`
   on `.host` is what keeps empty space from swallowing clicks meant for the
