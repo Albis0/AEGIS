@@ -20,15 +20,11 @@ const MAX_RESULTS: usize = 5;
 
 /// Engelleyen HTTP çağrısı yapan yardımcı.
 ///
-/// Tool'lar senkron çalışıyor; ağ işi için kısa ömürlü bir çalışma zamanı
-/// kurulur. Basit ve öngörülebilir — tool başına bir istek yapılıyor.
+/// Tool'lar senkron çalışıyor; ağ işi [`run_async`](crate::run_async)
+/// üzerinden yürütülür. Burada doğrudan çalışma zamanı kurup `block_on`
+/// çağırmak, ajan döngüsü async olduğu için panikliyor.
 fn http_get(url: &str) -> Result<String, String> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    runtime.block_on(async {
+    crate::run_async(async {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
             // Bazı siteler tarayıcı olmayan istekleri reddediyor.
@@ -51,7 +47,7 @@ fn http_get(url: &str) -> Result<String, String> {
             return Err(format!("sunucu {status} döndü"));
         }
         resp.text().await.map_err(|e| e.to_string())
-    })
+    })?
 }
 
 /// HTML'den okunabilir metin çıkarır.

@@ -112,6 +112,18 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
   `crates/vavis-shell/Cargo.toml`. `release_builds_embed_the_frontend` in
   `main.rs` fails if it is removed, and the release workflow runs that test
   in release mode because `cargo test --all` runs in debug and cannot see it.
+- Tools are synchronous but the agent loop that calls them is async, so any
+  network tool that builds its own runtime and `block_on`s it panics with
+  "Cannot start a runtime from within a runtime" — killing the request thread,
+  so no reply ever arrives. Every tool goes through `vavis_tools::run_async`
+  instead (`crates/vavis-tools/src/blocking.rs`), which reuses the ambient
+  runtime when there is one. `tools_run_from_inside_a_runtime` in `agent.rs`
+  drives a real tool through the agent from inside a runtime, and
+  `the_old_pattern_panics_inside_a_runtime` pins down why the helper exists.
+- The reactor's core is built only from additive layers; there is no opaque
+  sphere at its centre. An emissive sphere is the obvious way and hides the
+  very glow layers meant to give it depth, so it renders as a flat pale disc
+  no matter how bright it is driven.
 - The reactor's environment map must outlive the `PMREMGenerator` that made
   it. `pmrem.dispose()` frees the render target the returned texture lives in,
   so calling it at build time leaves every metal surface reflecting a released

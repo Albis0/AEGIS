@@ -221,12 +221,7 @@ impl HttpTransport {
             "params": params,
         });
 
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| RpcError::Transport(e.to_string()))?;
-
-        runtime.block_on(async {
+        crate::run_async(async {
             let client = reqwest::Client::builder()
                 .timeout(timeout)
                 .build()
@@ -260,6 +255,7 @@ impl HttpTransport {
                 .ok_or_else(|| RpcError::Transport("yanıt çözümlenemedi".into()))?;
             parse_response(&value)
         })
+        .map_err(RpcError::Transport)?
     }
 }
 

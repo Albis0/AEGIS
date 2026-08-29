@@ -30,12 +30,7 @@ fn request(
     headers: &[(&str, String)],
     body: Option<Value>,
 ) -> Result<(u16, Vec<u8>), GenError> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| GenError::Failed(e.to_string()))?;
-
-    runtime.block_on(async {
+    crate::run_async(async {
         let client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .user_agent("Vavis/0.3")
@@ -71,6 +66,7 @@ fn request(
         }
         Ok((status, bytes.to_vec()))
     })
+    .map_err(GenError::Failed)?
 }
 
 /// Downloads a result the provider only gave us a link to.
@@ -290,11 +286,6 @@ impl Provider for Stability {
     fn generate(&self, req: &Request) -> Result<Vec<Asset>, GenError> {
         // Stability takes multipart, not JSON, and it wants the ratio rather
         // than a pixel size.
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| GenError::Failed(e.to_string()))?;
-
         let upscaling = req.upscale;
         if upscaling && req.init.is_none() {
             return Err(GenError::Failed("nothing to enlarge".into()));
@@ -320,7 +311,7 @@ impl Provider for Stability {
         let seed = req.seed;
         let init = req.init.clone();
 
-        let (status, bytes) = runtime.block_on(async move {
+        let (status, bytes) = crate::run_async(async move {
             let client = reqwest::Client::builder()
                 .timeout(REQUEST_TIMEOUT)
                 .build()
@@ -361,7 +352,8 @@ impl Provider for Stability {
                 .await
                 .map_err(|e| GenError::Failed(e.to_string()))?;
             Ok::<_, GenError>((status, bytes.to_vec()))
-        })?;
+        })
+        .map_err(GenError::Failed)??;
 
         let text = String::from_utf8_lossy(&bytes);
         if let Some(err) = classify(status, &text) {

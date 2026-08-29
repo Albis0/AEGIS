@@ -13,6 +13,7 @@
 //! (bkz. [`selection::MAX_TOOLS`]).
 
 pub mod agent;
+pub mod blocking;
 pub mod builtin;
 pub mod canvas;
 pub mod mcp;
@@ -25,6 +26,7 @@ pub mod tool;
 pub mod websearch;
 
 pub use agent::{Agent, AgentHost, Approval, MAX_STEPS};
+pub use blocking::run_async;
 pub use permission::{ApprovalReason, Decision, PermissionGate};
 pub use selection::{match_domains, select_tools, MAX_TOOLS};
 pub use tool::{Domain, Param, Registry, Risk, Tool, ToolOutcome};

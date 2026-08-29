@@ -137,13 +137,6 @@ fn store_token(token: &Token) {
 // HTTP
 // ---------------------------------------------------------------------------
 
-fn runtime() -> Result<tokio::runtime::Runtime, SpotifyError> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| SpotifyError::Failed(e.to_string()))
-}
-
 fn client() -> Result<reqwest::Client, SpotifyError> {
     reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
@@ -181,10 +174,9 @@ fn refresh_token(client_id: &str, refresh: &str) -> Result<Token, SpotifyError> 
 }
 
 fn post_token(params: &[(&str, &str)]) -> Result<Token, SpotifyError> {
-    let runtime = runtime()?;
     let client = client()?;
 
-    let (status, body) = runtime.block_on(async {
+    let (status, body) = crate::run_async(async {
         let resp = client
             .post(TOKEN_URL)
             .form(params)
@@ -197,7 +189,8 @@ fn post_token(params: &[(&str, &str)]) -> Result<Token, SpotifyError> {
             .await
             .map_err(|e| SpotifyError::Failed(e.to_string()))?;
         Ok::<_, SpotifyError>((status, text))
-    })?;
+    })
+    .map_err(SpotifyError::Failed)??;
 
     if !(200..300).contains(&status) {
         let detail = serde_json::from_str::<Value>(&body)
@@ -250,11 +243,10 @@ fn access_token() -> Result<String, SpotifyError> {
 /// One authorised API call. `body` is sent for PUT/POST when present.
 fn call(method: reqwest::Method, path: &str, body: Option<Value>) -> Result<Value, SpotifyError> {
     let token = access_token()?;
-    let runtime = runtime()?;
     let client = client()?;
     let url = format!("{API}{path}");
 
-    let (status, text) = runtime.block_on(async {
+    let (status, text) = crate::run_async(async {
         let mut req = client.request(method, &url).bearer_auth(&token);
         // Spotify rejects a PUT with no body and no content-length.
         req = match body {
@@ -269,7 +261,8 @@ fn call(method: reqwest::Method, path: &str, body: Option<Value>) -> Result<Valu
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
         Ok::<_, SpotifyError>((status, text))
-    })?;
+    })
+    .map_err(SpotifyError::Failed)??;
 
     match status {
         // 204 is Spotify's "done, nothing to say" for playback commands.
@@ -529,10 +522,9 @@ pub fn fetch_album_art(url: &str) -> Result<Vec<u8>, SpotifyError> {
         return Err(SpotifyError::Failed("sadece https görsel alınır".into()));
     }
 
-    let runtime = runtime()?;
     let client = client()?;
 
-    runtime.block_on(async {
+    crate::run_async(async {
         let resp = client
             .get(url)
             .send()
@@ -549,6 +541,7 @@ pub fn fetch_album_art(url: &str) -> Result<Vec<u8>, SpotifyError> {
             .map(|b| b.to_vec())
             .map_err(|e| SpotifyError::Failed(e.to_string()))
     })
+    .map_err(SpotifyError::Failed)?
 }
 
 fn urlencode(s: &str) -> String {

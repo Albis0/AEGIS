@@ -21,20 +21,16 @@ const MAX_SNIPPET_CHARS: usize = 400;
 
 /// A blocking HTTP request.
 ///
-/// Tools run synchronously on blocking threads, so a short-lived runtime per
-/// call is the simplest correct thing — matching the rest of the tool layer.
+/// Goes through [`run_async`], which is what makes this safe to call from the
+/// agent loop: that loop is async, so building a runtime here and blocking on
+/// it directly panics with "Cannot start a runtime from within a runtime".
 fn request(
     method: reqwest::Method,
     url: &str,
     headers: &[(String, String)],
     body: Option<Value>,
 ) -> Result<(u16, String), ProviderError> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| ProviderError::Failed(e.to_string()))?;
-
-    runtime.block_on(async {
+    crate::run_async(async {
         let client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .user_agent("Mozilla/5.0 (compatible; Vavis/0.3)")
@@ -66,6 +62,9 @@ fn request(
             .map_err(|e| ProviderError::Failed(e.to_string()))?;
         Ok((status, text))
     })
+    // `run_async` reports its own failure separately from the request's, so
+    // the two Results are flattened into the one the caller expects.
+    .map_err(ProviderError::Failed)?
 }
 
 /// Maps an HTTP status onto the chain's failure vocabulary.

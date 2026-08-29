@@ -398,4 +398,36 @@ mod tests {
             "yeni istekte sayaç sıfırlanmalı"
         );
     }
+    /// Tools must survive being called from inside an async runtime.
+    ///
+    /// This is not hypothetical: the shell runs an agent turn with
+    /// `runtime.block_on(run_turn(..))`, and `run_turn` calls `tool.run()`
+    /// from inside that. Every network tool used to build its own runtime and
+    /// `block_on` it, which panics with "Cannot start a runtime from within a
+    /// runtime" -- killing the worker thread, so the request never finished
+    /// and the user simply never got a reply.
+    ///
+    /// A registry tool is driven here through the same path the agent uses.
+    /// `hesapla` needs no network, so this stays a unit test; what is being
+    /// checked is the calling context, not the tool.
+    #[test]
+    fn tools_run_from_inside_a_runtime() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        let results = runtime.block_on(async {
+            let mut agent = agent();
+            let mut host = AllowAll::default();
+            let c = call("hesapla", r#"{"ifade":"6*7"}"#);
+            agent.execute_calls(std::slice::from_ref(&c), &mut host)
+        });
+
+        assert!(
+            results[0].content.contains("42"),
+            "tool should run inside a runtime, got: {}",
+            results[0].content
+        );
+    }
 }

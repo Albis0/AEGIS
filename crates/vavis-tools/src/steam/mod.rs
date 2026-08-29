@@ -122,13 +122,11 @@ pub fn clear_cache() {
 }
 
 /// A blocking GET returning the body.
+///
+/// Uses [`run_async`](crate::run_async): the agent loop is async, so building
+/// a runtime here and blocking on it directly would panic.
 fn get(url: &str) -> Result<(u16, String), SteamError> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| SteamError::Failed(e.to_string()))?;
-
-    runtime.block_on(async {
+    crate::run_async(async {
         let client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .user_agent("Mozilla/5.0 (compatible; Vavis/0.3)")
@@ -150,6 +148,7 @@ fn get(url: &str) -> Result<(u16, String), SteamError> {
             .map_err(|e| SteamError::Failed(e.to_string()))?;
         Ok((status, text))
     })
+    .map_err(SteamError::Failed)?
 }
 
 fn api_url(path: &str, query: &str) -> Result<String, SteamError> {
