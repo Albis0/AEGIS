@@ -88,6 +88,14 @@ Status legend: `[x]` done and tested · `[~]` partly done · `[ ]` not started
 - Model prices in `vavis-brain/src/budget.rs` go stale. Everything derived
   from them is labelled an estimate, and an unknown model reports nothing
   rather than a confident wrong number.
+- The release profile deliberately keeps the symbol table and the unwind
+  tables. `strip = "symbols"` plus `panic = "abort"` produced a binary with
+  neither, which is the shape of a packed executable: Defender's ML model
+  flagged 0.4.0 as `Trojan:Win32/Sabsik.FL.A!ml` — a heuristic guess, not a
+  signature match. Restoring them costs about 6 MB and clears the scan, with
+  and without Mark of the Web. The binary is unsigned, so SmartScreen may
+  still warn on first run until the download builds reputation; a code
+  signing certificate is the only real fix and has not been bought.
 
 ## Checks
 

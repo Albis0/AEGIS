@@ -4926,7 +4926,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vavis-audio"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "cpal",
@@ -4944,7 +4944,7 @@ dependencies = [
 
 [[package]]
 name = "vavis-brain"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -4960,7 +4960,7 @@ dependencies = [
 
 [[package]]
 name = "vavis-core"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "directories",
@@ -4977,7 +4977,7 @@ dependencies = [
 
 [[package]]
 name = "vavis-shell"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4997,7 +4997,7 @@ dependencies = [
 
 [[package]]
 name = "vavis-tools"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",

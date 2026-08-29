@@ -11,7 +11,7 @@ members = [
 # Bağımlılıklar burada tek yerde sabitlenir; crate'ler `workspace = true` ile alır.
 # Böylece sürüm çakışması olmaz ve derleme süresi düşer.
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -33,11 +33,18 @@ tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "multipart", "rustls-tls"] }
 futures-util = "0.3"
 
-# Sürüm profili: tek dosya, küçük binary.
-# Hedef ~15MB — LTO + symbol strip + panic=abort bunun için.
+# Release profile: one file, small binary, but not so stripped that it looks
+# like malware.
+#
+# `strip = "symbols"` and `panic = "abort"` shave about a megabyte off, and
+# together they leave a binary with no symbol table and no unwind tables --
+# exactly the shape of a packed executable. Defender's ML model flagged 0.4.0
+# as Trojan:Win32/Sabsik.FL.A!ml on that basis alone, with no signature match.
+# Keeping the symbol table and the unwind tables makes it look like the
+# ordinary Rust program it is; `debuginfo` still drops the large DWARF
+# sections, so the binary stays small.
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
-strip = "symbols"
-panic = "abort"
+strip = "debuginfo"
