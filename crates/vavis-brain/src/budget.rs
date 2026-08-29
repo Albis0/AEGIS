@@ -28,6 +28,29 @@ const SAFETY_FACTOR: f64 = 0.9;
 /// Modelin kendi ek yükü için ayrılan pay.
 const RESERVE: usize = 512;
 
+/// Reply limit for a model that is not in the table below.
+///
+/// This used to be 1024 for *every* model, table entry or not, which is about
+/// 700 words: long answers were cut off mid-sentence, and a code block that
+/// ran past it simply stopped in the middle of a line with nothing to say it
+/// had been truncated. Providers stop at this number silently, so the bug
+/// looked like the model losing its train of thought.
+///
+/// 8192 is a length no ordinary answer reaches, and it costs nothing when it
+/// is not used -- output is billed per token produced, not per token allowed.
+const DEFAULT_MAX_OUTPUT: usize = 8_192;
+
+/// Assumed context window for a model that is not in the table.
+///
+/// Deliberately below what any current model offers, because underestimating
+/// costs some trimmed history while overestimating costs a 413 and a lost
+/// turn. It is not *tiny*, though: this was 8192, and since the reply limit
+/// is held to a quarter of the window, that quietly capped unknown models at
+/// a 2048-token answer -- the same truncation this constant's neighbour
+/// exists to prevent. Anything a user is likely to have configured by hand
+/// (a local model, a new hosted one) is at least 32k.
+const UNKNOWN_WINDOW: usize = 32_768;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ModelCaps {
     /// Modelin bağlam penceresi (token).
@@ -38,45 +61,61 @@ pub struct ModelCaps {
 
 impl Default for ModelCaps {
     fn default() -> Self {
-        // Muhafazakâr varsayılan: model bilinmiyorsa küçük varsay.
-        Self {
-            context_window: 8_192,
-            max_output: 1_024,
-        }
+        // A conservative window for an unknown model, but a reply length that
+        // is still usable: see `DEFAULT_MAX_OUTPUT`. `new` caps the reply
+        // against the window, which for a window this small is what binds.
+        Self::new(UNKNOWN_WINDOW, DEFAULT_MAX_OUTPUT)
     }
 }
 
 impl ModelCaps {
-    /// Model adından pencere tahmini. Bilinmeyende güvenli varsayılan.
+    /// Window and reply limit from the model name. Safe defaults when unknown.
     ///
-    /// Tablo hâlinde: yeni model ailesi eklemek tek satır. Sıra önemli —
-    /// ilk eşleşen kazanır, o yüzden özel adlar genel olanlardan önce.
+    /// A table, so a new family is one line. Order matters -- first match
+    /// wins, so specific names come before general ones.
     pub fn for_model(model: &str) -> Self {
-        /// (model adında geçen parça, bağlam penceresi)
-        const WINDOWS: &[(&str, usize)] = &[
-            ("gemini", 1_000_000),
-            ("claude", 200_000),
-            ("gpt-4o", 128_000),
-            ("gpt-4.1", 128_000),
-            ("gpt-5", 128_000),
-            ("llama-3.3", 128_000),
-            ("llama-3.1", 128_000),
-            ("grok", 131_072),
-            ("deepseek", 64_000),
-            ("mistral", 32_000),
+        /// (fragment of the model name, context window, max reply tokens)
+        const MODELS: &[(&str, usize, usize)] = &[
+            ("gemini", 1_000_000, 8_192),
+            ("claude-3-haiku", 200_000, 4_096),
+            ("claude", 200_000, 8_192),
+            ("gpt-4o", 128_000, 16_384),
+            ("gpt-4.1", 128_000, 16_384),
+            ("gpt-5", 128_000, 16_384),
+            ("o1", 128_000, 16_384),
+            ("qwen", 128_000, 8_192),
+            ("kimi", 128_000, 8_192),
+            ("llama-3.3", 128_000, 8_192),
+            ("llama-3.1", 128_000, 8_192),
+            ("llama", 32_000, 4_096),
+            ("grok", 131_072, 8_192),
+            ("deepseek", 64_000, 8_192),
+            ("mistral", 32_000, 4_096),
+            ("gemma", 8_192, 4_096),
         ];
 
         let m = model.to_ascii_lowercase();
-        let context_window = WINDOWS
+        let (context_window, max_output) = MODELS
             .iter()
-            .find(|(name, _)| m.contains(name))
-            .map(|(_, window)| *window)
-            // Bilinmeyen model: küçük varsay. Fazla tahmin edip 413 almaktansa
-            // az tahmin edip geçmişi biraz fazla budamak yeğdir.
-            .unwrap_or(8_192);
+            .find(|(name, _, _)| m.contains(name))
+            .map(|(_, window, output)| (*window, *output))
+            .unwrap_or((UNKNOWN_WINDOW, DEFAULT_MAX_OUTPUT));
+
+        Self::new(context_window, max_output)
+    }
+
+    /// Caps to a window, holding the reply limit to something the window can
+    /// actually accommodate.
+    ///
+    /// A reply limit near the window size starves the input: `input_budget`
+    /// subtracts it, so 8192-of-8192 leaves nothing and every request arrives
+    /// with its history stripped. A quarter of the window is the ceiling --
+    /// generous for the reply, and it still leaves roughly two thirds for the
+    /// conversation after the safety margin.
+    fn new(context_window: usize, max_output: usize) -> Self {
         Self {
             context_window,
-            max_output: 1_024.min(context_window / 4),
+            max_output: max_output.min(context_window / 4),
         }
     }
 
@@ -337,11 +376,64 @@ mod tests {
 
     #[test]
     fn model_caps_are_conservative_for_unknown_models() {
-        assert_eq!(
-            ModelCaps::for_model("bilinmeyen-model").context_window,
-            8_192
+        // An unknown model is assumed smaller than any current model, so a
+        // wrong guess trims history rather than earning a 413.
+        let unknown = ModelCaps::for_model("bilinmeyen-model").context_window;
+        assert!(
+            unknown <= 32_768,
+            "unknown models should not be assumed large: {unknown}"
         );
         assert!(ModelCaps::for_model("gemini-2.5-flash").context_window > 100_000);
+    }
+
+    /// The bug this guards: `max_output` was 1024 for every model, so a long
+    /// answer stopped mid-sentence and a code block stopped mid-line. An
+    /// unknown model must not inherit that -- the window is guessed low on
+    /// purpose, but the reply limit is not.
+    #[test]
+    fn every_model_can_write_a_long_answer() {
+        for model in [
+            "bilinmeyen-model",
+            "qwen/qwen3.8-27b",
+            "gpt-4o",
+            "claude-sonnet-5",
+            "gemini-2.5-flash",
+            "llama-3.3-70b",
+        ] {
+            let caps = ModelCaps::for_model(model);
+            assert!(
+                caps.max_output >= 4_096,
+                "{model} would truncate long replies at {} tokens",
+                caps.max_output
+            );
+        }
+        assert!(ModelCaps::default().max_output >= 4_096);
+    }
+
+    /// A reply limit larger than the window would leave no room for the
+    /// question, and providers reject that outright.
+    #[test]
+    fn the_reply_limit_always_leaves_room_for_input() {
+        for model in ["gemma-7b", "mistral-7b", "gpt-4o", "bilinmeyen"] {
+            let caps = ModelCaps::for_model(model);
+            assert!(
+                caps.max_output < caps.context_window,
+                "{model}: reply limit {} does not fit in {}",
+                caps.max_output,
+                caps.context_window
+            );
+            assert!(
+                caps.input_budget() > 0,
+                "{model} has no room left for input"
+            );
+        }
+    }
+
+    /// Groq serves Qwen, and the name matched nothing before, so it fell to
+    /// the 8k default while the model actually has 128k.
+    #[test]
+    fn qwen_is_recognised() {
+        assert!(ModelCaps::for_model("qwen/qwen3.8-27b").context_window > 100_000);
     }
 
     #[test]
@@ -402,8 +494,10 @@ mod image_budget_tests {
 
     #[test]
     fn small_context_model_drops_older_images() {
-        // 8k pencerede 10 görüntü sığmaz — eskiler atılmalı.
-        let caps = ModelCaps::default();
+        // Ten images do not fit in an 8k window -- the old ones must go.
+        // The window is stated here rather than taken from the default, which
+        // is a guess for unknown models and free to change.
+        let caps = ModelCaps::for_model("gemma-7b");
         let mut msgs = vec![Message::system("s")];
         for i in 0..10 {
             msgs.push(Message::user_with_image(format!("görüntü {i}"), "x"));
@@ -412,5 +506,32 @@ mod image_budget_tests {
         let r = fit_request(msgs, 0, caps);
         assert!(r.history_dropped > 0, "eski görüntüler atılmalıydı");
         assert!(r.est_tokens <= caps.input_budget());
+    }
+}
+
+#[cfg(test)]
+mod caps_report {
+    use super::*;
+
+    /// Not an assertion -- prints the table so a model's real limits can be
+    /// checked against what the app will send. Run with `--nocapture`.
+    #[test]
+    #[ignore = "reporting only"]
+    fn print_caps_for_common_models() {
+        for m in [
+            "qwen/qwen3.8-27b",
+            "bilinmeyen-model",
+            "gpt-4o",
+            "claude-sonnet-5",
+            "gemma-7b",
+        ] {
+            let c = ModelCaps::for_model(m);
+            println!(
+                "{m}: window={} max_output={} input_budget={}",
+                c.context_window,
+                c.max_output,
+                c.input_budget()
+            );
+        }
     }
 }
