@@ -176,6 +176,46 @@ pub fn base64_encode(data: &[u8]) -> String {
     out
 }
 
+/// Base64 decoding.
+///
+/// Whitespace and line breaks are skipped: some providers wrap their base64
+/// at 76 columns, and a strict decoder would reject a perfectly good image.
+/// Padding is optional for the same reason — decoding stops when the input
+/// does, so a stripped `=` costs nothing.
+pub fn base64_decode(text: &str) -> Option<Vec<u8>> {
+    fn value(c: u8) -> Option<u32> {
+        match c {
+            b'A'..=b'Z' => Some(u32::from(c - b'A')),
+            b'a'..=b'z' => Some(u32::from(c - b'a') + 26),
+            b'0'..=b'9' => Some(u32::from(c - b'0') + 52),
+            // Accept the URL-safe alphabet too; it costs two match arms and
+            // saves a whole class of "why is this image corrupt".
+            b'+' | b'-' => Some(62),
+            b'/' | b'_' => Some(63),
+            _ => None,
+        }
+    }
+
+    let mut out = Vec::with_capacity(text.len() / 4 * 3);
+    let mut buffer = 0u32;
+    let mut bits = 0u32;
+
+    for byte in text.bytes() {
+        if byte == b'=' || byte.is_ascii_whitespace() {
+            continue;
+        }
+        let six = value(byte)?;
+        buffer = (buffer << 6) | six;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(((buffer >> bits) & 0xFF) as u8);
+        }
+    }
+
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,6 +237,35 @@ mod tests {
         let png_header = [0x89u8, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
         let encoded = base64_encode(&png_header);
         assert_eq!(encoded, "iVBORw0KGgo=");
+    }
+
+    #[test]
+    fn base64_round_trips_binary_data() {
+        let data: Vec<u8> = (0..=255u8).collect();
+        let decoded = base64_decode(&base64_encode(&data)).unwrap();
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn base64_decode_matches_known_vectors() {
+        assert_eq!(base64_decode("").unwrap(), b"");
+        assert_eq!(base64_decode("Zg==").unwrap(), b"f");
+        assert_eq!(base64_decode("Zm8=").unwrap(), b"fo");
+        assert_eq!(base64_decode("Zm9vYmFy").unwrap(), b"foobar");
+    }
+
+    #[test]
+    fn base64_decode_tolerates_wrapped_and_unpadded_input() {
+        // Providers wrap at 76 columns and sometimes strip the padding.
+        assert_eq!(base64_decode("Zm9v\nYmFy").unwrap(), b"foobar");
+        assert_eq!(base64_decode("Zg").unwrap(), b"f");
+    }
+
+    #[test]
+    fn base64_decode_rejects_junk() {
+        // A JSON error body decoded as an image would be a confusing bug;
+        // better to fail here.
+        assert!(base64_decode("not base64!").is_none());
     }
 
     #[test]

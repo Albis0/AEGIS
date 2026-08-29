@@ -5,12 +5,16 @@
 //! tool var — model az seçenek arasından daha isabetli seçer.
 
 pub mod automation;
+pub mod canvas;
 pub mod computer;
 pub mod control;
 pub mod core;
 pub mod files;
 pub mod media;
 pub mod memory;
+pub mod obsidian;
+pub mod spotify;
+pub mod steam;
 pub mod system;
 pub mod vision;
 pub mod web;
@@ -48,6 +52,8 @@ pub fn register_all(registry: &mut Registry) {
     registry.register(Box::new(computer::Click));
     registry.register(Box::new(computer::TypeText));
     registry.register(Box::new(computer::PressKey));
+    // Döngünün "kontrol et" adımı: tıkla → bekle → gerekiyorsa bak.
+    registry.register(Box::new(computer::WaitForScreen));
 
     // Web.
     registry.register(Box::new(web::WebSearch));
@@ -61,6 +67,38 @@ pub fn register_all(registry: &mut Registry) {
     registry.register(Box::new(automation::CreateAutomation));
     registry.register(Box::new(automation::ListAutomations));
     registry.register(Box::new(automation::DeleteAutomation));
+
+    // Obsidian kasası.
+    registry.register(Box::new(obsidian::SearchNotes));
+    registry.register(Box::new(obsidian::ReadNote));
+    registry.register(Box::new(obsidian::ListNotes));
+    registry.register(Box::new(obsidian::CreateNote));
+    registry.register(Box::new(obsidian::AppendNote));
+    registry.register(Box::new(obsidian::EditNote));
+    registry.register(Box::new(obsidian::DeleteNote));
+    registry.register(Box::new(obsidian::NoteLinks));
+    registry.register(Box::new(obsidian::DailyNote));
+
+    // Spotify.
+    registry.register(Box::new(spotify::Playback));
+    registry.register(Box::new(spotify::NowPlaying));
+    registry.register(Box::new(spotify::PlaySearch));
+    registry.register(Box::new(spotify::Queue));
+    registry.register(Box::new(spotify::PlayerSettings));
+    registry.register(Box::new(spotify::Like));
+    registry.register(Box::new(spotify::Devices));
+
+    // Steam.
+    registry.register(Box::new(steam::Library));
+    registry.register(Box::new(steam::NowPlaying));
+    registry.register(Box::new(steam::LaunchGame));
+    registry.register(Box::new(steam::Achievements));
+    registry.register(Box::new(steam::StorePrice));
+    registry.register(Box::new(steam::Wishlist));
+    registry.register(Box::new(steam::Friends));
+
+    // Canvas — tek tool: varyasyon, büyütme ve parametre ayarı arayüzde.
+    registry.register(Box::new(canvas::Generate));
 
     // Hafıza.
     registry.register(Box::new(memory::Remember));

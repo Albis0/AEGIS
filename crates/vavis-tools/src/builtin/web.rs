@@ -1,14 +1,22 @@
 //! Web tool'ları — arama ve sayfa okuma.
 //!
-//! Anahtar gerektirmeyen kaynaklar kullanılıyor (DuckDuckGo, doğrudan HTTP).
-//! Kullanıcı ek servis hesabı açmak zorunda kalmamalı.
+//! Arama, birden fazla sağlayıcıyı sırayla deneyen zincire devrediyor
+//! (bkz. [`crate::websearch`]). Anahtar girilmemişse zincir anahtarsız
+//! DuckDuckGo'ya düşer, yani kurulum yapmayan kullanıcı da arama yapabilir.
 
 use crate::tool::{arg_str, Domain, Param, Tool, ToolOutcome};
+use crate::websearch;
 use serde_json::Value;
 use std::time::Duration;
 
 /// Modele verilecek en fazla metin — bağlamı boğmamak için.
 const MAX_CONTENT_CHARS: usize = 6_000;
+
+/// Zincirden istenecek sonuç sayısı.
+///
+/// Beş, bağlam maliyeti ile kapsama arasında dengeli: model genelde ilk
+/// iki-üç sonucu kullanıyor, fazlası token yakıyor.
+const MAX_RESULTS: usize = 5;
 
 /// Engelleyen HTTP çağrısı yapan yardımcı.
 ///
@@ -132,52 +140,26 @@ impl Tool for WebSearch {
             return ToolOutcome::err("sorgu parametresi gerekli");
         };
 
-        // DuckDuckGo Anlık Cevap API'si — anahtarsız.
-        let url = format!(
-            "https://api.duckduckgo.com/?q={}&format=json&no_html=1&skip_disambig=1",
-            urlencode(query)
-        );
-
-        let body = match http_get(&url) {
-            Ok(b) => b,
-            Err(e) => return ToolOutcome::err(format!("arama başarısız: {e}")),
-        };
-
-        let Ok(json) = serde_json::from_str::<Value>(&body) else {
-            return ToolOutcome::err("arama sonucu çözümlenemedi");
-        };
-
-        let mut parts: Vec<String> = Vec::new();
-
-        if let Some(abstract_text) = json["AbstractText"].as_str() {
-            if !abstract_text.is_empty() {
-                parts.push(abstract_text.to_string());
-                if let Some(src) = json["AbstractURL"].as_str() {
-                    if !src.is_empty() {
-                        parts.push(format!("kaynak: {src}"));
-                    }
+        // Hangi sağlayıcının cevapladığı modeli ilgilendirmez — zincir bir
+        // çalışma zamanı detayı. Bkz. `websearch`.
+        match websearch::search(query, MAX_RESULTS) {
+            Ok((response, _attempts)) => {
+                ToolOutcome::ok(websearch::format_for_model(&response, MAX_CONTENT_CHARS))
+            }
+            Err(attempts) => {
+                // Neden sonuç gelmediğini söyle: anahtar eksikse kullanıcı
+                // ekleyebilir, kota dolduysa beklemesi gerektiğini bilir.
+                let detail = attempts
+                    .iter()
+                    .map(|a| format!("{}: {}", a.provider, a.error))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if detail.is_empty() {
+                    ToolOutcome::err("arama sağlayıcısı yapılandırılmamış")
+                } else {
+                    ToolOutcome::err(format!("'{query}' aranamadı ({detail})"))
                 }
             }
-        }
-
-        if let Some(topics) = json["RelatedTopics"].as_array() {
-            for t in topics.iter().take(5) {
-                if let Some(text) = t["Text"].as_str() {
-                    if !text.is_empty() {
-                        parts.push(format!("• {text}"));
-                    }
-                }
-            }
-        }
-
-        if parts.is_empty() {
-            ToolOutcome::ok(format!(
-                "'{query}' için doğrudan sonuç bulunamadı. \
-                 Bir sayfa adresi verilirse sayfa_oku ile içeriği okunabilir."
-            ))
-        } else {
-            let joined = parts.join("\n");
-            ToolOutcome::ok(joined.chars().take(MAX_CONTENT_CHARS).collect::<String>())
         }
     }
 }
@@ -242,39 +224,9 @@ impl Tool for FetchUrl {
     }
 }
 
-/// Basit URL kodlama — sorgu dizesi için.
-fn urlencode(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() * 2);
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
-            b' ' => out.push('+'),
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn urlencoding_escapes_special_characters() {
-        assert_eq!(urlencode("hava durumu"), "hava+durumu");
-        assert_eq!(urlencode("a&b"), "a%26b");
-        assert_eq!(urlencode("abc123-_.~"), "abc123-_.~");
-    }
-
-    #[test]
-    fn urlencoding_handles_turkish() {
-        // Türkçe karakterler UTF-8 baytları olarak kodlanmalı.
-        let encoded = urlencode("şğü");
-        assert!(encoded.starts_with('%'));
-        assert!(!encoded.contains('ş'));
-    }
 
     #[test]
     fn html_tags_are_stripped() {

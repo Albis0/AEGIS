@@ -8,6 +8,7 @@
 
 pub mod config;
 pub mod error;
+pub mod gallery;
 pub mod i18n;
 pub mod logging;
 pub mod paths;
@@ -15,8 +16,12 @@ pub mod scheduler;
 pub mod search;
 pub mod store;
 
-pub use config::{Config, Llm, WindowMode};
+pub use config::{
+    Canvas, Config, CustomCanvas, CustomSearch, Llm, Mcp, McpServer, Obsidian, Search, Spotify,
+    Steam, WindowMode,
+};
 pub use error::{CoreError, Result};
+pub use gallery::{Item as GalleryItem, Kind as GalleryKind, NewItem as NewGalleryItem, Usage};
 pub use i18n::{t, Key, Lang};
 pub use paths::Paths;
 pub use scheduler::{Automation, Trigger};

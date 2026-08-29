@@ -89,6 +89,43 @@ impl ModelCaps {
     }
 }
 
+/// Indicative price per million tokens, as (input, output) in US dollars.
+///
+/// Running four agents on one question costs four times as much, and the
+/// council interface has to say so before the user presses go — a quota burnt
+/// without warning is the worst outcome that screen can produce.
+///
+/// **These prices go stale.** They are published figures, not a billing feed,
+/// so everything derived from them is labelled an estimate and an unknown
+/// model returns `None` rather than a confident wrong number.
+const PRICES: &[(&str, f64, f64)] = &[
+    ("claude-opus", 15.0, 75.0),
+    ("claude-sonnet", 3.0, 15.0),
+    ("claude-haiku", 0.80, 4.0),
+    ("gpt-5", 1.25, 10.0),
+    ("gpt-4o-mini", 0.15, 0.60),
+    ("gpt-4o", 2.50, 10.0),
+    ("gpt-4.1", 2.0, 8.0),
+    ("gemini-2.5-pro", 1.25, 10.0),
+    ("gemini-2.5-flash", 0.30, 2.50),
+    ("gemini", 0.30, 2.50),
+    ("deepseek", 0.28, 0.42),
+    ("grok", 3.0, 15.0),
+    ("mistral", 0.40, 2.0),
+    ("llama", 0.20, 0.20),
+];
+
+/// Roughly what a turn cost, in US dollars.
+///
+/// `None` for a model with no published price here — including every local
+/// model, where the answer is genuinely zero but the interface should say
+/// "local" rather than "$0.00" as though it had looked it up.
+pub fn estimate_cost(model: &str, input_tokens: usize, output_tokens: usize) -> Option<f64> {
+    let m = model.to_ascii_lowercase();
+    let (_, input, output) = PRICES.iter().find(|(name, _, _)| m.contains(name))?;
+    Some((input_tokens as f64 * input + output_tokens as f64 * output) / 1_000_000.0)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FitResult {
     pub messages: Vec<Message>,
@@ -185,6 +222,35 @@ pub fn fit_request(messages: Vec<Message>, tool_tokens: usize, caps: ModelCaps) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cost_scales_with_both_directions() {
+        // One million in, one million out, at Sonnet's published rate.
+        let cost = estimate_cost("claude-sonnet-4-5", 1_000_000, 1_000_000).unwrap();
+        assert!((cost - 18.0).abs() < 0.01, "{cost}");
+    }
+
+    #[test]
+    fn a_more_specific_model_wins_over_a_general_one() {
+        let mini = estimate_cost("gpt-4o-mini", 1_000_000, 0).unwrap();
+        let full = estimate_cost("gpt-4o", 1_000_000, 0).unwrap();
+        // Listed before "gpt-4o", so the cheap model is not priced as the
+        // expensive one — the mistake that would matter most here.
+        assert!(mini < full, "mini {mini} should be under full {full}");
+    }
+
+    #[test]
+    fn an_unpriced_model_reports_nothing_rather_than_zero() {
+        // A local model genuinely costs nothing, but the interface should say
+        // "local", not print a confident "$0.00" it never looked up.
+        assert_eq!(estimate_cost("my-local-mistrial-thing", 1000, 1000), None);
+        assert_eq!(estimate_cost("", 1000, 1000), None);
+    }
+
+    #[test]
+    fn model_names_are_matched_regardless_of_case() {
+        assert!(estimate_cost("Claude-Opus-4-1", 1000, 1000).is_some());
+    }
 
     fn msg(role: Role, len: usize) -> Message {
         let content = "a".repeat(len);

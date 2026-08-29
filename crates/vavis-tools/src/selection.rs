@@ -266,6 +266,82 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
             "bilgi",
         ],
     },
+    DomainKeywords {
+        domain: Domain::Obsidian,
+        // Kasaya özgü kelimeler seçildi: "not" tek başına Memory alanına ait
+        // (asistanın kullanıcı hakkında hatırladıkları). Buradaki kelimeler
+        // kullanıcının **kendi** not kasasını işaret ediyor.
+        words: &[
+            "obsidian",
+            "kasa",
+            "vault",
+            "notlar",
+            "notum",
+            "notuma",
+            "notumda",
+            "notlarim",
+            "notlarım",
+            "günlük",
+            "gunluk",
+            "daily",
+            "etiket",
+            "tag",
+            "backlink",
+            "wikilink",
+            "markdown",
+            // "md" bilinçli olarak yok: eşleşme "içerir" mantığıyla çalıştığı
+            // için "durumda", "hakkımda", "ekranımda" gibi kelimeleri
+            // yakalıyor ve alakasız isteklere 9 tool ekliyordu.
+        ],
+    },
+    DomainKeywords {
+        domain: Domain::Steam,
+        words: &[
+            "steam",
+            "oyun",
+            "oyunu",
+            "oyunlar",
+            "oynadığım",
+            "oynadigim",
+            "kütüphane",
+            "kutuphane",
+            "başarım",
+            "basarim",
+            "achievement",
+            "wishlist",
+            "indirim",
+            "arkadaş",
+            "arkadas",
+        ],
+    },
+    DomainKeywords {
+        domain: Domain::Spotify,
+        // "cal"/"çal" bilinçli olarak yok: "içerir" eşleşmesi yüzünden
+        // "çalışıyor", "çalıştır" kelimelerini de yakalar ve 7 tool'u
+        // alakasız isteklere sokar. Medya alanı zaten o kelimeleri
+        // kapsıyor ve yalnızca 2 tool taşıyor.
+        words: &[
+            "spotify",
+            "şarkı",
+            "sarki",
+            "müzik",
+            "muzik",
+            "playlist",
+            "kuyruk",
+            "shuffle",
+            "karıştır",
+            "karistir",
+            "sanatçı",
+            "sanatci",
+        ],
+    },
+    DomainKeywords {
+        domain: Domain::Canvas,
+        // "çiz" ve "resim çiz" gibi kısa kökler bilinçli olarak yok:
+        // "çizelge", "çizgi" gibi kelimeleri yakalıyor. Alan tek tool
+        // taşıdığı için yanlış eşleşmenin bedeli küçük ama sıfır değil.
+        words: crate::builtin::canvas::KEYWORDS,
+    },
 ];
 
 /// Sohbet kapatıcıları — bunlara tool sunulmaz.
@@ -400,6 +476,102 @@ pub fn match_domains(message: &str) -> Vec<Domain> {
     scored.into_iter().take(2).map(|(d, _)| d).collect()
 }
 
+/// MCP alanlarını mesaja göre eşleştirir.
+///
+/// Yerleşik alanların anahtar kelimeleri derleme zamanında yazılı; MCP
+/// sunucuları çalışma anında geliyor, o yüzden kelimeler sunucunun **kendi
+/// kimliğinden ve tool adlarından** çıkarılıyor.
+///
+/// En fazla iki sunucu dönüyor: üç sunucu bağlayan kullanıcının 60 tool'u
+/// modele hep birden gitmesin diye (`MAX_TOOLS` zaten üstte kesiyor, ama
+/// kesilen tool'lar rastgele olmasın).
+pub fn match_mcp_domains(registry: &Registry, message: &str) -> Vec<Domain> {
+    let words = tokenize(message);
+    if words.is_empty() || is_chatter(&words) {
+        return Vec::new();
+    }
+
+    let mut scores: std::collections::BTreeMap<&'static str, usize> = Default::default();
+
+    for tool in registry.iter() {
+        let Domain::Mcp(server) = tool.domain() else {
+            continue;
+        };
+
+        // Sunucu adı geçiyorsa niyet açık.
+        let server_word = normalize(server);
+        let mut score = if server_word.len() > 2 && words.iter().any(|w| w.contains(&server_word)) {
+            3
+        } else {
+            0
+        };
+
+        // Tool adındaki parçalar ("create_issue" → "create", "issue").
+        // Önekli ad kullanıldığı için sunucu kimliği baştan atılıyor.
+        let bare = tool.name().strip_prefix(server).unwrap_or(tool.name());
+        for part in bare.split(['_', '-']).filter(|p| p.len() > 3) {
+            let part = normalize(part);
+            if words.iter().any(|w| w == &part) {
+                score += 1;
+            }
+        }
+
+        if score > 0 {
+            let entry = scores.entry(server).or_insert(0);
+            *entry = (*entry).max(score);
+        }
+    }
+
+    let mut ranked: Vec<(&'static str, usize)> = scores.into_iter().collect();
+    ranked.sort_by_key(|(server, score)| (std::cmp::Reverse(*score), *server));
+    ranked
+        .into_iter()
+        .take(2)
+        .map(|(server, _)| Domain::Mcp(server))
+        .collect()
+}
+
+#[cfg(test)]
+mod obsidian_selection_tests {
+    use super::*;
+
+    /// Kasa kelimeleri kasa isteklerini yakalamalı.
+    #[test]
+    fn vault_requests_reach_the_obsidian_domain() {
+        for msg in [
+            "obsidian notlarımda ara",
+            "notlarımda tool seçimi hakkında ne yazmıştım",
+            "bugünün günlük notuna ekle",
+            "bu etiketteki notları listele",
+        ] {
+            assert!(
+                match_domains(msg).contains(&Domain::Obsidian),
+                "'{msg}' Obsidian alanını tetiklemeliydi: {:?}",
+                match_domains(msg)
+            );
+        }
+    }
+
+    /// Kısa kelimeler "içerir" mantığıyla eşleştiği için buradaki cümleler
+    /// bir kere yanlışlıkla kasa tool'larını çekiyordu ("durumda" ⊃ "md").
+    /// Regresyon olmasın diye sabitlendi.
+    #[test]
+    fn everyday_words_do_not_drag_in_the_vault() {
+        for msg in [
+            "cpu kullanımı ne durumda",
+            "hakkımda ne biliyorsun",
+            "ekranımda ne var",
+            "bir dosyaya not kaydet",
+        ] {
+            assert!(
+                !match_domains(msg).contains(&Domain::Obsidian),
+                "'{msg}' Obsidian alanını tetiklememeliydi: {:?}",
+                match_domains(msg)
+            );
+        }
+    }
+}
+
 /// Bu istek için modele sunulacak tool şemaları.
 ///
 /// Dönen liste **her zaman** `MAX_TOOLS` veya altındadır.
@@ -412,7 +584,18 @@ pub fn select_tools(registry: &Registry, message: &str) -> Vec<Value> {
 
 /// Seçilen tool adları — testler ve günlük kaydı için.
 pub fn select_named<'a>(registry: &'a Registry, message: &str) -> Vec<&'a str> {
-    let domains = match_domains(message);
+    let mut domains = match_domains(message);
+    // MCP alanları çalışma anında oluşuyor, statik tabloda yer alamıyor —
+    // ayrı eşleştiriliyor ve yerleşik alanların önüne geçiyor: kullanıcı bir
+    // sunucunun adını anıyorsa kastettiği odur.
+    let mcp = match_mcp_domains(registry, message);
+    if !mcp.is_empty() {
+        domains.truncate(1);
+        let mut combined = mcp;
+        combined.extend(domains);
+        domains = combined;
+    }
+
     if domains.is_empty() {
         // Sohbet — tool yok. Modeli boş yere kışkırtma.
         return Vec::new();
@@ -627,6 +810,37 @@ mod tests {
                 d.contains(&expected),
                 "'{msg}' → {expected:?} bekleniyordu, gelen: {d:?}"
             );
+        }
+    }
+
+    /// Görsel üretim istekleri canvas alanını tetiklemeli.
+    #[test]
+    fn image_requests_reach_the_canvas_domain() {
+        for msg in [
+            "bana bir kedi resmi çiz",
+            "gün batımı görseli üret",
+            "generate an image of a robot",
+            "bir logo tasarla",
+        ] {
+            let d = match_domains(msg);
+            assert!(d.contains(&Domain::Canvas), "'{msg}' → {d:?}");
+        }
+    }
+
+    /// Canvas kelimeleri alakasız isteklere sızmamalı.
+    ///
+    /// Alan kısa köklerle ("çiz") kurulsaydı bu cümleler de eşleşirdi —
+    /// "md" olayının aynısı, bir tur daha.
+    #[test]
+    fn canvas_keywords_do_not_leak_into_unrelated_requests() {
+        for msg in [
+            "haftalık çizelgeyi göster",
+            "ekranımda ne var",
+            "bir çizgi roman öner",
+            "cpu durumu nasıl",
+        ] {
+            let d = match_domains(msg);
+            assert!(!d.contains(&Domain::Canvas), "'{msg}' → {d:?}");
         }
     }
 

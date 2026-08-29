@@ -10,7 +10,7 @@
 use crate::state::AppState;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use vavis_brain::{system_prompt, ChatConfig, Message, Provider, StreamEvent};
 use vavis_tools::{AgentHost, Approval, ApprovalReason, ToolOutcome, MAX_STEPS};
 
@@ -31,6 +31,8 @@ pub struct Status {
     pub automation_count: usize,
     pub message_count: i64,
     pub voice_mode: String,
+    /// Microphone level, 0.0-1.0. Drives the meter next to the mic button.
+    pub mic_level: f32,
     pub busy: bool,
     pub speaking: bool,
     pub cpu: Option<u32>,
@@ -39,6 +41,8 @@ pub struct Status {
     pub data_dir: String,
     pub window_mode: String,
     pub font_size: f32,
+    /// Steam game running right now, detected locally. None when idle.
+    pub steam_game: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,6 +103,7 @@ pub fn get_status(state: State<AppState>) -> Status {
         automation_count: automations,
         message_count: messages,
         voice_mode: crate::voice::mode_name(voice.mode()).to_string(),
+        mic_level: voice.mic_level(),
         busy: state.busy.load(Ordering::SeqCst),
         speaking: voice.is_speaking(),
         cpu: vavis_tools::builtin::system::cpu_percent(),
@@ -107,6 +112,7 @@ pub fn get_status(state: State<AppState>) -> Status {
         data_dir: core.paths.root().display().to_string(),
         window_mode: core.config.ui.window_mode.clone(),
         font_size: core.config.ui.font_size,
+        steam_game: vavis_tools::steam::running_game_cached().map(|g| g.name),
     }
 }
 
@@ -164,8 +170,8 @@ pub fn load_history(state: State<AppState>) -> Vec<StoredLine> {
 /// | Event | Payload |
 /// |---|---|
 /// | `chat:delta` | `{ text }` — a chunk of the reply |
-/// | `chat:tool-start` | `{ tool }` |
-/// | `chat:tool-done` | `{ tool, ok, summary }` |
+/// | `chat:tool-start` | `{ tool, args }` |
+/// | `chat:tool-done` | `{ tool, ok, summary, detail }` |
 /// | `chat:approval` | `{ tool, args, reason }` |
 /// | `chat:done` | `{ text }` |
 /// | `chat:error` | `{ message }` |
@@ -309,13 +315,45 @@ struct ErrorPayload {
 #[serde(rename_all = "camelCase")]
 struct ToolStartPayload {
     tool: String,
+    /// What it was called with, for the expanded view.
+    args: String,
+}
+
+/// How much of a tool's output the collapsed line shows.
+const MAX_TOOL_SUMMARY: usize = 120;
+
+/// How much the expanded view shows. Generous, but not unbounded: a
+/// directory listing of ten thousand files helps nobody, and the whole
+/// output already went to the model.
+const MAX_TOOL_DETAIL: usize = 4_000;
+
+/// Collapses whitespace and clips, for a line that has to fit on one line.
+///
+/// Tool output is frequently multi-line; pasting a newline into the feed's
+/// one-line note breaks the layout rather than informing anyone.
+fn one_line(text: &str, max: usize) -> String {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    clip(&flat, max)
+}
+
+/// Clips to `max` characters, marking that something was cut.
+fn clip(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let mut out: String = text.chars().take(max).collect();
+    out.push('…');
+    out
 }
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ToolDonePayload {
     tool: String,
     ok: bool,
+    /// One line, for the collapsed note in the feed.
     summary: String,
+    /// The fuller output, shown when the note is opened.
+    detail: String,
 }
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -431,25 +469,27 @@ impl AgentHost for EventHost {
         rx.recv().unwrap_or(Approval::Deny)
     }
 
-    fn on_tool_start(&mut self, tool: &str, _args: &str) {
+    fn on_tool_start(&mut self, tool: &str, args: &str) {
         let _ = self.app.emit(
             "chat:tool-start",
             ToolStartPayload {
                 tool: tool.to_string(),
+                args: clip(args, MAX_TOOL_DETAIL),
             },
         );
     }
 
     fn on_tool_result(&mut self, tool: &str, outcome: &ToolOutcome) {
-        // Only a summary reaches the interface; the full text goes to the
-        // model and would flood the feed.
-        let summary: String = outcome.content.chars().take(160).collect();
+        // Two lengths, because the interface shows two things: a one-line
+        // note in the feed, and the detail behind it when it is opened. The
+        // model still gets the whole output; only the display is trimmed.
         let _ = self.app.emit(
             "chat:tool-done",
             ToolDonePayload {
                 tool: tool.to_string(),
                 ok: outcome.ok,
-                summary,
+                summary: one_line(&outcome.content, MAX_TOOL_SUMMARY),
+                detail: clip(&outcome.content, MAX_TOOL_DETAIL),
             },
         );
     }
@@ -593,6 +633,768 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
     core.config.save(&core.paths).map_err(|e| e.to_string())
 }
 
+// ---------------------------------------------------------------------------
+// Web search chain
+// ---------------------------------------------------------------------------
+
+/// Search providers that take an API key.
+///
+/// `duckduckgo` is absent on purpose: it needs no key, which is what makes it
+/// the fallback everyone gets.
+const KEYED_SEARCH_PROVIDERS: [&str; 3] = ["tavily", "brave", "custom"];
+
+/// Maps a provider id onto its name in the encrypted key store.
+fn search_key_name(provider: &str) -> Option<&'static str> {
+    match provider {
+        "tavily" => Some("tavily"),
+        "brave" => Some("brave"),
+        "custom" => Some("search_custom"),
+        _ => None,
+    }
+}
+
+/// What the settings panel shows for the search chain.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchSettings {
+    /// Provider ids in the order they are tried.
+    pub order: Vec<String>,
+    /// Ids that currently have a key stored — never the keys themselves.
+    pub configured: Vec<String>,
+    pub custom: CustomSearchInfo,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomSearchInfo {
+    pub url: String,
+    pub header_name: String,
+    pub header_value: String,
+    pub results_path: String,
+    pub title_key: String,
+    pub url_key: String,
+    pub snippet_key: String,
+}
+
+#[tauri::command]
+pub fn get_search_settings(state: State<AppState>) -> SearchSettings {
+    let core = AppState::lock(&state.core);
+    let keys = AppState::lock(&state.keys);
+    let custom = &core.config.search.custom;
+
+    SearchSettings {
+        order: core.config.search.order.clone(),
+        configured: KEYED_SEARCH_PROVIDERS
+            .iter()
+            .filter(|id| {
+                search_key_name(id)
+                    .and_then(|name| keys.get(name))
+                    .is_some()
+            })
+            .map(|id| id.to_string())
+            .collect(),
+        custom: CustomSearchInfo {
+            url: custom.url.clone(),
+            header_name: custom.header_name.clone(),
+            header_value: custom.header_value.clone(),
+            results_path: custom.results_path.clone(),
+            title_key: custom.title_key.clone(),
+            url_key: custom.url_key.clone(),
+            snippet_key: custom.snippet_key.clone(),
+        },
+    }
+}
+
+/// Stores a search provider key, encrypted. An empty value removes it.
+#[tauri::command]
+pub fn set_search_key(state: State<AppState>, provider: String, key: String) -> Result<(), String> {
+    let Some(name) = search_key_name(&provider) else {
+        return Err(format!("unknown search provider: {provider}"));
+    };
+
+    {
+        // Lock core before keys, matching `refresh_search`. Taking these two
+        // in opposite orders on different threads would deadlock.
+        let core = AppState::lock(&state.core);
+        let mut keys = AppState::lock(&state.keys);
+        keys.set(name, key);
+        keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+    }
+
+    // The chain caches its keys, so it has to be told about the new one.
+    state.refresh_search();
+    Ok(())
+}
+
+/// Reorders the chain. Unknown ids are rejected rather than silently dropped,
+/// so a typo surfaces here instead of as a provider that never runs.
+#[tauri::command]
+pub fn set_search_order(state: State<AppState>, order: Vec<String>) -> Result<(), String> {
+    let known = ["tavily", "brave", "custom", "duckduckgo"];
+    for id in &order {
+        if !known.contains(&id.as_str()) {
+            return Err(format!("unknown search provider: {id}"));
+        }
+    }
+    if order.is_empty() {
+        return Err("the chain needs at least one provider".into());
+    }
+
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.search.order = order;
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+
+    state.refresh_search();
+    Ok(())
+}
+
+/// Saves the user-described JSON search endpoint.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn set_custom_search(
+    state: State<AppState>,
+    url: String,
+    header_name: String,
+    header_value: String,
+    results_path: String,
+    title_key: String,
+    url_key: String,
+    snippet_key: String,
+) -> Result<(), String> {
+    // Without the placeholder the query could not be substituted, so the
+    // endpoint would silently return the same results for every search.
+    if !url.trim().is_empty() && !url.contains("{query}") {
+        return Err("the address must contain the {query} placeholder".into());
+    }
+
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.search.custom = vavis_core::CustomSearch {
+            url: url.trim().to_string(),
+            header_name: header_name.trim().to_string(),
+            header_value: header_value.trim().to_string(),
+            results_path: results_path.trim().to_string(),
+            title_key: title_key.trim().to_string(),
+            url_key: url_key.trim().to_string(),
+            snippet_key: snippet_key.trim().to_string(),
+        };
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+
+    state.refresh_search();
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Code interface — workspace
+// ---------------------------------------------------------------------------
+
+/// Opens a folder in the code view.
+#[tauri::command]
+pub fn open_workspace(path: String) -> Result<String, String> {
+    let path = std::path::PathBuf::from(path.trim());
+    if !path.is_dir() {
+        return Err(format!("no folder at {}", path.display()));
+    }
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string_lossy().to_string());
+
+    crate::workspace::set_root(Some(path));
+    Ok(name)
+}
+
+/// The folder currently open, if any.
+#[tauri::command]
+pub fn current_workspace() -> Option<String> {
+    crate::workspace::current_root().map(|p| p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn list_workspace(path: String) -> Result<Vec<crate::workspace::Entry>, String> {
+    crate::workspace::list(&path)
+}
+
+#[tauri::command]
+pub fn read_workspace_file(path: String) -> Result<String, String> {
+    crate::workspace::read(&path)
+}
+
+#[tauri::command]
+pub fn write_workspace_file(path: String, content: String) -> Result<(), String> {
+    crate::workspace::write(&path, &content)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    pub path: String,
+    pub line: usize,
+    pub text: String,
+}
+
+#[tauri::command]
+pub fn search_workspace(query: String) -> Result<Vec<SearchHit>, String> {
+    Ok(crate::workspace::grep(&query, 100)?
+        .into_iter()
+        .map(|(path, line, text)| SearchHit { path, line, text })
+        .collect())
+}
+
+// ---------------------------------------------------------------------------
+// MCP servers
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpServerInfo {
+    pub id: String,
+    pub transport: String,
+    /// Exactly what would be run, so the user can see it before allowing it.
+    pub command_line: String,
+    pub enabled: bool,
+    pub connected: bool,
+    /// Every tool the server publishes.
+    pub tools: Vec<String>,
+    /// The subset the user switched off.
+    pub disabled: Vec<String>,
+    pub error: Option<String>,
+    pub has_secret: bool,
+}
+
+/// Configured servers and their current state.
+#[tauri::command]
+pub fn list_mcp_servers(state: State<AppState>) -> Vec<McpServerInfo> {
+    let connected = vavis_tools::mcp::connected_ids();
+    let core = AppState::lock(&state.core);
+    let keys = AppState::lock(&state.keys);
+
+    core.config
+        .mcp
+        .servers
+        .iter()
+        .map(|s| McpServerInfo {
+            id: s.id.clone(),
+            transport: s.transport.clone(),
+            command_line: if s.transport.eq_ignore_ascii_case("http") {
+                s.url.clone()
+            } else {
+                format!("{} {}", s.command, s.args.join(" ")).trim().to_string()
+            },
+            enabled: s.enabled,
+            connected: connected.contains(&s.id),
+            // Tool names are only known while connected; the registry has them.
+            tools: {
+                let agent = AppState::lock(&state.agent);
+                let prefix = format!("{}_", s.id);
+                agent
+                    .registry
+                    .iter()
+                    .filter_map(|t| t.name().strip_prefix(&prefix).map(str::to_string))
+                    .collect()
+            },
+            disabled: s.disabled.clone(),
+            error: None,
+            has_secret: keys.get(&format!("mcp_{}", s.id)).is_some(),
+        })
+        .collect()
+}
+
+/// Adds or replaces a server, then reconnects everything.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub fn save_mcp_server(
+    state: State<AppState>,
+    id: String,
+    transport: String,
+    command: String,
+    args: String,
+    url: String,
+    header_name: String,
+    header_value: String,
+    secret: String,
+) -> Result<String, String> {
+    let id = id.trim().to_string();
+    // The id prefixes every tool name and names the selection domain, so it
+    // has to be a plain identifier.
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        return Err("kimlik harf, rakam ve tire olmalı".into());
+    }
+    if !["stdio", "http"].contains(&transport.as_str()) {
+        return Err("taşıma stdio veya http olmalı".into());
+    }
+    if transport == "stdio" && command.trim().is_empty() {
+        return Err("stdio için komut gerekli".into());
+    }
+    if transport == "http" && !url.starts_with("http") {
+        return Err("http için adres gerekli".into());
+    }
+
+    {
+        let mut core = AppState::lock(&state.core);
+        let entry = vavis_core::McpServer {
+            id: id.clone(),
+            transport,
+            command: command.trim().to_string(),
+            // Split on whitespace: enough for the `npx -y pkg` shape that
+            // nearly every server uses.
+            args: args.split_whitespace().map(str::to_string).collect(),
+            env: Vec::new(),
+            url: url.trim().to_string(),
+            header_name: header_name.trim().to_string(),
+            header_value: header_value.trim().to_string(),
+            // Replacing an existing entry keeps whatever the user switched off.
+            disabled: core
+                .config
+                .mcp
+                .servers
+                .iter()
+                .find(|s| s.id == id)
+                .map(|s| s.disabled.clone())
+                .unwrap_or_default(),
+            enabled: true,
+        };
+
+        match core.config.mcp.servers.iter_mut().find(|s| s.id == id) {
+            Some(existing) => *existing = entry,
+            None => core.config.mcp.servers.push(entry),
+        }
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+
+        if !secret.trim().is_empty() {
+            let mut keys = AppState::lock(&state.keys);
+            keys.set(format!("mcp_{id}"), secret.trim());
+            keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let statuses = state.reload_mcp();
+    Ok(match statuses.iter().find(|s| s.id == id) {
+        Some(status) if status.connected => {
+            format!("{} bağlandı — {} tool.", id, status.tools.len())
+        }
+        Some(status) => format!(
+            "Kaydedildi, ama bağlanamadı: {}",
+            status.error.clone().unwrap_or_default()
+        ),
+        None => "Kaydedildi.".to_string(),
+    })
+}
+
+/// Removes a server and its stored secret.
+#[tauri::command]
+pub fn remove_mcp_server(state: State<AppState>, id: String) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.mcp.servers.retain(|s| s.id != id);
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+
+        let mut keys = AppState::lock(&state.keys);
+        keys.remove(&format!("mcp_{id}"));
+        keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+    }
+    state.reload_mcp();
+    Ok(())
+}
+
+/// Enables or disables a whole server.
+#[tauri::command]
+pub fn toggle_mcp_server(state: State<AppState>, id: String, enabled: bool) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        let Some(server) = core.config.mcp.servers.iter_mut().find(|s| s.id == id) else {
+            return Err(format!("no server called {id}"));
+        };
+        server.enabled = enabled;
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+    state.reload_mcp();
+    Ok(())
+}
+
+/// Switches one tool on or off.
+///
+/// A server that brings fourteen tools when three are wanted would otherwise
+/// spend the whole per-request budget.
+#[tauri::command]
+pub fn toggle_mcp_tool(
+    state: State<AppState>,
+    id: String,
+    tool: String,
+    enabled: bool,
+) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        let Some(server) = core.config.mcp.servers.iter_mut().find(|s| s.id == id) else {
+            return Err(format!("no server called {id}"));
+        };
+        if enabled {
+            server.disabled.retain(|t| t != &tool);
+        } else if !server.disabled.contains(&tool) {
+            server.disabled.push(tool);
+        }
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+    state.reload_mcp();
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Spotify
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpotifySettings {
+    pub client_id: String,
+    pub connected: bool,
+    /// The URI the user must register on their Spotify dashboard.
+    pub redirect_uri: String,
+}
+
+#[tauri::command]
+pub fn get_spotify_settings(state: State<AppState>) -> SpotifySettings {
+    let core = AppState::lock(&state.core);
+    SpotifySettings {
+        client_id: core.config.spotify.client_id.clone(),
+        connected: vavis_tools::spotify::current().is_connected(),
+        redirect_uri: vavis_tools::spotify::auth::redirect_uri(),
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NowPlayingInfo {
+    pub track: String,
+    pub artist: String,
+    pub album_art: Option<String>,
+    pub duration_ms: u64,
+    pub progress_ms: u64,
+    pub playing: bool,
+    pub device: Option<String>,
+}
+
+/// What Spotify is playing, or `None`.
+///
+/// Kept out of `get_status` on purpose: status is polled every second and
+/// must never wait on the network, while this can. The tool layer caches the
+/// answer for a few seconds and the interface counts the progress bar
+/// forward locally, so Spotify is not asked on every tick.
+#[tauri::command]
+pub fn spotify_now_playing() -> Option<NowPlayingInfo> {
+    match vavis_tools::spotify::now_playing() {
+        Ok(Some(np)) => Some(NowPlayingInfo {
+            track: np.track,
+            artist: np.artist,
+            album_art: np.album_art,
+            duration_ms: np.duration_ms,
+            progress_ms: np.progress_ms,
+            playing: np.playing,
+            device: np.device,
+        }),
+        // Not connected or nothing playing both mean "show nothing".
+        _ => None,
+    }
+}
+
+/// Album art as a `data:` URI, cached on disk.
+///
+/// Two reasons not to point the `<img>` straight at Spotify's CDN: the
+/// window's content-security policy allows no remote images, and re-fetching
+/// the same cover on every poll would be wasteful. Fetching once here and
+/// keeping the bytes means the art survives restarts too.
+#[tauri::command]
+pub fn spotify_album_art(state: State<AppState>, url: String) -> Result<String, String> {
+    if !url.starts_with("https://") {
+        return Err("only https artwork is fetched".into());
+    }
+
+    let cache_dir = AppState::lock(&state.core).paths.root().join("art");
+    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+
+    // The CDN path is already a content hash; its last segment is a stable,
+    // filesystem-safe name.
+    let name: String = url
+        .rsplit('/')
+        .next()
+        .unwrap_or("cover")
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    let file = cache_dir.join(format!("{name}.jpg"));
+
+    let bytes = match std::fs::read(&file) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            let fetched =
+                vavis_tools::spotify::fetch_album_art(&url).map_err(|e| e.to_string())?;
+            // A failed write is not fatal; the art still displays this time.
+            if let Err(e) = std::fs::write(&file, &fetched) {
+                tracing::debug!(%e, "album art not cached");
+            }
+            fetched
+        }
+    };
+
+    Ok(format!("data:image/jpeg;base64,{}", base64(&bytes)))
+}
+
+/// Standard base64 with padding, for the data URI.
+fn base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+
+    for chunk in bytes.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+
+        out.push(ALPHABET[(n >> 18) as usize & 63] as char);
+        out.push(ALPHABET[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            ALPHABET[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+
+    out
+}
+
+/// Transport control from the now-playing panel.
+///
+/// Direct rather than routed through the model: pressing pause is not a
+/// request for the assistant to think about.
+#[tauri::command]
+pub fn spotify_control(action: String) -> Result<(), String> {
+    let mapped = match action.as_str() {
+        "play" | "pause" | "next" | "previous" => action.as_str(),
+        other => return Err(format!("unknown action: {other}")),
+    };
+    vavis_tools::spotify::transport(mapped).map_err(|e| e.to_string())
+}
+
+/// Saves the Spotify client id.
+#[tauri::command]
+pub fn set_spotify_client_id(state: State<AppState>, client_id: String) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.spotify.client_id = client_id.trim().to_string();
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+    state.refresh_spotify();
+    Ok(())
+}
+
+/// Starts the authorisation flow.
+///
+/// Returns as soon as the browser is opened; the rest happens on a worker
+/// thread and lands as a `spotify:auth` event. Blocking a command for the
+/// ninety seconds someone might spend logging in would freeze the interface.
+#[tauri::command]
+pub fn connect_spotify(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
+    let client_id = AppState::lock(&state.core).config.spotify.client_id.clone();
+    if client_id.trim().is_empty() {
+        return Err("önce Spotify istemci kimliğini gir".into());
+    }
+
+    let pkce = vavis_tools::spotify::auth::Pkce::generate();
+    let url = vavis_tools::spotify::auth::authorize_url(&client_id, &pkce);
+
+    // Bind the listener before opening the browser, so a very fast redirect
+    // cannot arrive before anything is listening.
+    let expected_state = pkce.state.clone();
+    let verifier = pkce.verifier.clone();
+
+    std::thread::spawn(move || {
+        let outcome = match vavis_tools::spotify::auth::wait_for_callback(&expected_state) {
+            Ok(vavis_tools::spotify::auth::Callback::Code(code)) => {
+                vavis_tools::spotify::exchange_code(&client_id, &code, &verifier)
+                    .map_err(|e| e.to_string())
+            }
+            Ok(vavis_tools::spotify::auth::Callback::Denied(reason)) => Err(reason),
+            Err(e) => Err(e),
+        };
+
+        let payload = match outcome {
+            Ok(token) => {
+                // Persisting is the shell's job; the tool layer only holds it
+                // in memory.
+                if let Some(state) = app.try_state::<AppState>() {
+                    state.save_spotify_token(&token);
+                }
+                serde_json::json!({ "ok": true, "message": "Spotify bağlandı." })
+            }
+            Err(message) => serde_json::json!({ "ok": false, "message": message }),
+        };
+        let _ = app.emit("spotify:auth", payload);
+    });
+
+    open_in_browser(&url)
+}
+
+/// Disconnects Spotify by forgetting the stored token.
+#[tauri::command]
+pub fn disconnect_spotify(state: State<AppState>) -> Result<(), String> {
+    {
+        let core = AppState::lock(&state.core);
+        let mut keys = AppState::lock(&state.keys);
+        keys.remove("spotify_token");
+        keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+    }
+    state.refresh_spotify();
+    Ok(())
+}
+
+/// Opens a URL in the user's default browser.
+fn open_in_browser(url: &str) -> Result<(), String> {
+    use std::process::Command;
+
+    #[cfg(windows)]
+    let result = Command::new("cmd").args(["/C", "start", "", url]).spawn();
+
+    #[cfg(not(windows))]
+    let result = Command::new("xdg-open").arg(url).spawn();
+
+    result
+        .map(|_| ())
+        .map_err(|e| format!("tarayıcı açılamadı: {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// Steam
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteamSettings {
+    pub steam_id: String,
+    /// Whether a key is stored — never the key itself.
+    pub has_key: bool,
+}
+
+#[tauri::command]
+pub fn get_steam_settings(state: State<AppState>) -> SteamSettings {
+    let core = AppState::lock(&state.core);
+    let keys = AppState::lock(&state.keys);
+    SteamSettings {
+        steam_id: core.config.steam.steam_id.clone(),
+        has_key: keys.get("steam").is_some(),
+    }
+}
+
+/// Saves Steam credentials and checks them.
+///
+/// The check matters more than it looks: a private profile answers HTTP 200
+/// with an empty list, so without it every later question would come back
+/// "you own no games" and the user would have no idea why.
+#[tauri::command]
+pub fn set_steam(
+    state: State<AppState>,
+    steam_id: String,
+    key: String,
+) -> Result<String, String> {
+    let id = steam_id.trim().to_string();
+    if !id.is_empty() && (id.len() != 17 || !id.chars().all(|c| c.is_ascii_digit())) {
+        return Err("SteamID64 17 haneli bir sayı olmalı".into());
+    }
+
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.steam.steam_id = id.clone();
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+
+        let mut keys = AppState::lock(&state.keys);
+        // An empty key means "leave what is stored" rather than "erase it":
+        // the field is a password input and comes back blank on every reload.
+        if !key.trim().is_empty() {
+            keys.set("steam", key.trim());
+            keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+        }
+    }
+
+    state.refresh_steam();
+
+    if !vavis_tools::steam::current().is_configured() {
+        return Ok("Kaydedildi. Kütüphane için hem anahtar hem SteamID gerekiyor.".into());
+    }
+
+    // Verify once, now, while the user is looking at the settings panel.
+    match vavis_tools::steam::library() {
+        Ok(games) => Ok(format!("Bağlandı — {} oyun görünüyor.", games.len())),
+        Err(e) => Ok(format!("Kaydedildi, ama: {e}")),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Obsidian vault
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultInfo {
+    /// Absolute path on disk.
+    pub path: String,
+    /// Folder name — what the user calls the vault.
+    pub name: String,
+    pub active: bool,
+}
+
+/// Vaults Obsidian knows about, plus whichever one is active.
+#[tauri::command]
+pub fn list_vaults(state: State<AppState>) -> Vec<VaultInfo> {
+    let active = vavis_tools::obsidian::current().map(|v| v.root);
+    let configured = AppState::lock(&state.core).config.obsidian.vault.clone();
+
+    let mut paths = vavis_tools::obsidian::discover();
+    // A vault chosen by hand may not be in Obsidian's own list.
+    let configured_path = std::path::PathBuf::from(configured.trim());
+    if !configured.trim().is_empty() && !paths.contains(&configured_path) {
+        paths.insert(0, configured_path);
+    }
+
+    paths
+        .into_iter()
+        .map(|path| VaultInfo {
+            name: path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.to_string_lossy().to_string()),
+            active: active.as_ref() == Some(&path),
+            path: path.to_string_lossy().to_string(),
+        })
+        .collect()
+}
+
+/// Switches the active vault. An empty path falls back to auto-detection.
+#[tauri::command]
+pub fn set_vault(state: State<AppState>, path: String) -> Result<(), String> {
+    let trimmed = path.trim().to_string();
+    if !trimmed.is_empty() && !std::path::Path::new(&trimmed).is_dir() {
+        return Err(format!("no folder at {trimmed}"));
+    }
+
+    {
+        let mut core = AppState::lock(&state.core);
+        core.config.obsidian.vault = trimmed.clone();
+        core.config.save(&core.paths).map_err(|e| e.to_string())?;
+    }
+
+    vavis_tools::obsidian::set_active(vavis_tools::obsidian::autoselect(&trimmed));
+    Ok(())
+}
+
 /// Cycles the voice mode, returning the new one.
 #[tauri::command]
 pub fn cycle_voice(state: State<AppState>) -> Result<String, String> {
@@ -706,4 +1508,998 @@ pub fn list_tools(state: State<AppState>) -> Vec<ToolView> {
             .to_string(),
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Canvas interface — image and video generation
+// ---------------------------------------------------------------------------
+
+/// One row of the gallery, as the grid needs it.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GalleryItem {
+    pub id: i64,
+    pub kind: String,
+    /// Absolute path. The frontend turns it into an `asset:` URL rather than
+    /// pulling megabytes of base64 through IPC for every tile.
+    pub path: String,
+    pub prompt: String,
+    pub provider: String,
+    pub model: String,
+    pub params: String,
+    /// Absent when the provider did not report one, which means this result
+    /// cannot be reproduced exactly — the interface says so.
+    pub seed: Option<i64>,
+    pub width: i64,
+    pub height: i64,
+    pub bytes: i64,
+    pub parent_id: Option<i64>,
+    pub favourite: bool,
+    pub created_at: i64,
+}
+
+fn to_gallery_item(item: &vavis_core::GalleryItem, media_dir: &std::path::Path) -> GalleryItem {
+    GalleryItem {
+        id: item.id,
+        kind: item.kind.as_str().to_string(),
+        path: media_dir.join(&item.path).to_string_lossy().to_string(),
+        prompt: item.prompt.clone(),
+        provider: item.provider.clone(),
+        model: item.model.clone(),
+        params: item.params.clone(),
+        seed: item.seed,
+        width: item.width,
+        height: item.height,
+        bytes: item.bytes,
+        parent_id: item.parent_id,
+        favourite: item.favourite,
+        created_at: item.created_at,
+    }
+}
+
+/// What the canvas needs to draw itself before anything is generated.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasSettings {
+    pub image_order: Vec<String>,
+    pub video_order: Vec<String>,
+    pub image_model: String,
+    pub video_model: String,
+    pub size: String,
+    pub count: u32,
+    /// Which provider ids have a key — so the interface can say "add a key"
+    /// instead of failing after the user has typed a prompt.
+    pub configured: Vec<String>,
+    pub can_image: bool,
+    pub can_video: bool,
+    pub can_upscale: bool,
+    pub custom_url: String,
+    pub custom_header_name: String,
+    pub custom_header_value: String,
+    pub custom_model: String,
+    pub items: i64,
+    pub bytes: i64,
+}
+
+#[tauri::command]
+pub fn get_canvas_settings(state: State<AppState>) -> CanvasSettings {
+    let core = AppState::lock(&state.core);
+    let keys = AppState::lock(&state.keys);
+    let canvas = &core.config.canvas;
+
+    let mut configured = Vec::new();
+    // The chat key doubles as the image key unless a separate one was set.
+    if keys.get("canvas_openai").is_some() || keys.get("openai").is_some() {
+        configured.push("openai".to_string());
+    }
+    for id in ["stability", "replicate"] {
+        if keys.get(&format!("canvas_{id}")).is_some() {
+            configured.push(id.to_string());
+        }
+    }
+    if !canvas.custom.url.trim().is_empty() {
+        configured.push("custom".to_string());
+    }
+
+    let usage = AppState::lock(&state.store)
+        .gallery_usage()
+        .unwrap_or_default();
+
+    CanvasSettings {
+        image_order: canvas.image_order.clone(),
+        video_order: canvas.video_order.clone(),
+        image_model: canvas.image_model.clone(),
+        video_model: canvas.video_model.clone(),
+        size: canvas.size.clone(),
+        count: canvas.count,
+        configured,
+        can_image: vavis_tools::canvas::is_ready(vavis_tools::canvas::Kind::Image),
+        can_video: vavis_tools::canvas::is_ready(vavis_tools::canvas::Kind::Video),
+        can_upscale: vavis_tools::canvas::can_upscale(),
+        custom_url: canvas.custom.url.clone(),
+        custom_header_name: canvas.custom.header_name.clone(),
+        custom_header_value: canvas.custom.header_value.clone(),
+        custom_model: canvas.custom.model.clone(),
+        items: usage.items,
+        bytes: usage.bytes,
+    }
+}
+
+/// Stores a generation key. Same rule as everywhere else: secrets go in the
+/// encrypted store, never in the settings file.
+#[tauri::command]
+pub fn set_canvas_key(state: State<AppState>, provider: String, key: String) -> Result<(), String> {
+    let name = format!("canvas_{}", provider.trim());
+    {
+        let core = AppState::lock(&state.core);
+        let mut keys = AppState::lock(&state.keys);
+        keys.set(name, key.trim().to_string());
+        keys.save(core.paths.root()).map_err(|e| e.to_string())?;
+    }
+    // Locks released first: refresh takes core and keys in that order, and
+    // holding them here would deadlock against it.
+    state.refresh_canvas();
+    Ok(())
+}
+
+/// Reorders a provider chain. `kind` is "image" or "video".
+#[tauri::command]
+pub fn set_canvas_order(
+    state: State<AppState>,
+    kind: String,
+    order: Vec<String>,
+) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        if kind == "video" {
+            core.config.canvas.video_order = order;
+        } else {
+            core.config.canvas.image_order = order;
+        }
+        let paths = core.paths.clone();
+        core.config.save(&paths).map_err(|e| e.to_string())?;
+    }
+    state.refresh_canvas();
+    Ok(())
+}
+
+/// Saves the defaults and the custom endpoint.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub fn set_canvas_defaults(
+    state: State<AppState>,
+    image_model: String,
+    video_model: String,
+    size: String,
+    count: u32,
+    custom_url: String,
+    custom_header_name: String,
+    custom_header_value: String,
+    custom_model: String,
+) -> Result<(), String> {
+    {
+        let mut core = AppState::lock(&state.core);
+        let canvas = &mut core.config.canvas;
+        canvas.image_model = image_model.trim().to_string();
+        canvas.video_model = video_model.trim().to_string();
+        canvas.size = size.trim().to_string();
+        canvas.count = count.clamp(1, 8);
+        canvas.custom.url = custom_url.trim().to_string();
+        canvas.custom.header_name = custom_header_name.trim().to_string();
+        canvas.custom.header_value = custom_header_value.trim().to_string();
+        canvas.custom.model = custom_model.trim().to_string();
+
+        let paths = core.paths.clone();
+        core.config.save(&paths).map_err(|e| e.to_string())?;
+    }
+    state.refresh_canvas();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_gallery(state: State<AppState>, limit: Option<usize>) -> Vec<GalleryItem> {
+    let media_dir = AppState::lock(&state.core).paths.media_dir();
+    let store = AppState::lock(&state.store);
+    store
+        .gallery_items(limit.unwrap_or(200))
+        .unwrap_or_default()
+        .iter()
+        .map(|item| to_gallery_item(item, &media_dir))
+        .collect()
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CanvasDonePayload {
+    items: Vec<GalleryItem>,
+    provider: String,
+    /// Providers that failed before the one that worked — a note, not an error.
+    notes: Vec<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct CanvasErrorPayload {
+    message: String,
+}
+
+/// Starts a generation.
+///
+/// Returns as soon as the work is handed to a thread: an image takes seconds
+/// and a video takes minutes, and neither should freeze the window. The result
+/// arrives as a `canvas:done` or `canvas:error` event.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub fn canvas_generate(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    prompt: String,
+    kind: String,
+    model: String,
+    width: u32,
+    height: u32,
+    count: u32,
+    seed: Option<i64>,
+    negative: String,
+    duration_secs: u32,
+    from_id: Option<i64>,
+    strength: f32,
+    upscale: bool,
+) -> Result<(), String> {
+    use vavis_tools::canvas;
+
+    let prompt = prompt.trim().to_string();
+    // An enlargement has a source instead of a prompt, so only a fresh
+    // generation needs one.
+    if prompt.is_empty() && !upscale {
+        return Err("nothing to draw — write a prompt first".into());
+    }
+
+    let kind = canvas::Kind::parse(&kind);
+    if upscale {
+        if from_id.is_none() {
+            return Err("pick a result to enlarge".into());
+        }
+        if !canvas::can_upscale() {
+            return Err("enlarging needs a Stability or Replicate key".into());
+        }
+    } else if !canvas::is_ready(kind) {
+        return Err(format!(
+            "no {} provider has a key yet — add one in settings",
+            kind.as_str()
+        ));
+    }
+
+    let media_dir = AppState::lock(&state.core).paths.media_dir();
+
+    // Continuing from an existing result: its bytes become the starting image,
+    // which is what makes "another like this" and "animate this" possible.
+    let init = match from_id {
+        Some(id) => {
+            let store = AppState::lock(&state.store);
+            let parent = store
+                .gallery_item(id)
+                .map_err(|e| e.to_string())?
+                .ok_or("that result is no longer in the gallery")?;
+            Some(canvas::storage::read(&media_dir, &parent.path).map_err(|e| e.to_string())?)
+        }
+        None => None,
+    };
+
+    let request = canvas::Request {
+        prompt,
+        kind,
+        model: model.trim().to_string(),
+        width: if width == 0 { 1024 } else { width },
+        height: if height == 0 { 1024 } else { height },
+        count: count.clamp(1, 8),
+        seed,
+        negative: negative.trim().to_string(),
+        duration_secs: duration_secs.clamp(1, 60),
+        init,
+        strength: strength.clamp(0.0, 1.0),
+        upscale,
+    };
+
+    let store = state.store.clone();
+
+    std::thread::spawn(move || {
+        let generated = match canvas::generate(request.clone()) {
+            Ok(generated) => generated,
+            Err(attempts) => {
+                let message = if attempts.is_empty() {
+                    "no provider was able to take this request".to_string()
+                } else {
+                    attempts
+                        .iter()
+                        .map(|a| format!("{}: {}", a.provider, a.error))
+                        .collect::<Vec<_>>()
+                        .join(" · ")
+                };
+                let _ = app.emit("canvas:error", CanvasErrorPayload { message });
+                return;
+            }
+        };
+
+        // Saved before it is announced: a result the interface can see but the
+        // gallery does not have is a result that vanishes on the next restart.
+        let mut saved = Vec::new();
+        for asset in &generated.assets {
+            let (name, bytes) = match canvas::storage::save(&media_dir, asset, request.kind) {
+                Ok(result) => result,
+                Err(e) => {
+                    let _ = app.emit(
+                        "canvas:error",
+                        CanvasErrorPayload {
+                            message: format!("generated, but could not be saved: {e}"),
+                        },
+                    );
+                    return;
+                }
+            };
+
+            let params = serde_json::json!({
+                "size": request.size_label(),
+                "aspect": request.aspect_ratio(),
+                "count": request.count,
+                "negative": request.negative,
+                "duration": request.duration_secs,
+                "strength": request.strength,
+                "upscale": request.upscale,
+            })
+            .to_string();
+
+            let row = vavis_core::NewGalleryItem {
+                kind: Some(match request.kind {
+                    canvas::Kind::Image => vavis_core::GalleryKind::Image,
+                    canvas::Kind::Video => vavis_core::GalleryKind::Video,
+                }),
+                path: name,
+                prompt: request.prompt.clone(),
+                provider: generated.provider.clone(),
+                model: generated.model.clone(),
+                params,
+                // The provider's seed, not the one that was asked for: they
+                // differ whenever none was given, and only the real one
+                // reproduces the result.
+                seed: asset.seed.or(request.seed),
+                width: i64::from(if asset.width > 0 {
+                    asset.width
+                } else {
+                    request.width
+                }),
+                height: i64::from(if asset.height > 0 {
+                    asset.height
+                } else {
+                    request.height
+                }),
+                bytes: bytes as i64,
+                parent_id: from_id,
+            };
+
+            let inserted = {
+                let store = AppState::lock(&store);
+                store
+                    .add_gallery_item(&row)
+                    .and_then(|id| store.gallery_item(id))
+            };
+
+            match inserted {
+                Ok(Some(item)) => saved.push(to_gallery_item(&item, &media_dir)),
+                Ok(None) => {}
+                Err(e) => tracing::warn!(%e, "generated file was not indexed"),
+            }
+        }
+
+        let notes = generated
+            .attempts
+            .iter()
+            .map(|a| format!("{}: {}", a.provider, a.error))
+            .collect();
+
+        let _ = app.emit(
+            "canvas:done",
+            CanvasDonePayload {
+                items: saved,
+                provider: generated.provider,
+                notes,
+            },
+        );
+    });
+
+    Ok(())
+}
+
+/// Removes one result, file and row.
+#[tauri::command]
+pub fn delete_gallery_item(state: State<AppState>, id: i64) -> Result<(), String> {
+    let media_dir = AppState::lock(&state.core).paths.media_dir();
+    let removed = AppState::lock(&state.store)
+        .delete_gallery_item(id)
+        .map_err(|e| e.to_string())?;
+
+    if let Some(name) = removed {
+        // A file that will not delete (open in a viewer, say) is not worth
+        // failing over: the row is gone, and the next sweep catches the file.
+        if let Err(e) = vavis_tools::canvas::storage::remove(&media_dir, &name) {
+            tracing::warn!(%e, "gallery file could not be deleted");
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn favourite_gallery_item(
+    state: State<AppState>,
+    id: i64,
+    favourite: bool,
+) -> Result<(), String> {
+    AppState::lock(&state.store)
+        .set_gallery_favourite(id, favourite)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Empties the gallery, optionally sparing what the user starred.
+///
+/// Also sweeps files no row points at — they accumulate from interrupted
+/// generations and are otherwise invisible disk usage.
+#[tauri::command]
+pub fn clear_gallery(state: State<AppState>, keep_favourites: bool) -> Result<u64, String> {
+    let media_dir = AppState::lock(&state.core).paths.media_dir();
+
+    let (removed, kept) = {
+        let store = AppState::lock(&state.store);
+        let removed = store
+            .clear_gallery(keep_favourites)
+            .map_err(|e| e.to_string())?;
+        let kept: Vec<String> = store
+            .gallery_items(usize::MAX)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| i.path)
+            .collect();
+        (removed, kept)
+    };
+
+    let mut freed = 0u64;
+    for name in removed
+        .iter()
+        .cloned()
+        .chain(vavis_tools::canvas::storage::orphans(&media_dir, &kept))
+    {
+        if let Some(path) = vavis_tools::canvas::storage::resolve(&media_dir, &name) {
+            freed += std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        }
+        if let Err(e) = vavis_tools::canvas::storage::remove(&media_dir, &name) {
+            tracing::warn!(%e, "gallery file could not be deleted");
+        }
+    }
+    Ok(freed)
+}
+
+/// Opens the media folder in the system file manager.
+///
+/// The note asks that the user be able to see what this is costing them in
+/// disk; a number in settings answers "how much", this answers "where".
+#[tauri::command]
+pub fn open_media_folder(state: State<AppState>) -> Result<(), String> {
+    let dir = AppState::lock(&state.core).paths.media_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("explorer").arg(&dir).spawn();
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(&dir).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(&dir).spawn();
+
+    // explorer.exe returns a non-zero exit code even when it worked, so only
+    // a spawn failure counts as a failure here.
+    result.map(|_| ()).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Council interface — several models on one question
+// ---------------------------------------------------------------------------
+
+/// A seat as the interface describes it.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeatInput {
+    pub id: String,
+    pub provider: String,
+    pub model: String,
+    pub sees_others: bool,
+    pub brief: String,
+}
+
+impl From<SeatInput> for crate::council::Seat {
+    fn from(s: SeatInput) -> Self {
+        Self {
+            id: s.id,
+            provider: s.provider,
+            model: s.model,
+            sees_others: s.sees_others,
+            brief: s.brief,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForecastView {
+    pub requests: usize,
+    pub tokens: usize,
+    pub dollars: f64,
+    /// Seats whose model has no published price. Shown separately so a
+    /// partial total is never presented as a complete one.
+    pub unpriced: usize,
+}
+
+/// What a run would cost, before it runs.
+#[tauri::command]
+pub fn council_forecast(task: String, seats: Vec<SeatInput>) -> ForecastView {
+    let seats: Vec<crate::council::Seat> = seats.into_iter().map(Into::into).collect();
+    let f = crate::council::forecast(&task, &seats);
+    ForecastView {
+        requests: f.requests,
+        tokens: f.tokens,
+        dollars: f.dollars,
+        unpriced: f.unpriced,
+    }
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CouncilDeltaPayload {
+    seat: String,
+    text: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CouncilSeatDonePayload {
+    seat: String,
+    text: String,
+    label: String,
+    input_tokens: usize,
+    output_tokens: usize,
+    /// Absent for a model with no published price, including local ones.
+    dollars: Option<f64>,
+    elapsed_ms: u128,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CouncilSeatFailedPayload {
+    seat: String,
+    message: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CouncilDonePayload {
+    /// Seats that produced an answer.
+    answered: usize,
+    failed: usize,
+    dollars: f64,
+    unpriced: usize,
+}
+
+/// Runs a council.
+///
+/// Returns as soon as the work is handed off. Progress arrives as events:
+///
+/// | Event | Payload |
+/// |---|---|
+/// | `council:delta` | `{ seat, text }` |
+/// | `council:seat-done` | `{ seat, text, label, tokens, dollars, elapsedMs }` |
+/// | `council:seat-failed` | `{ seat, message }` |
+/// | `council:done` | `{ answered, failed, dollars, unpriced }` |
+#[tauri::command]
+pub fn council_run(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    task: String,
+    seats: Vec<SeatInput>,
+) -> Result<(), String> {
+    let task = task.trim().to_string();
+    if task.is_empty() {
+        return Err("write a task for the council first".into());
+    }
+    if seats.is_empty() {
+        return Err("add at least one seat".into());
+    }
+    // A ceiling the user cannot accidentally cross. Not a technical limit —
+    // a bill limit. Eight parallel requests on one question is already a lot.
+    if seats.len() > 8 {
+        return Err("eight seats is the most this will run at once".into());
+    }
+
+    let seats: Vec<crate::council::Seat> = seats.into_iter().map(Into::into).collect();
+
+    // Configs are built up front, while the key store is at hand — and so a
+    // misconfigured seat is reported before any paid request goes out.
+    let configs: Vec<Result<ChatConfig, String>> = {
+        let keys = AppState::lock(&state.keys);
+        seats
+            .iter()
+            .map(|seat| {
+                let key = Provider::parse(&seat.provider)
+                    .and_then(|p| keys.get(p.key_name()))
+                    .unwrap_or_default()
+                    .to_string();
+                crate::council::config_for(seat, &key)
+            })
+            .collect()
+    };
+
+    let client = state.client.clone();
+
+    std::thread::spawn(move || {
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(4)
+            .enable_all()
+            .build()
+        {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = app.emit(
+                    "council:done",
+                    CouncilDonePayload {
+                        answered: 0,
+                        failed: seats.len(),
+                        dollars: 0.0,
+                        unpriced: 0,
+                    },
+                );
+                tracing::error!(%e, "council runtime could not be built");
+                return;
+            }
+        };
+
+        runtime.block_on(run_council(&app, &client, &task, &seats, &configs));
+    });
+
+    Ok(())
+}
+
+/// One seat's outcome.
+struct SeatResult {
+    text: String,
+    dollars: Option<f64>,
+}
+
+/// Runs both waves, reporting as it goes.
+async fn run_council(
+    app: &tauri::AppHandle,
+    client: &std::sync::Arc<vavis_brain::BrainClient>,
+    task: &str,
+    seats: &[crate::council::Seat],
+    configs: &[Result<ChatConfig, String>],
+) {
+    let (independent, informed) = crate::council::plan(seats);
+
+    let mut answered = 0usize;
+    let mut failed = 0usize;
+    let mut dollars = 0.0;
+    let mut unpriced = 0usize;
+    let mut prior: Vec<(String, String)> = Vec::new();
+
+    for wave in [independent, informed] {
+        if wave.is_empty() {
+            continue;
+        }
+
+        // Every seat in the wave is spawned before any is awaited. Awaiting
+        // them one at a time inside the loop would serialise the whole thing
+        // and quietly turn this into four conversations in a row.
+        let mut running = Vec::new();
+        for index in wave {
+            let seat = seats[index].clone();
+            let config = match &configs[index] {
+                Ok(config) => config.clone(),
+                Err(message) => {
+                    let _ = app.emit(
+                        "council:seat-failed",
+                        CouncilSeatFailedPayload {
+                            seat: seat.id.clone(),
+                            message: message.clone(),
+                        },
+                    );
+                    failed += 1;
+                    continue;
+                }
+            };
+
+            let messages = crate::council::build_messages(task, &seat, &prior);
+            let app = app.clone();
+            let client = client.clone();
+
+            running.push(tokio::spawn(async move {
+                let started = std::time::Instant::now();
+                let input_tokens: usize = messages
+                    .iter()
+                    .map(|m| vavis_brain::estimate_tokens(&m.content))
+                    .sum();
+
+                let seat_id = seat.id.clone();
+                let stream = client
+                    .chat_stream(&config, messages, |event| {
+                        if let vavis_brain::StreamEvent::Delta(text) = event {
+                            let _ = app.emit(
+                                "council:delta",
+                                CouncilDeltaPayload {
+                                    seat: seat_id.clone(),
+                                    text,
+                                },
+                            );
+                        }
+                    })
+                    .await;
+
+                match stream {
+                    Ok(text) => {
+                        let output_tokens = vavis_brain::estimate_tokens(&text);
+                        let cost = vavis_brain::estimate_cost(
+                            &config.model,
+                            input_tokens,
+                            output_tokens,
+                        );
+                        let _ = app.emit(
+                            "council:seat-done",
+                            CouncilSeatDonePayload {
+                                seat: seat.id.clone(),
+                                text: text.clone(),
+                                label: crate::council::label(&seat),
+                                input_tokens,
+                                output_tokens,
+                                dollars: cost,
+                                elapsed_ms: started.elapsed().as_millis(),
+                            },
+                        );
+                        (seat, Some(SeatResult { text, dollars: cost }))
+                    }
+                    Err(e) => {
+                        // This seat is done; the others carry on. Having other
+                        // answers is the entire reason for this interface.
+                        let _ = app.emit(
+                            "council:seat-failed",
+                            CouncilSeatFailedPayload {
+                                seat: seat.id.clone(),
+                                message: e.to_string(),
+                            },
+                        );
+                        (seat, None)
+                    }
+                }
+            }));
+        }
+
+        for handle in running {
+            match handle.await {
+                Ok((seat, Some(result))) => {
+                    answered += 1;
+                    match result.dollars {
+                        Some(cost) => dollars += cost,
+                        None => unpriced += 1,
+                    }
+                    prior.push((crate::council::label(&seat), result.text));
+                }
+                Ok((_, None)) => failed += 1,
+                // A panicking task must not take the run down with it.
+                Err(e) => {
+                    tracing::warn!(%e, "a council seat panicked");
+                    failed += 1;
+                }
+            }
+        }
+    }
+
+    let _ = app.emit(
+        "council:done",
+        CouncilDonePayload {
+            answered,
+            failed,
+            dollars,
+            unpriced,
+        },
+    );
+}
+
+/// Sends one seat's answer into the conversation, so a council can end
+/// somewhere useful rather than in a panel nobody reads again.
+#[tauri::command]
+pub fn council_keep(state: State<AppState>, text: String) -> Result<(), String> {
+    let text = text.trim().to_string();
+    if text.is_empty() {
+        return Err("nothing to keep".into());
+    }
+
+    AppState::lock(&state.history).push(Message::assistant(text.clone()));
+    AppState::lock(&state.store)
+        .add_message("assistant", &text)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Connection tests
+// ---------------------------------------------------------------------------
+
+/// The result of actually trying something.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionTest {
+    pub ok: bool,
+    /// One line, fit to show next to the setting it tested.
+    pub detail: String,
+}
+
+impl ConnectionTest {
+    fn ok(detail: impl Into<String>) -> Self {
+        Self {
+            ok: true,
+            detail: detail.into(),
+        }
+    }
+    fn bad(detail: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            detail: detail.into(),
+        }
+    }
+}
+
+/// Tries a target for real and reports what happened.
+///
+/// A real request, not a "is there a key" check: the point is that the user
+/// finds out here rather than by starting a conversation and watching it fail.
+///
+/// Nothing here spends meaningful money. Image generation is deliberately
+/// absent — a test that costs a few cents per press is not a test, and
+/// pretending a key check is a connection test would be worse.
+#[tauri::command]
+pub fn test_connection(state: State<AppState>, target: String) -> ConnectionTest {
+    match target.as_str() {
+        "obsidian" => match vavis_tools::obsidian::current() {
+            Some(vault) => match vault.scan() {
+                Ok(notes) => ConnectionTest::ok(format!(
+                    "{} notes in {}",
+                    notes.len(),
+                    vault.root.display()
+                )),
+                Err(e) => ConnectionTest::bad(e.to_string()),
+            },
+            None => ConnectionTest::bad("no vault selected"),
+        },
+
+        "search" => match vavis_tools::websearch::search("vavis connection test", 1) {
+            Ok((response, _)) => ConnectionTest::ok(format!(
+                "{} answered with {} result(s)",
+                response.provider,
+                response.hits.len()
+            )),
+            Err(attempts) if attempts.is_empty() => {
+                ConnectionTest::bad("no provider is configured")
+            }
+            Err(attempts) => ConnectionTest::bad(
+                attempts
+                    .iter()
+                    .map(|a| format!("{}: {}", a.provider, a.error))
+                    .collect::<Vec<_>>()
+                    .join(" · "),
+            ),
+        },
+
+        "steam" => match vavis_tools::steam::library() {
+            Ok(games) => ConnectionTest::ok(format!("{} games in the library", games.len())),
+            Err(e) => ConnectionTest::bad(e.to_string()),
+        },
+
+        "spotify" => match vavis_tools::spotify::now_playing() {
+            Ok(Some(now)) => ConnectionTest::ok(format!("playing {} — {}", now.track, now.artist)),
+            // Connected and idle is a pass: the account answered.
+            Ok(None) => ConnectionTest::ok("connected, nothing playing"),
+            Err(e) => ConnectionTest::bad(e.to_string()),
+        },
+
+        "canvas" => {
+            // Generating an image to prove a key works would charge the user
+            // for a test, every time they pressed it.
+            let image = vavis_tools::canvas::is_ready(vavis_tools::canvas::Kind::Image);
+            let video = vavis_tools::canvas::is_ready(vavis_tools::canvas::Kind::Video);
+            match (image, video) {
+                (true, true) => ConnectionTest::ok("image and video providers configured"),
+                (true, false) => ConnectionTest::ok("image ready · no video provider"),
+                (false, true) => ConnectionTest::ok("video ready · no image provider"),
+                (false, false) => ConnectionTest::bad("no generation key configured"),
+            }
+        }
+
+        // Anything else is a chat provider id. Listing models is the cheapest
+        // request that still proves the key is accepted.
+        provider => {
+            let Some(parsed) = Provider::parse(provider) else {
+                return ConnectionTest::bad(format!("unknown target: {provider}"));
+            };
+            let key = AppState::lock(&state.keys)
+                .get(parsed.key_name())
+                .unwrap_or_default()
+                .to_string();
+
+            if parsed.needs_key() && key.is_empty() {
+                return ConnectionTest::bad("no key stored");
+            }
+
+            let client = state.client.clone();
+            let runtime = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(r) => r,
+                Err(e) => return ConnectionTest::bad(e.to_string()),
+            };
+
+            match runtime.block_on(client.list_models(parsed, &key)) {
+                Ok(models) => ConnectionTest::ok(format!("{} models available", models.len())),
+                Err(e) => ConnectionTest::bad(e.to_string()),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_summary_fits_on_one_line() {
+        let messy = "read notes.md\n\n  1,204 bytes\ttext/markdown";
+        assert_eq!(
+            one_line(messy, 120),
+            "read notes.md 1,204 bytes text/markdown"
+        );
+    }
+
+    #[test]
+    fn a_long_summary_is_cut_and_says_so() {
+        let long = "x".repeat(500);
+        let out = one_line(&long, 120);
+        assert_eq!(out.chars().count(), 121);
+        assert!(out.ends_with('…'));
+    }
+
+    #[test]
+    fn short_output_is_left_alone() {
+        assert_eq!(clip("hello", 120), "hello");
+        // Exactly at the limit is not truncated — an off-by-one here would
+        // add an ellipsis to output that was complete.
+        assert_eq!(clip("hello", 5), "hello");
+    }
+
+    #[test]
+    fn clipping_counts_characters_not_bytes() {
+        // Turkish tool output is normal here; cutting at a byte boundary
+        // would produce broken text rather than shorter text.
+        let text = "çğıöşü".repeat(10);
+        let out = clip(&text, 6);
+        assert_eq!(out, "çğıöşü…");
+    }
+
+    #[test]
+    fn empty_output_stays_empty() {
+        assert_eq!(one_line("", 120), "");
+        assert_eq!(clip("", 120), "");
+    }
+}
+
+/// Just the microphone level.
+///
+/// Its own command because the meter wants ten readings a second and
+/// `get_status` does far too much to be asked that often — CPU sampling,
+/// battery, three database counts. This reads one atomic.
+#[tauri::command]
+pub fn mic_level(state: State<AppState>) -> f32 {
+    AppState::lock(&state.voice).mic_level()
 }

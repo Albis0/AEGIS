@@ -7,6 +7,7 @@
 <script lang="ts">
   import Core from "./Core.svelte";
   import Panels from "./Panels.svelte";
+  import SpotifyPanel from "./SpotifyPanel.svelte";
   import { chat } from "./store.svelte";
 
   const status = $derived(chat.status);
@@ -21,7 +22,9 @@
 </script>
 
 <aside class="rail">
-  {#if chat.panel === "none"}
+  <!-- Settings is a window of its own, not a rail panel, so the rail keeps
+       showing the core while it is open. -->
+  {#if chat.panel === "none" || chat.panel === "settings"}
     <div class="core-area">
       <Core state={chat.coreState} size={150} />
       <div class="state-label">{chat.coreState}</div>
@@ -31,6 +34,21 @@
       <section class="running">
         <div class="panel-title">RUNNING</div>
         <div class="tool-name">{chat.runningTool}</div>
+      </section>
+    {/if}
+
+    <!-- Music, when something is playing. Hides itself otherwise. -->
+    <SpotifyPanel />
+
+    <!--
+      Now playing, deliberately smaller than a music panel would be: you do
+      not steer a game from a chat window. Its whole job is context, so it is
+      one line and disappears when the process does.
+    -->
+    {#if status?.steamGame}
+      <section class="playing">
+        <span class="dot"></span>
+        <span class="game">{status.steamGame}</span>
       </section>
     {/if}
 
@@ -55,6 +73,34 @@
 </aside>
 
 <style>
+  /* Now playing: one line, no controls, no artwork. */
+  .playing {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: var(--text-xs);
+    min-width: 0;
+  }
+
+  .playing .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    flex: 0 0 auto;
+  }
+
+  .playing .game {
+    color: var(--fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .rail {
     width: 250px;
     flex: 0 0 auto;

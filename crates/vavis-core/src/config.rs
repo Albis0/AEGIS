@@ -19,6 +19,196 @@ pub struct Config {
     pub general: General,
     pub ui: Ui,
     pub llm: Llm,
+    pub search: Search,
+    pub canvas: Canvas,
+    pub obsidian: Obsidian,
+    pub steam: Steam,
+    pub spotify: Spotify,
+    pub mcp: Mcp,
+}
+
+/// MCP sunucuları.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Mcp {
+    pub servers: Vec<McpServer>,
+}
+
+/// Kullanıcının tanımladığı bir MCP sunucusu.
+///
+/// **Bu tanım rastgele kod çalıştırıyor** — `command` kullanıcının
+/// makinesinde, Vavis'in başlattığı bir süreç oluyor. Sunucu eklerken ne
+/// çalıştırılacağı arayüzde açıkça gösteriliyor.
+///
+/// Sırlar burada değil: `env` değerlerindeki ve `header_value` içindeki
+/// `{key}` yer tutucusu, şifreli `keys.dat`'te `mcp_<id>` adıyla duran
+/// değerle doldurulur.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct McpServer {
+    /// Kısa kimlik; tool adlarının öneki ve tool seçim alanı olur.
+    pub id: String,
+    /// "stdio" | "http"
+    pub transport: String,
+    /// stdio: çalıştırılacak komut.
+    pub command: String,
+    pub args: Vec<String>,
+    /// stdio: ortam değişkenleri (ad, değer). Değer `{key}` içerebilir.
+    pub env: Vec<(String, String)>,
+    /// http: sunucu adresi.
+    pub url: String,
+    pub header_name: String,
+    /// `{key}` yer tutucusu saklanan sırla doldurulur.
+    pub header_value: String,
+    /// Kullanıcının kapattığı tool adları.
+    pub disabled: Vec<String>,
+    pub enabled: bool,
+}
+
+/// Spotify.
+///
+/// PKCE akışı kullanıldığı için istemci sırrı yok; sadece kullanıcının kendi
+/// geliştirici panelinden aldığı istemci kimliği gerekiyor. Token'lar burada
+/// değil, şifreli `keys.dat` içinde `spotify_token` adıyla durur.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Spotify {
+    pub client_id: String,
+}
+
+/// Steam.
+///
+/// API anahtarı burada değil, şifreli `keys.dat` içinde `steam` adıyla durur.
+/// SteamID gizli bilgi değil, ayar dosyasında kalabilir.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Steam {
+    /// SteamID64 — profil adresindeki 17 haneli sayı.
+    pub steam_id: String,
+}
+
+/// Obsidian kasası.
+///
+/// Yol boşsa Obsidian'ın kendi `obsidian.json`'ından en son açılan kasa
+/// seçilir — kullanıcı hiçbir şey yapmadan çalışsın diye.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Obsidian {
+    /// Kasa klasörünün mutlak yolu.
+    pub vault: String,
+}
+
+/// Image and video generation.
+///
+/// The same reasoning as [`Search`]: image services change fast, so nothing is
+/// hard-wired to one of them. The user picks the order and pastes their own
+/// key; a provider without a key is skipped at runtime.
+///
+/// Keys are not here. They live in the encrypted key store under
+/// `canvas_<provider>`, like every other secret.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Canvas {
+    /// Image provider ids, most preferred first.
+    pub image_order: Vec<String>,
+    /// Video provider ids, most preferred first.
+    pub video_order: Vec<String>,
+    /// Empty means "whatever the provider defaults to", so a new model at the
+    /// provider does not need a Vavis release.
+    pub image_model: String,
+    pub video_model: String,
+    /// Default size for new images, `WIDTHxHEIGHT`.
+    pub size: String,
+    /// How many images one request produces by default.
+    pub count: u32,
+    /// The user's own endpoint — a self-hosted or aggregator service.
+    pub custom: CustomCanvas,
+}
+
+/// A user-defined image endpoint.
+///
+/// It has to speak the OpenAI `/images/generations` shape. That is not a
+/// limitation in practice: every self-hosted stack and every aggregator
+/// exposes it, and the alternative is asking the user to describe a JSON
+/// request body in a settings form.
+///
+/// The key is not here — it lives in the encrypted store as `canvas_custom`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CustomCanvas {
+    /// Full endpoint, e.g. `http://localhost:8080/v1/images/generations`.
+    pub url: String,
+    /// Authentication header, e.g. `Authorization`.
+    pub header_name: String,
+    /// Header value; a `{key}` placeholder is filled from the key store.
+    pub header_value: String,
+    pub model: String,
+}
+
+impl Default for Canvas {
+    fn default() -> Self {
+        Self {
+            image_order: ["openai", "stability", "replicate", "custom"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            video_order: ["replicate", "custom"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            image_model: String::new(),
+            video_model: String::new(),
+            size: "1024x1024".to_string(),
+            count: 1,
+            custom: CustomCanvas::default(),
+        }
+    }
+}
+
+/// Web arama zinciri.
+///
+/// Sıra kullanıcıya ait — ayarlardan sürüklenerek değiştirilir. Anahtarı
+/// olmayan sağlayıcı çalışma anında atlanır, bu yüzden varsayılan sıra
+/// hepsini içerebilir: anahtar girilmemişse geriye DuckDuckGo kalır.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Search {
+    /// Sağlayıcı kimlikleri, tercih sırasıyla.
+    pub order: Vec<String>,
+    /// Kullanıcının kendi JSON arama uç noktası (self-hosted Searx vb.).
+    pub custom: CustomSearch,
+}
+
+impl Default for Search {
+    fn default() -> Self {
+        Self {
+            order: ["tavily", "brave", "custom", "duckduckgo"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            custom: CustomSearch::default(),
+        }
+    }
+}
+
+/// Kullanıcı tanımlı arama sağlayıcısı.
+///
+/// Anahtar burada değil, şifreli `keys.dat` içinde `search_custom` adıyla
+/// durur — ayar dosyası düz metin.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CustomSearch {
+    /// `{query}` yer tutucusu içeren adres.
+    pub url: String,
+    /// Kimlik doğrulama başlığı, örn. `Authorization`.
+    pub header_name: String,
+    /// Başlık değeri; `{key}` yer tutucusu saklanan anahtarla doldurulur.
+    pub header_value: String,
+    /// Sonuç dizisinin bulunduğu alan; nokta ile iç içe geçilir (`data.items`).
+    pub results_path: String,
+    pub title_key: String,
+    pub url_key: String,
+    pub snippet_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -205,6 +395,41 @@ mod tests {
         assert_eq!(cfg.general.language, "en");
         assert_eq!(cfg.general.assistant_name, "Vavis"); // varsayılandan geldi
         assert_eq!(cfg.ui.font_size, 14.0);
+    }
+
+    #[test]
+    fn config_without_a_search_section_still_loads() {
+        // Ayarları 0.3.0 öncesinden gelen kullanıcı: arama bölümü yok, ama
+        // dosya okunabilmeli ve zincir varsayılan sırayla gelmeli.
+        let (_tmp, paths) = tmp_paths();
+        std::fs::write(paths.config_file(), "[general]\nlanguage = \"tr\"\n").unwrap();
+
+        let cfg = Config::load(&paths).unwrap();
+        assert_eq!(cfg.search.order, Search::default().order);
+        assert!(cfg.search.custom.url.is_empty());
+    }
+
+    #[test]
+    fn default_search_order_prefers_keyed_providers_and_ends_keyless() {
+        // DuckDuckGo anahtar istemiyor; zincirin tabanı o olmalı ki hiç
+        // anahtar girmemiş kullanıcı da arama yapabilsin.
+        let order = Search::default().order;
+        assert_eq!(order.last().map(String::as_str), Some("duckduckgo"));
+        assert!(order.contains(&"tavily".to_string()));
+    }
+
+    #[test]
+    fn search_settings_survive_a_save_load_round_trip() {
+        let (_tmp, paths) = tmp_paths();
+        let mut cfg = Config::default();
+        cfg.search.order = vec!["brave".into(), "duckduckgo".into()];
+        cfg.search.custom.url = "https://searx.example/search?q={query}&format=json".into();
+        cfg.search.custom.results_path = "results".into();
+        cfg.save(&paths).unwrap();
+
+        let loaded = Config::load(&paths).unwrap();
+        assert_eq!(loaded.search.order, vec!["brave", "duckduckgo"]);
+        assert!(loaded.search.custom.url.contains("{query}"));
     }
 
     #[test]

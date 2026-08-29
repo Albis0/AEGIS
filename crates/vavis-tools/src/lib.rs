@@ -14,9 +14,15 @@
 
 pub mod agent;
 pub mod builtin;
+pub mod canvas;
+pub mod mcp;
+pub mod obsidian;
 pub mod permission;
 pub mod selection;
+pub mod spotify;
+pub mod steam;
 pub mod tool;
+pub mod websearch;
 
 pub use agent::{Agent, AgentHost, Approval, MAX_STEPS};
 pub use permission::{ApprovalReason, Decision, PermissionGate};

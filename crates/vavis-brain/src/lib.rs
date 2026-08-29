@@ -13,7 +13,7 @@ pub mod keys;
 pub mod message;
 pub mod provider;
 
-pub use budget::{estimate_tokens, fit_request, FitResult, ModelCaps};
+pub use budget::{estimate_cost, estimate_tokens, fit_request, FitResult, ModelCaps};
 pub use client::{
     system_prompt, BrainClient, BrainError, ChatConfig, ChatResponse, Result, StreamEvent,
 };

@@ -5,9 +5,16 @@
   the user never has to ask the assistant about its own state.
 -->
 <script lang="ts">
-  import { chat } from "./store.svelte";
+  import { chat, type Interface } from "./store.svelte";
 
   const status = $derived(chat.status);
+
+  const VIEWS: [Interface, string, string][] = [
+    ["chat", "chat", "❯"],
+    ["code", "code", "⌗"],
+    ["canvas", "canvas", "◧"],
+    ["council", "council", "⁘"],
+  ];
 
   /** Formats uptime as the largest sensible unit. */
   function uptime(seconds: number): string {
@@ -25,6 +32,26 @@
 </script>
 
 <aside class="rail">
+  <!--
+    The interfaces are modes of one window, not separate windows: switching
+    to code or canvas must never mean losing the conversation.
+  -->
+  <section>
+    <div class="panel-title">VIEW</div>
+    <div class="views">
+      {#each VIEWS as [id, label, icon] (id)}
+        <button
+          class="view"
+          class:active={chat.view === id}
+          title={label}
+          onclick={() => (chat.view = id)}
+        >
+          <span class="view-icon">{icon}</span>{label}
+        </button>
+      {/each}
+    </div>
+  </section>
+
   <section>
     <div class="panel-title">SYSTEM</div>
 
@@ -109,6 +136,40 @@
 </aside>
 
 <style>
+  .views {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .view {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    border: 1px solid transparent;
+    background: none;
+    text-align: left;
+    padding: 3px var(--sp-1);
+    font-size: var(--text-xs);
+    color: var(--fg-dim);
+    border-radius: var(--radius);
+  }
+  .view:hover {
+    color: var(--fg);
+    background: var(--bg-hover);
+  }
+  .view.active {
+    color: var(--cyan-bright);
+    border-color: var(--cyan-dim);
+    background: var(--bg-hover);
+  }
+
+  .view-icon {
+    width: 12px;
+    text-align: center;
+    color: var(--cyan);
+  }
+
   .rail {
     width: 190px;
     flex: 0 0 auto;

@@ -43,9 +43,18 @@ impl Paths {
         self.root.join("logs")
     }
 
+    /// Generated images and video.
+    ///
+    /// The database stores only a path relative to this directory: writing a
+    /// multi-megabyte image into SQLite bloats the file and slows every read
+    /// that has nothing to do with the gallery.
+    pub fn media_dir(&self) -> PathBuf {
+        self.root.join("media")
+    }
+
     /// Gereken tüm dizinleri oluşturur. Zaten varsa sorun değil.
     pub fn ensure(&self) -> Result<()> {
-        for dir in [self.root.clone(), self.log_dir()] {
+        for dir in [self.root.clone(), self.log_dir(), self.media_dir()] {
             std::fs::create_dir_all(&dir).map_err(|source| CoreError::CreateDir {
                 path: dir.clone(),
                 source,

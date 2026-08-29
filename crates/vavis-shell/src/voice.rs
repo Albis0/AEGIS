@@ -77,6 +77,16 @@ impl VoiceState {
         self.mode
     }
 
+    /// Current microphone level, 0.0–1.0, or 0 when nothing is listening.
+    ///
+    /// The interface draws a meter from this. A meter that only moved once
+    /// speech had been recognised would be useless — the question it answers
+    /// is "is this thing hearing me at all", and it has to answer while the
+    /// user is still talking.
+    pub fn mic_level(&self) -> f32 {
+        self.mic.as_ref().map_or(0.0, Microphone::level)
+    }
+
     pub fn is_speaking(&self) -> bool {
         self.speaking.load(Ordering::Relaxed)
     }

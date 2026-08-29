@@ -4,16 +4,39 @@
   User and assistant turns get a card; system, tool and error lines stay
   unframed so they read as margin notes rather than interrupting the
   thread.
+
+  A tool call is one such note — the name and a one-line result — and opens
+  to show what it was called with and what came back. Dumping that JSON into
+  the feed unasked would bury the conversation in it.
+
+  A permission request is a card, because it is the one thing here that needs
+  answering. It is still in the feed rather than in a modal: a modal takes
+  the keyboard away from whatever was being typed, every single time.
 -->
 <script lang="ts">
   import { renderMarkdown } from "./markdown";
-  import type { Message } from "./store.svelte";
+  import { chat, type Message } from "./store.svelte";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
   const { message }: { message: Message } = $props();
 
+  let expanded = $state(false);
+
   const framed = $derived(
     message.speaker === "user" || message.speaker === "assistant",
+  );
+
+  /** Whether this tool line has anything behind it worth opening. */
+  const openable = $derived(
+    message.speaker === "tool" &&
+      Boolean(message.args?.trim() || message.detail?.trim()),
+  );
+
+  /** True while this request is the one the agent is waiting on. */
+  const awaiting = $derived(
+    message.speaker === "approval" &&
+      !message.decision &&
+      chat.approval?.messageId === message.id,
   );
 
   // Only assistant replies contain markdown. Rendering user input as
@@ -56,6 +79,40 @@
       {/if}
     </div>
   </div>
+{:else if message.speaker === "approval"}
+  <div class="msg approval" class:answered={message.decision}>
+    <div class="approval-head">
+      <span class="warn">⚠</span>
+      <span class="tool-name">{message.text}</span>
+      {#if message.decision}
+        <span class="decided" data-decision={message.decision}>
+          {message.decision === "deny" ? "denied" : message.decision}
+        </span>
+      {/if}
+    </div>
+
+    <p class="why">
+      {message.reason === "budget"
+        ? "Several destructive actions have already run in this turn."
+        : "This action cannot be undone."}
+    </p>
+
+    <pre class="args selectable">{message.args ?? ""}</pre>
+
+    {#if awaiting}
+      <div class="approval-actions">
+        <button class="primary" onclick={() => chat.answerApproval("allow")}>
+          Allow
+        </button>
+        <button onclick={() => chat.answerApproval("always")}>
+          Always allow
+        </button>
+        <button class="danger" onclick={() => chat.answerApproval("deny")}>
+          Deny
+        </button>
+      </div>
+    {/if}
+  </div>
 {:else}
   <div class="msg note {message.speaker}">
     <span class="mark">
@@ -67,8 +124,33 @@
         ·
       {/if}
     </span>
-    <span class="text selectable">{message.text}</span>
+
+    {#if openable}
+      <button
+        class="text line"
+        title="show what it was called with, and what came back"
+        onclick={() => (expanded = !expanded)}
+      >
+        <span class="caret-mark">{expanded ? "▾" : "▸"}</span>
+        {message.text}
+      </button>
+    {:else}
+      <span class="text selectable">{message.text}</span>
+    {/if}
   </div>
+
+  {#if openable && expanded}
+    <div class="detail">
+      {#if message.args?.trim()}
+        <div class="detail-label">called with</div>
+        <pre class="selectable">{message.args}</pre>
+      {/if}
+      {#if message.detail?.trim()}
+        <div class="detail-label">returned</div>
+        <pre class="selectable">{message.detail}</pre>
+      {/if}
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -141,6 +223,129 @@
 
   .note .text {
     word-break: break-word;
+  }
+
+  /* A tool line stays a note — it just happens to be clickable. */
+  .line {
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .line:hover {
+    color: var(--fg);
+  }
+
+  .caret-mark {
+    color: var(--fg-faint);
+    margin-right: 3px;
+  }
+
+  .detail {
+    margin: 0 0 var(--sp-2) var(--sp-4);
+    padding-left: var(--sp-2);
+    border-left: 1px solid var(--border);
+  }
+
+  .detail-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+    margin-top: var(--sp-1);
+  }
+
+  .detail pre {
+    margin: 2px 0 0;
+    padding: var(--sp-1) var(--sp-2);
+    background: var(--bg-code);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--fg-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  /* ── Permission requests ───────────────────────────────────────── */
+
+  .approval {
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: var(--sp-2) 0;
+    padding: var(--sp-3);
+    background: var(--bg-card);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    border-radius: var(--radius-lg);
+  }
+  /* Once answered it is a record, not a question. */
+  .approval.answered {
+    border-color: var(--border);
+    opacity: 0.75;
+  }
+
+  .approval-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .approval .warn {
+    color: var(--amber);
+  }
+
+  .approval .tool-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg);
+  }
+
+  .decided {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+  }
+  .decided[data-decision="deny"] {
+    color: var(--red);
+  }
+  .decided[data-decision="allow"],
+  .decided[data-decision="always"] {
+    color: var(--green);
+  }
+
+  .why {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--fg-dim);
+  }
+
+  .args {
+    margin: 0;
+    padding: var(--sp-2);
+    background: var(--bg-code);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .approval-actions {
+    display: flex;
+    gap: var(--sp-2);
   }
 
   /* Blinking caret while the reply streams in. */

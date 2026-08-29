@@ -9,6 +9,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod council;
+mod workspace;
 mod state;
 mod voice;
 
@@ -38,6 +40,7 @@ fn main() {
     };
 
     let window_mode = core.config.window_mode();
+    let media_dir = core.paths.media_dir();
 
     let app_state = match AppState::new(core) {
         Ok(s) => s,
@@ -70,9 +73,52 @@ fn main() {
             commands::delete_automation,
             commands::toggle_automation,
             commands::list_tools,
+            commands::get_search_settings,
+            commands::set_search_key,
+            commands::set_search_order,
+            commands::set_custom_search,
+            commands::list_vaults,
+            commands::set_vault,
+            commands::get_steam_settings,
+            commands::set_steam,
+            commands::get_spotify_settings,
+            commands::set_spotify_client_id,
+            commands::connect_spotify,
+            commands::disconnect_spotify,
+            commands::spotify_now_playing,
+            commands::spotify_control,
+            commands::spotify_album_art,
+            commands::list_mcp_servers,
+            commands::save_mcp_server,
+            commands::remove_mcp_server,
+            commands::toggle_mcp_server,
+            commands::toggle_mcp_tool,
+            commands::open_workspace,
+            commands::current_workspace,
+            commands::list_workspace,
+            commands::read_workspace_file,
+            commands::write_workspace_file,
+            commands::search_workspace,
+            commands::get_canvas_settings,
+            commands::set_canvas_key,
+            commands::set_canvas_order,
+            commands::set_canvas_defaults,
+            commands::canvas_generate,
+            commands::list_gallery,
+            commands::delete_gallery_item,
+            commands::favourite_gallery_item,
+            commands::clear_gallery,
+            commands::open_media_folder,
+            commands::council_forecast,
+            commands::council_run,
+            commands::council_keep,
+            commands::test_connection,
+            commands::mic_level,
         ])
         .setup(move |app| {
             apply_window_mode(app.handle(), window_mode);
+            allow_media_in_webview(app.handle(), &media_dir);
+            wire_spotify_token_persistence(app.handle().clone());
             start_ticker(app.handle().clone());
             Ok(())
         })
@@ -83,6 +129,36 @@ fn main() {
         });
 
     tracing::info!("vavis closed");
+}
+
+/// Makes silent Spotify token refreshes survive a restart.
+///
+/// The tool layer refreshes an expired access token on its own, deep inside
+/// a tool call. Without this the new token would live only in memory and the
+/// user would be asked to authorise again on the next launch.
+fn wire_spotify_token_persistence(app: tauri::AppHandle) {
+    vavis_tools::spotify::on_token_refreshed(move |token| {
+        if let Some(state) = app.try_state::<AppState>() {
+            state.save_spotify_token(token);
+        }
+    });
+}
+
+/// Lets the webview load generated files, and nothing else.
+///
+/// The asset protocol's scope is empty in config and opened here to one
+/// directory: the canvas grid has to display files from the data directory,
+/// but a webview that can read any path is a webview that can read the user's
+/// documents. Not recursive — everything the gallery writes is flat.
+fn allow_media_in_webview(app: &tauri::AppHandle, media_dir: &std::path::Path) {
+    if let Err(e) = std::fs::create_dir_all(media_dir) {
+        tracing::warn!(%e, "media directory could not be created");
+        return;
+    }
+    if let Err(e) = app.asset_protocol_scope().allow_directory(media_dir, false) {
+        // Generation still works; the grid just cannot show the results.
+        tracing::warn!(%e, "generated media will not display");
+    }
 }
 
 /// Applies the saved window mode at startup.

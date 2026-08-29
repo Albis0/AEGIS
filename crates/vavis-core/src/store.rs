@@ -9,7 +9,7 @@ use crate::paths::Paths;
 use rusqlite::Connection;
 
 /// Kodun beklediği şema sürümü. Yeni göç eklendikçe artar.
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Kalıcı bir olgu (kullanıcı hakkında hatırlanan bilgi).
 #[derive(Debug, Clone, PartialEq)]
@@ -98,6 +98,9 @@ impl Store {
 
         // v3 — otomasyonlar.
         self.migrate_automations()?;
+
+        // v4 — generated-media index (files stay on disk).
+        self.migrate_gallery()?;
 
         self.conn.execute("DELETE FROM schema_version", [])?;
         self.conn.execute(

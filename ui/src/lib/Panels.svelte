@@ -1,22 +1,19 @@
 <!--
-  The panels behind the right rail: settings, memory, automations, tools.
+  The panels behind the right rail: memory, automations, tools.
 
-  This is the answer to "there is nothing to click". Everything that used
-  to require a slash command has a control here.
+  These three belong in the rail because they are read next to a conversation
+  — "what does it remember", "what fires when", "what can it do". Settings
+  used to live here too and outgrew it: fourteen categories in a 260-pixel
+  column was a scroll nobody finished. It is its own window now, in
+  Settings.svelte.
 -->
 <script lang="ts">
   import { api, type Automation, type Fact, type Tool } from "./api";
   import { chat } from "./store.svelte";
 
-  const status = $derived(chat.status);
-
   let facts = $state<Fact[]>([]);
   let automations = $state<Automation[]>([]);
   let tools = $state<Tool[]>([]);
-  let models = $state<string[]>([]);
-  let loadingModels = $state(false);
-  let keyDraft = $state("");
-  let keyProvider = $state("groq");
   let notice = $state("");
 
   /** Reloads whatever the open panel shows. */
@@ -33,9 +30,6 @@
         case "tools":
           tools = await api.listTools();
           break;
-        case "settings":
-          keyProvider = status?.provider ?? "groq";
-          break;
       }
     } catch (e) {
       notice = String(e);
@@ -47,66 +41,6 @@
     void chat.panel;
     void load();
   });
-
-  async function saveKey() {
-    if (!keyDraft.trim()) return;
-    try {
-      await api.setKey(keyProvider, keyDraft.trim());
-      keyDraft = "";
-      notice = "Key saved, encrypted.";
-      await chat.refresh();
-    } catch (e) {
-      notice = String(e);
-    }
-  }
-
-  async function pickProvider(id: string) {
-    try {
-      await api.setProvider(id);
-      models = [];
-      await chat.refresh();
-    } catch (e) {
-      notice = String(e);
-    }
-  }
-
-  async function fetchModels() {
-    loadingModels = true;
-    notice = "";
-    try {
-      models = await api.listModels();
-    } catch (e) {
-      notice = String(e);
-    } finally {
-      loadingModels = false;
-    }
-  }
-
-  async function pickModel(model: string) {
-    await api.setModel(model);
-    models = [];
-    await chat.refresh();
-  }
-
-  async function updateSetting(field: string, value: string) {
-    try {
-      await api.setSetting(field, value);
-      notice = field === "fontSize" ? "Applies after restart." : "Saved.";
-      await chat.refresh();
-    } catch (e) {
-      notice = String(e);
-    }
-  }
-
-  const LANGUAGES = [
-    ["en", "English"],
-    ["tr", "Türkçe"],
-    ["de", "Deutsch"],
-    ["fr", "Français"],
-    ["es", "Español"],
-  ];
-
-  const WINDOW_MODES = ["windowed", "borderless", "fullscreen"];
 </script>
 
 <div class="panel">
@@ -120,96 +54,12 @@
   {/if}
 
   <div class="content">
-    {#if chat.panel === "settings"}
-      <div class="panel-title">PROVIDER</div>
-      <div class="chips">
-        {#each status?.providers ?? [] as p}
-          <button
-            class="chip"
-            class:active={p.id === status?.provider}
-            class:missing={p.needsKey && !p.hasKey}
-            onclick={() => pickProvider(p.id)}
-            title={p.needsKey && !p.hasKey ? "no key stored" : p.defaultModel}
-          >
-            {p.id}
-          </button>
-        {/each}
-      </div>
-
-      <div class="panel-title">MODEL</div>
-      <div class="current">{status?.model ?? "—"}</div>
-      <button onclick={fetchModels} disabled={loadingModels}>
-        {loadingModels ? "loading…" : "list models"}
-      </button>
-      {#if models.length}
-        <div class="list scroll">
-          {#each models as m}
-            <button class="row" onclick={() => pickModel(m)}>{m}</button>
-          {/each}
-        </div>
-      {/if}
-
-      <div class="panel-title">API KEY</div>
-      <select bind:value={keyProvider}>
-        {#each status?.providers ?? [] as p}
-          {#if p.needsKey}
-            <option value={p.id}>{p.id}{p.hasKey ? " ✓" : ""}</option>
-          {/if}
-        {/each}
-      </select>
-      <input
-        type="password"
-        bind:value={keyDraft}
-        placeholder="paste key…"
-        onkeydown={(e) => e.key === "Enter" && saveKey()}
-      />
-      <button class="primary" onclick={saveKey}>save key</button>
-      <p class="hint">Stored encrypted with Windows DPAPI. Never displayed.</p>
-
-      <div class="panel-title">INTERFACE</div>
-      <label>
-        language
-        <select
-          value={status?.language ?? "en"}
-          onchange={(e) => updateSetting("language", e.currentTarget.value)}
-        >
-          {#each LANGUAGES as [code, name]}
-            <option value={code}>{name}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label>
-        window
-        <select
-          value={status?.windowMode ?? "windowed"}
-          onchange={(e) => updateSetting("windowMode", e.currentTarget.value)}
-        >
-          {#each WINDOW_MODES as mode}
-            <option value={mode}>{mode}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label>
-        font size
-        <input
-          type="number"
-          min="8"
-          max="32"
-          value={status?.fontSize ?? 14}
-          onchange={(e) => updateSetting("fontSize", e.currentTarget.value)}
-        />
-      </label>
-
-      <div class="panel-title">DATA</div>
-      <p class="path selectable">{status?.dataDir ?? ""}</p>
-    {:else if chat.panel === "memory"}
+    {#if chat.panel === "memory"}
       {#if facts.length === 0}
         <p class="empty">Nothing remembered yet. Try "remember that I…"</p>
       {:else}
         <div class="list scroll">
-          {#each facts as fact}
+          {#each facts as fact (fact.id)}
             <div class="entry">
               <span class="entry-text selectable">{fact.text}</span>
               <button
@@ -231,7 +81,7 @@
         </p>
       {:else}
         <div class="list scroll">
-          {#each automations as a}
+          {#each automations as a (a.id)}
             <div class="entry" class:off={!a.enabled}>
               <div class="entry-main">
                 <span class="trigger">{a.trigger}</span>
@@ -264,7 +114,7 @@
         selected by domain.
       </p>
       <div class="list scroll">
-        {#each tools as tool}
+        {#each tools as tool (tool.name)}
           <div class="entry tool-entry">
             <div class="entry-main">
               <span class="tool-name">
@@ -320,13 +170,6 @@
     flex: 1;
   }
 
-  .content :global(.panel-title) {
-    margin-top: var(--sp-3);
-  }
-  .content :global(.panel-title:first-child) {
-    margin-top: 0;
-  }
-
   .notice {
     font-size: var(--text-xs);
     color: var(--cyan);
@@ -336,74 +179,11 @@
     padding: var(--sp-1) var(--sp-2);
   }
 
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-1);
-  }
-
-  .chip {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    padding: 2px 7px;
-  }
-  .chip.active {
-    color: var(--cyan-bright);
-    border-color: var(--cyan);
-    background: var(--bg-hover);
-  }
-  /* A provider with no key is still selectable — it just says so. */
-  .chip.missing {
-    opacity: 0.45;
-  }
-
-  .current {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--fg);
-    word-break: break-all;
-  }
-
-  select,
-  input {
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: var(--sp-1) var(--sp-2);
-    font-size: var(--text-sm);
-    color: var(--fg);
-  }
-  select:focus,
-  input:focus {
-    border-color: var(--cyan-dim);
-  }
-
-  label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-2);
-    font-size: var(--text-sm);
-    color: var(--fg-dim);
-  }
-  label select,
-  label input {
-    width: 105px;
-    flex: 0 0 auto;
-  }
-
   .hint,
   .empty {
     font-size: var(--text-xs);
     color: var(--fg-faint);
     line-height: 1.5;
-  }
-
-  .path {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--fg-dim);
-    word-break: break-all;
   }
 
   .list {
@@ -415,18 +195,6 @@
   .scroll {
     max-height: 260px;
     overflow-y: auto;
-  }
-
-  .row {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    text-align: left;
-    padding: 3px var(--sp-2);
-    border-color: transparent;
-    word-break: break-all;
-  }
-  .row:hover {
-    border-color: var(--cyan-dim);
   }
 
   .entry {

@@ -38,10 +38,24 @@ pub enum Domain {
     Automation,
     /// Hafıza — hatırla/unut/ara.
     Memory,
+    /// Obsidian kasası — not okuma/yazma/arama.
+    Obsidian,
+    /// Steam — kütüphane, oyun başlatma, mağaza.
+    Steam,
+    /// Spotify — çalma kontrolü, katalog arama.
+    Spotify,
+    /// Canvas — görsel üretimi.
+    Canvas,
+    /// Bir MCP sunucusu. **Her sunucu kendi alanı**: üç sunucu bağlayan
+    /// kullanıcı 60 tool'a ulaşabilir ve hepsini modele göndermek eski
+    /// projedeki 353 tool felaketinin aynısı olur.
+    ///
+    /// Ad çalışma anında bilindiği için havuzdan geliyor — bkz. `mcp::intern`.
+    Mcp(&'static str),
 }
 
 impl Domain {
-    pub const ALL: [Domain; 9] = [
+    pub const ALL: [Domain; 13] = [
         Self::Core,
         Self::Files,
         Self::System,
@@ -51,6 +65,10 @@ impl Domain {
         Self::Media,
         Self::Automation,
         Self::Memory,
+        Self::Obsidian,
+        Self::Steam,
+        Self::Spotify,
+        Self::Canvas,
     ];
 
     pub fn name(self) -> &'static str {
@@ -64,6 +82,11 @@ impl Domain {
             Self::Media => "media",
             Self::Automation => "automation",
             Self::Memory => "memory",
+            Self::Obsidian => "obsidian",
+            Self::Steam => "steam",
+            Self::Spotify => "spotify",
+            Self::Canvas => "canvas",
+            Self::Mcp(id) => id,
         }
     }
 }

@@ -11,7 +11,7 @@
 //! çağırma önceden ayrılmış tampona yazar, hiçbir tahsis yapmaz.
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
 /// Whisper 16 kHz mono bekler.
@@ -160,6 +160,17 @@ fn rms(frame: &[f32]) -> f32 {
     (sum / frame.len() as f32).sqrt()
 }
 
+/// Kare seviyesini metre için 0–1000 aralığına ölçekler.
+///
+/// Not the raw RMS. Speech sits around 0.02–0.15 there, so a bar drawn from
+/// it would barely move; the square root spreads the quiet end out, which is
+/// where the interesting difference between "silent" and "someone is
+/// talking" actually lives.
+fn level_permille(frame: &[f32]) -> u32 {
+    let scaled = rms(frame).sqrt();
+    (scaled * 1000.0).clamp(0.0, 1000.0) as u32
+}
+
 /// Mikrofon akışı.
 ///
 /// `Stream` `Send` değildir, bu yüzden kendi thread'inde tutulur; dışarıya
@@ -170,6 +181,12 @@ pub struct Microphone {
     receiver: std::sync::mpsc::Receiver<Utterance>,
     /// Mikrofonu geçici sustur (kendi sesimizi duymayalım).
     muted: Arc<AtomicBool>,
+    /// Son karenin enerjisi, binde bir olarak.
+    ///
+    /// The interface draws a level meter from this. An atomic rather than a
+    /// channel because it is a gauge, not a stream: the reader wants the
+    /// current value, and a missed frame is of no consequence.
+    level: Arc<AtomicU32>,
 }
 
 impl Microphone {
@@ -184,12 +201,14 @@ impl Microphone {
         let (tx, receiver) = std::sync::mpsc::channel();
         let running = Arc::new(AtomicBool::new(true));
         let muted = Arc::new(AtomicBool::new(false));
+        let level = Arc::new(AtomicU32::new(0));
 
         let device_rate = config.sample_rate().0;
         let channels = config.channels() as usize;
 
         let thread_running = running.clone();
         let thread_muted = muted.clone();
+        let thread_level = level.clone();
 
         // Ses akışı kendi thread'inde yaşar — `Stream` Send olmadığı için.
         std::thread::spawn(move || {
@@ -202,12 +221,18 @@ impl Microphone {
                 &config.into(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     if thread_muted.load(Ordering::Relaxed) {
+                        // Muted means the level is genuinely zero, not stale.
+                        thread_level.store(0, Ordering::Relaxed);
                         return;
                     }
 
                     // Çok kanallı → mono, sonra 16 kHz'e indir.
                     mono.clear();
                     downmix_and_resample(data, channels, device_rate, &mut mono);
+
+                    // Published before the detector runs: the meter should
+                    // move while someone speaks, not only when a sentence ends.
+                    thread_level.store(level_permille(&mono), Ordering::Relaxed);
 
                     if let Some(utterance) = detector.feed(&mono) {
                         let _ = tx.send(utterance);
@@ -243,6 +268,7 @@ impl Microphone {
             running,
             receiver,
             muted,
+            level,
         })
     }
 
@@ -261,6 +287,14 @@ impl Microphone {
 
     pub fn is_muted(&self) -> bool {
         self.muted.load(Ordering::Relaxed)
+    }
+
+    /// Son karenin seviyesi, 0.0–1.0.
+    ///
+    /// For a meter, not for decisions: the detector has its own threshold,
+    /// and two places deciding what counts as speech would drift apart.
+    pub fn level(&self) -> f32 {
+        self.level.load(Ordering::Relaxed) as f32 / 1000.0
     }
 }
 
@@ -407,6 +441,34 @@ mod tests {
         assert!(rms(&silence(100)) < SILENCE_RMS);
         assert!(rms(&tone(100, 0.5)) > SILENCE_RMS);
         assert_eq!(rms(&[]), 0.0);
+    }
+
+    #[test]
+    fn the_meter_reads_zero_in_silence_and_high_when_loud() {
+        assert_eq!(level_permille(&silence(100)), 0);
+        assert_eq!(level_permille(&[]), 0);
+        assert!(level_permille(&tone(100, 0.9)) > 500);
+    }
+
+    #[test]
+    fn the_meter_rises_with_volume() {
+        let quiet = level_permille(&tone(100, 0.05));
+        let loud = level_permille(&tone(100, 0.5));
+        assert!(loud > quiet, "quiet {quiet}, loud {loud}");
+    }
+
+    #[test]
+    fn quiet_speech_still_moves_the_meter_visibly() {
+        // Raw RMS at this amplitude is about 0.035 — a bar 3.5% full, which
+        // reads as broken. The curve is what makes it visible.
+        let level = level_permille(&tone(100, 0.05));
+        assert!(level > 100, "a real voice must not look like silence: {level}");
+    }
+
+    #[test]
+    fn the_meter_never_exceeds_its_range() {
+        // A clipping microphone must not produce a bar wider than the box.
+        assert!(level_permille(&tone(100, 1.0)) <= 1000);
     }
 
     #[test]

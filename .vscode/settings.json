@@ -1,0 +1,6 @@
+{
+  // The npm project lives in ui/, not at the repo root (the root here is the
+  // Rust cargo workspace, which has no package.json or node_modules).
+  // Point the TS server at ui/'s TypeScript so it resolves from there.
+  "typescript.tsdk": "ui/node_modules/typescript/lib"
+}

@@ -20,6 +20,26 @@ use serde_json::Value;
 /// Tek seferde yazılabilecek en fazla karakter.
 const MAX_TYPE_CHARS: usize = 500;
 
+/// Kaç adımda imleç hedefe götürülür.
+///
+/// Why the cursor is moved at all rather than teleported: a lot of software
+/// only reacts to a pointer that arrives. Hover states never fire, menus
+/// never open, and a few applications drop a click that lands in the same
+/// frame as the move. A dozen steps costs a tenth of a second and makes the
+/// pointer behave like a pointer.
+const MOVE_STEPS: u32 = 14;
+
+/// İki adım arası bekleme.
+const MOVE_STEP_MS: u64 = 8;
+
+/// Tuş vuruşları arası bekleme.
+///
+/// Sending five hundred characters in one burst overruns the input handling
+/// of a fair amount of software — the first characters land, the rest go
+/// nowhere. Typing in chunks with a pause behaves like a keyboard.
+const TYPE_CHUNK: usize = 24;
+const TYPE_CHUNK_MS: u64 = 40;
+
 /// Fare tıklaması.
 pub struct Click;
 
@@ -29,8 +49,8 @@ impl Tool for Click {
     }
 
     fn description(&self) -> &'static str {
-        "Ekranda belirtilen koordinata tıklar. Önce ekran_goruntusu ile bak, \
-         sonra tıklayacağın yerin koordinatını belirle."
+        "Ekranda belirtilen koordinata tıklar. Sıra: ekran_goruntusu ile bak → \
+         tıkla → ekran_bekle ile sonucu doğrula. Doğrulamadan sonraki adıma geçme."
     }
 
     fn domain(&self) -> Domain {
@@ -89,7 +109,7 @@ impl Tool for TypeText {
 
     fn description(&self) -> &'static str {
         "Klavyeden metin yazar (o an odaklı pencereye). Önce doğru yere \
-         tıklayarak odağı ver."
+         tıklayarak odağı ver, sonra ekran_bekle ile yazının girdiğini doğrula."
     }
 
     fn domain(&self) -> Domain {
@@ -162,6 +182,202 @@ impl Tool for PressKey {
     }
 }
 
+/// Ekranın durulmasını bekler ve neyin değiştiğini söyler.
+///
+/// # Neden ayrı bir tool
+///
+/// Tıklamak yarısı. İnsan tıklar, sonuca **bakar**, ona göre devam eder.
+/// Model bunu ekran görüntüsüyle yapabilir ama iki sorun var: pencere daha
+/// çizilmeden çekilen görüntü yanıltıyor, ve her adımda tam ekran görüntüsü
+/// göndermek bağlamı dolduruyor.
+///
+/// Bu tool ikisini de çözüyor: ekran durana kadar bekliyor, sonra **bir
+/// cümleyle** ne olduğunu söylüyor. Model ancak gerçekten bakması
+/// gerekiyorsa görüntü istiyor.
+pub struct WaitForScreen;
+
+/// Ekran imzası kaç hücreye bölünüyor.
+///
+/// Coarse on purpose. A blinking text caret changes a handful of pixels; at
+/// this size it lands inside one cell and moves its average barely at all,
+/// so a waiting screen actually settles instead of blinking forever.
+const SIGNATURE_COLUMNS: usize = 32;
+const SIGNATURE_ROWS: usize = 18;
+
+/// Bir hücrenin "değişti" sayılması için gereken parlaklık farkı (0-255).
+const CELL_CHANGE_THRESHOLD: i32 = 12;
+
+/// Bu kadar hücre değiştiyse ekran hâlâ hareket ediyor demektir.
+const SETTLED_CELLS: usize = 2;
+
+/// En fazla ne kadar beklenir.
+const MAX_WAIT_MS: u64 = 8_000;
+
+/// İki imza arası bekleme.
+const POLL_MS: u64 = 250;
+
+impl Tool for WaitForScreen {
+    fn name(&self) -> &'static str {
+        "ekran_bekle"
+    }
+
+    fn description(&self) -> &'static str {
+        "Tıkladıktan veya yazdıktan sonra ekranın durulmasını bekler ve neyin \
+         değiştiğini söyler. Her adımdan sonra bunu kullan; ekran görüntüsünü \
+         ancak gerçekten bakman gerekiyorsa iste."
+    }
+
+    fn domain(&self) -> Domain {
+        Domain::Vision
+    }
+
+    /// Sadece bakıyor — hiçbir şeye dokunmuyor.
+    fn risk(&self) -> Risk {
+        Risk::Safe
+    }
+
+    fn params(&self) -> Vec<Param> {
+        vec![Param::optional(
+            "saniye",
+            "En fazla kaç saniye beklensin (varsayılan 8)",
+        )]
+    }
+
+    fn keywords(&self) -> &'static [&'static str] {
+        &["bekle", "değişti", "degisti", "yüklendi", "yuklendi"]
+    }
+
+    fn run(&self, args: &Value) -> ToolOutcome {
+        let budget_ms = arg_num(args, "saniye")
+            .map_or(MAX_WAIT_MS, |s| (s * 1000.0).clamp(500.0, 30_000.0) as u64);
+
+        let mut previous = match screen_signature() {
+            Ok(signature) => signature,
+            Err(e) => return ToolOutcome::err(e),
+        };
+
+        let started = std::time::Instant::now();
+        let mut moved_at_all = false;
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(POLL_MS));
+
+            let current = match screen_signature() {
+                Ok(signature) => signature,
+                Err(e) => return ToolOutcome::err(e),
+            };
+
+            let changed = changed_cells(&previous, &current, CELL_CHANGE_THRESHOLD);
+            let elapsed = started.elapsed().as_millis();
+
+            if changed.len() <= SETTLED_CELLS {
+                return ToolOutcome::ok(if moved_at_all {
+                    format!("Ekran {elapsed} ms sonra duruldu.")
+                } else {
+                    // Nothing happened. That is information, not a failure:
+                    // the click probably missed, and the model should look
+                    // rather than carry on as though it worked.
+                    format!(
+                        "Ekranda değişiklik yok ({elapsed} ms). \
+                         Tıklama hedefi ıskalamış olabilir — ekran_goruntusu ile bak."
+                    )
+                });
+            }
+
+            moved_at_all = true;
+            previous = current;
+
+            if started.elapsed().as_millis() as u64 >= budget_ms {
+                return ToolOutcome::ok(format!(
+                    "Ekran {budget_ms} ms sonra hâlâ değişiyor ({} bölge). \
+                     Muhtemelen bir animasyon veya video var.",
+                    changed.len()
+                ));
+            }
+        }
+    }
+}
+
+/// Ekranın kaba parlaklık haritası — `SIGNATURE_COLUMNS * SIGNATURE_ROWS` hücre.
+type Signature = Vec<u8>;
+
+/// İki imza arasında eşiği aşan hücrelerin indeksleri.
+///
+/// Pure, so the thing that decides "has anything happened" is testable
+/// without a screen.
+fn changed_cells(before: &[u8], after: &[u8], threshold: i32) -> Vec<usize> {
+    if before.len() != after.len() {
+        // Different lengths mean a resolution change, which is certainly a
+        // change; reporting every cell says so without pretending to know
+        // which ones.
+        return (0..after.len()).collect();
+    }
+
+    before
+        .iter()
+        .zip(after)
+        .enumerate()
+        .filter(|(_, (a, b))| (i32::from(**a) - i32::from(**b)).abs() > threshold)
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// Ekranı küçültüp gri tonlamalı bir hücre haritası çıkarır.
+///
+/// The scaling is done by Windows rather than in Rust: decoding a PNG here
+/// would mean shipping an image decoder for one gauge, and GDI already has
+/// the bitmap in memory.
+#[cfg(windows)]
+fn screen_signature() -> Result<Signature, String> {
+    use super::system::run_powershell;
+
+    let script = format!(
+        "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; \
+         $b = [System.Windows.Forms.SystemInformation]::VirtualScreen; \
+         $full = New-Object System.Drawing.Bitmap($b.Width, $b.Height); \
+         $g = [System.Drawing.Graphics]::FromImage($full); \
+         $g.CopyFromScreen($b.Left, $b.Top, 0, 0, $full.Size); \
+         $small = New-Object System.Drawing.Bitmap($full, {SIGNATURE_COLUMNS}, {SIGNATURE_ROWS}); \
+         $out = New-Object System.Text.StringBuilder; \
+         for ($y = 0; $y -lt {SIGNATURE_ROWS}; $y++) {{ \
+           for ($x = 0; $x -lt {SIGNATURE_COLUMNS}; $x++) {{ \
+             $p = $small.GetPixel($x, $y); \
+             $v = [int](($p.R * 30 + $p.G * 59 + $p.B * 11) / 100); \
+             [void]$out.Append('{{0:x2}}' -f $v) }} }}; \
+         $g.Dispose(); $full.Dispose(); $small.Dispose(); \
+         $out.ToString()"
+    );
+
+    let output = run_powershell(&script).map_err(|e| e.to_string())?;
+    parse_signature(output.trim())
+}
+
+#[cfg(not(windows))]
+fn screen_signature() -> Result<Signature, String> {
+    Err("ekran okuma bu platformda desteklenmiyor".into())
+}
+
+/// Hex imzayı bayt dizisine çevirir.
+fn parse_signature(hex: &str) -> Result<Signature, String> {
+    let cleaned: String = hex.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    let expected = SIGNATURE_COLUMNS * SIGNATURE_ROWS;
+
+    if cleaned.len() != expected * 2 {
+        return Err(format!(
+            "ekran okunamadı ({} hücre bekleniyordu, {} geldi)",
+            expected,
+            cleaned.len() / 2
+        ));
+    }
+
+    (0..expected)
+        .map(|i| {
+            u8::from_str_radix(&cleaned[i * 2..i * 2 + 2], 16)
+                .map_err(|_| "ekran imzası bozuk".to_string())
+        })
+        .collect()
+}
+
 /// Ekran boyutu — model koordinat hesaplarken bilmeli.
 pub struct ScreenSize;
 
@@ -193,6 +409,49 @@ enum MouseButton {
     Left,
     Right,
     Middle,
+}
+
+/// İmlecin `from`'dan `to`'ya izleyeceği nokta dizisi.
+///
+/// Eased rather than linear — fast in the middle, slowing at the end — which
+/// is both how a hand moves and what gives slow software a moment to notice
+/// the pointer before the click lands. The last point is always exactly the
+/// target: an eased path that stopped a pixel short would click the wrong
+/// thing, which is the one mistake that matters here.
+fn ease_path(from: (i32, i32), to: (i32, i32), steps: u32) -> Vec<(i32, i32)> {
+    if steps == 0 || from == to {
+        return vec![to];
+    }
+
+    (1..=steps)
+        .map(|i| {
+            let t = f64::from(i) / f64::from(steps);
+            // Smoothstep: zero velocity at both ends.
+            let eased = t * t * (3.0 - 2.0 * t);
+            let x = f64::from(from.0) + (f64::from(to.0 - from.0) * eased);
+            let y = f64::from(from.1) + (f64::from(to.1 - from.1) * eased);
+            (x.round() as i32, y.round() as i32)
+        })
+        // Rounding can repeat a point on a short move; sending the same
+        // position twice is wasted time, not a smoother path.
+        .fold(Vec::with_capacity(steps as usize), |mut acc, point| {
+            if acc.last() != Some(&point) {
+                acc.push(point);
+            }
+            acc
+        })
+}
+
+/// Metni klavye hızında parçalara böler.
+fn type_chunks(text: &str, size: usize) -> Vec<String> {
+    if size == 0 {
+        return vec![text.to_string()];
+    }
+    let chars: Vec<char> = text.chars().collect();
+    chars
+        .chunks(size)
+        .map(|chunk| chunk.iter().collect())
+        .collect()
 }
 
 /// Kullanıcı tuş adını SendKeys biçimine çevirir.
@@ -298,6 +557,7 @@ fn click_platform(x: i32, y: i32, button: MouseButton, double: bool) -> ToolOutc
     #[link(name = "user32")]
     extern "system" {
         fn SetCursorPos(x: i32, y: i32) -> i32;
+        fn GetCursorPos(point: *mut [i32; 2]) -> i32;
         fn mouse_event(flags: u32, dx: u32, dy: u32, data: u32, extra: usize);
     }
 
@@ -316,7 +576,19 @@ fn click_platform(x: i32, y: i32, button: MouseButton, double: bool) -> ToolOutc
 
     // SAFETY: koordinatlar doğrulandı; API'ler yan etkisi bilinen sistem çağrıları.
     unsafe {
-        SetCursorPos(x, y);
+        // Where the pointer is now, so it can be moved rather than teleported.
+        let mut current = [0i32; 2];
+        let from = if GetCursorPos(&mut current) != 0 {
+            (current[0], current[1])
+        } else {
+            (x, y)
+        };
+
+        for (px, py) in ease_path(from, (x, y), MOVE_STEPS) {
+            SetCursorPos(px, py);
+            std::thread::sleep(std::time::Duration::from_millis(MOVE_STEP_MS));
+        }
+
         // İmlecin yerleşmesi için kısa bekleme — bazı uygulamalar
         // anında gelen tıklamayı kaçırıyor.
         std::thread::sleep(std::time::Duration::from_millis(60));
@@ -348,10 +620,22 @@ fn click_platform(_x: i32, _y: i32, _b: MouseButton, _d: bool) -> ToolOutcome {
 fn type_platform(text: &str) -> ToolOutcome {
     use super::system::run_powershell;
 
-    let escaped = escape_sendkeys(text).replace('\'', "''");
+    // One PowerShell process, but the keystrokes inside it are paced. Starting
+    // a process per chunk would take longer than the typing.
+    let sends: Vec<String> = type_chunks(text, TYPE_CHUNK)
+        .iter()
+        .map(|chunk| {
+            let escaped = escape_sendkeys(chunk).replace('\'', "''");
+            format!(
+                "[System.Windows.Forms.SendKeys]::SendWait('{escaped}'); \
+                 Start-Sleep -Milliseconds {TYPE_CHUNK_MS}"
+            )
+        })
+        .collect();
+
     let script = format!(
-        "Add-Type -AssemblyName System.Windows.Forms; \
-         [System.Windows.Forms.SendKeys]::SendWait('{escaped}')"
+        "Add-Type -AssemblyName System.Windows.Forms; {}",
+        sends.join("; ")
     );
 
     match run_powershell(&script) {
@@ -517,5 +801,172 @@ mod tests {
         // Koordinat uydurmasın, önce ekrana baksın.
         assert!(Click.description().contains("ekran_goruntusu"));
         assert!(TypeText.description().contains("tıkla"));
+    }
+}
+
+#[cfg(test)]
+mod human_tests {
+    use super::*;
+
+    #[test]
+    fn the_cursor_path_ends_exactly_on_target() {
+        let path = ease_path((0, 0), (100, 50), MOVE_STEPS);
+        // Stopping a pixel short would click the wrong thing, which is the
+        // one mistake here that actually matters.
+        assert_eq!(*path.last().unwrap(), (100, 50));
+    }
+
+    #[test]
+    fn the_cursor_path_is_eased_not_linear() {
+        let path = ease_path((0, 0), (100, 0), 10);
+        let midpoint = path[path.len() / 2 - 1].0;
+        // Halfway through the steps, an eased move is near the middle; the
+        // difference from linear shows at the quarter points.
+        let quarter = path[1].0;
+        assert!(quarter < 25, "start should be slow, got {quarter}");
+        assert!((40..=60).contains(&midpoint), "midpoint {midpoint}");
+    }
+
+    #[test]
+    fn a_move_to_where_the_cursor_already_is_costs_one_step() {
+        assert_eq!(ease_path((7, 7), (7, 7), MOVE_STEPS), vec![(7, 7)]);
+    }
+
+    #[test]
+    fn a_one_pixel_move_does_not_repeat_the_same_point() {
+        let path = ease_path((0, 0), (1, 0), MOVE_STEPS);
+        // Rounding would otherwise send (0,0) a dozen times before (1,0).
+        let mut deduped = path.clone();
+        deduped.dedup();
+        assert_eq!(path, deduped);
+        assert_eq!(*path.last().unwrap(), (1, 0));
+    }
+
+    #[test]
+    fn zero_steps_still_reaches_the_target() {
+        assert_eq!(ease_path((0, 0), (5, 5), 0), vec![(5, 5)]);
+    }
+
+    #[test]
+    fn typing_is_split_into_keyboard_sized_pieces() {
+        let chunks = type_chunks(&"a".repeat(50), 24);
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].len(), 24);
+        assert_eq!(chunks[2].len(), 2);
+    }
+
+    #[test]
+    fn typing_splits_on_characters_not_bytes() {
+        // Turkish is the common case; splitting mid-character would send
+        // broken text to the keyboard.
+        let text = "çğıöşü".repeat(6);
+        let chunks = type_chunks(&text, 4);
+        assert_eq!(chunks.concat(), text);
+        assert!(chunks.iter().all(|c| c.chars().count() <= 4));
+    }
+
+    #[test]
+    fn short_text_is_one_chunk() {
+        assert_eq!(type_chunks("hello", 24), vec!["hello"]);
+        assert_eq!(type_chunks("", 24), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_unchanged_screen_reports_nothing_changed() {
+        let screen = vec![100u8; SIGNATURE_COLUMNS * SIGNATURE_ROWS];
+        assert!(changed_cells(&screen, &screen, CELL_CHANGE_THRESHOLD).is_empty());
+    }
+
+    #[test]
+    fn a_blinking_caret_does_not_count_as_movement() {
+        // One cell shifting slightly is what a text cursor looks like at this
+        // resolution. Counting it would mean the screen never settles.
+        let before = vec![100u8; SIGNATURE_COLUMNS * SIGNATURE_ROWS];
+        let mut after = before.clone();
+        after[200] = 108;
+
+        assert!(changed_cells(&before, &after, CELL_CHANGE_THRESHOLD).is_empty());
+    }
+
+    #[test]
+    fn a_window_opening_counts_as_movement() {
+        let before = vec![100u8; SIGNATURE_COLUMNS * SIGNATURE_ROWS];
+        let mut after = before.clone();
+        for cell in after.iter_mut().take(80) {
+            *cell = 240;
+        }
+
+        let changed = changed_cells(&before, &after, CELL_CHANGE_THRESHOLD);
+        assert_eq!(changed.len(), 80);
+        assert!(changed.len() > SETTLED_CELLS);
+    }
+
+    #[test]
+    fn a_resolution_change_is_reported_as_a_full_change() {
+        let before = vec![0u8; 10];
+        let after = vec![0u8; 20];
+        assert_eq!(changed_cells(&before, &after, CELL_CHANGE_THRESHOLD).len(), 20);
+    }
+
+    #[test]
+    fn a_signature_round_trips_through_hex() {
+        let cells: Vec<u8> = (0..SIGNATURE_COLUMNS * SIGNATURE_ROWS)
+            .map(|i| (i % 256) as u8)
+            .collect();
+        let hex: String = cells.iter().map(|c| format!("{c:02x}")).collect();
+
+        assert_eq!(parse_signature(&hex).unwrap(), cells);
+    }
+
+    #[test]
+    fn a_signature_survives_the_newlines_powershell_adds() {
+        let cells = vec![0xABu8; SIGNATURE_COLUMNS * SIGNATURE_ROWS];
+        let hex: String = cells.iter().map(|c| format!("{c:02x}")).collect();
+        let wrapped = format!("\r\n{}\r\n  ", hex);
+
+        assert_eq!(parse_signature(&wrapped).unwrap(), cells);
+    }
+
+    #[test]
+    fn a_short_signature_is_an_error_not_a_wrong_answer() {
+        // A truncated read compared against a full one would report the
+        // screen as entirely changed, forever.
+        assert!(parse_signature("aabb").is_err());
+        assert!(parse_signature("").is_err());
+    }
+
+    #[test]
+    fn waiting_only_looks_and_so_needs_no_approval() {
+        assert_eq!(WaitForScreen.risk(), Risk::Safe);
+    }
+}
+
+#[cfg(test)]
+mod live_screen_tests {
+    use super::*;
+
+    /// Reads the real screen. Ignored by default — needs a desktop session.
+    ///
+    /// ```text
+    /// cargo test -p vavis-tools live_screen -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "needs a real desktop session"]
+    fn live_screen_signature_has_the_expected_shape() {
+        let signature = screen_signature().expect("the screen should be readable");
+        assert_eq!(signature.len(), SIGNATURE_COLUMNS * SIGNATURE_ROWS);
+
+        // An all-identical map means the scaling silently produced nothing.
+        let distinct = signature.iter().collect::<std::collections::HashSet<_>>();
+        assert!(distinct.len() > 1, "the screen came back uniform");
+        println!("{} cells, {} distinct values", signature.len(), distinct.len());
+    }
+
+    #[test]
+    #[ignore = "needs a real desktop session"]
+    fn live_screen_settles_when_nothing_is_happening() {
+        let out = WaitForScreen.run(&serde_json::json!({ "saniye": 4 }));
+        println!("{}", out.content);
+        assert!(out.ok, "{}", out.content);
     }
 }

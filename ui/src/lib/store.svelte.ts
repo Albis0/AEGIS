@@ -23,7 +23,21 @@ import {
   type VoiceEvent,
 } from "./api";
 
-export type Speaker = "user" | "assistant" | "system" | "error" | "tool";
+export type Speaker =
+  | "user"
+  | "assistant"
+  | "system"
+  | "error"
+  | "tool"
+  /**
+   * A permission request, asked inline.
+   *
+   * It is a message rather than a modal on purpose: a modal steals focus the
+   * moment it appears, which is intolerable when the thing it interrupts is
+   * the sentence you were typing. Inline, the agent still waits — it just
+   * waits where the rest of the conversation is.
+   */
+  | "approval";
 
 export interface Message {
   id: number;
@@ -33,6 +47,14 @@ export interface Message {
   ok?: boolean;
   /** True while a reply is still streaming in. */
   streaming?: boolean;
+  /** Tool messages: what it was called with, shown when expanded. */
+  args?: string;
+  /** Tool messages: the fuller output, shown when expanded. */
+  detail?: string;
+  /** Approval messages: why permission is being asked. */
+  reason?: "risk" | "budget";
+  /** Approval messages: what the user chose, once they have chosen. */
+  decision?: "allow" | "always" | "deny";
   at: number;
 }
 
@@ -40,7 +62,17 @@ export interface PendingApproval {
   tool: string;
   args: string;
   reason: "risk" | "budget";
+  /** The feed message showing this request, so the answer can land on it. */
+  messageId: number;
 }
+
+/**
+ * Which interface is on screen.
+ *
+ * Chat is the default; the others are modes reached from it rather than
+ * separate windows, so the conversation is never left behind.
+ */
+export type Interface = "chat" | "code" | "canvas" | "council";
 
 /** What the assistant is doing — drives the core animation. */
 export type CoreState =
@@ -58,10 +90,16 @@ class ChatStore {
   status = $state<Status | null>(null);
   approval = $state<PendingApproval | null>(null);
   runningTool = $state<string | null>(null);
+  /** Arguments of the running tool, held until its result arrives. */
+  runningArgs = $state("");
+  /** Microphone level, 0.0–1.0. Polled faster than the rest of the status. */
+  micLevel = $state(0);
   /** Panel currently open in the right rail, if any. */
   panel = $state<"none" | "settings" | "memory" | "automations" | "tools">(
     "none",
   );
+  /** Which interface is showing. */
+  view = $state<Interface>("chat");
 
   private unlisteners: (() => void)[] = [];
 
@@ -144,8 +182,18 @@ class ChatStore {
   }
 
   async answerApproval(decision: "allow" | "always" | "deny") {
-    await api.answerApproval(decision);
+    const pending = this.approval;
+    // Cleared first: the agent thread unblocks the moment the command lands,
+    // and a second click while it is in flight would answer twice.
     this.approval = null;
+    if (!pending) return;
+
+    // The request stays in the feed, marked with what was decided. Removing
+    // it would leave no record that a destructive action was ever offered.
+    const message = this.messages.find((m) => m.id === pending.messageId);
+    if (message) message.decision = decision;
+
+    await api.answerApproval(decision);
   }
 
   async cycleVoice() {
@@ -203,15 +251,28 @@ class ChatStore {
         // model's text and whatever it says next.
         this.finishStreaming();
         this.runningTool = p.tool;
+        this.runningArgs = p.args;
       }),
 
       on<ToolDoneEvent>("chat:tool-done", (p) => {
+        this.add("tool", `${p.tool} — ${p.summary}`, {
+          ok: p.ok,
+          // Kept on the message so the line can be opened later, not only
+          // while it is the most recent thing that happened.
+          args: this.runningArgs,
+          detail: p.detail,
+        });
         this.runningTool = null;
-        this.add("tool", `${p.tool} — ${p.summary}`, { ok: p.ok });
+        this.runningArgs = "";
       }),
 
       on<ApprovalEvent>("chat:approval", (p) => {
-        this.approval = p;
+        this.finishStreaming();
+        const message = this.add("approval", p.tool, {
+          args: p.args,
+          reason: p.reason,
+        });
+        this.approval = { ...p, messageId: message.id };
       }),
 
       on<VoiceEvent>("voice", (event) => {
@@ -235,12 +296,33 @@ class ChatStore {
         this.add("system", `Automation fired — ${p.trigger}`);
         void this.send(p.prompt);
       }),
+
+      // The Spotify consent round trip finishes on a worker thread, long
+      // after the command that started it returned.
+      on<{ ok: boolean; message: string }>("spotify:auth", (p) => {
+        this.add("system", p.message);
+      }),
     ]);
 
     // Poll for telemetry. One second is enough for CPU and battery, and
     // the core animation runs on CSS, not on this.
     const timer = setInterval(() => void this.refresh(), 1000);
     this.unlisteners.push(() => clearInterval(timer));
+
+    // The level meter needs to move with the voice, not once a second — but
+    // only while something is listening. `get_status` is far too heavy to ask
+    // ten times a second, so this reads the level alone.
+    const levelTimer = setInterval(() => {
+      if (!this.status || this.status.voiceMode === "off") {
+        this.micLevel = 0;
+        return;
+      }
+      void api
+        .micLevel()
+        .then((level) => (this.micLevel = level))
+        .catch(() => (this.micLevel = 0));
+    }, 100);
+    this.unlisteners.push(() => clearInterval(levelTimer));
   }
 
   stop() {
