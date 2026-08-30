@@ -138,6 +138,13 @@ pub fn load_history(state: State<AppState>) -> Vec<StoredLine> {
     };
 
     let mut history = AppState::lock(&state.history);
+
+    // Replaced, not appended. This is called once on startup today, so
+    // appending happens to work -- but a second call would hand the model
+    // every restored turn twice, and nothing about the name suggests it can
+    // only be called once.
+    history.clear();
+
     let mut out = Vec::new();
 
     for m in messages {
@@ -1027,16 +1034,16 @@ pub fn save_mcp_server(
     // The id prefixes every tool name and names the selection domain, so it
     // has to be a plain identifier.
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-        return Err("kimlik harf, rakam ve tire olmalı".into());
+        return Err("The id has to be letters, digits and dashes.".into());
     }
     if !["stdio", "http"].contains(&transport.as_str()) {
-        return Err("taşıma stdio veya http olmalı".into());
+        return Err("The transport has to be stdio or http.".into());
     }
     if transport == "stdio" && command.trim().is_empty() {
-        return Err("stdio için komut gerekli".into());
+        return Err("stdio needs a command to run.".into());
     }
     if transport == "http" && !url.starts_with("http") {
-        return Err("http için adres gerekli".into());
+        return Err("http needs an address.".into());
     }
 
     {
@@ -1080,13 +1087,13 @@ pub fn save_mcp_server(
     let statuses = state.reload_mcp();
     Ok(match statuses.iter().find(|s| s.id == id) {
         Some(status) if status.connected => {
-            format!("{} bağlandı — {} tool.", id, status.tools.len())
+            format!("{} connected — {} tools.", id, status.tools.len())
         }
         Some(status) => format!(
-            "Kaydedildi, ama bağlanamadı: {}",
+            "Saved, but could not connect: {}",
             status.error.clone().unwrap_or_default()
         ),
-        None => "Kaydedildi.".to_string(),
+        None => "Saved.".to_string(),
     })
 }
 
@@ -1441,7 +1448,7 @@ pub fn get_steam_settings(state: State<AppState>) -> SteamSettings {
 pub fn set_steam(state: State<AppState>, steam_id: String, key: String) -> Result<String, String> {
     let id = steam_id.trim().to_string();
     if !id.is_empty() && (id.len() != 17 || !id.chars().all(|c| c.is_ascii_digit())) {
-        return Err("SteamID64 17 haneli bir sayı olmalı".into());
+        return Err("A SteamID64 is 17 digits.".into());
     }
 
     {
@@ -1461,13 +1468,13 @@ pub fn set_steam(state: State<AppState>, steam_id: String, key: String) -> Resul
     state.refresh_steam();
 
     if !vavis_tools::steam::current().is_configured() {
-        return Ok("Kaydedildi. Kütüphane için hem anahtar hem SteamID gerekiyor.".into());
+        return Ok("Saved. The library needs both a key and a SteamID.".into());
     }
 
     // Verify once, now, while the user is looking at the settings panel.
     match vavis_tools::steam::library() {
-        Ok(games) => Ok(format!("Bağlandı — {} oyun görünüyor.", games.len())),
-        Err(e) => Ok(format!("Kaydedildi, ama: {e}")),
+        Ok(games) => Ok(format!("Connected — {} games visible.", games.len())),
+        Err(e) => Ok(format!("Saved, but: {e}")),
     }
 }
 

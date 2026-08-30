@@ -28,6 +28,7 @@
     import Icon from "./Icon.svelte";
     import Modal from "./Modal.svelte";
     import { toast } from "./toast.svelte";
+    import { openFolder } from "./actions";
     import { onMount } from "svelte";
 
     type Kind = "image" | "video";
@@ -414,7 +415,7 @@
         <div class="usage">
             <span>{settings?.items ?? 0} results · {bytes(settings?.bytes ?? 0)}</span>
             <div class="usage-actions">
-                <button onclick={() => api.openMediaFolder()}>Open folder</button>
+                <button onclick={() => openFolder()}>Open folder</button>
                 <button class="danger" onclick={clearAll}>Clear</button>
             </div>
         </div>

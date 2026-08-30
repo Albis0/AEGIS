@@ -40,6 +40,7 @@
     import Modal from "./Modal.svelte";
     import { chat } from "./store.svelte";
     import { toast } from "./toast.svelte";
+    import { openFolder } from "./actions";
 
     const status = $derived(chat.status);
 
@@ -873,7 +874,7 @@
                             {canvas.items} results · {bytes(canvas.bytes)} on disk
                         </span>
                         <span class="link-actions">
-                            <button class="tiny" onclick={() => api.openMediaFolder()}>folder</button>
+                            <button class="tiny" onclick={() => openFolder()}>folder</button>
                             <button class="tiny" onclick={clearGallery}>clear</button>
                         </span>
                     </div>
