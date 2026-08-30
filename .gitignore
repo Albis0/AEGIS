@@ -3,3 +3,8 @@
 *.pdb
 ui/node_modules
 ui/dist
+
+# npm is not what builds this -- CI installs with bun, from ui/bun.lock.
+# A package-lock.json is a second answer to the same question that nothing
+# reads, and the two drift apart silently.
+ui/package-lock.json

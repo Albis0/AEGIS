@@ -29,6 +29,12 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: ui
 
+      - name: Check the frontend types
+        # Vite does not type-check as it builds, so without this a type
+        # error in the interface ships with every step green.
+        run: bun run check
+        working-directory: ui
+
       - name: Build frontend
         # The Rust build embeds ui/dist, so this must run first.
         run: bun run build
