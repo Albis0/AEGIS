@@ -15,6 +15,8 @@
     import { api, type SearchHit, type WorkspaceEntry } from "./api";
     import { chat } from "./store.svelte";
     import { onMount } from "svelte";
+    import { ask } from "./confirm.svelte";
+    import { toast } from "./toast.svelte";
 
     let root = $state<string | null>(null);
     let pathDraft = $state("");
@@ -78,14 +80,24 @@
 
     async function openFile(path: string) {
         // Losing unsaved edits by clicking another file would be unforgivable.
-        if (dirty && !confirm("Discard unsaved changes?")) return;
+        if (dirty) {
+            const discard = await ask({
+                title: "Discard unsaved changes?",
+                body: `${file} has edits that have not been written to disk.`,
+                confirmLabel: "Discard",
+                cancelLabel: "Keep editing",
+                danger: true,
+            });
+            if (!discard) return;
+        }
+
         try {
             text = await api.readWorkspaceFile(path);
             saved = text;
             file = path;
             notice = "";
         } catch (e) {
-            notice = String(e);
+            toast.failure(`Could not open ${path}.`, e);
         }
     }
 
@@ -114,7 +126,7 @@
     }
 
     /** Asks the assistant about the open file, with the file as context. */
-    function ask() {
+    function askAboutFile() {
         if (!file) return;
         chat.view = "chat";
         chat.input = `In ${file}, `;
@@ -193,7 +205,7 @@
             </span>
             <div class="bar-actions">
                 {#if file}
-                    <button class="tiny" onclick={ask}>ask about this</button>
+                    <button class="tiny" onclick={askAboutFile}>ask about this</button>
                     <button class="tiny" disabled={!dirty} onclick={save}>save</button>
                 {/if}
             </div>

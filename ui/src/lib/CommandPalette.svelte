@@ -31,6 +31,7 @@
 
 <script lang="ts">
     import Icon from "./Icon.svelte";
+    import Modal from "./Modal.svelte";
 
     interface Props {
         commands: Command[];
@@ -41,7 +42,6 @@
 
     let query = $state("");
     let selected = $state(0);
-    let inputEl = $state<HTMLInputElement | null>(null);
     let listEl = $state<HTMLElement | null>(null);
 
     /**
@@ -73,10 +73,6 @@
         selected = 0;
     });
 
-    $effect(() => {
-        inputEl?.focus();
-    });
-
     /** Keeps the highlighted row in view during keyboard navigation. */
     $effect(() => {
         void selected;
@@ -104,10 +100,9 @@
             event.preventDefault();
             const command = matches[selected];
             if (command) run(command);
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
         }
+        // Escape is not handled here: Modal owns it, so that with a dialog
+        // open over the palette one press closes the dialog alone.
     }
 
     /** Group heading, emitted only when it changes down the list. */
@@ -119,20 +114,11 @@
     }
 </script>
 
-<!-- The scrim closes on click. It is a plain div with a role rather than a
-     <button> because it wraps interactive content. -->
-<div
-    class="scrim"
-    role="presentation"
-    onclick={onClose}
-    onkeydown={() => {}}
-></div>
-
-<div class="palette" role="dialog" aria-modal="true" aria-label="Commands">
+<Modal label="Commands" align="top" bare showClose={false} {onClose}>
     <div class="search">
         <Icon name="chevronRight" size={16} />
         <input
-            bind:this={inputEl}
+            data-autofocus
             bind:value={query}
             onkeydown={onKeydown}
             placeholder="Search commands…"
@@ -166,60 +152,29 @@
         {/each}
 
         {#if matches.length === 0}
-            <div class="none">No commands match “{query}”</div>
+            <div class="none">
+                <p>No commands match “{query}”</p>
+                <button onclick={() => (query = "")}>Clear search</button>
+            </div>
         {/if}
     </div>
-</div>
+</Modal>
 
 <style>
-    .scrim {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(2px);
-        z-index: 50;
-        animation: fade-in var(--fast) var(--ease);
-    }
-
-    .palette {
-        position: fixed;
-        /* Sits in the upper third rather than dead centre: it is the natural
-       resting place for the eye, and it leaves the reactor visible. */
-        top: 16vh;
-        left: 50%;
-        transform: translateX(-50%);
-        width: min(560px, calc(100vw - 48px));
-        max-height: 60vh;
-        display: flex;
-        flex-direction: column;
-        background: var(--surface-raised);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--r-lg);
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-        z-index: 51;
-        animation: palette-in var(--normal) var(--ease);
-    }
-
-    @keyframes palette-in {
-        from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-6px) scale(0.99);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0) scale(1);
-        }
-    }
-
+    /* Sticky rather than a sibling of the scroll area: Modal gives its
+       children one scrolling box, and a search field that scrolls out of
+       sight is a search field you cannot correct. */
     .search {
+        position: sticky;
+        top: 0;
+        z-index: 1;
         display: flex;
         align-items: center;
         gap: var(--sp-3);
         padding: var(--sp-3) var(--sp-4);
+        background: var(--surface-raised);
         border-bottom: 1px solid var(--line);
         color: var(--text-faint);
-        flex: 0 0 auto;
     }
 
     .search input {
@@ -227,9 +182,7 @@
     }
 
     .list {
-        overflow-y: auto;
         padding: var(--sp-2);
-        min-height: 0;
     }
 
     .group {
@@ -278,9 +231,16 @@
     }
 
     .none {
-        padding: var(--sp-5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-6) var(--sp-5);
         text-align: center;
         font-size: var(--text-sm);
         color: var(--text-faint);
+    }
+    .none button {
+        color: var(--accent-text);
     }
 </style>

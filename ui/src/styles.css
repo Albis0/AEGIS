@@ -53,7 +53,12 @@
     --line-strong: rgba(255, 255, 255, 0.14);
 
     /* -- Status ---------------------------------------------------- */
+    /* `--danger` is a text and hairline colour, tuned to be readable *on* a
+     dark surface. `--danger-solid` is for the reverse — a filled button with
+     white text on it — where the lighter value gives about 2.5:1 and fails
+     to read at all. Two tokens because one cannot do both jobs. */
     --danger: #f87171;
+    --danger-solid: #d63c3c;
     --warning: #fbbf24;
     --success: #4ade80;
 

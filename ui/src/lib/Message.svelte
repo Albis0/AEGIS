@@ -21,6 +21,7 @@
     import { renderMarkdown } from "./markdown";
     import { chat, type Message } from "./store.svelte";
     import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+    import { toast } from "./toast.svelte";
 
     const { message }: { message: Message } = $props();
 
@@ -55,17 +56,26 @@
         if (!target.classList.contains("copy")) return;
 
         const code = decodeURIComponent(target.dataset.code ?? "");
-        void writeText(code);
 
-        const original = target.textContent;
-        target.textContent = "copied";
-        setTimeout(() => (target.textContent = original), 1200);
+        // The label used to flip to "copied" whether or not the write landed,
+        // which is the one thing a confirmation must never do.
+        void writeText(code)
+            .then(() => {
+                const original = target.textContent;
+                target.textContent = "copied";
+                setTimeout(() => (target.textContent = original), 1200);
+            })
+            .catch((e) => toast.failure("Could not copy that.", e));
     }
 
     async function copyMessage() {
-        await writeText(message.text);
-        copied = true;
-        setTimeout(() => (copied = false), 1400);
+        try {
+            await writeText(message.text);
+            copied = true;
+            setTimeout(() => (copied = false), 1400);
+        } catch (e) {
+            toast.failure("Could not copy that.", e);
+        }
     }
 </script>
 

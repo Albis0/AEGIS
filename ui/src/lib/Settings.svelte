@@ -35,7 +35,11 @@
         type Tool,
         type VaultInfo,
     } from "./api";
+    import { ask } from "./confirm.svelte";
+    import Icon from "./Icon.svelte";
+    import Modal from "./Modal.svelte";
     import { chat } from "./store.svelte";
+    import { toast } from "./toast.svelte";
 
     const status = $derived(chat.status);
 
@@ -66,7 +70,6 @@
 
     let active = $state("general");
     let query = $state("");
-    let notice = $state("");
 
     /** Test results, keyed by target. */
     let tests = $state<Record<string, ConnectionTest>>({});
@@ -205,17 +208,24 @@
                 ]);
             spotifyIdDraft = spotify?.clientId ?? "";
         } catch (e) {
-            notice = String(e);
+            toast.failure("Some settings could not be loaded.", e);
         }
     }
 
-    /** Wraps an action so every failure lands in the same place. */
+    /**
+     * Wraps an action so every outcome lands in the same place.
+     *
+     * Results used to go to a notice strip at the top of the pane, which had
+     * two faults: it never cleared, so "Saved." from ten minutes ago was still
+     * up; and it sat above the fold, so a failure from a control at the bottom
+     * of a long pane was reported off screen. A toast has neither problem.
+     */
     async function run(action: () => Promise<unknown>, said = "") {
         try {
             await action();
-            if (said) notice = said;
+            if (said) toast.success(said);
         } catch (e) {
-            notice = String(e);
+            toast.failure("That did not work.", e);
         }
     }
 
@@ -223,7 +233,8 @@
         await run(async () => {
             await api.setSetting(field, value);
             await chat.refresh();
-            notice = field === "fontSize" ? "Applies after restart." : "Saved.";
+            if (field === "fontSize") toast.info("Applies after restart.");
+            else toast.success("Saved.");
         });
     }
 
@@ -332,11 +343,18 @@
     }
 
     async function clearGallery() {
-        if (!confirm("Delete every generated file except starred ones?")) return;
+        const confirmed = await ask({
+            title: "Delete generated files?",
+            body: "Everything in the gallery goes except the results you starred. The files are removed from disk and cannot be recovered.",
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!confirmed) return;
+
         await run(async () => {
             const freed = await api.clearGallery(true);
             canvas = await api.canvasSettings();
-            notice = `Freed ${bytes(freed)}.`;
+            toast.success(`Freed ${bytes(freed)}.`);
         });
     }
 
@@ -352,7 +370,7 @@
         await run(async () => {
             // The backend verifies and reports what it found, including the
             // private-profile case that otherwise looks like an empty library.
-            notice = await api.setSteam(steamIdDraft.trim(), steamKeyDraft.trim());
+            toast.success(await api.setSteam(steamIdDraft.trim(), steamKeyDraft.trim()));
             steamKeyDraft = "";
             steam = await api.steamSettings();
         });
@@ -382,7 +400,7 @@
 
     async function saveMcp() {
         await run(async () => {
-            notice = await api.saveMcpServer(draft);
+            toast.success(await api.saveMcpServer(draft));
             draft = {
                 id: "",
                 transport: "stdio",
@@ -407,749 +425,741 @@
     function close() {
         chat.panel = "none";
     }
-
-    function onKeydown(event: KeyboardEvent) {
-        if (event.key === "Escape") close();
-    }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<div class="scrim" role="presentation" onclick={close}></div>
-
-<div class="settings" role="dialog" aria-label="Settings">
-    <nav class="categories">
-        <div class="nav-head">
-            <span class="nav-title">Settings</span>
-            <button class="tiny" onclick={close}>✕</button>
-        </div>
-
-        <input
-            class="search"
-            bind:value={query}
-            placeholder="search settings…"
-        />
-
-        {#each matches as category (category.id)}
-            <button
-                class="category"
-                class:active={active === category.id}
-                onclick={() => (active = category.id)}
-            >
-                <span class="cat-icon">{category.icon}</span>
-                {category.label}
-            </button>
-        {/each}
-
-        {#if matches.length === 0}
-            <p class="hint">Nothing matches "{query}".</p>
-        {/if}
-    </nav>
-
-    <section class="pane">
-        {#if notice}
-            <div class="notice">{notice}</div>
-        {/if}
-
-        {#if active === "general"}
-            <h2>General</h2>
-
-            <label class="field">
-                <span>assistant name</span>
-                <input
-                    value={status?.assistantName ?? ""}
-                    onchange={(e) => updateSetting("name", e.currentTarget.value)}
-                />
-            </label>
-            <p class="hint">Spoken aloud by the voice, so pick something sayable.</p>
-
-            <label class="field">
-                <span>language</span>
-                <select
-                    value={status?.language ?? "en"}
-                    onchange={(e) => updateSetting("language", e.currentTarget.value)}
-                >
-                    {#each LANGUAGES as [code, name] (code)}
-                        <option value={code}>{name}</option>
-                    {/each}
-                </select>
-            </label>
-
-            <label class="field">
-                <span>window</span>
-                <select
-                    value={status?.windowMode ?? "windowed"}
-                    onchange={(e) => updateSetting("windowMode", e.currentTarget.value)}
-                >
-                    {#each WINDOW_MODES as mode (mode)}
-                        <option value={mode}>{mode}</option>
-                    {/each}
-                </select>
-            </label>
-
-            <label class="field">
-                <span>font size</span>
-                <input
-                    type="number"
-                    min="8"
-                    max="32"
-                    value={status?.fontSize ?? 14}
-                    onchange={(e) => updateSetting("fontSize", e.currentTarget.value)}
-                />
-            </label>
-
-            <p class="hint">Version {status?.version ?? "—"}</p>
-        {:else if active === "provider"}
-            <h2>Model</h2>
-            <p class="hint">
-                Which provider answers. A provider without a key is marked; the key
-                itself goes in API keys.
-            </p>
-
-            <div class="chips">
-                {#each status?.providers ?? [] as p (p.id)}
-                    <button
-                        class="chip"
-                        class:active={p.id === status?.provider}
-                        class:missing={p.needsKey && !p.hasKey}
-                        onclick={() => pickProvider(p.id)}
-                        title={p.needsKey && !p.hasKey ? "no key stored" : p.defaultModel}
-                    >
-                        {p.id}
-                    </button>
-                {/each}
-            </div>
-
-            <!-- A read-only row, not a label: there is no control to label. -->
-            <div class="field">
-                <span>current model</span>
-                <span class="value">{status?.model ?? "—"}</span>
-            </div>
-
-            <div class="actions">
-                <button onclick={fetchModels} disabled={loadingModels}>
-                    {loadingModels ? "loading…" : "list models"}
+<!-- Its own header rather than the modal's: the title belongs at the top of
+     the category rail, above the search field that filters it, not on a bar
+     spanning both columns. -->
+<Modal label="Settings" size="full" bare showClose={false} onClose={close}>
+    <div class="settings">
+        <nav class="categories">
+            <div class="nav-head">
+                <span class="nav-title">Settings</span>
+                <button class="nav-close" onclick={close} aria-label="Close (Esc)">
+                    <Icon name="close" size={15} />
                 </button>
+            </div>
+
+            <input
+                class="search"
+                data-autofocus
+                bind:value={query}
+                placeholder="Search settings…"
+                spellcheck="false"
+                aria-label="Search settings"
+            />
+
+            {#each matches as category (category.id)}
                 <button
-                    onclick={() => test(status?.provider ?? "groq")}
-                    disabled={testing !== null}
+                    class="category"
+                    class:active={active === category.id}
+                    onclick={() => (active = category.id)}
                 >
-                    {testing === status?.provider ? "testing…" : "test"}
+                    <span class="cat-icon">{category.icon}</span>
+                    {category.label}
                 </button>
-            </div>
+            {/each}
 
-            {#if tests[status?.provider ?? ""]}
-                {@const result = tests[status?.provider ?? ""]}
-                <p class="result" class:bad={!result.ok}>
-                    {result.ok ? "✓" : "✕"} {result.detail}
-                </p>
-            {/if}
-
-            {#if models.length}
-                <div class="list scroll">
-                    {#each models as m (m)}
-                        <button class="row" onclick={() => pickModel(m)}>{m}</button>
-                    {/each}
+            {#if matches.length === 0}
+                <div class="nav-empty">
+                    <p>Nothing matches “{query}”.</p>
+                    <button onclick={() => (query = "")}>Clear</button>
                 </div>
             {/if}
-        {:else if active === "keys"}
-            <h2>API keys</h2>
-            <p class="hint">
-                Stored encrypted with Windows DPAPI, never written to the settings
-                file and never shown again after they are saved.
-            </p>
+        </nav>
 
-            {#each status?.providers ?? [] as p (p.id)}
-                {#if p.needsKey}
-                    <div class="entry">
+        <section class="pane">
+
+            {#if active === "general"}
+                <h2>General</h2>
+
+                <label class="field">
+                    <span>Assistant name</span>
+                    <input
+                        value={status?.assistantName ?? ""}
+                        onchange={(e) => updateSetting("name", e.currentTarget.value)}
+                    />
+                </label>
+                <p class="hint">Spoken aloud by the voice, so pick something sayable.</p>
+
+                <label class="field">
+                    <span>Language</span>
+                    <select
+                        value={status?.language ?? "en"}
+                        onchange={(e) => updateSetting("language", e.currentTarget.value)}
+                    >
+                        {#each LANGUAGES as [code, name] (code)}
+                            <option value={code}>{name}</option>
+                        {/each}
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span>Window</span>
+                    <select
+                        value={status?.windowMode ?? "windowed"}
+                        onchange={(e) => updateSetting("windowMode", e.currentTarget.value)}
+                    >
+                        {#each WINDOW_MODES as mode (mode)}
+                            <option value={mode}>{mode}</option>
+                        {/each}
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span>Font size</span>
+                    <input
+                        type="number"
+                        min="8"
+                        max="32"
+                        value={status?.fontSize ?? 14}
+                        onchange={(e) => updateSetting("fontSize", e.currentTarget.value)}
+                    />
+                </label>
+
+                <p class="hint">Version {status?.version ?? "—"}</p>
+            {:else if active === "provider"}
+                <h2>Model</h2>
+                <p class="hint">
+                    Which provider answers. A provider without a key is marked; the key
+                    itself goes in API keys.
+                </p>
+
+                <div class="chips">
+                    {#each status?.providers ?? [] as p (p.id)}
+                        <button
+                            class="chip"
+                            class:active={p.id === status?.provider}
+                            class:missing={p.needsKey && !p.hasKey}
+                            onclick={() => pickProvider(p.id)}
+                            title={p.needsKey && !p.hasKey ? "no key stored" : p.defaultModel}
+                        >
+                            {p.id}
+                        </button>
+                    {/each}
+                </div>
+
+                <!-- A read-only row, not a label: there is no control to label. -->
+                <div class="field">
+                    <span>Current model</span>
+                    <span class="value">{status?.model ?? "—"}</span>
+                </div>
+
+                <div class="actions">
+                    <button onclick={fetchModels} disabled={loadingModels}>
+                        {loadingModels ? "loading…" : "list models"}
+                    </button>
+                    <button
+                        onclick={() => test(status?.provider ?? "groq")}
+                        disabled={testing !== null}
+                    >
+                        {testing === status?.provider ? "testing…" : "test"}
+                    </button>
+                </div>
+
+                {#if tests[status?.provider ?? ""]}
+                    {@const result = tests[status?.provider ?? ""]}
+                    <p class="result" class:bad={!result.ok}>
+                        {result.ok ? "✓" : "✕"} {result.detail}
+                    </p>
+                {/if}
+
+                {#if models.length}
+                    <div class="list scroll">
+                        {#each models as m (m)}
+                            <button class="row" onclick={() => pickModel(m)}>{m}</button>
+                        {/each}
+                    </div>
+                {/if}
+            {:else if active === "keys"}
+                <h2>API keys</h2>
+                <p class="hint">
+                    Stored encrypted with Windows DPAPI, never written to the settings
+                    file and never shown again after they are saved.
+                </p>
+
+                {#each status?.providers ?? [] as p (p.id)}
+                    {#if p.needsKey}
+                        <div class="entry">
+                            <div class="entry-main">
+                                <span class="tool-name">
+                                    {p.id}
+                                    <span class="risk" data-risk={p.hasKey ? "safe" : "destructive"}>
+                                        {p.hasKey ? "stored" : "no key"}
+                                    </span>
+                                </span>
+                                {#if tests[p.id]}
+                                    <span class="tool-desc" class:bad={!tests[p.id].ok}>
+                                        {tests[p.id].ok ? "✓" : "✕"} {tests[p.id].detail}
+                                    </span>
+                                {/if}
+                            </div>
+                            <div class="entry-actions">
+                                <button
+                                    class="tiny"
+                                    disabled={!p.hasKey || testing !== null}
+                                    onclick={() => test(p.id)}
+                                >
+                                    {testing === p.id ? "…" : "test"}
+                                </button>
+                            </div>
+                        </div>
+                    {/if}
+                {/each}
+
+                <div class="row-group">
+                    <select bind:value={keyProvider}>
+                        {#each status?.providers ?? [] as p (p.id)}
+                            {#if p.needsKey}
+                                <option value={p.id}>{p.id}{p.hasKey ? " ✓" : ""}</option>
+                            {/if}
+                        {/each}
+                    </select>
+                    <input
+                        type="password"
+                        bind:value={keyDraft}
+                        placeholder="paste key…"
+                        onkeydown={(e) => e.key === "Enter" && saveKey()}
+                        onblur={saveKey}
+                    />
+                </div>
+                <p class="hint">Committed on Enter or when you leave the field.</p>
+            {:else if active === "voice"}
+                <h2>Voice</h2>
+                <p class="hint">
+                    Off, wake word, or always listening. The rail on the left switches
+                    between them, and so does Ctrl+M.
+                </p>
+
+                <div class="field">
+                    <span>Mode</span>
+                    <span class="value">{status?.voiceMode ?? "off"}</span>
+                </div>
+
+                <div class="actions">
+                    <button onclick={() => chat.cycleVoice()}>cycle mode</button>
+                    {#if status?.speaking}
+                        <button onclick={() => chat.stopSpeaking()}>stop speaking</button>
+                    {/if}
+                </div>
+
+                <p class="hint">
+                    Speech recognition runs through Groq, so it needs the Groq key even
+                    when another provider is answering.
+                </p>
+            {:else if active === "memory"}
+                <h2>Memory</h2>
+                <p class="hint">
+                    Facts the assistant keeps between conversations. Clearing the
+                    conversation does not touch these.
+                </p>
+
+                {#if facts.length === 0}
+                    <p class="hint">Nothing remembered yet. Try "remember that I…".</p>
+                {:else}
+                    <div class="list scroll">
+                        {#each facts as fact (fact.id)}
+                            <div class="entry">
+                                <div class="entry-main">
+                                    <span class="tool-desc">{fact.text}</span>
+                                </div>
+                                <div class="entry-actions">
+                                    <button
+                                        class="danger tiny"
+                                        onclick={() =>
+                                            run(async () => {
+                                                await api.forgetFact(fact.id);
+                                                facts = await api.listFacts();
+                                                await chat.refresh();
+                                            })}
+                                    >
+                                        forget
+                                    </button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            {:else if active === "search"}
+                <h2>Web search</h2>
+                {#if search}
+                    <p class="hint">
+                        Tried in order until one answers. Providers with no key are skipped,
+                        so the chain always ends somewhere that works.
+                    </p>
+
+                    <div class="chain">
+                        {#each search.order as id, i (id)}
+                            <div
+                                class="link"
+                                class:unconfigured={KEYED_SEARCH.includes(id) &&
+                                    !search.configured.includes(id)}
+                                draggable="true"
+                                role="listitem"
+                                ondragstart={() => (dragFrom = i)}
+                                ondragover={(e) => e.preventDefault()}
+                                ondrop={(e) => {
+                                    e.preventDefault();
+                                    if (dragFrom !== null) moveProvider(dragFrom, i);
+                                    dragFrom = null;
+                                }}
+                                ondragend={() => (dragFrom = null)}
+                            >
+                                <span class="rank">{i + 1}</span>
+                                <span class="link-main">
+                                    <span class="link-name">{id}</span>
+                                    <span class="link-note">
+                                        {#if KEYED_SEARCH.includes(id) && !search.configured.includes(id)}
+                                            no key — skipped
+                                        {:else}
+                                            {SEARCH_BLURB[id] ?? ""}
+                                        {/if}
+                                    </span>
+                                </span>
+                                <span class="link-actions">
+                                    <button class="tiny" disabled={i === 0} onclick={() => moveProvider(i, i - 1)}>↑</button>
+                                    <button
+                                        class="tiny"
+                                        disabled={i === search.order.length - 1}
+                                        onclick={() => moveProvider(i, i + 1)}>↓</button
+                                    >
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+
+                    <div class="row-group">
+                        <select bind:value={searchKeyProvider}>
+                            {#each KEYED_SEARCH as id (id)}
+                                <option value={id}>
+                                    {id}{search.configured.includes(id) ? " ✓" : ""}
+                                </option>
+                            {/each}
+                        </select>
+                        <input
+                            type="password"
+                            bind:value={searchKeyDraft}
+                            placeholder="paste key…"
+                            onkeydown={(e) => e.key === "Enter" && saveSearchKey()}
+                            onblur={saveSearchKey}
+                        />
+                    </div>
+
+                    <div class="actions">
+                        <button onclick={() => test("search")} disabled={testing !== null}>
+                            {testing === "search" ? "searching…" : "test"}
+                        </button>
+                    </div>
+                    {#if tests.search}
+                        <p class="result" class:bad={!tests.search.ok}>
+                            {tests.search.ok ? "✓" : "✕"} {tests.search.detail}
+                        </p>
+                    {/if}
+
+                    <h3>Custom endpoint</h3>
+                    <p class="hint">
+                        Any JSON search API — a self-hosted SearxNG, a company service. The
+                        address must contain <code>{"{query}"}</code>;
+                        <code>{"{key}"}</code> in the header value is filled from the stored key.
+                    </p>
+                    <input bind:value={search.custom.url} onchange={saveCustomSearch} placeholder="https://…?q={'{query}'}&format=json" />
+                    <input bind:value={search.custom.resultsPath} onchange={saveCustomSearch} placeholder="results path (e.g. results)" />
+                    <input bind:value={search.custom.titleKey} onchange={saveCustomSearch} placeholder="title field (default: title)" />
+                    <input bind:value={search.custom.urlKey} onchange={saveCustomSearch} placeholder="url field (default: url)" />
+                    <input bind:value={search.custom.snippetKey} onchange={saveCustomSearch} placeholder="snippet field (default: content)" />
+                    <input bind:value={search.custom.headerName} onchange={saveCustomSearch} placeholder="auth header (optional)" />
+                    <input bind:value={search.custom.headerValue} onchange={saveCustomSearch} placeholder="header value, e.g. Bearer {'{key}'}" />
+                {/if}
+            {:else if active === "canvas"}
+                <h2>Image &amp; video</h2>
+                {#if canvas}
+                    <p class="hint">
+                        Same idea as the search chain: tried in order, no key means skipped.
+                        Results land in the canvas interface, not in the conversation.
+                    </p>
+
+                    <div class="chain">
+                        {#each canvas.imageOrder as id, i (id)}
+                            <div
+                                class="link"
+                                class:unconfigured={!canvas.configured.includes(id)}
+                                draggable="true"
+                                role="listitem"
+                                ondragstart={() => (canvasDragFrom = i)}
+                                ondragover={(e) => e.preventDefault()}
+                                ondrop={(e) => {
+                                    e.preventDefault();
+                                    if (canvasDragFrom !== null) moveCanvasProvider(canvasDragFrom, i);
+                                    canvasDragFrom = null;
+                                }}
+                                ondragend={() => (canvasDragFrom = null)}
+                            >
+                                <span class="rank">{i + 1}</span>
+                                <span class="link-main">
+                                    <span class="link-name">{id}</span>
+                                    <span class="link-note">
+                                        {#if !canvas.configured.includes(id)}
+                                            {id === "custom" ? "no endpoint — skipped" : "no key — skipped"}
+                                        {:else}
+                                            {CANVAS_BLURB[id] ?? ""}
+                                        {/if}
+                                    </span>
+                                </span>
+                                <span class="link-actions">
+                                    <button class="tiny" disabled={i === 0} onclick={() => moveCanvasProvider(i, i - 1)}>↑</button>
+                                    <button
+                                        class="tiny"
+                                        disabled={i === canvas.imageOrder.length - 1}
+                                        onclick={() => moveCanvasProvider(i, i + 1)}>↓</button
+                                    >
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+
+                    <div class="row-group">
+                        <select bind:value={canvasKeyProvider}>
+                            {#each KEYED_CANVAS as id (id)}
+                                <option value={id}>
+                                    {id}{canvas.configured.includes(id) ? " ✓" : ""}
+                                </option>
+                            {/each}
+                        </select>
+                        <input
+                            type="password"
+                            bind:value={canvasKeyDraft}
+                            placeholder="paste key…"
+                            onkeydown={(e) => e.key === "Enter" && saveCanvasKey()}
+                            onblur={saveCanvasKey}
+                        />
+                    </div>
+
+                    <div class="actions">
+                        <button onclick={() => test("canvas")} disabled={testing !== null}>
+                            test
+                        </button>
+                    </div>
+                    {#if tests.canvas}
+                        <p class="result" class:bad={!tests.canvas.ok}>
+                            {tests.canvas.ok ? "✓" : "✕"} {tests.canvas.detail}
+                        </p>
+                    {/if}
+                    <p class="hint">
+                        The test reports what is configured rather than generating something
+                        — a test that charged you a few cents per press would not be one.
+                    </p>
+
+                    <h3>Models</h3>
+                    <p class="hint">
+                        Empty means the provider's own default, so a new model upstream needs
+                        no update here.
+                    </p>
+                    <input bind:value={canvas.imageModel} onchange={saveCanvasDefaults} placeholder="image model (optional)" />
+                    <input bind:value={canvas.videoModel} onchange={saveCanvasDefaults} placeholder="video model (optional)" />
+
+                    <h3>Custom endpoint</h3>
+                    <p class="hint">
+                        Must speak the OpenAI <code>/images/generations</code> shape.
+                        <code>{"{key}"}</code> in the header value is filled from the stored key.
+                    </p>
+                    <input bind:value={canvas.customUrl} onchange={saveCanvasDefaults} placeholder="http://localhost:8080/v1/images/generations" />
+                    <input bind:value={canvas.customModel} onchange={saveCanvasDefaults} placeholder="model (optional)" />
+                    <input bind:value={canvas.customHeaderName} onchange={saveCanvasDefaults} placeholder="auth header (optional)" />
+                    <input bind:value={canvas.customHeaderValue} onchange={saveCanvasDefaults} placeholder="header value, e.g. Bearer {'{key}'}" />
+
+                    <h3>Storage</h3>
+                    <div class="row-between">
+                        <span class="hint">
+                            {canvas.items} results · {bytes(canvas.bytes)} on disk
+                        </span>
+                        <span class="link-actions">
+                            <button class="tiny" onclick={() => api.openMediaFolder()}>folder</button>
+                            <button class="tiny" onclick={clearGallery}>clear</button>
+                        </span>
+                    </div>
+                    <p class="hint">Clearing spares anything you starred.</p>
+                {/if}
+            {:else if active === "obsidian"}
+                <h2>Obsidian</h2>
+                {#if vaults.length === 0}
+                    <p class="hint">
+                        No vault found. Obsidian does not have to be running — Vavis reads
+                        the Markdown files directly — but it needs to know where the vault is.
+                    </p>
+                {:else}
+                    <p class="hint">
+                        Notes are read and written on disk, so this works whether or not
+                        Obsidian is open.
+                    </p>
+                    <div class="list">
+                        {#each vaults as v (v.path)}
+                            <button
+                                class="row"
+                                class:active={v.active}
+                                title={v.path}
+                                onclick={() => pickVault(v.path)}
+                            >
+                                {v.active ? "● " : "○ "}{v.name}
+                            </button>
+                        {/each}
+                    </div>
+
+                    <div class="actions">
+                        <button onclick={() => test("obsidian")} disabled={testing !== null}>
+                            {testing === "obsidian" ? "reading…" : "test"}
+                        </button>
+                    </div>
+                    {#if tests.obsidian}
+                        <p class="result" class:bad={!tests.obsidian.ok}>
+                            {tests.obsidian.ok ? "✓" : "✕"} {tests.obsidian.detail}
+                        </p>
+                    {/if}
+                {/if}
+            {:else if active === "spotify"}
+                <h2>Spotify</h2>
+                {#if spotify?.connected}
+                    <p class="result">✓ Connected.</p>
+                    <div class="actions">
+                        <button onclick={() => test("spotify")} disabled={testing !== null}>
+                            test
+                        </button>
+                        <button class="danger" onclick={disconnectSpotify}>disconnect</button>
+                    </div>
+                    {#if tests.spotify}
+                        <p class="result" class:bad={!tests.spotify.ok}>
+                            {tests.spotify.ok ? "✓" : "✕"} {tests.spotify.detail}
+                        </p>
+                    {/if}
+                {:else}
+                    <p class="hint">
+                        Opens Spotify in your browser. Approve there and you are done —
+                        there is nothing to set up first.
+                    </p>
+                    <div class="actions">
+                        <button class="primary" onclick={connectSpotify}>connect</button>
+                    </div>
+                    <button class="disclosure" onclick={() => (spotifyOwnApp = !spotifyOwnApp)}>
+                        {spotifyOwnApp ? "▾" : "▸"} use my own Spotify app
+                    </button>
+                    {#if spotifyOwnApp}
+                        <p class="hint">
+                            Only worth doing if you want your own name on the consent screen.
+                            Register this exact redirect URI on the app, then paste its client
+                            id here. Leaving it empty goes back to the built-in one.
+                        </p>
+                        <p class="path selectable">{spotify?.redirectUri ?? ""}</p>
+                        <input bind:value={spotifyIdDraft} placeholder="client id (optional)" />
+                        <div class="actions">
+                            <button
+                                onclick={() =>
+                                    run(async () => {
+                                        await api.setSpotifyClientId(spotifyIdDraft.trim());
+                                        spotify = await api.spotifySettings();
+                                    }, "Client id saved.")}
+                            >
+                                save id
+                            </button>
+                        </div>
+                    {/if}
+                {/if}
+            {:else if active === "steam"}
+                <h2>Steam</h2>
+                <p class="hint">
+                    Needs a Web API key and your SteamID64. Game details must be public, or
+                    Steam returns an empty library without saying why.
+                </p>
+                <input bind:value={steamIdDraft} placeholder="SteamID64 (17 digits)" />
+                <input
+                    type="password"
+                    bind:value={steamKeyDraft}
+                    placeholder={steam?.hasKey ? "key stored — paste to replace" : "Web API key…"}
+                    onkeydown={(e) => e.key === "Enter" && saveSteam()}
+                />
+                <div class="actions">
+                    <button class="primary" onclick={saveSteam}>save and check</button>
+                    <button
+                        onclick={() => test("steam")}
+                        disabled={testing !== null || !steam?.hasKey}
+                    >
+                        {testing === "steam" ? "asking…" : "test"}
+                    </button>
+                </div>
+                {#if tests.steam}
+                    <p class="result" class:bad={!tests.steam.ok}>
+                        {tests.steam.ok ? "✓" : "✕"} {tests.steam.detail}
+                    </p>
+                {/if}
+                <p class="hint">
+                    Which game is running is detected locally, so that part works even on a
+                    private profile.
+                </p>
+            {:else if active === "mcp"}
+                <h2>MCP servers</h2>
+                <p class="hint">
+                    Connect any MCP server and its tools become available. A server runs as
+                    a process on this machine, so its tools always ask before running.
+                </p>
+
+                {#each mcp as server (server.id)}
+                    <div class="entry" class:off={!server.enabled}>
                         <div class="entry-main">
                             <span class="tool-name">
-                                {p.id}
-                                <span class="risk" data-risk={p.hasKey ? "safe" : "destructive"}>
-                                    {p.hasKey ? "stored" : "no key"}
+                                {server.id}
+                                <span class="risk" data-risk={server.connected ? "safe" : "destructive"}>
+                                    {server.connected ? "connected" : "offline"}
                                 </span>
                             </span>
-                            {#if tests[p.id]}
-                                <span class="tool-desc" class:bad={!tests[p.id].ok}>
-                                    {tests[p.id].ok ? "✓" : "✕"} {tests[p.id].detail}
-                                </span>
+                            <!-- Exactly what runs, so it can be judged before it does. -->
+                            <span class="tool-desc selectable">{server.commandLine}</span>
+                            {#if server.connected}
+                                <button
+                                    class="disclosure"
+                                    onclick={() =>
+                                        (mcpExpanded = mcpExpanded === server.id ? null : server.id)}
+                                >
+                                    {mcpExpanded === server.id ? "▾" : "▸"}
+                                    {server.tools.length + server.disabled.length} tools
+                                </button>
                             {/if}
                         </div>
                         <div class="entry-actions">
                             <button
                                 class="tiny"
-                                disabled={!p.hasKey || testing !== null}
-                                onclick={() => test(p.id)}
+                                onclick={() =>
+                                    mcpAction(() => api.toggleMcpServer(server.id, !server.enabled))}
                             >
-                                {testing === p.id ? "…" : "test"}
+                                {server.enabled ? "disable" : "enable"}
+                            </button>
+                            <button
+                                class="danger tiny"
+                                onclick={() => mcpAction(() => api.removeMcpServer(server.id))}
+                            >
+                                remove
                             </button>
                         </div>
                     </div>
+
+                    {#if mcpExpanded === server.id}
+                        <div class="list">
+                            {#each [...server.tools, ...server.disabled].sort() as tool (tool)}
+                                {@const on = !server.disabled.includes(tool)}
+                                <button
+                                    class="row"
+                                    class:active={on}
+                                    onclick={() => mcpAction(() => api.toggleMcpTool(server.id, tool, !on))}
+                                >
+                                    {on ? "● " : "○ "}{tool}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                {/each}
+
+                <button class="disclosure" onclick={() => (mcpOpen = !mcpOpen)}>
+                    {mcpOpen ? "▾" : "▸"} add a server
+                </button>
+                {#if mcpOpen}
+                    <input bind:value={draft.id} placeholder="id, e.g. github" />
+                    <label class="field">
+                        <span>Transport</span>
+                        <select bind:value={draft.transport}>
+                            <option value="stdio">stdio</option>
+                            <option value="http">http</option>
+                        </select>
+                    </label>
+                    {#if draft.transport === "stdio"}
+                        <input bind:value={draft.command} placeholder="command, e.g. npx" />
+                        <input bind:value={draft.args} placeholder="arguments, e.g. -y @modelcontextprotocol/server-github" />
+                    {:else}
+                        <input bind:value={draft.url} placeholder="https://…/mcp" />
+                        <input bind:value={draft.headerName} placeholder="auth header (optional)" />
+                        <input bind:value={draft.headerValue} placeholder="header value, e.g. Bearer {'{key}'}" />
+                    {/if}
+                    <input type="password" bind:value={draft.secret} placeholder="secret (optional)" />
+                    <button class="primary" onclick={saveMcp}>add and connect</button>
                 {/if}
-            {/each}
-
-            <div class="row-group">
-                <select bind:value={keyProvider}>
-                    {#each status?.providers ?? [] as p (p.id)}
-                        {#if p.needsKey}
-                            <option value={p.id}>{p.id}{p.hasKey ? " ✓" : ""}</option>
-                        {/if}
-                    {/each}
-                </select>
-                <input
-                    type="password"
-                    bind:value={keyDraft}
-                    placeholder="paste key…"
-                    onkeydown={(e) => e.key === "Enter" && saveKey()}
-                    onblur={saveKey}
-                />
-            </div>
-            <p class="hint">Committed on Enter or when you leave the field.</p>
-        {:else if active === "voice"}
-            <h2>Voice</h2>
-            <p class="hint">
-                Off, wake word, or always listening. The rail on the left switches
-                between them, and so does Ctrl+M.
-            </p>
-
-            <div class="field">
-                <span>mode</span>
-                <span class="value">{status?.voiceMode ?? "off"}</span>
-            </div>
-
-            <div class="actions">
-                <button onclick={() => chat.cycleVoice()}>cycle mode</button>
-                {#if status?.speaking}
-                    <button onclick={() => chat.stopSpeaking()}>stop speaking</button>
-                {/if}
-            </div>
-
-            <p class="hint">
-                Speech recognition runs through Groq, so it needs the Groq key even
-                when another provider is answering.
-            </p>
-        {:else if active === "memory"}
-            <h2>Memory</h2>
-            <p class="hint">
-                Facts the assistant keeps between conversations. Clearing the
-                conversation does not touch these.
-            </p>
-
-            {#if facts.length === 0}
-                <p class="hint">Nothing remembered yet. Try "remember that I…".</p>
-            {:else}
+            {:else if active === "tools"}
+                <h2>Tools</h2>
+                <p class="hint">
+                    {tools.length} registered. The model is never offered more than twelve
+                    at once — it picks better from a short list than a long one.
+                </p>
                 <div class="list scroll">
-                    {#each facts as fact (fact.id)}
+                    {#each tools as tool (tool.name)}
                         <div class="entry">
                             <div class="entry-main">
-                                <span class="tool-desc">{fact.text}</span>
+                                <span class="tool-name">
+                                    {tool.name}
+                                    <span class="risk" data-risk={tool.risk}>{tool.risk}</span>
+                                </span>
+                                <span class="tool-desc">{tool.description}</span>
                             </div>
                             <div class="entry-actions">
-                                <button
-                                    class="danger tiny"
-                                    onclick={() =>
-                                        run(async () => {
-                                            await api.forgetFact(fact.id);
-                                            facts = await api.listFacts();
-                                            await chat.refresh();
-                                        })}
-                                >
-                                    forget
-                                </button>
+                                <span class="domain">{tool.domain}</span>
                             </div>
                         </div>
                     {/each}
                 </div>
-            {/if}
-        {:else if active === "search"}
-            <h2>Web search</h2>
-            {#if search}
-                <p class="hint">
-                    Tried in order until one answers. Providers with no key are skipped,
-                    so the chain always ends somewhere that works.
-                </p>
-
-                <div class="chain">
-                    {#each search.order as id, i (id)}
-                        <div
-                            class="link"
-                            class:unconfigured={KEYED_SEARCH.includes(id) &&
-                                !search.configured.includes(id)}
-                            draggable="true"
-                            role="listitem"
-                            ondragstart={() => (dragFrom = i)}
-                            ondragover={(e) => e.preventDefault()}
-                            ondrop={(e) => {
-                                e.preventDefault();
-                                if (dragFrom !== null) moveProvider(dragFrom, i);
-                                dragFrom = null;
-                            }}
-                            ondragend={() => (dragFrom = null)}
-                        >
-                            <span class="rank">{i + 1}</span>
-                            <span class="link-main">
-                                <span class="link-name">{id}</span>
-                                <span class="link-note">
-                                    {#if KEYED_SEARCH.includes(id) && !search.configured.includes(id)}
-                                        no key — skipped
-                                    {:else}
-                                        {SEARCH_BLURB[id] ?? ""}
-                                    {/if}
-                                </span>
-                            </span>
-                            <span class="link-actions">
-                                <button class="tiny" disabled={i === 0} onclick={() => moveProvider(i, i - 1)}>↑</button>
-                                <button
-                                    class="tiny"
-                                    disabled={i === search.order.length - 1}
-                                    onclick={() => moveProvider(i, i + 1)}>↓</button
-                                >
-                            </span>
-                        </div>
-                    {/each}
-                </div>
-
-                <div class="row-group">
-                    <select bind:value={searchKeyProvider}>
-                        {#each KEYED_SEARCH as id (id)}
-                            <option value={id}>
-                                {id}{search.configured.includes(id) ? " ✓" : ""}
-                            </option>
-                        {/each}
-                    </select>
-                    <input
-                        type="password"
-                        bind:value={searchKeyDraft}
-                        placeholder="paste key…"
-                        onkeydown={(e) => e.key === "Enter" && saveSearchKey()}
-                        onblur={saveSearchKey}
-                    />
-                </div>
-
-                <div class="actions">
-                    <button onclick={() => test("search")} disabled={testing !== null}>
-                        {testing === "search" ? "searching…" : "test"}
-                    </button>
-                </div>
-                {#if tests.search}
-                    <p class="result" class:bad={!tests.search.ok}>
-                        {tests.search.ok ? "✓" : "✕"} {tests.search.detail}
-                    </p>
-                {/if}
-
-                <h3>Custom endpoint</h3>
-                <p class="hint">
-                    Any JSON search API — a self-hosted SearxNG, a company service. The
-                    address must contain <code>{"{query}"}</code>;
-                    <code>{"{key}"}</code> in the header value is filled from the stored key.
-                </p>
-                <input bind:value={search.custom.url} onchange={saveCustomSearch} placeholder="https://…?q={'{query}'}&format=json" />
-                <input bind:value={search.custom.resultsPath} onchange={saveCustomSearch} placeholder="results path (e.g. results)" />
-                <input bind:value={search.custom.titleKey} onchange={saveCustomSearch} placeholder="title field (default: title)" />
-                <input bind:value={search.custom.urlKey} onchange={saveCustomSearch} placeholder="url field (default: url)" />
-                <input bind:value={search.custom.snippetKey} onchange={saveCustomSearch} placeholder="snippet field (default: content)" />
-                <input bind:value={search.custom.headerName} onchange={saveCustomSearch} placeholder="auth header (optional)" />
-                <input bind:value={search.custom.headerValue} onchange={saveCustomSearch} placeholder="header value, e.g. Bearer {'{key}'}" />
-            {/if}
-        {:else if active === "canvas"}
-            <h2>Image &amp; video</h2>
-            {#if canvas}
-                <p class="hint">
-                    Same idea as the search chain: tried in order, no key means skipped.
-                    Results land in the canvas interface, not in the conversation.
-                </p>
-
-                <div class="chain">
-                    {#each canvas.imageOrder as id, i (id)}
-                        <div
-                            class="link"
-                            class:unconfigured={!canvas.configured.includes(id)}
-                            draggable="true"
-                            role="listitem"
-                            ondragstart={() => (canvasDragFrom = i)}
-                            ondragover={(e) => e.preventDefault()}
-                            ondrop={(e) => {
-                                e.preventDefault();
-                                if (canvasDragFrom !== null) moveCanvasProvider(canvasDragFrom, i);
-                                canvasDragFrom = null;
-                            }}
-                            ondragend={() => (canvasDragFrom = null)}
-                        >
-                            <span class="rank">{i + 1}</span>
-                            <span class="link-main">
-                                <span class="link-name">{id}</span>
-                                <span class="link-note">
-                                    {#if !canvas.configured.includes(id)}
-                                        {id === "custom" ? "no endpoint — skipped" : "no key — skipped"}
-                                    {:else}
-                                        {CANVAS_BLURB[id] ?? ""}
-                                    {/if}
-                                </span>
-                            </span>
-                            <span class="link-actions">
-                                <button class="tiny" disabled={i === 0} onclick={() => moveCanvasProvider(i, i - 1)}>↑</button>
-                                <button
-                                    class="tiny"
-                                    disabled={i === canvas.imageOrder.length - 1}
-                                    onclick={() => moveCanvasProvider(i, i + 1)}>↓</button
-                                >
-                            </span>
-                        </div>
-                    {/each}
-                </div>
-
-                <div class="row-group">
-                    <select bind:value={canvasKeyProvider}>
-                        {#each KEYED_CANVAS as id (id)}
-                            <option value={id}>
-                                {id}{canvas.configured.includes(id) ? " ✓" : ""}
-                            </option>
-                        {/each}
-                    </select>
-                    <input
-                        type="password"
-                        bind:value={canvasKeyDraft}
-                        placeholder="paste key…"
-                        onkeydown={(e) => e.key === "Enter" && saveCanvasKey()}
-                        onblur={saveCanvasKey}
-                    />
-                </div>
-
-                <div class="actions">
-                    <button onclick={() => test("canvas")} disabled={testing !== null}>
-                        test
-                    </button>
-                </div>
-                {#if tests.canvas}
-                    <p class="result" class:bad={!tests.canvas.ok}>
-                        {tests.canvas.ok ? "✓" : "✕"} {tests.canvas.detail}
-                    </p>
-                {/if}
-                <p class="hint">
-                    The test reports what is configured rather than generating something
-                    — a test that charged you a few cents per press would not be one.
-                </p>
-
-                <h3>Models</h3>
-                <p class="hint">
-                    Empty means the provider's own default, so a new model upstream needs
-                    no update here.
-                </p>
-                <input bind:value={canvas.imageModel} onchange={saveCanvasDefaults} placeholder="image model (optional)" />
-                <input bind:value={canvas.videoModel} onchange={saveCanvasDefaults} placeholder="video model (optional)" />
-
-                <h3>Custom endpoint</h3>
-                <p class="hint">
-                    Must speak the OpenAI <code>/images/generations</code> shape.
-                    <code>{"{key}"}</code> in the header value is filled from the stored key.
-                </p>
-                <input bind:value={canvas.customUrl} onchange={saveCanvasDefaults} placeholder="http://localhost:8080/v1/images/generations" />
-                <input bind:value={canvas.customModel} onchange={saveCanvasDefaults} placeholder="model (optional)" />
-                <input bind:value={canvas.customHeaderName} onchange={saveCanvasDefaults} placeholder="auth header (optional)" />
-                <input bind:value={canvas.customHeaderValue} onchange={saveCanvasDefaults} placeholder="header value, e.g. Bearer {'{key}'}" />
-
-                <h3>Storage</h3>
-                <div class="row-between">
-                    <span class="hint">
-                        {canvas.items} results · {bytes(canvas.bytes)} on disk
-                    </span>
-                    <span class="link-actions">
-                        <button class="tiny" onclick={() => api.openMediaFolder()}>folder</button>
-                        <button class="tiny" onclick={clearGallery}>clear</button>
-                    </span>
-                </div>
-                <p class="hint">Clearing spares anything you starred.</p>
-            {/if}
-        {:else if active === "obsidian"}
-            <h2>Obsidian</h2>
-            {#if vaults.length === 0}
-                <p class="hint">
-                    No vault found. Obsidian does not have to be running — Vavis reads
-                    the Markdown files directly — but it needs to know where the vault is.
-                </p>
-            {:else}
-                <p class="hint">
-                    Notes are read and written on disk, so this works whether or not
-                    Obsidian is open.
-                </p>
+            {:else if active === "shortcuts"}
+                <h2>Shortcuts</h2>
                 <div class="list">
-                    {#each vaults as v (v.path)}
-                        <button
-                            class="row"
-                            class:active={v.active}
-                            title={v.path}
-                            onclick={() => pickVault(v.path)}
-                        >
-                            {v.active ? "● " : "○ "}{v.name}
-                        </button>
+                    {#each SHORTCUTS as [key, action] (key)}
+                        <div class="shortcut-row">
+                            <kbd>{key}</kbd>
+                            <span>{action}</span>
+                        </div>
                     {/each}
                 </div>
+            {:else if active === "data"}
+                <h2>Data</h2>
+                <p class="hint">Everything Vavis stores lives here:</p>
+                <p class="path selectable">{status?.dataDir ?? ""}</p>
 
-                <div class="actions">
-                    <button onclick={() => test("obsidian")} disabled={testing !== null}>
-                        {testing === "obsidian" ? "reading…" : "test"}
-                    </button>
-                </div>
-                {#if tests.obsidian}
-                    <p class="result" class:bad={!tests.obsidian.ok}>
-                        {tests.obsidian.ok ? "✓" : "✕"} {tests.obsidian.detail}
-                    </p>
-                {/if}
-            {/if}
-        {:else if active === "spotify"}
-            <h2>Spotify</h2>
-            {#if spotify?.connected}
-                <p class="result">✓ Connected.</p>
-                <div class="actions">
-                    <button onclick={() => test("spotify")} disabled={testing !== null}>
-                        test
-                    </button>
-                    <button class="danger" onclick={disconnectSpotify}>disconnect</button>
-                </div>
-                {#if tests.spotify}
-                    <p class="result" class:bad={!tests.spotify.ok}>
-                        {tests.spotify.ok ? "✓" : "✕"} {tests.spotify.detail}
-                    </p>
-                {/if}
-            {:else}
-                <p class="hint">
-                    Opens Spotify in your browser. Approve there and you are done —
-                    there is nothing to set up first.
-                </p>
-                <div class="actions">
-                    <button class="primary" onclick={connectSpotify}>connect</button>
-                </div>
-                <button class="disclosure" onclick={() => (spotifyOwnApp = !spotifyOwnApp)}>
-                    {spotifyOwnApp ? "▾" : "▸"} use my own Spotify app
-                </button>
-                {#if spotifyOwnApp}
-                    <p class="hint">
-                        Only worth doing if you want your own name on the consent screen.
-                        Register this exact redirect URI on the app, then paste its client
-                        id here. Leaving it empty goes back to the built-in one.
-                    </p>
-                    <p class="path selectable">{spotify?.redirectUri ?? ""}</p>
-                    <input bind:value={spotifyIdDraft} placeholder="client id (optional)" />
-                    <div class="actions">
-                        <button
-                            onclick={() =>
-                                run(async () => {
-                                    await api.setSpotifyClientId(spotifyIdDraft.trim());
-                                    spotify = await api.spotifySettings();
-                                }, "Client id saved.")}
-                        >
-                            save id
-                        </button>
-                    </div>
-                {/if}
-            {/if}
-        {:else if active === "steam"}
-            <h2>Steam</h2>
-            <p class="hint">
-                Needs a Web API key and your SteamID64. Game details must be public, or
-                Steam returns an empty library without saying why.
-            </p>
-            <input bind:value={steamIdDraft} placeholder="SteamID64 (17 digits)" />
-            <input
-                type="password"
-                bind:value={steamKeyDraft}
-                placeholder={steam?.hasKey ? "key stored — paste to replace" : "Web API key…"}
-                onkeydown={(e) => e.key === "Enter" && saveSteam()}
-            />
-            <div class="actions">
-                <button class="primary" onclick={saveSteam}>save and check</button>
-                <button
-                    onclick={() => test("steam")}
-                    disabled={testing !== null || !steam?.hasKey}
-                >
-                    {testing === "steam" ? "asking…" : "test"}
-                </button>
-            </div>
-            {#if tests.steam}
-                <p class="result" class:bad={!tests.steam.ok}>
-                    {tests.steam.ok ? "✓" : "✕"} {tests.steam.detail}
-                </p>
-            {/if}
-            <p class="hint">
-                Which game is running is detected locally, so that part works even on a
-                private profile.
-            </p>
-        {:else if active === "mcp"}
-            <h2>MCP servers</h2>
-            <p class="hint">
-                Connect any MCP server and its tools become available. A server runs as
-                a process on this machine, so its tools always ask before running.
-            </p>
-
-            {#each mcp as server (server.id)}
-                <div class="entry" class:off={!server.enabled}>
-                    <div class="entry-main">
-                        <span class="tool-name">
-                            {server.id}
-                            <span class="risk" data-risk={server.connected ? "safe" : "destructive"}>
-                                {server.connected ? "connected" : "offline"}
-                            </span>
-                        </span>
-                        <!-- Exactly what runs, so it can be judged before it does. -->
-                        <span class="tool-desc selectable">{server.commandLine}</span>
-                        {#if server.connected}
-                            <button
-                                class="disclosure"
-                                onclick={() =>
-                                    (mcpExpanded = mcpExpanded === server.id ? null : server.id)}
-                            >
-                                {mcpExpanded === server.id ? "▾" : "▸"}
-                                {server.tools.length + server.disabled.length} tools
-                            </button>
-                        {/if}
-                    </div>
-                    <div class="entry-actions">
-                        <button
-                            class="tiny"
-                            onclick={() =>
-                                mcpAction(() => api.toggleMcpServer(server.id, !server.enabled))}
-                        >
-                            {server.enabled ? "disable" : "enable"}
-                        </button>
-                        <button
-                            class="danger tiny"
-                            onclick={() => mcpAction(() => api.removeMcpServer(server.id))}
-                        >
-                            remove
-                        </button>
-                    </div>
-                </div>
-
-                {#if mcpExpanded === server.id}
-                    <div class="list">
-                        {#each [...server.tools, ...server.disabled].sort() as tool (tool)}
-                            {@const on = !server.disabled.includes(tool)}
-                            <button
-                                class="row"
-                                class:active={on}
-                                onclick={() => mcpAction(() => api.toggleMcpTool(server.id, tool, !on))}
-                            >
-                                {on ? "● " : "○ "}{tool}
-                            </button>
-                        {/each}
-                    </div>
-                {/if}
-            {/each}
-
-            <button class="disclosure" onclick={() => (mcpOpen = !mcpOpen)}>
-                {mcpOpen ? "▾" : "▸"} add a server
-            </button>
-            {#if mcpOpen}
-                <input bind:value={draft.id} placeholder="id, e.g. github" />
-                <label class="field">
-                    <span>transport</span>
-                    <select bind:value={draft.transport}>
-                        <option value="stdio">stdio</option>
-                        <option value="http">http</option>
-                    </select>
-                </label>
-                {#if draft.transport === "stdio"}
-                    <input bind:value={draft.command} placeholder="command, e.g. npx" />
-                    <input bind:value={draft.args} placeholder="arguments, e.g. -y @modelcontextprotocol/server-github" />
-                {:else}
-                    <input bind:value={draft.url} placeholder="https://…/mcp" />
-                    <input bind:value={draft.headerName} placeholder="auth header (optional)" />
-                    <input bind:value={draft.headerValue} placeholder="header value, e.g. Bearer {'{key}'}" />
-                {/if}
-                <input type="password" bind:value={draft.secret} placeholder="secret (optional)" />
-                <button class="primary" onclick={saveMcp}>add and connect</button>
-            {/if}
-        {:else if active === "tools"}
-            <h2>Tools</h2>
-            <p class="hint">
-                {tools.length} registered. The model is never offered more than twelve
-                at once — it picks better from a short list than a long one.
-            </p>
-            <div class="list scroll">
-                {#each tools as tool (tool.name)}
-                    <div class="entry">
-                        <div class="entry-main">
-                            <span class="tool-name">
-                                {tool.name}
-                                <span class="risk" data-risk={tool.risk}>{tool.risk}</span>
-                            </span>
-                            <span class="tool-desc">{tool.description}</span>
-                        </div>
-                        <div class="entry-actions">
-                            <span class="domain">{tool.domain}</span>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {:else if active === "shortcuts"}
-            <h2>Shortcuts</h2>
-            <div class="list">
-                {#each SHORTCUTS as [key, action] (key)}
-                    <div class="shortcut-row">
-                        <kbd>{key}</kbd>
-                        <span>{action}</span>
-                    </div>
-                {/each}
-            </div>
-        {:else if active === "data"}
-            <h2>Data</h2>
-            <p class="hint">Everything Vavis stores lives here:</p>
-            <p class="path selectable">{status?.dataDir ?? ""}</p>
-
-            <div class="field">
-                <span>conversation</span>
-                <span class="value">{status?.messageCount ?? 0} messages</span>
-            </div>
-            <div class="field">
-                <span>remembered</span>
-                <span class="value">{status?.factCount ?? 0} facts</span>
-            </div>
-            {#if canvas}
                 <div class="field">
-                    <span>generated</span>
-                    <span class="value">{canvas.items} files · {bytes(canvas.bytes)}</span>
+                    <span>Conversation</span>
+                    <span class="value">{status?.messageCount ?? 0} messages</span>
                 </div>
-            {/if}
+                <div class="field">
+                    <span>Remembered</span>
+                    <span class="value">{status?.factCount ?? 0} facts</span>
+                </div>
+                {#if canvas}
+                    <div class="field">
+                        <span>Generated</span>
+                        <span class="value">{canvas.items} files · {bytes(canvas.bytes)}</span>
+                    </div>
+                {/if}
 
-            <div class="actions">
-                <button class="danger" onclick={() => chat.clear()}>
-                    clear the conversation
-                </button>
-            </div>
-            <p class="hint">Remembered facts survive that — forget them in Memory.</p>
-        {/if}
-    </section>
-</div>
+                <div class="actions">
+                    <button class="danger" onclick={() => chat.clearWithConfirm()}>
+                        Clear the conversation
+                    </button>
+                </div>
+                <p class="hint">Remembered facts survive that — forget them in Memory.</p>
+            {/if}
+        </section>
+    </div>
+</Modal>
 
 <style>
-    .scrim {
-        position: fixed;
-        inset: 0;
-        background: rgba(3, 8, 14, 0.72);
-        z-index: 40;
-    }
-
     .settings {
-        position: fixed;
-        inset: 5% 8%;
         display: flex;
-        z-index: 41;
-        background: var(--bg);
-        border: 1px solid var(--line);
-        border-radius: var(--r-md);
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-        overflow: hidden;
+        height: 100%;
+        min-height: 0;
     }
 
+    /* The rail is sunken rather than tinted with a literal colour: the old
+       `rgba(10, 17, 26, 0.7)` was a dark-theme value that turned the rail into
+       a grey slab on the light theme. */
     .categories {
-        width: 190px;
+        width: 208px;
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 1px;
         padding: var(--sp-3);
         border-right: 1px solid var(--line);
-        background: rgba(10, 17, 26, 0.7);
+        background: var(--surface-sunken);
         overflow-y: auto;
     }
 
@@ -1157,47 +1167,81 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: var(--sp-2);
+        margin-bottom: var(--sp-3);
+        padding-left: var(--sp-2);
     }
 
     .nav-title {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--accent);
+        font-size: var(--text-md);
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .nav-close {
+        padding: var(--sp-2);
+        color: var(--text-faint);
     }
 
     .search {
-        margin-bottom: var(--sp-2);
+        font-size: var(--text-sm);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        padding: var(--sp-2) var(--sp-3);
+        margin-bottom: var(--sp-3);
+        transition: border-color var(--fast) var(--ease);
+    }
+    .search:focus {
+        border-color: var(--accent-line);
     }
 
+    .nav-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--sp-1);
+        padding: var(--sp-3) var(--sp-2);
+    }
+    .nav-empty p {
+        font-size: var(--text-sm);
+        color: var(--text-faint);
+        line-height: 1.5;
+    }
+    .nav-empty button {
+        padding: 0;
+        color: var(--accent-text);
+    }
+
+    /* Selection is a filled row, not an outlined one. A border on the active
+       item and nothing on the rest made the rail read as a form. */
     .category {
         display: flex;
         align-items: center;
-        gap: var(--sp-2);
-        border: 1px solid transparent;
-        background: none;
+        gap: var(--sp-3);
+        width: 100%;
         text-align: left;
-        padding: 4px var(--sp-1);
-        font-size: var(--text-xs);
+        padding: var(--sp-2) var(--sp-2);
+        font-size: var(--text-sm);
         color: var(--text-muted);
-        border-radius: var(--r-md);
+        border-radius: var(--r-sm);
     }
     .category:hover {
         color: var(--text);
         background: var(--surface-hover);
     }
     .category.active {
-        color: var(--accent-hover);
-        border-color: var(--accent-line);
-        background: var(--surface-hover);
+        color: var(--text);
+        background: var(--surface-active);
+        font-weight: 500;
+    }
+    .category.active .cat-icon {
+        color: var(--accent);
     }
 
     .cat-icon {
-        width: 12px;
+        width: 14px;
         text-align: center;
-        color: var(--accent);
+        color: var(--text-faint);
         flex: 0 0 auto;
     }
 
@@ -1205,34 +1249,46 @@
         flex: 1;
         min-width: 0;
         overflow-y: auto;
-        padding: var(--sp-4);
+        padding: var(--sp-5) var(--sp-6) var(--sp-7);
         display: flex;
         flex-direction: column;
-        gap: var(--sp-2);
+        align-items: stretch;
+        gap: var(--sp-3);
+    }
+
+    /* A reading column, not the width of the window.
+       Every row here is a label on the left and its control on the right; at
+       full width on a wide monitor that put the two nine hundred pixels apart,
+       and a form you have to track across the screen to read is not a form. */
+    .pane > :global(*) {
+        width: 100%;
+        max-width: 760px;
     }
 
     h2 {
-        margin: 0 0 var(--sp-1);
-        font-size: var(--text-md);
-        font-weight: 500;
+        margin: 0 0 var(--sp-2);
+        font-size: var(--text-lg);
+        font-weight: 600;
         color: var(--text);
     }
 
+    /* Plain case and muted, matching `.section-label` in the design system.
+       These were mono all-caps in the accent colour, which made every
+       sub-heading louder than the setting under it. */
     h3 {
-        margin: var(--sp-3) 0 0;
-        font-family: var(--font-mono);
-        font-size: 10px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--accent);
+        margin: var(--sp-4) 0 0;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--text-faint);
     }
 
     .field {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: var(--sp-2);
-        font-size: var(--text-xs);
+        gap: var(--sp-3);
+        font-size: var(--text-sm);
         color: var(--text-muted);
     }
     .field > span:first-child {
@@ -1275,28 +1331,20 @@
 
     .result {
         margin: 0;
-        font-size: var(--text-xs);
-        font-family: var(--font-mono);
-        color: var(--accent);
+        font-size: var(--text-sm);
+        color: var(--success);
     }
     .result.bad,
     .tool-desc.bad {
         color: var(--warning);
     }
 
-    .notice {
-        padding: var(--sp-1) var(--sp-2);
-        font-size: var(--text-xs);
-        color: var(--accent);
-        border: 1px solid var(--accent-line);
-        border-radius: var(--r-md);
-    }
-
     .hint {
         margin: 0;
-        font-size: var(--text-xs);
+        font-size: var(--text-sm);
         color: var(--text-faint);
-        line-height: 1.5;
+        line-height: 1.55;
+        max-width: 72ch;
     }
 
     .path {

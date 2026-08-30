@@ -24,6 +24,7 @@
     import { chat } from "./store.svelte";
     import { renderMarkdown } from "./markdown";
     import { onMount } from "svelte";
+    import { toast } from "./toast.svelte";
 
     type Phase = "idle" | "waiting" | "streaming" | "done" | "failed";
 
@@ -178,8 +179,13 @@
     }
 
     function copy(panel: Panel) {
-        void navigator.clipboard.writeText(panel.text);
-        notice = "copied";
+        // Unlike the copy button on a chat message, this one has nowhere to
+        // show a tick — the label is one word in a crowded column header — so
+        // the confirmation goes to a toast instead of nothing at all.
+        void navigator.clipboard
+            .writeText(panel.text)
+            .then(() => toast.success(`Copied ${panel.label || panel.seat.model}.`))
+            .catch((e) => toast.failure("Could not copy that.", e));
     }
 
     function seconds(ms: number): string {

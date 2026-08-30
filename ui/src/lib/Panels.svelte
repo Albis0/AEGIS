@@ -10,15 +10,21 @@
     ago and has its own window in Settings.svelte.
 -->
 <script lang="ts">
-    import Icon from "./Icon.svelte";
+    import Icon, { type IconName } from "./Icon.svelte";
+    import Modal from "./Modal.svelte";
     import { api, type Automation, type Fact, type Tool } from "./api";
+    import { ask } from "./confirm.svelte";
     import { chat } from "./store.svelte";
+    import { toast } from "./toast.svelte";
 
     let facts = $state<Fact[]>([]);
     let automations = $state<Automation[]>([]);
     let tools = $state<Tool[]>([]);
-    let notice = $state("");
+    /** Set when the load failed, so the panel can offer a retry rather than
+        showing an empty list that looks like "you have none of these". */
+    let failure = $state("");
     let loading = $state(false);
+    let query = $state("");
 
     const TITLES: Record<string, string> = {
         memory: "Remembered facts",
@@ -28,9 +34,46 @@
 
     const title = $derived(TITLES[chat.panel] ?? "");
 
+    /**
+     * What an empty panel says.
+     *
+     * Each one names the thing that is missing and then shows how to create
+     * it, in the words the user would actually type. "No items" tells a
+     * first-time reader nothing they had not already worked out from the
+     * blank space.
+     */
+    const EMPTY: Record<string, { icon: IconName; title: string; body: string }> = {
+        memory: {
+            icon: "memory",
+            title: "Nothing remembered yet",
+            body: "Say “remember that I prefer metric units” and it will be kept here, across every conversation.",
+        },
+        automations: {
+            icon: "clock",
+            title: "No automations",
+            body: "Say “every morning at 09:00 tell me the weather” and it will run on its own from then on.",
+        },
+        tools: {
+            icon: "tool",
+            title: "No tools registered",
+            body: "Tools come from the built-in set and from any MCP servers you add in settings.",
+        },
+    };
+
+    /** Rows in the open panel, before filtering. */
+    const listLength = $derived.by(() => {
+        if (chat.panel === "memory") return facts.length;
+        if (chat.panel === "automations") return automations.length;
+        if (chat.panel === "tools") return tools.length;
+        return 0;
+    });
+
+    /** Below this many rows, a filter field costs more than it saves. */
+    const SEARCHABLE = 8;
+
     /** Reloads whatever the open panel shows. */
     async function load() {
-        notice = "";
+        failure = "";
         loading = true;
         try {
             switch (chat.panel) {
@@ -45,7 +88,7 @@
                     break;
             }
         } catch (e) {
-            notice = String(e);
+            failure = e instanceof Error ? e.message : String(e);
         } finally {
             loading = false;
         }
@@ -54,98 +97,187 @@
     // Reload when the panel changes.
     $effect(() => {
         void chat.panel;
+        query = "";
         void load();
     });
 
     function close() {
         chat.panel = "none";
     }
+
+    /** Case-insensitive substring match, used by all three lists. */
+    function hit(...fields: string[]): boolean {
+        const q = query.trim().toLowerCase();
+        if (!q) return true;
+        return fields.join(" ").toLowerCase().includes(q);
+    }
+
+    const shownFacts = $derived(facts.filter((f) => hit(f.text)));
+    const shownAutomations = $derived(
+        automations.filter((a) => hit(a.trigger, a.prompt)),
+    );
+    const shownTools = $derived(tools.filter((t) => hit(t.name, t.description)));
+
+    /** True once the list is loaded, succeeded, and has nothing in it. */
+    const isEmpty = $derived.by(() => {
+        if (loading || failure) return false;
+        if (chat.panel === "memory") return facts.length === 0;
+        if (chat.panel === "automations") return automations.length === 0;
+        if (chat.panel === "tools") return tools.length === 0;
+        return false;
+    });
+
+    /** Loaded and non-empty, but the search matched nothing. */
+    const noMatches = $derived.by(() => {
+        if (loading || failure || isEmpty || !query.trim()) return false;
+        if (chat.panel === "memory") return shownFacts.length === 0;
+        if (chat.panel === "automations") return shownAutomations.length === 0;
+        if (chat.panel === "tools") return shownTools.length === 0;
+        return false;
+    });
+
+    async function forget(fact: Fact) {
+        const confirmed = await ask({
+            title: "Forget this?",
+            body: fact.text,
+            confirmLabel: "Forget",
+            danger: true,
+        });
+        if (!confirmed) return;
+
+        try {
+            await api.forgetFact(fact.id);
+            toast.success("Forgotten.");
+            await load();
+            await chat.refresh();
+        } catch (e) {
+            toast.failure("Could not forget that.", e);
+        }
+    }
+
+    async function toggle(automation: Automation) {
+        try {
+            await api.toggleAutomation(automation.id, !automation.enabled);
+            toast.success(automation.enabled ? "Paused." : "Resumed.");
+            await load();
+        } catch (e) {
+            toast.failure("Could not change that automation.", e);
+        }
+    }
+
+    async function remove(automation: Automation) {
+        const confirmed = await ask({
+            title: "Delete this automation?",
+            body: `${automation.trigger} — ${automation.prompt}`,
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!confirmed) return;
+
+        try {
+            await api.deleteAutomation(automation.id);
+            toast.success("Automation deleted.");
+            await load();
+            await chat.refresh();
+        } catch (e) {
+            toast.failure("Could not delete that automation.", e);
+        }
+    }
 </script>
 
-<div class="scrim" role="presentation" onclick={close} onkeydown={() => {}}></div>
-
-<div class="sheet" role="dialog" aria-modal="true" aria-label={title}>
-    <header>
-        <span class="title">{title}</span>
-        <button class="icon-btn" onclick={close} title="Close (Esc)">
-            <Icon name="close" size={16} />
-        </button>
-    </header>
-
-    {#if notice}
-        <div class="notice">
-            <Icon name="warning" size={14} />
-            {notice}
+<Modal {title} size="lg" bare onClose={close}>
+    <!-- The search field is offered only once a list is long enough to need
+         one. Below that it is a control that can only ever narrow three rows
+         to two, which is friction rather than help. -->
+    {#if !loading && !failure && !isEmpty && listLength >= SEARCHABLE}
+        <div class="search">
+            <input
+                bind:value={query}
+                placeholder="Filter {title.toLowerCase()}…"
+                spellcheck="false"
+                aria-label="Filter {title.toLowerCase()}"
+            />
+            {#if query}
+                <button
+                    class="clear"
+                    onclick={() => (query = "")}
+                    aria-label="Clear filter"
+                >
+                    <Icon name="close" size={13} />
+                </button>
+            {/if}
         </div>
     {/if}
 
     <div class="content">
-        {#if chat.panel === "memory"}
-            {#if facts.length === 0 && !loading}
-                <p class="empty">
-                    Nothing remembered yet. Tell me something starting with
-                    “remember that…”.
-                </p>
-            {:else}
-                {#each facts as fact (fact.id)}
-                    <div class="entry">
-                        <span class="entry-text selectable">{fact.text}</span>
-                        <button
-                            class="danger row-action"
-                            onclick={async () => {
-                                await api.forgetFact(fact.id);
-                                await load();
-                                await chat.refresh();
-                            }}
-                        >
+        {#if loading}
+            <!-- Skeleton rows rather than a spinner: they occupy the shape the
+                 answer will, so the panel does not jump when it arrives. -->
+            <div class="skeletons" aria-hidden="true">
+                {#each { length: 4 } as _, row (row)}
+                    <div class="skeleton" style:width="{88 - row * 9}%"></div>
+                {/each}
+            </div>
+            <span class="sr-only">Loading…</span>
+        {:else if failure}
+            <div class="state">
+                <Icon name="warning" size={22} />
+                <p class="state-title">That did not load.</p>
+                <p class="state-body selectable">{failure}</p>
+                <button class="outline" onclick={load}>Try again</button>
+            </div>
+        {:else if isEmpty}
+            <div class="state">
+                <Icon name={EMPTY[chat.panel].icon} size={22} />
+                <p class="state-title">{EMPTY[chat.panel].title}</p>
+                <p class="state-body">{EMPTY[chat.panel].body}</p>
+            </div>
+        {:else if noMatches}
+            <div class="state">
+                <p class="state-title">Nothing matches “{query}”</p>
+                <button class="outline" onclick={() => (query = "")}>
+                    Clear filter
+                </button>
+            </div>
+        {:else if chat.panel === "memory"}
+            {#each shownFacts as fact (fact.id)}
+                <div class="entry">
+                    <span class="entry-text selectable">{fact.text}</span>
+                    <div class="row-actions">
+                        <button class="danger row-action" onclick={() => forget(fact)}>
                             <Icon name="trash" size={13} />
                             Forget
                         </button>
                     </div>
-                {/each}
-            {/if}
+                </div>
+            {/each}
         {:else if chat.panel === "automations"}
-            {#if automations.length === 0 && !loading}
-                <p class="empty">
-                    None set. Try “every morning at 09:00 tell me the weather”.
-                </p>
-            {:else}
-                {#each automations as a (a.id)}
-                    <div class="entry" class:off={!a.enabled}>
-                        <div class="entry-main">
-                            <span class="trigger">{a.trigger}</span>
-                            <span class="entry-text selectable">{a.prompt}</span>
-                        </div>
-                        <div class="row-actions">
-                            <button
-                                class="row-action"
-                                onclick={async () => {
-                                    await api.toggleAutomation(a.id, !a.enabled);
-                                    await load();
-                                }}
-                            >
-                                {a.enabled ? "Pause" : "Resume"}
-                            </button>
-                            <button
-                                class="danger row-action"
-                                onclick={async () => {
-                                    await api.deleteAutomation(a.id);
-                                    await load();
-                                    await chat.refresh();
-                                }}
-                            >
-                                <Icon name="trash" size={13} />
-                            </button>
-                        </div>
+            {#each shownAutomations as a (a.id)}
+                <div class="entry" class:off={!a.enabled}>
+                    <div class="entry-main">
+                        <span class="trigger">{a.trigger}</span>
+                        <span class="entry-text selectable">{a.prompt}</span>
                     </div>
-                {/each}
-            {/if}
+                    <div class="row-actions">
+                        <button class="row-action" onclick={() => toggle(a)}>
+                            {a.enabled ? "Pause" : "Resume"}
+                        </button>
+                        <button
+                            class="danger row-action"
+                            onclick={() => remove(a)}
+                            aria-label="Delete automation"
+                        >
+                            <Icon name="trash" size={13} />
+                        </button>
+                    </div>
+                </div>
+            {/each}
         {:else if chat.panel === "tools"}
             <p class="hint">
                 {tools.length} tools. At most 12 reach the model on any one request,
                 chosen by what the request is about.
             </p>
-            {#each tools as tool (tool.name)}
+            {#each shownTools as tool (tool.name)}
                 <div class="entry tool-entry">
                     <div class="entry-main">
                         <span class="tool-name">
@@ -158,92 +290,95 @@
             {/each}
         {/if}
     </div>
-</div>
+</Modal>
 
 <style>
-    .scrim {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(2px);
-        z-index: 40;
-        animation: fade-in var(--fast) var(--ease);
-    }
-
-    .sheet {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: min(640px, calc(100vw - 48px));
-        max-height: 72vh;
-        display: flex;
-        flex-direction: column;
-        background: var(--surface-raised);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--r-lg);
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-        z-index: 41;
-        animation: sheet-in var(--normal) var(--ease);
-    }
-
-    @keyframes sheet-in {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.985);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    header {
+    .search {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
-        border-bottom: 1px solid var(--line);
+        gap: var(--sp-2);
+        padding: var(--sp-2) var(--sp-4) var(--sp-3);
+    }
+    .search input {
+        font-size: var(--text-sm);
+        background: var(--surface-sunken);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        padding: var(--sp-2) var(--sp-3);
+        transition: border-color var(--fast) var(--ease);
+    }
+    .search input:focus {
+        border-color: var(--accent-line);
+    }
+    .clear {
+        padding: var(--sp-2);
+        color: var(--text-faint);
         flex: 0 0 auto;
     }
 
-    .title {
-        font-size: var(--text-md);
+    .content {
+        padding: var(--sp-2) var(--sp-3) var(--sp-3);
+    }
+
+    .hint {
+        font-size: var(--text-sm);
+        color: var(--text-faint);
+        padding: var(--sp-2) var(--sp-3) var(--sp-3);
+        line-height: 1.5;
+    }
+
+    /* -- Loading, empty and failed ------------------------------------- */
+
+    .state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-7) var(--sp-5);
+        text-align: center;
+        color: var(--text-faint);
+    }
+
+    .state-title {
+        font-size: var(--text-base);
         font-weight: 600;
         color: var(--text);
     }
 
-    .icon-btn {
-        padding: var(--sp-2);
-        color: var(--text-faint);
+    .state-body {
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        line-height: 1.6;
+        max-width: 44ch;
+        overflow-wrap: anywhere;
     }
 
-    .notice {
+    .state button {
+        margin-top: var(--sp-2);
+    }
+
+    .skeletons {
         display: flex;
-        align-items: center;
-        gap: var(--sp-2);
-        font-size: var(--text-sm);
-        color: var(--warning);
-        padding: var(--sp-2) var(--sp-4);
-        background: rgba(251, 191, 36, 0.08);
+        flex-direction: column;
+        gap: var(--sp-3);
+        padding: var(--sp-4) var(--sp-3);
     }
 
-    .content {
-        overflow-y: auto;
-        padding: var(--sp-2) var(--sp-3) var(--sp-3);
-        min-height: 0;
+    .skeleton {
+        height: 14px;
+        border-radius: var(--r-sm);
+        background: var(--surface-hover);
+        animation: pulse 1.4s var(--ease-soft) infinite;
     }
 
-    .empty,
-    .hint {
-        font-size: var(--text-sm);
-        color: var(--text-faint);
-        padding: var(--sp-4);
-        line-height: 1.5;
-    }
-    .empty {
-        text-align: center;
+    /* Announced to a screen reader, drawn for nobody. */
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
     .entry {

@@ -20,6 +20,8 @@
     } from "./api";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
+    import { ask } from "./confirm.svelte";
+    import { toast } from "./toast.svelte";
 
     type Kind = "image" | "video";
 
@@ -195,15 +197,23 @@
     }
 
     async function remove(item: GalleryItem) {
-        if (!confirm("Delete this permanently?")) return;
+        const confirmed = await ask({
+            title: "Delete this result?",
+            body: `“${item.prompt}” — the file is removed from disk and cannot be recovered.`,
+            confirmLabel: "Delete",
+            danger: true,
+        });
+        if (!confirmed) return;
+
         try {
             await api.deleteGalleryItem(item.id);
             items = items.filter((i) => i.id !== item.id);
             if (open?.id === item.id) open = null;
             if (source?.id === item.id) source = null;
             void loadSettings();
+            toast.success("Deleted.");
         } catch (e) {
-            notice = String(e);
+            toast.failure("Could not delete that.", e);
         }
     }
 
@@ -219,13 +229,20 @@
     }
 
     async function clearAll() {
-        if (!confirm("Delete everything except starred results?")) return;
+        const confirmed = await ask({
+            title: "Clear the gallery?",
+            body: "Everything goes except the results you starred. The files are removed from disk and cannot be recovered.",
+            confirmLabel: "Clear",
+            danger: true,
+        });
+        if (!confirmed) return;
+
         try {
             const freed = await api.clearGallery(true);
-            notice = `freed ${bytes(freed)}`;
+            toast.success(`Freed ${bytes(freed)}.`);
             await refresh();
         } catch (e) {
-            notice = String(e);
+            toast.failure("Could not clear the gallery.", e);
         }
     }
 

@@ -20,13 +20,16 @@
     import ChatPanel from "./lib/ChatPanel.svelte";
     import CodeView from "./lib/CodeView.svelte";
     import CommandPalette, { type Command } from "./lib/CommandPalette.svelte";
+    import ConfirmDialog from "./lib/ConfirmDialog.svelte";
     import CouncilView from "./lib/CouncilView.svelte";
     import Icon from "./lib/Icon.svelte";
     import Panels from "./lib/Panels.svelte";
     import Reactor from "./lib/Reactor.svelte";
     import Settings from "./lib/Settings.svelte";
     import StatusBar from "./lib/StatusBar.svelte";
+    import Toasts from "./lib/Toasts.svelte";
     import { chat } from "./lib/store.svelte";
+    import { toast } from "./lib/toast.svelte";
 
     const appWindow = getCurrentWindow();
 
@@ -71,18 +74,24 @@
         const current = status?.windowMode ?? "windowed";
         const next = order[(order.indexOf(current) + 1) % order.length];
 
-        // Applied first so the change is instant, then persisted.
-        //
-        // Decorations stay off throughout: the interface draws its own title
-        // strip, and turning the OS one back on gives two of them.
-        await appWindow.setFullscreen(next === "fullscreen");
-        if (next !== "fullscreen") {
-            if (next === "borderless") await appWindow.maximize();
-            else await appWindow.unmaximize();
-        }
+        try {
+            // Applied first so the change is instant, then persisted.
+            //
+            // Decorations stay off throughout: the interface draws its own
+            // title strip, and turning the OS one back on gives two of them.
+            await appWindow.setFullscreen(next === "fullscreen");
+            if (next !== "fullscreen") {
+                if (next === "borderless") await appWindow.maximize();
+                else await appWindow.unmaximize();
+            }
 
-        await api.setSetting("windowMode", next);
-        await chat.refresh();
+            await api.setSetting("windowMode", next);
+            await chat.refresh();
+        } catch (e) {
+            // The window is now in a state the config does not describe, which
+            // is worth saying: the next launch will not reproduce it.
+            toast.failure("Could not change the window mode.", e);
+        }
     }
 
     /**
@@ -141,7 +150,7 @@
             icon: "plus",
             hint: "Ctrl+L",
             keywords: "clear reset",
-            run: () => void chat.clear(),
+            run: () => void chat.clearWithConfirm(),
         },
         {
             id: "voice.cycle",
@@ -212,6 +221,10 @@
             // Escape unwinds one layer at a time, most transient first. Closing
             // everything at once would lose a panel the user was reading because
             // they wanted the speech to stop.
+            //
+            // Modals answer Escape themselves and stop the event, so the
+            // overlay branches below are only reached when focus has somehow
+            // left the trapped layer. They stay as the fallback for that.
             if (paletteOpen) paletteOpen = false;
             else if (status?.speaking) void chat.stopSpeaking();
             else if (chat.approval) void chat.answerApproval("deny");
@@ -237,7 +250,7 @@
         }
         if (ctrl && event.key.toLowerCase() === "l") {
             event.preventDefault();
-            void chat.clear();
+            void chat.clearWithConfirm();
             return;
         }
         if (ctrl && event.key === ",") {
@@ -323,6 +336,12 @@
 {:else if chat.panel !== "none"}
     <Panels />
 {/if}
+
+<!-- Both are mounted once, here, and driven by their stores: anything
+     anywhere can raise a question or report an outcome without needing
+     somewhere of its own on screen to put it. -->
+<ConfirmDialog />
+<Toasts />
 
 <style>
     .shell {

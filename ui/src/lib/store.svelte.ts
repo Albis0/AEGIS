@@ -22,6 +22,8 @@ import {
     type ToolStartEvent,
     type VoiceEvent,
 } from "./api";
+import { ask } from "./confirm.svelte";
+import { toast } from "./toast.svelte";
 
 export type Speaker =
     | "user"
@@ -179,6 +181,34 @@ class ChatStore {
         this.messages = [];
         this.add("system", "Conversation cleared. Remembered facts are kept.");
         await this.refresh();
+    }
+
+    /**
+     * Clears the conversation, having asked first.
+     *
+     * Ctrl+L is one keystroke from Ctrl+K and there is no undo, so the raw
+     * `clear` above is no longer wired to anything the user can hit by
+     * accident. Both entry points — the shortcut and the button in settings —
+     * come through here.
+     */
+    async clearWithConfirm() {
+        const confirmed = await ask({
+            title: "Start a new conversation?",
+            body:
+                this.messages.length > 0
+                    ? "This conversation is discarded and cannot be brought back. Remembered facts are kept."
+                    : "Remembered facts are kept.",
+            confirmLabel: "New conversation",
+            cancelLabel: "Keep it",
+            danger: true,
+        });
+        if (!confirmed) return;
+
+        try {
+            await this.clear();
+        } catch (e) {
+            toast.failure("Could not clear the conversation.", e);
+        }
     }
 
     async answerApproval(decision: "allow" | "always" | "deny") {
