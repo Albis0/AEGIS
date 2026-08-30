@@ -26,6 +26,7 @@
     import Panels from "./lib/Panels.svelte";
     import Reactor from "./lib/Reactor.svelte";
     import Settings from "./lib/Settings.svelte";
+    import SpotifyPanel from "./lib/SpotifyPanel.svelte";
     import StatusBar from "./lib/StatusBar.svelte";
     import Toasts from "./lib/Toasts.svelte";
     import { chat } from "./lib/store.svelte";
@@ -34,9 +35,18 @@
     const appWindow = getCurrentWindow();
 
     const THEME_KEY = "vavis.theme";
+    const NOW_PLAYING_KEY = "vavis.nowPlaying";
 
     let chatOpen = $state(true);
     let paletteOpen = $state(false);
+    /**
+     * Whether the now-playing box is up.
+     *
+     * Remembered per machine, like the theme: it is a piece of furniture the
+     * user arranged, and having to summon it again every launch is the whole
+     * reason a floating panel is worth having.
+     */
+    let nowPlaying = $state(localStorage.getItem(NOW_PLAYING_KEY) === "on");
     // Seeded from the DOM rather than from storage. `main.ts` has already
     // applied the saved theme before the app mounted -- components read
     // `data-theme` as they initialise, so it cannot wait for an effect here --
@@ -59,6 +69,10 @@
     $effect(() => {
         document.documentElement.dataset.theme = theme;
         localStorage.setItem(THEME_KEY, theme);
+    });
+
+    $effect(() => {
+        localStorage.setItem(NOW_PLAYING_KEY, nowPlaying ? "on" : "off");
     });
 
     function toggleChat() {
@@ -160,6 +174,15 @@
             hint: "Ctrl+M",
             keywords: "microphone listen speech wake",
             run: () => void chat.cycleVoice(),
+        },
+
+        {
+            id: "spotify.nowPlaying",
+            label: nowPlaying ? "Hide now playing" : "Show now playing",
+            group: "Chat",
+            icon: "info",
+            keywords: "spotify music track player playing drag box popup",
+            run: () => (nowPlaying = !nowPlaying),
         },
 
         {
@@ -324,6 +347,16 @@
 
     <StatusBar onOpenSettings={() => (chat.panel = "settings")} />
 </div>
+
+<!-- Outside `.shell` so it floats over every view rather than being clipped
+     by the stage, and above the chat panel it may be dragged across. -->
+{#if nowPlaying}
+    <SpotifyPanel
+        onClose={() => {
+            nowPlaying = false;
+        }}
+    />
+{/if}
 
 {#if paletteOpen}
     <CommandPalette {commands} onClose={() => (paletteOpen = false)} />
