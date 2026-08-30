@@ -143,6 +143,12 @@
         // Only the header drags, and only with the primary button. Dragging
         // from anywhere would make the transport buttons unclickable.
         if (event.button !== 0) return;
+
+        // The close button lives in the header, and capturing the pointer
+        // retargets the rest of the gesture to whatever captured it -- so the
+        // click never arrived and the box could not be shut.
+        if ((event.target as HTMLElement).closest("button")) return;
+
         dragging = true;
         grabX = event.clientX - x;
         grabY = event.clientY - y;
