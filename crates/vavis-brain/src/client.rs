@@ -147,9 +147,6 @@ impl BrainClient {
 
         let caps = ModelCaps::for_model(&cfg.model);
 
-        // Tool şemaları da bütçeye sayılır — 413'ün kök nedeni buydu.
-        let tool_tokens: usize = tools.iter().map(|t| estimate_tokens(&t.to_string())).sum();
-
         // Anthropic tamamen farklı gövde/akış şeması kullanıyor — ayrı yol.
         if cfg.provider == Provider::Anthropic {
             return self
@@ -157,12 +154,13 @@ impl BrainClient {
                 .await;
         }
 
-        let fitted = fit_request(messages, tool_tokens, caps);
-        if fitted.history_dropped > 0 {
+        // Tool şemaları da bütçeye sayılır — 413'ün kök nedeni buydu.
+        let fitted = fit_request(messages, tools.to_vec(), caps);
+        if fitted.history_dropped > 0 || fitted.tools_dropped > 0 {
             tracing::info!(
                 dropped = fitted.history_dropped,
+                tools_dropped = fitted.tools_dropped,
                 est = fitted.est_tokens,
-                tool_tokens,
                 "geçmiş bütçeye sığdırıldı"
             );
         }
@@ -174,8 +172,11 @@ impl BrainClient {
             "max_tokens": caps.max_output,
             "stream": true,
         });
-        if !tools.is_empty() {
-            body["tools"] = serde_json::Value::Array(tools.to_vec());
+        // `fitted.tools`, not `tools`: the trimmed list is the one that fits.
+        // Sending the full set here is exactly the bug that made the budget
+        // module's trimming pointless.
+        if !fitted.tools.is_empty() {
+            body["tools"] = serde_json::Value::Array(fitted.tools.clone());
             body["tool_choice"] = serde_json::Value::String("auto".into());
         }
 
@@ -285,13 +286,13 @@ impl BrainClient {
     {
         use crate::anthropic::{self, Chunk, StreamState};
 
-        let tool_tokens: usize = tools.iter().map(|t| estimate_tokens(&t.to_string())).sum();
-        let fitted = fit_request(messages, tool_tokens, caps);
+        let fitted = fit_request(messages, tools.to_vec(), caps);
 
+        // The trimmed list, for the same reason as the OpenAI path above.
         let body = anthropic::build_body(
             &cfg.model,
             &fitted.messages,
-            tools,
+            &fitted.tools,
             caps.max_output,
             cfg.temperature,
         );

@@ -168,7 +168,14 @@ pub fn estimate_cost(model: &str, input_tokens: usize, output_tokens: usize) -> 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FitResult {
     pub messages: Vec<Message>,
-    /// Kaç tool atıldı (F3'te dolacak).
+    /// The tools that survived, in the order they were offered.
+    ///
+    /// The caller must send *these* rather than the list it passed in. When
+    /// this is shorter than that list, the difference is the whole point:
+    /// leaving the full set on the request is what produced the 413 this
+    /// module exists to prevent, and schemas are the largest fixed cost in it.
+    pub tools: Vec<serde_json::Value>,
+    /// How many tools were dropped to make the request fit.
     pub tools_dropped: usize,
     /// Kaç geçmiş mesajı atıldı.
     pub history_dropped: usize,
@@ -196,11 +203,29 @@ fn message_tokens(m: &Message) -> usize {
     tokens
 }
 
+/// The fewest tools worth sending.
+///
+/// Dropping schemas beats dropping the conversation, but a model with no
+/// tools at all is a different assistant: it cannot read a file or run
+/// anything, and it does not announce that -- it answers as though it had
+/// tried. Tools arrive most-relevant first, so the leading few are the ones
+/// the request is most likely to need. If even these will not fit, the system
+/// prompt is the problem and trimming further would not save the request.
+const MIN_TOOLS: usize = 4;
+
 /// İstek gövdesini bütçeye sığdırır.
 ///
 /// `messages[0]` sistem mesajıysa **asla atılmaz** — kimliği taşır.
 /// Son kullanıcı mesajı da asla atılmaz — isteğin kendisi odur.
-pub fn fit_request(messages: Vec<Message>, tool_tokens: usize, caps: ModelCaps) -> FitResult {
+///
+/// Tools are trimmed before history, because a schema is worth less than a
+/// turn: the model copes with a smaller toolbox, but it cannot answer a
+/// question whose context has been thrown away.
+pub fn fit_request(
+    messages: Vec<Message>,
+    tools: Vec<serde_json::Value>,
+    caps: ModelCaps,
+) -> FitResult {
     let budget = caps.input_budget();
 
     // Sistem mesajını ayır (varsa).
@@ -208,17 +233,37 @@ pub fn fit_request(messages: Vec<Message>, tool_tokens: usize, caps: ModelCaps) 
         messages.into_iter().partition(|m| m.role == Role::System);
 
     let system_tokens: usize = system.iter().map(message_tokens).sum();
-    let fixed = system_tokens + tool_tokens;
 
-    // Sistem + tool'lar bile sığmıyorsa: tool'ları düşür (F3'te gerçek atma
-    // burada olacak; F2'de tool yok, sadece raporlanır).
-    let mut tools_dropped = 0;
-    let mut available = if fixed >= budget {
-        tools_dropped = 1; // "tool'lar sığmadı" işareti
-        budget.saturating_sub(system_tokens)
-    } else {
-        budget - fixed
-    };
+    // What the conversation may claim before tools start being dropped.
+    // Without a floor, one long paste would strip the toolbox to `MIN_TOOLS`
+    // and the next question would be answered with no way to act on it.
+    let history_floor = budget.saturating_sub(system_tokens) / 3;
+
+    let mut costs: Vec<usize> = tools
+        .iter()
+        .map(|t| estimate_tokens(&t.to_string()))
+        .collect();
+    let mut tool_tokens: usize = costs.iter().sum();
+    let offered = tools.len();
+
+    // Drop the least relevant tools -- from the end, since they arrive most
+    // relevant first -- until the fixed cost leaves the conversation its
+    // floor.
+    //
+    // This is the part that used to be a `tools_dropped = 1` marker nobody
+    // read. The count was reported while the *full* schema list still went
+    // out on the request, so the 413 this module was written to prevent
+    // happened anyway, and the trimming it did instead came out of history --
+    // the expensive place to take it from.
+    let mut kept_tools = tools;
+    while kept_tools.len() > MIN_TOOLS && system_tokens + tool_tokens + history_floor > budget {
+        kept_tools.pop();
+        tool_tokens -= costs.pop().unwrap_or(0);
+    }
+    let tools_dropped = offered - kept_tools.len();
+
+    let fixed = system_tokens + tool_tokens;
+    let mut available = budget.saturating_sub(fixed);
 
     // Geçmişi YENİDEN ESKİYE doldur — en yeni mesajlar en değerlisi.
     let mut kept: Vec<Message> = Vec::new();
@@ -252,6 +297,7 @@ pub fn fit_request(messages: Vec<Message>, tool_tokens: usize, caps: ModelCaps) 
     let est_tokens: usize = out.iter().map(message_tokens).sum::<usize>() + tool_tokens;
     FitResult {
         messages: out,
+        tools: kept_tools,
         tools_dropped,
         history_dropped,
         est_tokens,
@@ -300,10 +346,21 @@ mod tests {
         }
     }
 
+    fn no_tools() -> Vec<serde_json::Value> {
+        Vec::new()
+    }
+
+    /// `count` schemas of roughly `each` tokens apiece.
+    fn tools(count: usize, each: usize) -> Vec<serde_json::Value> {
+        (0..count)
+            .map(|i| serde_json::json!({ "name": format!("t{i}"), "schema": "x".repeat(each * 4) }))
+            .collect()
+    }
+
     #[test]
     fn short_conversation_passes_through_untouched() {
         let msgs = vec![Message::system("sen vavis'sin"), Message::user("selam")];
-        let r = fit_request(msgs.clone(), 0, ModelCaps::for_model("gpt-4o"));
+        let r = fit_request(msgs.clone(), no_tools(), ModelCaps::for_model("gpt-4o"));
         assert_eq!(r.messages, msgs);
         assert_eq!(r.history_dropped, 0);
     }
@@ -314,7 +371,7 @@ mod tests {
         for _ in 0..200 {
             msgs.push(msg(Role::User, 400));
         }
-        let r = fit_request(msgs, 0, ModelCaps::default());
+        let r = fit_request(msgs, no_tools(), ModelCaps::default());
         assert_eq!(r.messages[0].role, Role::System);
         assert!(r.history_dropped > 0, "bir şeyler atılmalıydı");
     }
@@ -327,7 +384,7 @@ mod tests {
         }
         msgs.push(Message::user("BU KALMALI"));
 
-        let r = fit_request(msgs, 0, ModelCaps::default());
+        let r = fit_request(msgs, no_tools(), ModelCaps::default());
         let last = r.messages.last().unwrap();
         assert_eq!(last.role, Role::User);
         assert!(last.content.starts_with("BU KALMALI"));
@@ -340,7 +397,7 @@ mod tests {
         for _ in 0..300 {
             msgs.push(msg(Role::User, 300));
         }
-        let r = fit_request(msgs, 0, caps);
+        let r = fit_request(msgs, no_tools(), caps);
         assert!(
             r.est_tokens <= caps.input_budget(),
             "bütçe aşıldı: {} > {}",
@@ -355,13 +412,68 @@ mod tests {
         let caps = ModelCaps::default();
         let msgs = vec![msg(Role::System, 100), msg(Role::User, 2000)];
 
-        let without = fit_request(msgs.clone(), 0, caps);
-        let with = fit_request(msgs, caps.input_budget() / 2, caps);
+        let without = fit_request(msgs.clone(), no_tools(), caps);
+        let with = fit_request(msgs, tools(8, caps.input_budget() / 16), caps);
 
         assert!(
-            with.est_tokens > without.est_tokens - 10,
+            with.est_tokens > without.est_tokens,
             "tool token'ları toplama katılmalı"
         );
+    }
+
+    #[test]
+    fn tools_that_do_not_fit_are_actually_dropped() {
+        // The second half of the 413 bug. Counting the schemas was only ever
+        // half a fix: the count was reported, the *full* list still went on
+        // the request, and the trimming came out of history instead.
+        let caps = ModelCaps::default();
+        let budget = caps.input_budget();
+        let msgs = vec![msg(Role::System, 100), msg(Role::User, 200)];
+
+        // Sixteen schemas at a sixth of the budget each: wildly over.
+        let offered = tools(16, budget / 6);
+        let r = fit_request(msgs, offered.clone(), caps);
+
+        assert!(r.tools_dropped > 0, "sığmayan tool'lar atılmalıydı");
+        assert_eq!(
+            r.tools.len(),
+            offered.len() - r.tools_dropped,
+            "the returned list has to match the reported count"
+        );
+        assert!(
+            r.est_tokens <= budget,
+            "bütçe aşıldı: {} > {budget}",
+            r.est_tokens
+        );
+    }
+
+    #[test]
+    fn a_few_tools_always_survive() {
+        // A model with an empty toolbox is a different assistant: it cannot
+        // act and does not say so. Better to trim history than to strip it.
+        let caps = ModelCaps::default();
+        let msgs = vec![msg(Role::System, 100), msg(Role::User, 200)];
+
+        let r = fit_request(msgs, tools(40, caps.input_budget()), caps);
+        assert_eq!(r.tools.len(), MIN_TOOLS);
+    }
+
+    #[test]
+    fn tools_survive_a_long_conversation() {
+        // History is trimmed before the toolbox is: an assistant that has
+        // forgotten the start of the conversation is still useful, one that
+        // cannot run anything is not.
+        let caps = ModelCaps::default();
+        let mut msgs = vec![msg(Role::System, 100)];
+        for _ in 0..300 {
+            msgs.push(msg(Role::User, 400));
+        }
+
+        let offered = tools(8, 200);
+        let r = fit_request(msgs, offered.clone(), caps);
+
+        assert_eq!(r.tools.len(), offered.len(), "tool'lar korunmalıydı");
+        assert!(r.history_dropped > 0, "geçmiş budanmalıydı");
     }
 
     #[test]
@@ -445,7 +557,7 @@ mod tests {
             Message::assistant("iki"),
             Message::user("üç"),
         ];
-        let r = fit_request(msgs, 0, caps);
+        let r = fit_request(msgs, no_tools(), caps);
         let texts: Vec<&str> = r.messages.iter().map(|m| m.content.as_str()).collect();
         assert_eq!(texts, vec!["s", "bir", "iki", "üç"], "sıra korunmalı");
     }
@@ -454,6 +566,10 @@ mod tests {
 #[cfg(test)]
 mod image_budget_tests {
     use super::*;
+
+    fn no_tools() -> Vec<serde_json::Value> {
+        Vec::new()
+    }
 
     #[test]
     fn image_costs_a_fixed_amount_not_its_base64_length() {
@@ -483,7 +599,7 @@ mod image_budget_tests {
             msgs.push(Message::user_with_image("bak", "A".repeat(100_000)));
         }
 
-        let r = fit_request(msgs, 0, caps);
+        let r = fit_request(msgs, no_tools(), caps);
         assert!(
             r.est_tokens <= caps.input_budget(),
             "görüntülü sohbet bütçeyi aşmamalı: {} > {}",
@@ -503,7 +619,7 @@ mod image_budget_tests {
             msgs.push(Message::user_with_image(format!("görüntü {i}"), "x"));
         }
 
-        let r = fit_request(msgs, 0, caps);
+        let r = fit_request(msgs, no_tools(), caps);
         assert!(r.history_dropped > 0, "eski görüntüler atılmalıydı");
         assert!(r.est_tokens <= caps.input_budget());
     }
