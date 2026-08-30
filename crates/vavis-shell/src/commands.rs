@@ -310,15 +310,23 @@ pub fn send_message(
     Ok(())
 }
 
+// Every payload below carries this, including the ones whose fields are all
+// single words today and so would serialise identically without it. A missing
+// rename is invisible until someone adds a two-word field, and then the
+// interface reads undefined and silently renders nothing -- which is exactly
+// how the "too long" recovery button came to never appear.
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct DeltaPayload {
     text: String,
 }
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct DonePayload {
     text: String,
 }
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct ErrorPayload {
     message: String,
     /// True when the request was refused for being too large.
@@ -406,6 +414,49 @@ impl From<String> for TurnError {
     }
 }
 
+/// Drops the older half of a request's history in place, returning how many
+/// messages went.
+///
+/// The system message is index 0 and carries the assistant's identity, so it
+/// stays. The last message is the question being asked, so it stays too --
+/// dropping it would answer something the user never sent. Everything cut
+/// comes from between them, oldest first.
+///
+/// Returns 0 when there is nothing safe to cut, which tells the caller that
+/// retrying would send exactly the same request and fail exactly the same
+/// way.
+fn drop_oldest_half(messages: &mut Vec<Message>) -> usize {
+    // system + at least two turns in between + the question.
+    if messages.len() < 4 {
+        return 0;
+    }
+
+    // The span that may be cut: everything after the system message and
+    // before the question.
+    let cuttable = messages.len() - 2;
+    let mut drop = cuttable / 2;
+    if drop == 0 {
+        return 0;
+    }
+
+    // A tool result has to keep the assistant message that asked for it:
+    // providers reject a request whose tool result answers a call they cannot
+    // see ("tool not in request.tools"). Cutting in the middle of such a pair
+    // is exactly what a blind halving does, so the cut is pushed forward
+    // until the first surviving message is not an orphaned tool result.
+    while drop < cuttable && messages[drop + 1].tool_call_id.is_some() {
+        drop += 1;
+    }
+
+    // Pushing forward may have consumed the whole span. Nothing safe to cut.
+    if drop >= cuttable {
+        return 0;
+    }
+
+    messages.drain(1..=drop);
+    drop
+}
+
 /// One full turn: model → tools → model → … → reply.
 #[allow(clippy::too_many_arguments)]
 async fn run_turn(
@@ -428,18 +479,55 @@ async fn run_turn(
     let mut messages = vec![system];
     messages.extend(history);
     let mut final_text = String::new();
+    // Whether history has already been cut back after a size refusal. Once
+    // only, so a provider that refuses for some other reason it happens to
+    // describe as "too long" cannot walk the conversation down to nothing.
+    let mut shrunk = false;
 
     for step in 0..MAX_STEPS {
         let emit = app.clone();
 
-        let response = client
-            .chat_stream_with_tools(cfg, messages.clone(), &tools, move |event| {
-                if let StreamEvent::Delta(text) = event {
-                    let _ = emit.emit("chat:delta", DeltaPayload { text });
+        let response = match client
+            .chat_stream_with_tools(cfg, messages.clone(), &tools, {
+                let emit = emit.clone();
+                move |event| {
+                    if let StreamEvent::Delta(text) = event {
+                        let _ = emit.emit("chat:delta", DeltaPayload { text });
+                    }
                 }
             })
             .await
-            .map_err(|e| TurnError::from(&e))?;
+        {
+            Ok(response) => response,
+
+            // The provider says the request is too big even though the budget
+            // module thought it would fit. That happens because the window is
+            // read from a table of model names, and the same name is served
+            // with different limits by different providers -- so the number
+            // can be wrong, and being wrong costs the user their turn.
+            //
+            // Rather than trust the table, shrink and ask again. Half the
+            // conversation goes, oldest first, and the question itself is
+            // never touched. One attempt only: if half was not enough, the
+            // size is coming from something a second halving will not fix,
+            // and the interface offers the same thing as a button by then.
+            Err(e) if error_is_too_long(&e) && !shrunk => {
+                shrunk = true;
+
+                let kept = drop_oldest_half(&mut messages);
+                if kept == 0 {
+                    return Err(TurnError::from(&e));
+                }
+
+                tracing::info!(
+                    dropped = kept,
+                    "provider refused for size; retrying with less history"
+                );
+                continue;
+            }
+
+            Err(e) => return Err(TurnError::from(&e)),
+        };
 
         if !response.text.is_empty() {
             final_text = response.text.clone();
@@ -1859,6 +1947,7 @@ struct CanvasDonePayload {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct CanvasErrorPayload {
     message: String,
 }
@@ -2594,6 +2683,100 @@ pub fn test_connection(state: State<AppState>, target: String) -> ConnectionTest
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_error_event_names_its_fields_the_way_the_interface_reads_them() {
+        // The interface reads `tooLong`. Rust writes `too_long` unless the
+        // struct is told otherwise, and nothing warns when it is not: the
+        // event goes out, the field arrives undefined, and the recovery
+        // button silently never renders. That shipped once -- the flag was
+        // added and the rename was not, so the fix was invisible in the
+        // build that was supposed to carry it.
+        let json = serde_json::to_value(ErrorPayload {
+            message: "too big".into(),
+            too_long: true,
+        })
+        .unwrap();
+
+        assert_eq!(json["tooLong"], true, "serialised as {json}");
+        assert!(
+            json.get("too_long").is_none(),
+            "the snake_case spelling must not be what goes out"
+        );
+    }
+
+    fn user(text: &str) -> Message {
+        Message::user(text)
+    }
+
+    /// An assistant turn that asked for a tool, and the result answering it.
+    fn tool_pair(id: &str) -> [Message; 2] {
+        [
+            Message {
+                role: vavis_brain::Role::Assistant,
+                content: String::new(),
+                tool_call_id: None,
+                tool_calls: Some(Vec::new()),
+                image: None,
+            },
+            Message {
+                role: vavis_brain::Role::Tool,
+                content: "result".into(),
+                tool_call_id: Some(id.to_string()),
+                tool_calls: None,
+                image: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn shrinking_keeps_the_identity_and_the_question() {
+        let mut messages = vec![Message::system("you are vavis")];
+        for i in 0..8 {
+            messages.push(user(&format!("old {i}")));
+        }
+        messages.push(user("THE QUESTION"));
+
+        let dropped = drop_oldest_half(&mut messages);
+
+        assert!(dropped > 0);
+        assert_eq!(messages[0].role, vavis_brain::Role::System);
+        assert_eq!(
+            messages.last().unwrap().content,
+            "THE QUESTION",
+            "the turn being asked must survive -- dropping it answers \
+             something the user never sent"
+        );
+    }
+
+    #[test]
+    fn shrinking_never_orphans_a_tool_result() {
+        // Providers reject a tool result whose originating call is not in the
+        // same request. A blind halving lands in the middle of such a pair
+        // about half the time.
+        let mut messages = vec![Message::system("you are vavis")];
+        for i in 0..4 {
+            messages.push(user(&format!("q{i}")));
+            messages.extend(tool_pair(&format!("call{i}")));
+        }
+        messages.push(user("THE QUESTION"));
+
+        drop_oldest_half(&mut messages);
+
+        // Index 0 is the system message; the survivors start after it.
+        assert!(
+            messages[1].tool_call_id.is_none(),
+            "the first surviving message answers a call that was cut"
+        );
+    }
+
+    #[test]
+    fn shrinking_a_conversation_with_nothing_spare_reports_nothing() {
+        // system + question only: retrying would send an identical request.
+        let mut messages = vec![Message::system("you are vavis"), user("hello")];
+        assert_eq!(drop_oldest_half(&mut messages), 0);
+        assert_eq!(messages.len(), 2, "nothing may be taken");
+    }
 
     #[test]
     fn a_short_conversation_is_not_worth_trimming() {
