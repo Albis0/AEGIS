@@ -15,7 +15,8 @@
 
     **It cannot be dismissed by clicking away.** A question that vanishes when
     the pointer slips leaves the user unsure which answer they gave. Escape
-    still cancels, because that one is unambiguous.
+    still cancels, because that one is unambiguous — which is why `dismissable`
+    and `escapable` are separate props on Modal rather than one.
 -->
 <script lang="ts">
     import { confirmStore } from "./confirm.svelte";

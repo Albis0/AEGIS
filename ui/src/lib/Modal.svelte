@@ -68,10 +68,21 @@
         /** `top` sits the panel in the upper third, where the eye rests. */
         align?: "center" | "top";
         /**
-         * Whether Escape and the backdrop dismiss it. Off for a dialog that
-         * has to be answered rather than avoided.
+         * Whether clicking the backdrop closes it. Off for a dialog that has
+         * to be answered rather than avoided by a stray click.
+         *
+         * This governs the backdrop only. Escape is a separate question — a
+         * confirmation should refuse a click that lands beside it and still
+         * cancel on Escape, which is the one gesture that cannot be
+         * accidental.
          */
         dismissable?: boolean;
+        /**
+         * Whether Escape closes it. Escape is *consumed* either way while this
+         * is the top layer: a press aimed at this dialog must never be acted
+         * on by a layer underneath.
+         */
+        escapable?: boolean;
         /** Hides the corner close button without making the layer sticky. */
         showClose?: boolean;
         /** Removes the panel's own padding, for content that lays itself out. */
@@ -91,6 +102,7 @@
         size = "md",
         align = "center",
         dismissable = true,
+        escapable = true,
         showClose = true,
         bare = false,
         onClose,
@@ -156,12 +168,14 @@
         if (!topmost()) return;
 
         if (event.key === "Escape") {
-            if (!dismissable) return;
-            // Stopped as well as prevented: App.svelte listens on the window and
-            // would otherwise unwind a second layer on the same press.
+            // Consumed whether or not it closes anything. App.svelte listens on
+            // the window, so letting the press through would have a *lower*
+            // layer act on an Escape aimed at this one — which is how a
+            // confirmation over settings used to close settings and leave the
+            // question up.
             event.preventDefault();
             event.stopPropagation();
-            onClose();
+            if (escapable) onClose();
             return;
         }
 
