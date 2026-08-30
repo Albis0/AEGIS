@@ -212,3 +212,40 @@ fn no_duplicate_tools_are_offered() {
         );
     }
 }
+
+/// What a two-word message actually costs before any history exists.
+///
+/// Reported, not asserted: this exists to answer "why was a request with two
+/// letters in it refused for being too long", where the answer has to be a
+/// number rather than a guess.
+#[test]
+#[ignore = "measurement only — run with --ignored"]
+fn measure_fixed_overhead_of_a_trivial_message() {
+    let reg = default_registry();
+
+    for msg in ["sa", "merhaba", "su projeyi devam ettir"] {
+        let schemas = selection::select_tools(&reg, msg);
+        let tool_tokens: usize = schemas
+            .iter()
+            .map(|s| vavis_brain::estimate_tokens(&s.to_string()))
+            .sum();
+
+        println!("\n=== {msg:?} ===");
+        println!("tools offered : {}", schemas.len());
+        println!("tool tokens   : {tool_tokens}");
+
+        let mut named: Vec<(String, usize)> = schemas
+            .iter()
+            .map(|s| {
+                (
+                    s["function"]["name"].as_str().unwrap_or("?").to_string(),
+                    vavis_brain::estimate_tokens(&s.to_string()),
+                )
+            })
+            .collect();
+        named.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        for (name, n) in named {
+            println!("  {name:<34} {n:>6}");
+        }
+    }
+}

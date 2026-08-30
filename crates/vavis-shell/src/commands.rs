@@ -631,7 +631,53 @@ impl AgentHost for EventHost {
 /// Providers disagree on how to say this: some use 413, some return 400 with
 /// an explanation. Both spellings of the phrase appear in the wild, hence the
 /// two substrings.
+/// Whether a provider refused because the user is sending too fast, rather
+/// than because the request itself is too big.
+///
+/// The distinction matters because the remedies are opposites: a quota clears
+/// by waiting, and shortening the conversation does nothing for it.
+///
+/// Several providers word a quota refusal as though it were about size. Groq
+/// answers a per-minute token overage with "Request too large for model ...
+/// on tokens per minute (TPM)" and sends it as **413** -- which read
+/// literally is a size refusal. That is why a two-letter message came back
+/// saying the conversation had grown too large to read.
+fn is_quota_refusal(status: u16, body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    status == 429
+        || body.contains("per minute")
+        || body.contains("per day")
+        || body.contains("tpm")
+        || body.contains("rpm")
+        || body.contains("rate limit")
+        || body.contains("rate_limit")
+        || body.contains("quota")
+        || body.contains("try again in")
+}
+
+/// The wait a provider asked for, in whole seconds, when it named one.
+///
+/// "Please try again in 1.2s" is more useful rounded up to 2 than reported to
+/// the decimal: it is a hint about when to retry, not a measurement.
+fn retry_after_seconds(body: &str) -> Option<u64> {
+    let body = body.to_ascii_lowercase();
+    let rest = body.split("try again in").nth(1)?;
+    let digits: String = rest
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.')
+        .collect();
+    let secs: f64 = digits.parse().ok()?;
+    Some(secs.ceil().max(1.0) as u64)
+}
+
 fn is_too_long(status: u16, body: &str) -> bool {
+    // Checked first, and ahead of the status code, because the status is the
+    // part that lies: a quota refusal can arrive as 413.
+    if is_quota_refusal(status, body) {
+        return false;
+    }
+
     let body = body.to_ascii_lowercase();
     status == 413
         || body.contains("too long")
@@ -654,8 +700,19 @@ fn friendly_error(err: &vavis_brain::BrainError) -> String {
     match err {
         E::MissingKey { provider } => format!("No API key for {provider}."),
         E::Api { status: 401, .. } => "API key rejected — update it in settings.".into(),
-        E::Api { status: 429, .. } => "Rate limited — wait a moment and try again.".into(),
         E::Api { status: 404, .. } => "Model not found — pick another one.".into(),
+
+        // Before the size check, and matched on the body rather than the
+        // status, because a provider can send a quota refusal as 413 and its
+        // wording ("Request too large ... per minute") reads like a size
+        // problem. Getting this order wrong told the user to shorten a
+        // two-word conversation.
+        E::Api { status, body } if is_quota_refusal(*status, body) => {
+            match retry_after_seconds(body) {
+                Some(secs) => format!("Sending too fast — try again in about {secs}s."),
+                None => "Sending too fast — wait a moment and try again.".into(),
+            }
+        }
         E::Api { status, body } if is_too_long(*status, body) => {
             // No instruction in the text: the interface puts a button on this
             // message, and telling someone to do a thing they can be handed
@@ -2801,6 +2858,45 @@ mod tests {
         for len in 4..200 {
             assert!(how_many_to_forget(len) < len, "len {len}");
         }
+    }
+
+    #[test]
+    fn a_per_minute_quota_is_not_mistaken_for_a_long_conversation() {
+        // The bug this guards, in the words the provider actually used. Groq
+        // sends this as 413, and it reads like a size problem -- so a
+        // two-letter message on a freshly cleared conversation came back
+        // saying the conversation had grown too large, offering to shorten
+        // something that was already as short as it gets.
+        let groq = "Request too large for model `qwen/qwen3-32b` in organization \
+                    `org_x` service tier `on_demand` on tokens per minute (TPM): \
+                    Limit 6000, Used 5980, Requested 90. Please try again in 1.2s.";
+
+        assert!(is_quota_refusal(413, groq));
+        assert!(
+            !is_too_long(413, groq),
+            "a per-minute quota is not a conversation that got too long"
+        );
+
+        // And the user is told the thing that actually helps.
+        let err = vavis_brain::BrainError::Api {
+            status: 413,
+            body: groq.to_string(),
+        };
+        let text = friendly_error(&err);
+        assert!(text.contains("too fast"), "said: {text}");
+        assert!(
+            !text.contains("grown past"),
+            "must not blame the conversation: {text}"
+        );
+    }
+
+    #[test]
+    fn a_named_retry_delay_is_passed_on() {
+        assert_eq!(retry_after_seconds("please try again in 1.2s"), Some(2));
+        assert_eq!(retry_after_seconds("try again in 30s"), Some(30));
+        // Never zero: "try again in 0s" as advice is worse than no advice.
+        assert_eq!(retry_after_seconds("try again in 0.4s"), Some(1));
+        assert_eq!(retry_after_seconds("no delay mentioned"), None);
     }
 
     #[test]
