@@ -29,24 +29,16 @@
     import SpotifyPanel from "./lib/SpotifyPanel.svelte";
     import StatusBar from "./lib/StatusBar.svelte";
     import Toasts from "./lib/Toasts.svelte";
+    import { nowPlaying } from "./lib/nowplaying.svelte";
     import { chat } from "./lib/store.svelte";
     import { toast } from "./lib/toast.svelte";
 
     const appWindow = getCurrentWindow();
 
     const THEME_KEY = "vavis.theme";
-    const NOW_PLAYING_KEY = "vavis.nowPlaying";
 
     let chatOpen = $state(true);
     let paletteOpen = $state(false);
-    /**
-     * Whether the now-playing box is up.
-     *
-     * Remembered per machine, like the theme: it is a piece of furniture the
-     * user arranged, and having to summon it again every launch is the whole
-     * reason a floating panel is worth having.
-     */
-    let nowPlaying = $state(localStorage.getItem(NOW_PLAYING_KEY) === "on");
     // Seeded from the DOM rather than from storage. `main.ts` has already
     // applied the saved theme before the app mounted -- components read
     // `data-theme` as they initialise, so it cannot wait for an effect here --
@@ -60,7 +52,13 @@
 
     onMount(() => {
         void chat.start();
-        return () => chat.stop();
+        // Polls whether or not the box is on screen: music starting is what
+        // puts it there, so detection cannot live inside the thing it shows.
+        nowPlaying.start();
+        return () => {
+            chat.stop();
+            nowPlaying.stop();
+        };
     });
 
     // Theme is presentation and per-machine, so it lives in localStorage rather
@@ -69,10 +67,6 @@
     $effect(() => {
         document.documentElement.dataset.theme = theme;
         localStorage.setItem(THEME_KEY, theme);
-    });
-
-    $effect(() => {
-        localStorage.setItem(NOW_PLAYING_KEY, nowPlaying ? "on" : "off");
     });
 
     function toggleChat() {
@@ -178,11 +172,11 @@
 
         {
             id: "spotify.nowPlaying",
-            label: nowPlaying ? "Hide now playing" : "Show now playing",
+            label: nowPlaying.visible ? "Hide now playing" : "Show now playing",
             group: "Chat",
             icon: "info",
             keywords: "spotify music track player playing drag box popup",
-            run: () => (nowPlaying = !nowPlaying),
+            run: () => nowPlaying.toggle(),
         },
 
         {
@@ -350,12 +344,8 @@
 
 <!-- Outside `.shell` so it floats over every view rather than being clipped
      by the stage, and above the chat panel it may be dragged across. -->
-{#if nowPlaying}
-    <SpotifyPanel
-        onClose={() => {
-            nowPlaying = false;
-        }}
-    />
+{#if nowPlaying.visible}
+    <SpotifyPanel onClose={() => nowPlaying.dismiss()} />
 {/if}
 
 {#if paletteOpen}

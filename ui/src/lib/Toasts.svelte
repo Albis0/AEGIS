@@ -92,6 +92,8 @@
     }
 
     .toast {
+        position: relative;
+        --tone: var(--text-faint);
         pointer-events: auto;
         display: flex;
         align-items: flex-start;
@@ -100,8 +102,16 @@
         padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
         background: var(--surface-raised);
         border: 1px solid var(--line-strong);
-        border-radius: var(--r-md);
+        border-radius: var(--r-lg);
         box-shadow: var(--shadow-md);
+        /* This is what clips the tone bar below to the rounded corners.
+           The bar used to carry a `border-radius` of its own, which cannot
+           work: it sits inside the 1px border, so its curve starts a pixel
+           in from the one it is meant to follow and squares off against it
+           at both ends. Worse, it was a second hardcoded guess at the
+           radius -- change this corner and the bar keeps the old shape.
+           Letting the parent clip means the bar has no radius to get wrong. */
+        overflow: hidden;
     }
 
     /* Severity is a tinted rule down the leading edge rather than a coloured
@@ -114,12 +124,7 @@
         top: 0;
         bottom: 0;
         width: 3px;
-        border-radius: var(--r-md) 0 0 var(--r-md);
         background: var(--tone);
-    }
-    .toast {
-        position: relative;
-        --tone: var(--text-faint);
     }
     .toast.success {
         --tone: var(--success);

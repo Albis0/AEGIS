@@ -16,13 +16,19 @@
     coordinates from a larger monitor would otherwise open off screen with no
     way to reach it.
 
+    Whether it is on screen at all is not this component's business —
+    `nowplaying.svelte.ts` polls whether or not the box exists and decides,
+    because a panel that only polls while mounted can never be the thing that
+    mounts itself. This draws whatever that store found.
+
     The progress bar is counted forward locally between polls. Asking Spotify
     every second would burn the rate limit for a number we can work out
     ourselves.
 -->
 <script lang="ts">
-    import { api, type SpotifyNowPlaying } from "./api";
+    import { api } from "./api";
     import Icon from "./Icon.svelte";
+    import { nowPlaying } from "./nowplaying.svelte";
     import { onMount } from "svelte";
 
     interface Props {
@@ -31,8 +37,6 @@
 
     const { onClose }: Props = $props();
 
-    /** How often Spotify is actually asked. */
-    const POLL_MS = 4000;
     /** How often the local progress estimate advances. */
     const TICK_MS = 1000;
 
@@ -42,7 +46,7 @@
     const TOP_LIMIT = 44;
     const BOTTOM_LIMIT = 32;
 
-    let now = $state<SpotifyNowPlaying | null>(null);
+    const now = $derived(nowPlaying.track);
     let progress = $state(0);
     let busy = $state(false);
 
@@ -74,27 +78,24 @@
         ];
     }
 
-    async function poll() {
-        try {
-            const fresh = await api.spotifyNowPlaying();
-            now = fresh;
-            if (fresh) progress = fresh.progressMs;
+    // Follows the store's track. Progress is reseeded from every poll, and the
+    // cover is fetched only when the track actually changes -- the backend
+    // caches it on disk, but the round trip is still worth skipping.
+    $effect(() => {
+        const fresh = nowPlaying.track;
+        if (fresh) progress = fresh.progressMs;
 
-            // Fetch the cover only when the track actually changes; the backend
-            // caches it on disk, but the round trip is still worth skipping.
-            if (fresh?.albumArt && fresh.albumArt !== artFor) {
-                artFor = fresh.albumArt;
-                art = await api.spotifyAlbumArt(fresh.albumArt).catch(() => null);
-            } else if (!fresh?.albumArt) {
-                art = null;
-                artFor = null;
-            }
-        } catch {
-            // Not connected, or Spotify is unreachable. The box says so in one
-            // line rather than shouting: this is ambient, not a task.
-            now = null;
+        if (fresh?.albumArt && fresh.albumArt !== artFor) {
+            artFor = fresh.albumArt;
+            void api
+                .spotifyAlbumArt(fresh.albumArt)
+                .then((data) => (art = data))
+                .catch(() => (art = null));
+        } else if (!fresh?.albumArt) {
+            art = null;
+            artFor = null;
         }
-    }
+    });
 
     onMount(() => {
         const saved = localStorage.getItem(POSITION_KEY);
@@ -117,8 +118,6 @@
             queueMicrotask(() => ([x, y] = clamp(24, window.innerHeight)));
         }
 
-        void poll();
-        const pollTimer = setInterval(() => void poll(), POLL_MS);
         const tickTimer = setInterval(() => {
             if (now?.playing) progress = Math.min(progress + TICK_MS, now.durationMs);
         }, TICK_MS);
@@ -134,7 +133,6 @@
         if (box) observer.observe(box);
 
         return () => {
-            clearInterval(pollTimer);
             clearInterval(tickTimer);
             window.removeEventListener("resize", onResize);
             observer.disconnect();
@@ -211,7 +209,7 @@
         } finally {
             busy = false;
             // Spotify needs a moment to settle before it reports the new state.
-            setTimeout(() => void poll(), 400);
+            nowPlaying.refreshSoon();
         }
     }
 </script>
