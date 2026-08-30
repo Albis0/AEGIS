@@ -5,10 +5,15 @@
     variations in a message feed destroy the feed. Here the results stay in a
     grid, the prompt stays in one place, and nothing scrolls away.
 
-    Everything a result was made with is kept next to it. A picture you liked is
-    worth nothing if you cannot make it again, so seed, model, size and prompt
-    all come back with the tile — and when a provider gave no seed, the detail
-    panel says the result cannot be repeated exactly rather than pretending.
+    Everything a result was made with is kept next to it. A picture you liked
+    is worth nothing if you cannot make it again, so seed, model, size and
+    prompt all come back with the tile — and when a provider gave no seed, the
+    detail panel says the result cannot be repeated exactly rather than
+    pretending.
+
+    The detail opens as a modal rather than a third column. As a column it was
+    three hundred pixels wide, which is not enough to look at a picture, and it
+    took that width away from the grid whether or not anything was open.
 -->
 <script lang="ts">
     import {
@@ -19,23 +24,27 @@
         type GalleryItem,
     } from "./api";
     import { convertFileSrc } from "@tauri-apps/api/core";
-    import { onMount } from "svelte";
     import { ask } from "./confirm.svelte";
+    import Icon from "./Icon.svelte";
+    import Modal from "./Modal.svelte";
     import { toast } from "./toast.svelte";
+    import { onMount } from "svelte";
 
     type Kind = "image" | "video";
 
     /** Named sizes, so nobody has to remember what 1536×640 is for. */
     const SIZES: [string, number, number][] = [
-        ["square", 1024, 1024],
-        ["landscape", 1536, 1024],
-        ["portrait", 1024, 1536],
-        ["wide", 1920, 1080],
-        ["tall", 1080, 1920],
+        ["Square", 1024, 1024],
+        ["Landscape", 1536, 1024],
+        ["Portrait", 1024, 1536],
+        ["Wide", 1920, 1080],
+        ["Tall", 1080, 1920],
     ];
 
     let settings = $state<CanvasSettings | null>(null);
     let items = $state<GalleryItem[]>([]);
+    /** False until the first load finishes, so an empty grid is not asserted. */
+    let loaded = $state(false);
 
     let prompt = $state("");
     let negative = $state("");
@@ -49,11 +58,10 @@
 
     /** The result being continued from, if any. */
     let source = $state<GalleryItem | null>(null);
-    /** The result open in the detail panel. */
+    /** The result open in the detail dialog. */
     let open = $state<GalleryItem | null>(null);
 
     let busy = $state(false);
-    let notice = $state("");
     let elapsed = $state(0);
 
     const size = $derived(SIZES[sizeIndex] ?? SIZES[0]);
@@ -71,19 +79,22 @@
                 busy = false;
                 // Newest first, matching the order the backend lists them in.
                 items = [...payload.items.slice().reverse(), ...items];
-                notice = payload.notes.length
-                    ? `${payload.provider} · ${payload.notes.join(" · ")}`
-                    : `${payload.provider}`;
+                toast.success(
+                    `${payload.items.length} from ${payload.provider}.`,
+                    payload.notes.length
+                        ? { detail: payload.notes.join(" · ") }
+                        : undefined,
+                );
                 void loadSettings();
             }),
             on<{ message: string }>("canvas:error", (payload) => {
                 busy = false;
-                notice = payload.message;
+                toast.error("Generation failed.", { detail: payload.message });
             }),
         ]);
 
-        // A generation has no progress to report, so the elapsed seconds are the
-        // only honest signal that something is still happening.
+        // A generation has no progress to report, so the elapsed seconds are
+        // the only honest signal that something is still happening.
         const timer = setInterval(() => {
             if (busy) elapsed += 1;
         }, 1000);
@@ -101,7 +112,7 @@
                 model = kind === "video" ? settings.videoModel : settings.imageModel;
             }
         } catch (e) {
-            notice = String(e);
+            toast.failure("Could not read the canvas settings.", e);
         }
     }
 
@@ -110,7 +121,9 @@
         try {
             items = await api.listGallery(300);
         } catch (e) {
-            notice = String(e);
+            toast.failure("Could not load the gallery.", e);
+        } finally {
+            loaded = true;
         }
     }
 
@@ -118,7 +131,6 @@
         if (busy) return;
         busy = true;
         elapsed = 0;
-        notice = options.upscale ? "enlarging…" : "generating…";
 
         const parsedSeed = seedText.trim() === "" ? null : Number(seedText.trim());
 
@@ -139,7 +151,7 @@
             });
         } catch (e) {
             busy = false;
-            notice = String(e);
+            toast.failure("Could not start that generation.", e);
         }
     }
 
@@ -149,7 +161,6 @@
         kind = "image";
         prompt = item.prompt;
         open = null;
-        notice = "continuing from that result — adjust the prompt and go";
     }
 
     /** Sets up an animation with the image as the first frame. */
@@ -158,9 +169,11 @@
         kind = "video";
         prompt = item.prompt;
         open = null;
-        notice = settings?.canVideo
-            ? "that image will be the first frame"
-            : "no video provider has a key yet — add one in settings";
+        if (!settings?.canVideo) {
+            toast.warning("No video provider has a key yet.", {
+                detail: "Add one under Image & video in settings.",
+            });
+        }
     }
 
     async function enlarge(item: GalleryItem) {
@@ -183,9 +196,13 @@
         negative = params.negative ?? "";
 
         open = null;
-        notice = item.seed === null
-            ? "loaded — no seed was recorded, so this will not repeat exactly"
-            : "loaded — same seed, same result";
+        if (item.seed === null) {
+            toast.info("Settings loaded.", {
+                detail: "No seed was recorded, so this will not repeat exactly.",
+            });
+        } else {
+            toast.success("Settings loaded — same seed, same result.");
+        }
     }
 
     function readParams(item: GalleryItem): Record<string, string> {
@@ -224,7 +241,7 @@
             items = items.map((i) => (i.id === item.id ? { ...i, favourite: next } : i));
             if (open?.id === item.id) open = { ...open, favourite: next };
         } catch (e) {
-            notice = String(e);
+            toast.failure("Could not star that.", e);
         }
     }
 
@@ -264,17 +281,17 @@
 
 <div class="canvas">
     <aside class="controls">
-        <div class="kinds">
+        <div class="kinds" role="group" aria-label="What to generate">
             <button class:active={kind === "image"} onclick={() => (kind = "image")}>
-                image
+                Image
             </button>
             <button
                 class:active={kind === "video"}
                 disabled={!settings?.canVideo}
-                title={settings?.canVideo ? "" : "needs a video provider key"}
+                title={settings?.canVideo ? "" : "Needs a video provider key"}
                 onclick={() => (kind = "video")}
             >
-                video
+                Video
             </button>
         </div>
 
@@ -282,8 +299,8 @@
             <div class="source">
                 <img src={src(source)} alt="" />
                 <div class="source-text">
-                    <span>continuing from #{source.id}</span>
-                    <button class="tiny" onclick={() => (source = null)}>drop</button>
+                    <span>Continuing from #{source.id}</span>
+                    <button onclick={() => (source = null)}>Drop</button>
                 </div>
             </div>
         {/if}
@@ -292,7 +309,8 @@
             bind:value={prompt}
             class="prompt"
             rows="5"
-            placeholder="what should it look like?"
+            placeholder="What should it look like?"
+            aria-label="Prompt"
             onkeydown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -304,11 +322,12 @@
         <input
             bind:value={negative}
             class="field"
-            placeholder="what to avoid (optional)"
+            placeholder="What to avoid (optional)"
+            aria-label="What to avoid"
         />
 
         <div class="row">
-            <label for="canvas-size">size</label>
+            <label for="canvas-size">Size</label>
             <select id="canvas-size" bind:value={sizeIndex}>
                 {#each SIZES as [label, w, h], i (label)}
                     <option value={i}>{label} · {w}×{h}</option>
@@ -318,7 +337,7 @@
 
         {#if kind === "image"}
             <div class="row">
-                <label for="canvas-count">how many</label>
+                <label for="canvas-count">How many</label>
                 <input
                     id="canvas-count"
                     type="number"
@@ -329,7 +348,7 @@
             </div>
         {:else}
             <div class="row">
-                <label for="canvas-duration">seconds</label>
+                <label for="canvas-duration">Seconds</label>
                 <input
                     id="canvas-duration"
                     type="number"
@@ -341,18 +360,18 @@
         {/if}
 
         <div class="row">
-            <label for="canvas-seed">seed</label>
+            <label for="canvas-seed">Seed</label>
             <input
                 id="canvas-seed"
                 bind:value={seedText}
-                placeholder="random"
+                placeholder="Random"
                 title="Leave empty to let the provider choose. The one it used is saved with the result."
             />
         </div>
 
         {#if source && kind === "image"}
             <div class="row">
-                <label for="canvas-strength">drift</label>
+                <label for="canvas-strength">Drift</label>
                 <input
                     id="canvas-strength"
                     type="range"
@@ -366,77 +385,101 @@
         {/if}
 
         <div class="row">
-            <label for="canvas-model">model</label>
+            <label for="canvas-model">Model</label>
             <input
                 id="canvas-model"
                 bind:value={model}
-                placeholder="provider default"
+                placeholder="Provider default"
             />
         </div>
 
-        <button class="go" disabled={!canGo} onclick={() => generate()}>
+        <button class="primary go" disabled={!canGo} onclick={() => generate()}>
             {#if busy}
-                working… {elapsed}s
+                <span class="spinner" aria-hidden="true"></span>
+                Working… {elapsed}s
             {:else}
-                generate
+                Generate
+                <kbd>Ctrl ⏎</kbd>
             {/if}
         </button>
 
-        {#if notice}
-            <p class="notice">{notice}</p>
-        {/if}
-
         {#if settings && !settings.canImage}
             <p class="warn">
-                No image provider has a key. Add one in settings — OpenAI, Stability,
-                Replicate, or your own endpoint.
+                <Icon name="warning" size={14} />
+                No image provider has a key. Add one under Image &amp; video in
+                settings — OpenAI, Stability, Replicate, or your own endpoint.
             </p>
         {/if}
 
         <div class="usage">
             <span>{settings?.items ?? 0} results · {bytes(settings?.bytes ?? 0)}</span>
             <div class="usage-actions">
-                <button class="tiny" onclick={() => api.openMediaFolder()}>folder</button>
-                <button class="tiny" onclick={clearAll}>clear</button>
+                <button onclick={() => api.openMediaFolder()}>Open folder</button>
+                <button class="danger" onclick={clearAll}>Clear</button>
             </div>
         </div>
     </aside>
 
     <main class="grid-pane">
-        {#if items.length === 0}
-            <p class="empty">Nothing generated yet. Results stay here.</p>
+        {#if !loaded}
+            <div class="grid" aria-hidden="true">
+                {#each { length: 8 } as _, i (i)}
+                    <div class="tile skeleton"></div>
+                {/each}
+            </div>
+        {:else if items.length === 0}
+            <div class="state">
+                <Icon name="canvas" size={26} />
+                <p class="state-title">Nothing generated yet</p>
+                <p class="state-body">
+                    Describe a picture on the left and press Generate. Results
+                    stay here with the seed and settings that made them, so you
+                    can come back and make the same one again.
+                </p>
+            </div>
         {:else}
             <div class="grid">
                 {#each items as item (item.id)}
                     <button class="tile" onclick={() => (open = item)}>
                         {#if item.kind === "video"}
-                            <!-- Muted and loopable: a grid of talking videos is unusable. -->
-                            <video src={src(item)} muted loop playsinline preload="metadata"
+                            <!-- Muted and loopable: a grid of talking videos is
+                                 unusable. -->
+                            <video
+                                src={src(item)}
+                                muted
+                                loop
+                                playsinline
+                                preload="metadata"
                             ></video>
-                            <span class="badge">▶</span>
+                            <span class="badge">Video</span>
                         {:else}
                             <img src={src(item)} alt={item.prompt} loading="lazy" />
                         {/if}
-                        {#if item.favourite}<span class="star">★</span>{/if}
+                        {#if item.favourite}
+                            <span class="star" title="Starred">★</span>
+                        {/if}
+                        <span class="caption">{item.prompt}</span>
                     </button>
                 {/each}
             </div>
         {/if}
     </main>
+</div>
 
-    {#if open}
-        {@const params = readParams(open)}
-        {@const current = open}
-        <aside class="detail">
-            <div class="detail-head">
-                <span class="detail-title">#{current.id}</span>
-                <button class="tiny" onclick={() => (open = null)}>close</button>
-            </div>
-
+{#if open}
+    {@const current = open}
+    {@const params = readParams(current)}
+    <Modal
+        size="xl"
+        title="#{current.id}"
+        description={current.prompt}
+        onClose={() => (open = null)}
+    >
+        <div class="detail">
             <div class="preview">
                 {#if current.kind === "video"}
-                    <!-- No caption track exists: this video was generated seconds ago
-               and has no dialogue to caption. -->
+                    <!-- No caption track exists: this video was generated
+                         seconds ago and has no dialogue to caption. -->
                     <!-- svelte-ignore a11y_media_has_caption -->
                     <video src={src(current)} controls loop></video>
                 {:else}
@@ -444,62 +487,66 @@
                 {/if}
             </div>
 
-            <p class="detail-prompt">{current.prompt}</p>
-
             <dl class="facts">
-                <dt>provider</dt>
+                <dt>Provider</dt>
                 <dd>{current.provider}</dd>
-                <dt>model</dt>
+                <dt>Model</dt>
                 <dd>{current.model || "default"}</dd>
-                <dt>seed</dt>
+                <dt>Seed</dt>
                 <dd class:missing={current.seed === null}>
-                    {current.seed ?? "not reported — cannot be repeated exactly"}
+                    {current.seed ?? "Not reported — cannot be repeated exactly"}
                 </dd>
-                <dt>size</dt>
+                <dt>Size</dt>
                 <dd>{current.width}×{current.height}</dd>
-                <dt>file</dt>
+                <dt>File</dt>
                 <dd>{bytes(current.bytes)}</dd>
                 {#if params.negative}
-                    <dt>avoided</dt>
+                    <dt>Avoided</dt>
                     <dd>{params.negative}</dd>
                 {/if}
                 {#if current.parentId !== null}
-                    <dt>from</dt>
+                    <dt>From</dt>
                     <dd>#{current.parentId}</dd>
                 {/if}
-                <dt>made</dt>
+                <dt>Made</dt>
                 <dd>{when(current.createdAt)}</dd>
             </dl>
+        </div>
 
-            <div class="detail-actions">
-                <button onclick={() => reuse(current)}>same settings</button>
-                {#if current.kind === "image"}
-                    <button onclick={() => variationOf(current)}>variation</button>
-                    <button
-                        disabled={!settings?.canVideo}
-                        title={settings?.canVideo ? "" : "needs a video provider key"}
-                        onclick={() => animate(current)}
-                    >
-                        animate
-                    </button>
-                    <button
-                        disabled={!settings?.canUpscale || busy}
-                        title={settings?.canUpscale
-                            ? "four times the size, same picture"
-                            : "needs a Stability or Replicate key"}
-                        onclick={() => enlarge(current)}
-                    >
-                        enlarge
-                    </button>
-                {/if}
-                <button onclick={() => toggleFavourite(current)}>
-                    {current.favourite ? "unstar" : "star"}
+        {#snippet footer()}
+            <button class="danger" onclick={() => remove(current)}>
+                <Icon name="trash" size={14} />
+                Delete
+            </button>
+            <span class="spacer"></span>
+            <button onclick={() => toggleFavourite(current)}>
+                {current.favourite ? "Unstar" : "Star"}
+            </button>
+            {#if current.kind === "image"}
+                <button
+                    disabled={!settings?.canUpscale || busy}
+                    title={settings?.canUpscale
+                        ? "Four times the size, same picture"
+                        : "Needs a Stability or Replicate key"}
+                    onclick={() => enlarge(current)}
+                >
+                    Enlarge
                 </button>
-                <button class="danger" onclick={() => remove(current)}>delete</button>
-            </div>
-        </aside>
-    {/if}
-</div>
+                <button
+                    disabled={!settings?.canVideo}
+                    title={settings?.canVideo ? "" : "Needs a video provider key"}
+                    onclick={() => animate(current)}
+                >
+                    Animate
+                </button>
+                <button onclick={() => variationOf(current)}>Variation</button>
+            {/if}
+            <button class="primary" onclick={() => reuse(current)}>
+                Same settings
+            </button>
+        {/snippet}
+    </Modal>
+{/if}
 
 <style>
     .canvas {
@@ -509,159 +556,205 @@
         min-width: 0;
     }
 
+    /* -- Controls ------------------------------------------------------ */
+
     .controls {
-        width: 260px;
+        width: 288px;
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
-        gap: var(--sp-2);
-        padding: var(--sp-3);
+        gap: var(--sp-3);
+        padding: var(--sp-4);
         border-right: 1px solid var(--line);
+        background: var(--surface-sunken);
         overflow-y: auto;
     }
 
+    /* A segmented control: one filled track, the active half raised out of
+       it. Two outlined buttons read as two separate decisions. */
     .kinds {
         display: flex;
-        gap: var(--sp-1);
+        gap: 2px;
+        padding: 2px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
     }
     .kinds button {
         flex: 1;
-        font-size: var(--text-xs);
-        padding: 3px;
+        justify-content: center;
+        font-size: var(--text-sm);
+        padding: var(--sp-2);
+        border-radius: var(--r-sm);
     }
     .kinds button.active {
-        color: var(--accent-hover);
-        border-color: var(--accent-line);
-        background: var(--surface-hover);
+        color: var(--text);
+        background: var(--surface-active);
+        font-weight: 500;
     }
 
     .source {
         display: flex;
-        gap: var(--sp-2);
+        gap: var(--sp-3);
         align-items: center;
-        padding: var(--sp-1);
-        border: 1px solid var(--accent-line);
+        padding: var(--sp-2);
+        background: var(--accent-muted);
         border-radius: var(--r-md);
     }
     .source img {
         width: 44px;
         height: 44px;
         object-fit: cover;
-        border-radius: 3px;
+        border-radius: var(--r-sm);
+        flex: 0 0 auto;
     }
     .source-text {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 2px;
-        font-size: 10px;
+        font-size: var(--text-xs);
         color: var(--text-muted);
+        min-width: 0;
+    }
+    .source-text button {
+        padding: 0;
+        font-size: var(--text-xs);
+        color: var(--accent-text);
     }
 
     .prompt,
     .field,
     .row input,
     .row select {
-        background: var(--surface-sunken);
+        background: var(--surface);
         border: 1px solid var(--line);
         border-radius: var(--r-md);
-        padding: var(--sp-1);
-        font-size: var(--text-xs);
+        padding: var(--sp-2) var(--sp-3);
+        font-size: var(--text-sm);
         color: var(--text);
         font-family: inherit;
         width: 100%;
         min-width: 0;
+        transition: border-color var(--fast) var(--ease);
+    }
+    .prompt:focus,
+    .field:focus,
+    .row input:focus,
+    .row select:focus {
+        border-color: var(--accent-line);
     }
 
     .prompt {
         resize: vertical;
+        line-height: 1.5;
     }
 
     .row {
         display: flex;
         align-items: center;
-        gap: var(--sp-2);
+        gap: var(--sp-3);
     }
     .row label {
-        flex: 0 0 58px;
-        font-size: 10px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--text-faint);
+        flex: 0 0 68px;
+        font-size: var(--text-sm);
+        color: var(--text-muted);
     }
     .row .value {
         flex: 0 0 auto;
         font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--accent);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+    }
+    .row input[type="range"] {
+        padding: 0;
+        border: none;
+        background: none;
+        accent-color: var(--accent);
     }
 
     .go {
-        margin-top: var(--sp-1);
-        padding: var(--sp-2);
-        font-size: var(--text-xs);
-        color: var(--accent-hover);
-        border-color: var(--accent-line);
+        justify-content: center;
+        padding: var(--sp-3);
+        font-size: var(--text-base);
     }
-    .go:disabled {
-        color: var(--text-faint);
-        border-color: var(--line);
+    .go kbd {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: rgba(255, 255, 255, 0.72);
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: var(--r-sm);
+        padding: 1px 5px;
     }
 
-    .notice,
-    .warn,
-    .empty {
-        font-size: var(--text-xs);
-        color: var(--text-muted);
-        margin: 0;
+    .spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        border-radius: var(--r-full);
+        animation: spin 700ms linear infinite;
     }
+
     .warn {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-2);
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: 1.55;
         color: var(--warning);
-    }
-    .empty {
-        padding: var(--sp-4);
-        color: var(--text-faint);
     }
 
     .usage {
         margin-top: auto;
-        padding-top: var(--sp-2);
+        padding-top: var(--sp-3);
         border-top: 1px solid var(--line);
         display: flex;
         flex-direction: column;
-        gap: var(--sp-1);
-        font-size: 10px;
+        gap: var(--sp-2);
+        font-size: var(--text-xs);
         color: var(--text-faint);
     }
     .usage-actions {
         display: flex;
         gap: var(--sp-1);
     }
+    .usage-actions button {
+        font-size: var(--text-xs);
+        padding: var(--sp-1) var(--sp-2);
+    }
+
+    /* -- Grid ---------------------------------------------------------- */
 
     .grid-pane {
         flex: 1;
         min-width: 0;
         overflow-y: auto;
-        padding: var(--sp-3);
+        padding: var(--sp-4);
     }
 
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: var(--sp-2);
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: var(--sp-3);
     }
 
     .tile {
         position: relative;
         aspect-ratio: 1;
         padding: 0;
-        border: 1px solid var(--line);
         border-radius: var(--r-md);
         overflow: hidden;
         background: var(--surface-sunken);
+        transition:
+            transform var(--fast) var(--ease),
+            box-shadow var(--fast) var(--ease);
     }
     .tile:hover {
-        border-color: var(--accent-line);
+        background: var(--surface-sunken);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
     }
     .tile img,
     .tile video {
@@ -671,96 +764,128 @@
         display: block;
     }
 
+    /* The prompt on a scrim along the bottom edge, on hover only. A grid of
+       pictures with a permanent caption band is a grid of captions. */
+    .caption {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: var(--sp-4) var(--sp-2) var(--sp-2);
+        font-size: var(--text-xs);
+        line-height: 1.4;
+        color: #fff;
+        text-align: left;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+        opacity: 0;
+        transition: opacity var(--fast) var(--ease);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .tile:hover .caption,
+    .tile:focus-visible .caption {
+        opacity: 1;
+    }
+
     .badge,
     .star {
         position: absolute;
-        top: 4px;
-        font-size: 11px;
-        text-shadow: 0 0 4px #000;
+        top: var(--sp-2);
+        font-size: var(--text-xs);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
     }
     .badge {
-        left: 6px;
-        color: var(--accent-hover);
+        left: var(--sp-2);
+        padding: 1px 6px;
+        border-radius: var(--r-full);
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        text-shadow: none;
     }
     .star {
-        right: 6px;
+        right: var(--sp-2);
         color: var(--warning);
     }
 
-    .detail {
-        width: 300px;
-        flex: 0 0 auto;
-        display: flex;
-        flex-direction: column;
-        gap: var(--sp-2);
-        padding: var(--sp-3);
-        border-left: 1px solid var(--line);
-        overflow-y: auto;
+    .tile.skeleton {
+        animation: pulse 1.4s var(--ease-soft) infinite;
     }
 
-    .detail-head {
+    .state {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
         align-items: center;
+        justify-content: center;
+        gap: var(--sp-2);
+        height: 100%;
+        padding: var(--sp-7);
+        text-align: center;
+        color: var(--text-faint);
     }
-    .detail-title {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        color: var(--accent);
+    .state-title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--text);
+    }
+    .state-body {
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        line-height: 1.6;
+        max-width: 46ch;
+    }
+
+    /* -- Detail -------------------------------------------------------- */
+
+    /* The picture and its facts side by side. At this width the picture is
+       finally big enough to judge, which was the point of moving it out of a
+       three-hundred-pixel column. */
+    .detail {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr);
+        gap: var(--sp-5);
+        align-items: start;
+    }
+    @media (max-width: 720px) {
+        .detail {
+            grid-template-columns: 1fr;
+        }
     }
 
     .preview img,
     .preview video {
         width: 100%;
+        max-height: 58vh;
+        object-fit: contain;
         border-radius: var(--r-md);
+        background: var(--surface-sunken);
         display: block;
-    }
-
-    .detail-prompt {
-        margin: 0;
-        font-size: var(--text-xs);
-        color: var(--text);
     }
 
     .facts {
         display: grid;
-        grid-template-columns: 58px 1fr;
-        gap: 2px var(--sp-2);
+        grid-template-columns: auto 1fr;
+        gap: var(--sp-2) var(--sp-3);
         margin: 0;
-        font-size: 10px;
+        font-size: var(--text-sm);
     }
     .facts dt {
         color: var(--text-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
     }
     .facts dd {
         margin: 0;
-        color: var(--text-muted);
-        font-family: var(--font-mono);
-        word-break: break-word;
+        color: var(--text);
+        overflow-wrap: anywhere;
     }
     .facts dd.missing {
         color: var(--warning);
-        font-family: inherit;
     }
 
-    .detail-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--sp-1);
-    }
-    .detail-actions button {
-        font-size: 10px;
-        padding: 2px 8px;
-    }
-    .detail-actions .danger {
-        color: var(--warning);
-        border-color: rgba(245, 158, 11, 0.4);
-    }
-
-    .tiny {
-        font-size: 10px;
-        padding: 1px 6px;
+    /* Pushes the destructive action to the far end of the footer, away from
+       the one the user is most likely reaching for. */
+    .spacer {
+        flex: 1;
     }
 </style>
