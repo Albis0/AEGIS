@@ -243,6 +243,8 @@ export const api = {
     answerApproval: (decision: "allow" | "always" | "deny") =>
         invoke<void>("answer_approval", { decision }),
     clear: () => invoke<void>("clear_conversation"),
+    /** Drops the oldest half of the conversation. Returns how many went. */
+    forgetOldest: () => invoke<number>("forget_oldest"),
 
     setKey: (provider: string, key: string) =>
         invoke<void>("set_key", { provider, key }),
@@ -405,6 +407,13 @@ export interface DoneEvent {
 }
 export interface ErrorEvent {
     message: string;
+    /**
+     * The request was refused for its size.
+     *
+     * A flag rather than matching on the message text, which is translated
+     * and would silently stop offering the fix the moment it was reworded.
+     */
+    tooLong: boolean;
 }
 export interface ToolStartEvent {
     tool: string;

@@ -163,6 +163,31 @@
             </span>
         {/if}
 
+        {#if message.recovery}
+            <div class="recovery">
+                {#if message.recovery.done}
+                    <span class="recovery-done">{message.recovery.done}</span>
+                {:else}
+                    <button
+                        class="recovery-action"
+                        onclick={async () => {
+                            const fix = message.recovery;
+                            if (!fix || fix.done) return;
+                            // Marked before it runs, not after: the retry it
+                            // starts can take a while, and a button that stays
+                            // live through it invites a second press that
+                            // would shorten the conversation twice.
+                            fix.done = "Retrying…";
+                            await fix.run();
+                            fix.done = "Done.";
+                        }}
+                    >
+                        {message.recovery.label}
+                    </button>
+                {/if}
+            </div>
+        {/if}
+
         {#if openable && expanded}
             <div class="detail">
                 {#if message.args?.trim()}
@@ -283,6 +308,42 @@
 
     .note.error .note-line {
         color: var(--danger);
+    }
+
+    /* Tool lines are one-liners that open, so they are clipped to stay tidy.
+       An error is the opposite: it is the whole of what the user gets, and a
+       provider message that ends in an ellipsis is one they cannot act on. */
+    .note.error .note-text {
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: anywhere;
+    }
+
+    .recovery {
+        /* Lines up under the text rather than the icon. */
+        margin: var(--sp-1) 0 var(--sp-1) var(--sp-5);
+    }
+
+    .recovery-action {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--accent-text);
+        padding: var(--sp-1) var(--sp-2);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--r-sm);
+        background: var(--surface-raised);
+        transition:
+            background var(--fast) var(--ease),
+            border-color var(--fast) var(--ease);
+    }
+    .recovery-action:hover {
+        background: var(--surface-hover);
+        border-color: var(--accent);
+    }
+
+    .recovery-done {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
     }
 
     .chev {

@@ -59,6 +59,7 @@ fn main() {
             commands::send_message,
             commands::answer_approval,
             commands::clear_conversation,
+            commands::forget_oldest,
             commands::set_key,
             commands::set_provider,
             commands::set_model,

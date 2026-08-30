@@ -253,6 +253,8 @@ pub fn send_message(
                     "chat:error",
                     ErrorPayload {
                         message: e.to_string(),
+                        // A runtime that will not start is not a size problem.
+                        too_long: false,
                     },
                 );
                 busy.store(false, Ordering::SeqCst);
@@ -282,14 +284,16 @@ pub fn send_message(
                 }
                 let _ = app.emit("chat:done", DonePayload { text: reply });
             }
-            Err(message) => {
+            Err(TurnError { message, too_long }) => {
                 // Drop the unanswered user turn: leaving it would produce
                 // two user messages in a row on the next request.
                 let mut h = AppState::lock(&history_handle);
                 if h.last().map(|m| m.role) == Some(vavis_brain::Role::User) {
                     h.pop();
                 }
-                let _ = app.emit("chat:error", ErrorPayload { message });
+                drop(h);
+
+                let _ = app.emit("chat:error", ErrorPayload { message, too_long });
             }
         }
 
@@ -310,6 +314,12 @@ struct DonePayload {
 #[derive(Serialize, Clone)]
 struct ErrorPayload {
     message: String,
+    /// True when the request was refused for being too large.
+    ///
+    /// A flag rather than leaving the interface to match on the message text,
+    /// which is translated and would break the offer to recover the moment
+    /// anyone reworded it.
+    too_long: bool,
 }
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -363,6 +373,32 @@ struct ApprovalPayload {
     reason: String,
 }
 
+/// A failed turn: what to show, and whether shortening would help.
+struct TurnError {
+    message: String,
+    too_long: bool,
+}
+
+impl From<&vavis_brain::BrainError> for TurnError {
+    fn from(err: &vavis_brain::BrainError) -> Self {
+        Self {
+            message: friendly_error(err),
+            too_long: error_is_too_long(err),
+        }
+    }
+}
+
+impl From<String> for TurnError {
+    /// Everything raised inside the turn itself rather than by the provider.
+    /// None of it is a size problem, so it never offers to shorten.
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            too_long: false,
+        }
+    }
+}
+
 /// One full turn: model → tools → model → … → reply.
 #[allow(clippy::too_many_arguments)]
 async fn run_turn(
@@ -374,7 +410,7 @@ async fn run_turn(
     system: Message,
     history: Vec<Message>,
     user_message: &str,
-) -> Result<String, String> {
+) -> Result<String, TurnError> {
     let tools = {
         let mut guard = AppState::lock(agent);
         guard.start_run();
@@ -396,7 +432,7 @@ async fn run_turn(
                 }
             })
             .await
-            .map_err(|e| friendly_error(&e))?;
+            .map_err(|e| TurnError::from(&e))?;
 
         if !response.text.is_empty() {
             final_text = response.text.clone();
@@ -434,7 +470,7 @@ async fn run_turn(
         }
 
         if step == MAX_STEPS - 1 {
-            return Err(format!("no answer after {MAX_STEPS} steps"));
+            return Err(format!("no answer after {MAX_STEPS} steps").into());
         }
     }
 
@@ -495,6 +531,28 @@ impl AgentHost for EventHost {
     }
 }
 
+/// Whether a provider refused a request for its size.
+///
+/// Providers disagree on how to say this: some use 413, some return 400 with
+/// an explanation. Both spellings of the phrase appear in the wild, hence the
+/// two substrings.
+fn is_too_long(status: u16, body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    status == 413
+        || body.contains("too long")
+        || body.contains("too large")
+        || body.contains("context_length_exceeded")
+        || body.contains("maximum context length")
+}
+
+/// Whether this error is one the user can fix by shortening the conversation.
+fn error_is_too_long(err: &vavis_brain::BrainError) -> bool {
+    matches!(
+        err,
+        vavis_brain::BrainError::Api { status, body } if is_too_long(*status, body)
+    )
+}
+
 /// Turns a provider error into something the user can act on.
 fn friendly_error(err: &vavis_brain::BrainError) -> String {
     use vavis_brain::BrainError as E;
@@ -503,8 +561,11 @@ fn friendly_error(err: &vavis_brain::BrainError) -> String {
         E::Api { status: 401, .. } => "API key rejected — update it in settings.".into(),
         E::Api { status: 429, .. } => "Rate limited — wait a moment and try again.".into(),
         E::Api { status: 404, .. } => "Model not found — pick another one.".into(),
-        E::Api { status, body } if *status == 413 || body.contains("too long") => {
-            "Request too long — clear the conversation.".into()
+        E::Api { status, body } if is_too_long(*status, body) => {
+            // No instruction in the text: the interface puts a button on this
+            // message, and telling someone to do a thing they can be handed
+            // instead is the worst of both.
+            "This conversation has grown past what the model can read at once.".into()
         }
         E::Api { status, body } => format!("Provider error {status}: {body}"),
         E::Network(e) if e.is_timeout() => "Timed out — the provider did not respond.".into(),
@@ -533,6 +594,49 @@ pub fn clear_conversation(state: State<AppState>) -> Result<(), String> {
     AppState::lock(&state.store)
         .clear_messages()
         .map_err(|e| e.to_string())
+}
+
+/// How much of the conversation `forget_oldest` keeps.
+///
+/// A fraction rather than a count, because the point is to make room, and a
+/// fixed number of messages means something different in a conversation of
+/// twenty than in one of four hundred. Half is enough to get under a window
+/// in one press for any conversation that grew there gradually.
+const KEEP_FRACTION: usize = 2;
+
+/// Drops the oldest half of the conversation, keeping the recent part.
+///
+/// This is what the interface offers when a request comes back too long. The
+/// alternative it replaces was "clear the conversation", which is a strange
+/// thing to ask of someone whose complaint is that they have said too much:
+/// it throws away the recent context — the part being talked about — along
+/// with the old, and there is no undo.
+///
+/// Facts are untouched, as with a clear. The stored transcript is untouched
+/// too: this trims what the *model* is sent, not what the user can scroll
+/// back through, and losing the record of a conversation to a request-size
+/// problem would be a poor trade.
+#[tauri::command]
+pub fn forget_oldest(state: State<AppState>) -> Result<usize, String> {
+    let mut history = AppState::lock(&state.history);
+    let drop = how_many_to_forget(history.len());
+    history.drain(..drop);
+    Ok(drop)
+}
+
+/// How many messages `forget_oldest` should drop from a history of `len`.
+///
+/// Separate from the command so the boundary is testable: the command itself
+/// needs a Tauri `State` to call.
+fn how_many_to_forget(len: usize) -> usize {
+    // Nothing to gain below this. Dropping one of three messages will not
+    // bring a request under a window, and it would lose context to no end --
+    // a conversation this short that will not fit is one long message, which
+    // trimming cannot help.
+    if len < 4 {
+        return 0;
+    }
+    len / KEEP_FRACTION
 }
 
 /// Stores an API key, encrypted.
@@ -2483,6 +2587,50 @@ pub fn test_connection(state: State<AppState>, target: String) -> ConnectionTest
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_short_conversation_is_not_worth_trimming() {
+        // Half of three is one, and dropping one message will not bring a
+        // request under a window -- it would lose context for nothing. The
+        // interface says so rather than offering a button that does nothing.
+        for len in 0..4 {
+            assert_eq!(how_many_to_forget(len), 0, "len {len}");
+        }
+    }
+
+    #[test]
+    fn trimming_halves_a_long_conversation() {
+        assert_eq!(how_many_to_forget(4), 2);
+        assert_eq!(how_many_to_forget(101), 50);
+    }
+
+    #[test]
+    fn trimming_always_leaves_something_behind() {
+        // The recent half is the part being talked about. Dropping all of it
+        // would be a clear, which is the thing this exists to avoid.
+        for len in 4..200 {
+            assert!(how_many_to_forget(len) < len, "len {len}");
+        }
+    }
+
+    #[test]
+    fn a_size_refusal_is_recognised_however_it_is_worded() {
+        // Providers disagree: some 413, some 400 with an explanation.
+        assert!(is_too_long(413, ""));
+        assert!(is_too_long(400, "prompt is too long"));
+        assert!(is_too_long(400, r#"{"code":"context_length_exceeded"}"#));
+        assert!(is_too_long(
+            400,
+            "This model's maximum context length is 128000"
+        ));
+        assert!(is_too_long(413, "Request Entity Too Large"));
+
+        // And things that are not a size problem must not offer the fix,
+        // since shortening the conversation would not help.
+        assert!(!is_too_long(401, "invalid api key"));
+        assert!(!is_too_long(429, "rate limit exceeded"));
+        assert!(!is_too_long(500, "internal error"));
+    }
 
     #[test]
     fn a_summary_fits_on_one_line() {

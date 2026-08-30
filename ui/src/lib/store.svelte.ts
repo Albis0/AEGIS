@@ -57,6 +57,20 @@ export interface Message {
     reason?: "risk" | "budget";
     /** Approval messages: what the user chose, once they have chosen. */
     decision?: "allow" | "always" | "deny";
+    /**
+     * An error the user can do something about, and the thing to do.
+     *
+     * An error that names a remedy in its text but offers no way to reach it
+     * is barely better than one that says nothing: "clear the conversation"
+     * still leaves you hunting for where that lives. When there is a fix,
+     * the message carries the button for it.
+     */
+    recovery?: {
+        label: string;
+        run: () => void | Promise<void>;
+        /** Set once it has been used, so it cannot be run twice. */
+        done?: string;
+    };
     at: number;
 }
 
@@ -176,6 +190,53 @@ class ChatStore {
         }
     }
 
+    /** The most recent thing the user said, for retrying it. */
+    lastUserText(): string {
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            if (this.messages[i].speaker === "user") return this.messages[i].text;
+        }
+        return "";
+    }
+
+    /**
+     * Makes room, then asks the question again.
+     *
+     * The feed is left alone. Only what the *model* is sent gets shorter —
+     * scrolling back through what was said is not what made the request too
+     * big, and taking it away would be a second loss on top of the first.
+     */
+    async forgetAndRetry(text: string) {
+        try {
+            const dropped = await api.forgetOldest();
+            if (dropped === 0) {
+                // A conversation too short to trim, which means the size is
+                // coming from one very long message rather than from many.
+                // Saying so beats a button that quietly does nothing.
+                toast.warning(
+                    "This conversation is already short — the last message is too long on its own.",
+                );
+                return;
+            }
+
+            this.add("system", `Forgot the oldest ${dropped} messages.`);
+            await this.refresh();
+
+            if (!text) return;
+
+            // `send` returns quietly when a turn is already running, which
+            // would leave the button reading "Done." over a retry that never
+            // happened. The room has been made either way, so say what state
+            // things are actually in rather than pretending it went.
+            if (this.status?.busy) {
+                toast.info("Made room. Send your message again when the reply finishes.");
+                return;
+            }
+            await this.send(text);
+        } catch (e) {
+            toast.failure("Could not shorten the conversation.", e);
+        }
+    }
+
     async clear() {
         await api.clear();
         this.messages = [];
@@ -272,7 +333,21 @@ class ChatStore {
             on<ErrorEvent>("chat:error", (p) => {
                 this.finishStreaming();
                 this.runningTool = null;
-                this.add("error", p.message);
+
+                // The failed question is still in the box below, because the
+                // backend dropped it from the model's history rather than
+                // leaving two user turns in a row. Handing it back means the
+                // recovery is one press rather than retyping the message.
+                const failed = this.lastUserText();
+
+                this.add("error", p.message, {
+                    recovery: p.tooLong
+                        ? {
+                              label: "Forget the oldest half and retry",
+                              run: () => this.forgetAndRetry(failed),
+                          }
+                        : undefined,
+                });
                 void this.refresh();
             }),
 
