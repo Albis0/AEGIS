@@ -45,6 +45,15 @@ class NowPlayingStore {
 
     /** Set by the close button: suppresses the automatic show until silence. */
     private dismissed = false;
+    /**
+     * Set when the user asked for the box themselves.
+     *
+     * Without it, asking for the box while nothing is playing showed it for
+     * one poll and then took it away again: silence had already accumulated,
+     * so the very next tick hid the thing that had just been requested. Only
+     * a box that appeared on its own is allowed to leave on its own.
+     */
+    private pinned = false;
     /** Consecutive polls that reported nothing. */
     private silence = 0;
     private timer: ReturnType<typeof setInterval> | null = null;
@@ -73,7 +82,7 @@ class NowPlayingStore {
             // Silence is also what clears a manual dismissal, so closing the
             // box mutes it for this listening session rather than for good.
             this.dismissed = false;
-            this.visible = false;
+            if (!this.pinned) this.visible = false;
         }
     }
 
@@ -90,6 +99,7 @@ class NowPlayingStore {
 
     /** The close button. Hides it now, without meaning it forever. */
     dismiss() {
+        this.pinned = false;
         this.dismissed = true;
         this.visible = false;
     }
@@ -97,13 +107,14 @@ class NowPlayingStore {
     /**
      * The palette command, for looking at the box when nothing is playing.
      *
-     * Showing it by hand also clears the dismissal, or the next poll would
-     * take away the box the user just asked for.
+     * A box asked for by hand is pinned: it stays until it is closed by hand,
+     * where one that appeared on its own leaves once the music stops.
      */
     toggle() {
         if (this.visible) {
             this.dismiss();
         } else {
+            this.pinned = true;
             this.dismissed = false;
             this.visible = true;
         }
