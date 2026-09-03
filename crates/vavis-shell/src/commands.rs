@@ -23,6 +23,8 @@ pub struct Status {
     pub language: String,
     pub provider: String,
     pub model: String,
+    /// Cheap model that picks tools. Empty when routing is off.
+    pub router_model: String,
     pub providers: Vec<ProviderInfo>,
     pub keys: Vec<String>,
     pub tool_count: usize,
@@ -87,6 +89,7 @@ pub fn get_status(state: State<AppState>) -> Status {
         language: core.config.general.language.clone(),
         provider: provider.key_name().to_string(),
         model,
+        router_model: core.config.llm.router_model.clone(),
         providers: Provider::ALL
             .iter()
             .map(|p| ProviderInfo {
@@ -197,7 +200,7 @@ pub fn send_message(
         return Err("a reply is already in progress".into());
     }
 
-    let (cfg, system, history) = {
+    let (cfg, router_model, system, history) = {
         let core = AppState::lock(&state.core);
         let keys = AppState::lock(&state.keys);
 
@@ -230,6 +233,7 @@ pub fn send_message(
 
         (
             ChatConfig::new(provider, model, key),
+            core.config.llm.router_model.clone(),
             system,
             history.clone(),
         )
@@ -275,6 +279,7 @@ pub fn send_message(
             &agent,
             &approval_rx,
             &cfg,
+            &router_model,
             system,
             history,
             &text,
@@ -457,6 +462,97 @@ fn drop_oldest_half(messages: &mut Vec<Message>) -> usize {
     drop
 }
 
+/// Which tools this request gets.
+///
+/// With `llm.router_model` set, a cheap model reads the request and the tool
+/// catalogue and says what is needed; the expensive model then sees only
+/// those schemas. Unset -- the default -- this is keyword matching, with no
+/// extra call and no extra cost.
+///
+/// Every failure path lands on keywords. A router that is slow, broken or
+/// talking nonsense must never be the reason the assistant cannot act.
+async fn route_tools(
+    client: &vavis_brain::BrainClient,
+    cfg: &ChatConfig,
+    router_model: &str,
+    agent: &std::sync::Arc<std::sync::Mutex<vavis_tools::Agent>>,
+    user_message: &str,
+    budget: usize,
+) -> Vec<String> {
+    let keywords = || {
+        let guard = AppState::lock(agent);
+        vavis_tools::selection::select_named(&guard.registry, user_message, budget)
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+
+    if router_model.trim().is_empty() {
+        return keywords();
+    }
+
+    // A greeting needs no router call: keywords already answer "no tools",
+    // and paying a model to confirm that on every "merhaba" is waste.
+    if keywords().is_empty() {
+        return Vec::new();
+    }
+
+    let (prompt, catalogue_len) = {
+        let guard = AppState::lock(agent);
+        let catalogue = vavis_tools::router::catalog(&guard.registry);
+        (
+            vavis_tools::router::prompt(user_message, &catalogue),
+            catalogue.len(),
+        )
+    };
+
+    // The router runs on the same provider and key as the conversation --
+    // only the model differs, so there is nothing extra to set up.
+    let router_cfg = ChatConfig {
+        model: router_model.to_string(),
+        // Picking tools is not a creative task.
+        temperature: 0.0,
+        ..cfg.clone()
+    };
+
+    let reply = client
+        .chat_stream(
+            &router_cfg,
+            vec![vavis_brain::Message::user(&prompt)],
+            |_| {},
+        )
+        .await;
+
+    match reply {
+        Ok(text) => {
+            let guard = AppState::lock(agent);
+            let mut picked: Vec<String> = vavis_tools::router::parse_reply(&text, &guard.registry)
+                .into_iter()
+                .map(str::to_string)
+                .collect();
+            drop(guard);
+
+            if picked.is_empty() {
+                tracing::debug!("router named nothing usable; using keywords");
+                return keywords();
+            }
+
+            picked.truncate(budget);
+            tracing::info!(
+                picked = picked.len(),
+                catalogue = catalogue_len,
+                router = %router_cfg.model,
+                "router chose the tools for this request"
+            );
+            picked
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "router unavailable; using keywords");
+            keywords()
+        }
+    }
+}
+
 /// One full turn: model → tools → model → … → reply.
 #[allow(clippy::too_many_arguments)]
 async fn run_turn(
@@ -465,16 +561,32 @@ async fn run_turn(
     agent: &std::sync::Arc<std::sync::Mutex<vavis_tools::Agent>>,
     approval_rx: &std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Approval>>>,
     cfg: &ChatConfig,
+    router_model: &str,
     system: Message,
     history: Vec<Message>,
     user_message: &str,
 ) -> Result<String, TurnError> {
+    // How many tools this model can choose between well -- a small model
+    // loses its way among thirty schemas where a large one does not. A
+    // ceiling, not a target: domain matching still decides what is relevant.
+    let budget = vavis_brain::ModelCaps::for_model(&cfg.model).tool_budget;
+
+    // A cheap model picks what is needed; the expensive one does the work.
+    // Configured off, in which case this is keyword matching as before.
+    let picked = route_tools(client, cfg, router_model, agent, user_message, budget).await;
+
     let tools = {
+        let names: Vec<&str> = picked.iter().map(String::as_str).collect();
         let mut guard = AppState::lock(agent);
         guard.start_run();
-        guard.tools_for(user_message)
+        guard.schemas_for(&names)
     };
-    tracing::info!(count = tools.len(), "tools offered for this request");
+    tracing::info!(
+        count = tools.len(),
+        budget,
+        model = %cfg.model,
+        "tools offered for this request"
+    );
 
     let mut messages = vec![system];
     messages.extend(history);
@@ -588,6 +700,7 @@ impl AgentHost for EventHost {
                 reason: match reason {
                     ApprovalReason::RiskLevel => "risk".into(),
                     ApprovalReason::BudgetExceeded => "budget".into(),
+                    ApprovalReason::TaintedContext => "tainted".into(),
                 },
             },
         );
@@ -883,6 +996,10 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
             }
             core.config.ui.window_mode = value;
         }
+        // The cheap model that picks tools. Empty turns routing off, which
+        // is the default -- so clearing the box is a supported answer, not
+        // an error.
+        "routerModel" => core.config.llm.router_model = value.trim().to_string(),
         other => return Err(format!("unknown setting: {other}")),
     }
 

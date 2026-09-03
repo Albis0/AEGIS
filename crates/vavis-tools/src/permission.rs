@@ -23,6 +23,11 @@ pub enum ApprovalReason {
     RiskLevel,
     /// Bütçe aşıldı. Kalıcı izin **susturamaz**.
     BudgetExceeded,
+    /// Bu turda okunan dış içerik modele talimat vermeye çalışıyordu.
+    ///
+    /// Kalıcı izin **susturamaz**: saldırının işe yaraması için tam olarak
+    /// kullanıcının daha önce "hep izin ver" demiş olması gerekiyor.
+    TaintedContext,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +44,11 @@ pub struct PermissionGate {
     granted: HashSet<String>,
     /// Bu çalıştırmada kaç yıkıcı işlem yapıldı.
     destructive_used: usize,
+    /// Bu turda enjeksiyon şüphesi taşıyan dış içerik okundu mu.
+    ///
+    /// Tur başına sıfırlanıyor: bir sayfanın şüpheli olması sonraki isteği
+    /// cezalandırmamalı.
+    tainted: bool,
 }
 
 impl PermissionGate {
@@ -50,6 +60,20 @@ impl PermissionGate {
     /// Kalıcı izinler **korunur** (oturum boyunca geçerli).
     pub fn start_run(&mut self) {
         self.destructive_used = 0;
+        self.tainted = false;
+    }
+
+    /// Bu turda okunan dış içerik modele talimat vermeye çalışıyordu.
+    ///
+    /// Bundan sonra yıkıcı işlemler kalıcı izne rağmen onay ister. Geri alma
+    /// yolu yok: tur bitene kadar şüphe sürüyor.
+    pub fn mark_tainted(&mut self) {
+        self.tainted = true;
+    }
+
+    /// Bu turda şüpheli dış içerik görüldü mü.
+    pub fn is_tainted(&self) -> bool {
+        self.tainted
     }
 
     /// Bu tool çalıştırılabilir mi?
@@ -66,8 +90,14 @@ impl PermissionGate {
             }
 
             Risk::Destructive => {
-                // Bütçe aşıldıysa kalıcı izin bile geçersiz.
-                if self.destructive_used >= DESTRUCTIVE_BUDGET {
+                // Şüpheli dış içerik okunduysa kalıcı izin geçersiz. Bu tam
+                // olarak saldırının hedeflediği delik: kullanıcı bir kez
+                // "hep izin ver" demişse, sayfanın yazdığı komut sessizce
+                // çalışırdı.
+                if self.tainted {
+                    Decision::Ask(ApprovalReason::TaintedContext)
+                } else if self.destructive_used >= DESTRUCTIVE_BUDGET {
+                    // Bütçe aşıldıysa kalıcı izin bile geçersiz.
                     Decision::Ask(ApprovalReason::BudgetExceeded)
                 } else if self.granted.contains(tool_name) {
                     Decision::Allow

@@ -572,6 +572,28 @@
                         {/each}
                     </div>
                 {/if}
+
+                <h2>Tool routing</h2>
+                <p class="hint">
+                    A small, cheap model reads your request and decides which tools the
+                    main model needs, so only those are sent. Leave this empty to match
+                    tools by keyword instead — no extra call, no extra cost.
+                </p>
+
+                <label class="field">
+                    <span>Router model</span>
+                    <input
+                        type="text"
+                        placeholder="off — e.g. llama-3.1-8b-instant"
+                        value={status?.routerModel ?? ""}
+                        onchange={(e) =>
+                            updateSetting("routerModel", e.currentTarget.value)}
+                    />
+                </label>
+                <p class="hint">
+                    Runs on the provider and key you already use. If it is slow or
+                    fails, keyword matching takes over — the assistant keeps working.
+                </p>
             {:else if active === "keys"}
                 <h2>API keys</h2>
                 <p class="hint">

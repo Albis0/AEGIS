@@ -221,6 +221,16 @@ pub struct Llm {
     pub provider: String,
     /// Boş bırakılırsa sağlayıcının varsayılan modeli kullanılır.
     pub model: String,
+    /// Hangi araçların gerektiğini seçen ucuz model.
+    ///
+    /// Boşsa yönlendirme anahtar kelimeyle yapılır — ağ çağrısı yok, para
+    /// harcanmaz. Doldurulursa asıl modele yalnızca gerçekten gereken
+    /// araçların şeması gider; ucuz model seçer, pahalı model işi yapar.
+    ///
+    /// Aynı sağlayıcıda çalışır: anahtar zaten var, ikinci bir kurulum
+    /// gerekmiyor.
+    #[serde(default)]
+    pub router_model: String,
 }
 
 impl Default for Llm {
@@ -229,6 +239,9 @@ impl Default for Llm {
             // Groq varsayılan: ücretsiz katmanı var ve hızlı.
             provider: "groq".to_string(),
             model: String::new(),
+            // Kapalı gelir: yönlendirme fazladan bir model çağrısı demek.
+            // Kullanıcı isterse açar.
+            router_model: String::new(),
         }
     }
 }

@@ -51,12 +51,35 @@ const DEFAULT_MAX_OUTPUT: usize = 8_192;
 /// (a local model, a new hosted one) is at least 32k.
 const UNKNOWN_WINDOW: usize = 32_768;
 
+/// Tanınmayan bir modele kaç tool sunulur.
+///
+/// Temkinli: model bilinmiyorsa seçim kalitesi de bilinmiyor demektir.
+/// Tabloya bir satır eklemek bunu istediğin yere çeker.
+const DEFAULT_TOOL_BUDGET: usize = 12;
+
+/// Bütçe bunun altına inemez.
+///
+/// Çekirdek tool'lar (saat, hesap) her istekte sunuluyor; bütçe onların
+/// altına inerse alan tool'una hiç yer kalmaz ve asistan alan işi yapamaz
+/// hâle gelir.
+const MIN_TOOL_BUDGET: usize = 6;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ModelCaps {
     /// Modelin bağlam penceresi (token).
     pub context_window: usize,
     /// Cevap için ayrılacak en fazla token.
     pub max_output: usize,
+    /// Bu modele bir istekte sunulabilecek en fazla tool sayısı.
+    ///
+    /// **Tavan, hedef değil.** Bütçenin yüksek olması "hepsini gönder"
+    /// demek değil; sadece gerekenler gider. Fazlası hem faturayı şişirir
+    /// hem modeli kışkırtır.
+    ///
+    /// Neden model başına: seçim kalitesi modele göre değişiyor. Küçük bir
+    /// Llama otuz şema arasında kaybolurken Opus rahatça seçiyor. Tek bir
+    /// sabit, zayıf modelin sınırını güçlü olana da dayatıyordu.
+    pub tool_budget: usize,
 }
 
 impl Default for ModelCaps {
@@ -74,34 +97,39 @@ impl ModelCaps {
     /// A table, so a new family is one line. Order matters -- first match
     /// wins, so specific names come before general ones.
     pub fn for_model(model: &str) -> Self {
-        /// (fragment of the model name, context window, max reply tokens)
-        const MODELS: &[(&str, usize, usize)] = &[
-            ("gemini", 1_000_000, 8_192),
-            ("claude-3-haiku", 200_000, 4_096),
-            ("claude", 200_000, 8_192),
-            ("gpt-4o", 128_000, 16_384),
-            ("gpt-4.1", 128_000, 16_384),
-            ("gpt-5", 128_000, 16_384),
-            ("o1", 128_000, 16_384),
-            ("qwen", 128_000, 8_192),
-            ("kimi", 128_000, 8_192),
-            ("llama-3.3", 128_000, 8_192),
-            ("llama-3.1", 128_000, 8_192),
-            ("llama", 32_000, 4_096),
-            ("grok", 131_072, 8_192),
-            ("deepseek", 64_000, 8_192),
-            ("mistral", 32_000, 4_096),
-            ("gemma", 8_192, 4_096),
+        /// (fragment of the model name, context window, max reply tokens,
+        /// tool budget)
+        ///
+        /// The tool budget is a judgement about how many choices the model
+        /// handles well, not about its context window: a small model with a
+        /// large window still picks badly from thirty options.
+        const MODELS: &[(&str, usize, usize, usize)] = &[
+            ("gemini", 1_000_000, 8_192, 32),
+            ("claude-3-haiku", 200_000, 4_096, 16),
+            ("claude", 200_000, 8_192, 48),
+            ("gpt-4o", 128_000, 16_384, 32),
+            ("gpt-4.1", 128_000, 16_384, 32),
+            ("gpt-5", 128_000, 16_384, 48),
+            ("o1", 128_000, 16_384, 32),
+            ("qwen", 128_000, 8_192, 16),
+            ("kimi", 128_000, 8_192, 16),
+            ("llama-3.3", 128_000, 8_192, 14),
+            ("llama-3.1", 128_000, 8_192, 14),
+            ("llama", 32_000, 4_096, 12),
+            ("grok", 131_072, 8_192, 24),
+            ("deepseek", 64_000, 8_192, 16),
+            ("mistral", 32_000, 4_096, 12),
+            ("gemma", 8_192, 4_096, 8),
         ];
 
         let m = model.to_ascii_lowercase();
-        let (context_window, max_output) = MODELS
+        let (context_window, max_output, tool_budget) = MODELS
             .iter()
-            .find(|(name, _, _)| m.contains(name))
-            .map(|(_, window, output)| (*window, *output))
-            .unwrap_or((UNKNOWN_WINDOW, DEFAULT_MAX_OUTPUT));
+            .find(|(name, _, _, _)| m.contains(name))
+            .map(|(_, window, output, tools)| (*window, *output, *tools))
+            .unwrap_or((UNKNOWN_WINDOW, DEFAULT_MAX_OUTPUT, DEFAULT_TOOL_BUDGET));
 
-        Self::new(context_window, max_output)
+        Self::with_tools(context_window, max_output, tool_budget)
     }
 
     /// Caps to a window, holding the reply limit to something the window can
@@ -113,9 +141,15 @@ impl ModelCaps {
     /// generous for the reply, and it still leaves roughly two thirds for the
     /// conversation after the safety margin.
     fn new(context_window: usize, max_output: usize) -> Self {
+        Self::with_tools(context_window, max_output, DEFAULT_TOOL_BUDGET)
+    }
+
+    /// As [`Self::new`], with an explicit tool budget.
+    fn with_tools(context_window: usize, max_output: usize, tool_budget: usize) -> Self {
         Self {
             context_window,
             max_output: max_output.min(context_window / 4),
+            tool_budget: tool_budget.max(MIN_TOOL_BUDGET),
         }
     }
 

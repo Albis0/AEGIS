@@ -7,7 +7,7 @@
 //! doğrular, bu ise seçim kalitesini bir bütün olarak ölçer. Skor düşerse
 //! seçim mantığında bir gerileme var demektir.
 
-use vavis_tools::{default_registry, selection, MAX_TOOLS};
+use vavis_tools::{default_registry, selection, DEFAULT_TOOL_BUDGET};
 
 /// (kullanıcı cümlesi, sunulması BEKLENEN tool)
 const EXPECT_OFFERED: &[(&str, &str)] = &[
@@ -77,7 +77,7 @@ fn offered_tool_eval_scores_100_percent() {
     let mut failures = Vec::new();
 
     for (msg, expected) in EXPECT_OFFERED {
-        let offered = selection::select_named(&reg, msg);
+        let offered = selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET);
         if !offered.contains(expected) {
             failures.push(format!(
                 "  '{msg}' → {expected} bekleniyordu, sunulan: {offered:?}"
@@ -102,7 +102,7 @@ fn conversational_messages_get_zero_tools() {
     let mut failures = Vec::new();
 
     for msg in EXPECT_NO_TOOLS {
-        let offered = selection::select_named(&reg, msg);
+        let offered = selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET);
         if !offered.is_empty() {
             failures.push(format!("  '{msg}' → tool sunulmamalıydı: {offered:?}"));
         }
@@ -128,10 +128,10 @@ fn tool_count_never_exceeds_limit_on_any_input() {
     ];
 
     for msg in adversarial {
-        let offered = selection::select_named(&reg, msg);
+        let offered = selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET);
         assert!(
-            offered.len() <= MAX_TOOLS,
-            "'{}' için {} tool sunuldu (sınır {MAX_TOOLS})",
+            offered.len() <= DEFAULT_TOOL_BUDGET,
+            "'{}' için {} tool sunuldu (sınır {DEFAULT_TOOL_BUDGET})",
             &msg[..msg.len().min(40)],
             offered.len()
         );
@@ -139,7 +139,9 @@ fn tool_count_never_exceeds_limit_on_any_input() {
 
     // Tüm eval cümleleri için de geçerli olmalı.
     for (msg, _) in EXPECT_OFFERED {
-        assert!(selection::select_named(&reg, msg).len() <= MAX_TOOLS);
+        assert!(
+            selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET).len() <= DEFAULT_TOOL_BUDGET
+        );
     }
 }
 
@@ -151,7 +153,7 @@ fn average_offered_tool_count_stays_small() {
     let reg = default_registry();
     let counts: Vec<usize> = EXPECT_OFFERED
         .iter()
-        .map(|(msg, _)| selection::select_named(&reg, msg).len())
+        .map(|(msg, _)| selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET).len())
         .collect();
 
     let avg = counts.iter().sum::<usize>() as f64 / counts.len() as f64;
@@ -168,7 +170,8 @@ fn average_offered_tool_count_stays_small() {
 #[test]
 fn generated_schemas_are_provider_compatible() {
     let reg = default_registry();
-    let schemas = selection::select_tools(&reg, "masaüstündeki dosyaları listele");
+    let schemas =
+        selection::select_tools(&reg, "masaüstündeki dosyaları listele", DEFAULT_TOOL_BUDGET);
     assert!(!schemas.is_empty());
 
     for s in &schemas {
@@ -200,7 +203,7 @@ fn generated_schemas_are_provider_compatible() {
 fn no_duplicate_tools_are_offered() {
     let reg = default_registry();
     for (msg, _) in EXPECT_OFFERED {
-        let offered = selection::select_named(&reg, msg);
+        let offered = selection::select_named(&reg, msg, DEFAULT_TOOL_BUDGET);
         let mut sorted = offered.clone();
         sorted.sort_unstable();
         let before = sorted.len();
@@ -224,7 +227,7 @@ fn measure_fixed_overhead_of_a_trivial_message() {
     let reg = default_registry();
 
     for msg in ["sa", "merhaba", "su projeyi devam ettir"] {
-        let schemas = selection::select_tools(&reg, msg);
+        let schemas = selection::select_tools(&reg, msg, DEFAULT_TOOL_BUDGET);
         let tool_tokens: usize = schemas
             .iter()
             .map(|s| vavis_brain::estimate_tokens(&s.to_string()))

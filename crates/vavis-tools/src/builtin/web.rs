@@ -140,7 +140,18 @@ impl Tool for WebSearch {
         // çalışma zamanı detayı. Bkz. `websearch`.
         match websearch::search(query, MAX_RESULTS) {
             Ok((response, _attempts)) => {
-                ToolOutcome::ok(websearch::format_for_model(&response, MAX_CONTENT_CHARS))
+                // Result snippets are written by whoever owns the page, so
+                // they get the same framing a fetched page does.
+                let body = websearch::format_for_model(&response, MAX_CONTENT_CHARS);
+                let wrapped = crate::untrusted::wrap("web araması", &body);
+                if wrapped.suspicious() {
+                    tracing::warn!(
+                        %query,
+                        patterns = ?wrapped.flags,
+                        "search results try to instruct the model"
+                    );
+                }
+                ToolOutcome::ok(wrapped.text)
             }
             Err(attempts) => {
                 // Neden sonuç gelmediğini söyle: anahtar eksikse kullanıcı
@@ -213,7 +224,18 @@ impl Tool for FetchUrl {
                 } else {
                     ""
                 };
-                ToolOutcome::ok(format!("{clipped}{suffix}"))
+
+                // The page is a stranger's text, not the user's. Frame it so
+                // the model can tell the difference -- see `untrusted`.
+                let wrapped = crate::untrusted::wrap(&url, &format!("{clipped}{suffix}"));
+                if wrapped.suspicious() {
+                    tracing::warn!(
+                        %url,
+                        patterns = ?wrapped.flags,
+                        "fetched page tries to instruct the model"
+                    );
+                }
+                ToolOutcome::ok(wrapped.text)
             }
             Err(e) => ToolOutcome::err(format!("{url} okunamadı: {e}")),
         }

@@ -12,7 +12,7 @@
 //!
 //! # Buradaki kural
 //!
-//! **Modele asla `MAX_TOOLS`'tan fazla tool gönderilmez.**
+//! **Sadece gerekenler gider — bütçe kadarı değil.**
 //!
 //! İki kademe:
 //!   1. Mesajdan **alan** seçilir (dosya mı, sistem mi, web mi…).
@@ -20,13 +20,32 @@
 //!
 //! Alan bulunamazsa hiç tool gönderilmez (sohbet mesajı) — bu bilinçli:
 //! "merhaba" için tool listesi göndermek modeli boş yere kışkırtıyor.
+//!
+//! # Bütçe neden model başına
+//!
+//! Bir zamanlar burada tek bir sabit vardı: modele asla 12'den fazla tool
+//! gönderilmezdi. O sabit bir kalite kapısı gibi görünüyordu ama aslında
+//! **en zayıf modelin sınırını herkese dayatıyordu.** Otuz şema arasında
+//! kaybolan küçük bir Llama ile rahatça seçen bir Opus aynı kafesteydi.
+//!
+//! Artık bütçe modelden geliyor (`ModelCaps::tool_budget`). İki şeyi
+//! birbirinden ayırmak gerekiyor:
+//!
+//! * **Bütçe bir tavan, hedef değil.** Yüksek bütçe "listeyi doldur" demek
+//!   değil. Gereksiz tool hem faturayı şişirir (API başına ödeyen için
+//!   gerçek para) hem modeli kışkırtır.
+//! * **Alan eşleşmesi yine de daraltır.** Bütçe 48 olsa bile "dosyaları
+//!   listele" mesajına Spotify tool'u gitmez.
 
 use crate::tool::{Domain, Registry};
 
 use serde_json::Value;
 
-/// Modele gönderilecek en fazla tool sayısı. **Bu sayı büyütülmemeli.**
-pub const MAX_TOOLS: usize = 12;
+/// Bütçe bilinmediğinde kullanılacak temkinli varsayılan.
+///
+/// Gerçek bütçe `ModelCaps::tool_budget`'tan gelir; bu sabit yalnızca
+/// model bilgisi olmayan çağrılar (testler, günlük kaydı) içindir.
+pub const DEFAULT_TOOL_BUDGET: usize = 12;
 
 /// Bir alanın eşleştiği anahtar kelimeler (Türkçe + İngilizce).
 ///
@@ -483,7 +502,7 @@ pub fn match_domains(message: &str) -> Vec<Domain> {
 /// kimliğinden ve tool adlarından** çıkarılıyor.
 ///
 /// En fazla iki sunucu dönüyor: üç sunucu bağlayan kullanıcının 60 tool'u
-/// modele hep birden gitmesin diye (`MAX_TOOLS` zaten üstte kesiyor, ama
+/// modele hep birden gitmesin diye (bütçe zaten üstte kesiyor, ama
 /// kesilen tool'lar rastgele olmasın).
 pub fn match_mcp_domains(registry: &Registry, message: &str) -> Vec<Domain> {
     let words = tokenize(message);
@@ -574,16 +593,20 @@ mod obsidian_selection_tests {
 
 /// Bu istek için modele sunulacak tool şemaları.
 ///
-/// Dönen liste **her zaman** `MAX_TOOLS` veya altındadır.
-pub fn select_tools(registry: &Registry, message: &str) -> Vec<Value> {
-    select_named(registry, message)
+/// `budget` modelden gelir (`ModelCaps::tool_budget`) — bkz. [`select_named`].
+pub fn select_tools(registry: &Registry, message: &str, budget: usize) -> Vec<Value> {
+    select_named(registry, message, budget)
         .into_iter()
         .filter_map(|name| registry.get(name).map(|t| t.schema()))
         .collect()
 }
 
 /// Seçilen tool adları — testler ve günlük kaydı için.
-pub fn select_named<'a>(registry: &'a Registry, message: &str) -> Vec<&'a str> {
+///
+/// `budget` bir **tavan**, hedef değil: alan eşleşmesi az tool getiriyorsa
+/// liste kısa kalır. Bütçenin yüksek olması listeyi doldurmak için sebep
+/// değildir — gereksiz tool hem faturayı büyütür hem modeli kışkırtır.
+pub fn select_named<'a>(registry: &'a Registry, message: &str, budget: usize) -> Vec<&'a str> {
     let mut domains = match_domains(message);
     // MCP alanları çalışma anında oluşuyor, statik tabloda yer alamıyor —
     // ayrı eşleştiriliyor ve yerleşik alanların önüne geçiyor: kullanıcı bir
@@ -606,7 +629,7 @@ pub fn select_named<'a>(registry: &'a Registry, message: &str) -> Vec<&'a str> {
     // 1) Eşleşen alanların tool'ları (en alakalı olan önce).
     for domain in &domains {
         for tool in registry.in_domain(*domain) {
-            if names.len() >= MAX_TOOLS {
+            if names.len() >= budget {
                 break;
             }
             if !names.contains(&tool.name()) {
@@ -617,7 +640,7 @@ pub fn select_named<'a>(registry: &'a Registry, message: &str) -> Vec<&'a str> {
 
     // 2) Çekirdek tool'lar — kalan yere sığdığı kadar.
     for tool in registry.in_domain(Domain::Core) {
-        if names.len() >= MAX_TOOLS {
+        if names.len() >= budget {
             break;
         }
         if !names.contains(&tool.name()) {
@@ -625,7 +648,7 @@ pub fn select_named<'a>(registry: &'a Registry, message: &str) -> Vec<&'a str> {
         }
     }
 
-    debug_assert!(names.len() <= MAX_TOOLS);
+    debug_assert!(names.len() <= budget);
     names
 }
 
@@ -693,16 +716,34 @@ mod tests {
     }
 
     #[test]
-    fn never_exceeds_max_tools() {
+    fn never_exceeds_budget() {
         let reg = big_registry();
         // Her alandan kelime içeren kötü niyetli mesaj.
         let msg = "dosya sistem ses web ara hatırla cpu disk klasör oku yaz sil";
-        let selected = select_named(&reg, msg);
-        assert!(
-            selected.len() <= MAX_TOOLS,
-            "{} tool seçildi, sınır {MAX_TOOLS}",
-            selected.len()
-        );
+
+        // Bütçe ne verilirse verilsin aşılmamalı — dar da olsa geniş de olsa.
+        for budget in [DEFAULT_TOOL_BUDGET, 6, 8, 24, 48] {
+            let selected = select_named(&reg, msg, budget);
+            assert!(
+                selected.len() <= budget,
+                "{} tool seçildi, bütçe {budget}",
+                selected.len()
+            );
+        }
+    }
+
+    /// Geniş bütçe listeyi doldurmak için sebep değil.
+    ///
+    /// Bütçe bir tavan: alan eşleşmesi az tool getiriyorsa liste kısa kalır.
+    /// Aksi hâlde "bütçe 48" demek her isteğe 48 şema göndermek olurdu.
+    #[test]
+    fn wide_budget_does_not_pad_the_list() {
+        let reg = big_registry();
+        let narrow = select_named(&reg, "masaüstündeki dosyaları listele", 12);
+        let wide = select_named(&reg, "masaüstündeki dosyaları listele", 48);
+
+        assert_eq!(narrow, wide, "bütçe genişleyince alakasız tool eklenmemeli");
+        assert!(wide.len() < 48, "liste bütçeye kadar doldurulmuş");
     }
 
     #[test]
@@ -710,7 +751,7 @@ mod tests {
         let reg = big_registry();
         for msg in ["merhaba", "selam", "teşekkürler", "tamam", "ok"] {
             assert!(
-                select_named(&reg, msg).is_empty(),
+                select_named(&reg, msg, DEFAULT_TOOL_BUDGET).is_empty(),
                 "'{msg}' için tool sunulmamalı"
             );
         }
@@ -719,35 +760,39 @@ mod tests {
     #[test]
     fn file_request_offers_file_tools() {
         let reg = big_registry();
-        let selected = select_named(&reg, "masaüstündeki dosyaları listele");
+        let selected = select_named(&reg, "masaüstündeki dosyaları listele", DEFAULT_TOOL_BUDGET);
         assert!(selected.contains(&"list_dir"), "seçilenler: {selected:?}");
     }
 
     #[test]
     fn system_request_offers_system_tools() {
         let reg = big_registry();
-        let selected = select_named(&reg, "cpu kullanımı ne durumda");
+        let selected = select_named(&reg, "cpu kullanımı ne durumda", DEFAULT_TOOL_BUDGET);
         assert!(selected.contains(&"sys_info"), "seçilenler: {selected:?}");
     }
 
     #[test]
     fn volume_request_offers_volume_tool() {
         let reg = big_registry();
-        let selected = select_named(&reg, "sesi %30 yap");
+        let selected = select_named(&reg, "sesi %30 yap", DEFAULT_TOOL_BUDGET);
         assert!(selected.contains(&"set_volume"), "seçilenler: {selected:?}");
     }
 
     #[test]
     fn web_request_offers_web_tools() {
         let reg = big_registry();
-        let selected = select_named(&reg, "bugünkü haberleri ara");
+        let selected = select_named(&reg, "bugünkü haberleri ara", DEFAULT_TOOL_BUDGET);
         assert!(selected.contains(&"web_search"), "seçilenler: {selected:?}");
     }
 
     #[test]
     fn memory_request_offers_memory_tools() {
         let reg = big_registry();
-        let selected = select_named(&reg, "beni hatırla: kahveyi sade içerim");
+        let selected = select_named(
+            &reg,
+            "beni hatırla: kahveyi sade içerim",
+            DEFAULT_TOOL_BUDGET,
+        );
         assert!(selected.contains(&"remember"), "seçilenler: {selected:?}");
     }
 
@@ -862,7 +907,7 @@ mod tests {
     #[test]
     fn core_tools_are_included_when_a_domain_matches() {
         let reg = big_registry();
-        let selected = select_named(&reg, "cpu durumu");
+        let selected = select_named(&reg, "cpu durumu", DEFAULT_TOOL_BUDGET);
         assert!(selected.contains(&"now"), "çekirdek tool'lar da sunulmalı");
     }
 
@@ -870,7 +915,7 @@ mod tests {
     fn most_relevant_domain_comes_first() {
         let reg = big_registry();
         // Baskın olarak dosya mesajı.
-        let selected = select_named(&reg, "dosya klasör oku yaz listele");
+        let selected = select_named(&reg, "dosya klasör oku yaz listele", DEFAULT_TOOL_BUDGET);
         let first = selected.first().copied().unwrap_or("");
         let file_tools = [
             "read_file",
@@ -889,7 +934,7 @@ mod tests {
     #[test]
     fn schemas_are_valid_json_and_counted() {
         let reg = big_registry();
-        let schemas = select_tools(&reg, "dosyaları listele");
+        let schemas = select_tools(&reg, "dosyaları listele", DEFAULT_TOOL_BUDGET);
         assert!(!schemas.is_empty());
         for s in &schemas {
             assert_eq!(s["type"], "function");
@@ -901,7 +946,7 @@ mod tests {
     #[test]
     fn empty_message_gets_no_tools() {
         let reg = big_registry();
-        assert!(select_named(&reg, "").is_empty());
-        assert!(select_named(&reg, "   ").is_empty());
+        assert!(select_named(&reg, "", DEFAULT_TOOL_BUDGET).is_empty());
+        assert!(select_named(&reg, "   ", DEFAULT_TOOL_BUDGET).is_empty());
     }
 }

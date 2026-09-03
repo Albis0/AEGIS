@@ -119,23 +119,27 @@ fn mcp_tools_are_destructive_and_use_the_servers_own_schema() {
 #[test]
 #[ignore = "needs node on PATH"]
 fn naming_a_server_offers_its_tools_and_respects_the_cap() {
-    use vavis_tools::{selection, MAX_TOOLS};
+    use vavis_tools::{selection, DEFAULT_TOOL_BUDGET};
 
     let mut registry = vavis_tools::default_registry();
     assert!(mcp::connect(&mut registry, &config("weatherly", vec![]), "").connected);
 
-    let offered = selection::select_named(&registry, "weatherly ile hava durumuna bak");
+    let offered = selection::select_named(
+        &registry,
+        "weatherly ile hava durumuna bak",
+        DEFAULT_TOOL_BUDGET,
+    );
     assert!(
         offered.contains(&"weatherly_echo"),
         "naming the server should offer its tools: {offered:?}"
     );
     assert!(
-        offered.len() <= MAX_TOOLS,
+        offered.len() <= DEFAULT_TOOL_BUDGET,
         "the cap still applies: {offered:?}"
     );
 
     // A message about something else must not drag the server in.
-    let unrelated = selection::select_named(&registry, "pil yüzde kaç");
+    let unrelated = selection::select_named(&registry, "pil yüzde kaç", DEFAULT_TOOL_BUDGET);
     assert!(
         !unrelated.iter().any(|t| t.starts_with("weatherly_")),
         "unrelated request pulled in MCP tools: {unrelated:?}"

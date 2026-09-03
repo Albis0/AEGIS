@@ -54,7 +54,7 @@ export interface Message {
     /** Tool messages: the fuller output, shown when expanded. */
     detail?: string;
     /** Approval messages: why permission is being asked. */
-    reason?: "risk" | "budget";
+    reason?: "risk" | "budget" | "tainted";
     /** Approval messages: what the user chose, once they have chosen. */
     decision?: "allow" | "always" | "deny";
     /**
@@ -77,7 +77,7 @@ export interface Message {
 export interface PendingApproval {
     tool: string;
     args: string;
-    reason: "risk" | "budget";
+    reason: "risk" | "budget" | "tainted";
     /** The feed message showing this request, so the answer can land on it. */
     messageId: number;
 }

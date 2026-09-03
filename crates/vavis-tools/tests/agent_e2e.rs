@@ -67,10 +67,10 @@ fn full_flow_from_message_to_tool_result() {
     // 1) Kullanıcı mesajı → tool seçimi
     let message = "cpu kullanımı ne durumda";
     agent.start_run();
-    let offered = agent.tools_for(message);
+    let offered = agent.tools_for(message, selection::DEFAULT_TOOL_BUDGET);
 
     assert!(!offered.is_empty(), "sistem sorusuna tool sunulmalı");
-    assert!(offered.len() <= selection::MAX_TOOLS);
+    assert!(offered.len() <= selection::DEFAULT_TOOL_BUDGET);
 
     // 2) Model sistem_durumu'nu çağırmak istiyor
     let results = agent.execute_calls(&[call("sistem_durumu", "{}")], &mut host);
@@ -186,7 +186,9 @@ fn conversational_message_offers_no_tools_at_all() {
     let agent = agent();
     for msg in ["merhaba", "teşekkürler", "bana bir şiir yaz", "nasılsın"] {
         assert!(
-            agent.tools_for(msg).is_empty(),
+            agent
+                .tools_for(msg, selection::DEFAULT_TOOL_BUDGET)
+                .is_empty(),
             "'{msg}' için tool sunulmamalı"
         );
     }

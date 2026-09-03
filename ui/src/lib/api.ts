@@ -22,6 +22,8 @@ export interface Status {
     language: string;
     provider: string;
     model: string;
+    /** Cheap model that picks tools. Empty when routing is off. */
+    routerModel: string;
     providers: ProviderInfo[];
     keys: string[];
     toolCount: number;
@@ -431,7 +433,7 @@ export interface ToolDoneEvent {
 export interface ApprovalEvent {
     tool: string;
     args: string;
-    reason: "risk" | "budget";
+    reason: "risk" | "budget" | "tainted";
 }
 export interface AutomationEvent {
     id: number;

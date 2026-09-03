@@ -119,9 +119,14 @@
         </div>
 
         <p class="why">
-            {message.reason === "budget"
-                ? "Several destructive actions have already run in this turn."
-                : "This action cannot be undone."}
+            {#if message.reason === "tainted"}
+                A page read in this turn tried to give the assistant
+                instructions. Check this is something you asked for.
+            {:else if message.reason === "budget"}
+                Several destructive actions have already run in this turn.
+            {:else}
+                This action cannot be undone.
+            {/if}
         </p>
 
         <pre class="args selectable">{message.args ?? ""}</pre>
