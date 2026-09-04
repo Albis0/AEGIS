@@ -100,6 +100,14 @@ export type CoreState =
 
 let nextId = 1;
 
+/**
+ * How many sent lines ↑/↓ can reach.
+ *
+ * Twenty is what a shell session's worth of arrowing actually covers; past
+ * that people search rather than step.
+ */
+const HISTORY_LIMIT = 20;
+
 class ChatStore {
     messages = $state<Message[]>([]);
     input = $state("");
@@ -110,6 +118,28 @@ class ChatStore {
     runningArgs = $state("");
     /** Microphone level, 0.0–1.0. Polled faster than the rest of the status. */
     micLevel = $state(0);
+
+    /**
+     * What the user has sent, newest last — the shell history behind ↑/↓.
+     *
+     * Kept apart from `messages` on purpose: the feed holds replies, tool
+     * lines and approvals too, and arrowing through those would step past
+     * things the user never typed. Capped, because a session can run long
+     * and nobody arrows back past twenty.
+     */
+    history = $state<string[]>([]);
+
+    /**
+     * Where ↑/↓ currently sits. `null` means "not browsing" — the composer
+     * holds a live draft rather than a recalled line.
+     */
+    historyAt = $state<number | null>(null);
+
+    /**
+     * What was being typed when browsing started, so ↓ past the newest entry
+     * gives it back instead of clearing the box.
+     */
+    private draft = "";
     /** Panel currently open in the right rail, if any. */
     panel = $state<"none" | "settings" | "memory" | "automations" | "tools">(
         "none",
@@ -180,6 +210,7 @@ class ChatStore {
         if (!trimmed || this.status?.busy) return;
 
         this.add("user", trimmed);
+        this.remember(trimmed);
         this.input = "";
 
         try {
@@ -188,6 +219,63 @@ class ChatStore {
         } catch (e) {
             this.add("error", String(e));
         }
+    }
+
+    /**
+     * Files a sent line into the history and leaves browsing.
+     *
+     * Repeating the last line does not add a second copy — arrowing past four
+     * identical "devam" entries is nobody's idea of history.
+     */
+    private remember(text: string) {
+        if (this.history[this.history.length - 1] !== text) {
+            this.history.push(text);
+            if (this.history.length > HISTORY_LIMIT) this.history.shift();
+        }
+        this.historyAt = null;
+        this.draft = "";
+    }
+
+    /**
+     * ↑ — one step towards older. Returns false when there is nothing to
+     * recall, so the composer can let the key do its ordinary job.
+     */
+    recallOlder(): boolean {
+        if (this.history.length === 0) return false;
+
+        if (this.historyAt === null) {
+            // Hold the half-typed line so ↓ can hand it back.
+            this.draft = this.input;
+            this.historyAt = this.history.length - 1;
+        } else if (this.historyAt > 0) {
+            this.historyAt -= 1;
+        } else {
+            return true; // Already at the oldest; stay there.
+        }
+
+        this.input = this.history[this.historyAt];
+        return true;
+    }
+
+    /** ↓ — one step towards newer, ending on the draft that was interrupted. */
+    recallNewer(): boolean {
+        if (this.historyAt === null) return false;
+
+        if (this.historyAt < this.history.length - 1) {
+            this.historyAt += 1;
+            this.input = this.history[this.historyAt];
+        } else {
+            // Past the newest entry: back to what was being typed.
+            this.historyAt = null;
+            this.input = this.draft;
+            this.draft = "";
+        }
+        return true;
+    }
+
+    /** Leaves history browsing — typing anything counts as a new line. */
+    leaveHistory() {
+        this.historyAt = null;
     }
 
     /** The most recent thing the user said, for retrying it. */
@@ -308,6 +396,13 @@ class ChatStore {
         for (const line of restored) {
             this.add(line.role === "user" ? "user" : "assistant", line.content);
         }
+
+        // Seed ↑ from the restored conversation, so history survives a
+        // restart the way a shell's does.
+        this.history = restored
+            .filter((line) => line.role === "user")
+            .map((line) => line.content)
+            .slice(-HISTORY_LIMIT);
         if (restored.length > 0) {
             this.add("system", `${restored.length} messages restored`);
         }

@@ -19,6 +19,9 @@ pub enum Provider {
     Mistral,
     DeepSeek,
     XAI,
+    /// NVIDIA NIM — build.nvidia.com. OpenAI uyumlu; ücretsiz katmanında
+    /// Llama, Qwen, DeepSeek gibi modelleri barındırıyor.
+    Nvidia,
     /// Claude — OpenAI-uyumlu DEGIL, ayri govde semasi (bkz. `anthropic` modulu).
     Anthropic,
     /// Yerel sunucu (Ollama / LM Studio) — anahtar istemez.
@@ -26,13 +29,14 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub const ALL: [Provider; 8] = [
+    pub const ALL: [Provider; 9] = [
         Self::Groq,
         Self::OpenAI,
         Self::Gemini,
         Self::Mistral,
         Self::DeepSeek,
         Self::XAI,
+        Self::Nvidia,
         Self::Anthropic,
         Self::Local,
     ];
@@ -48,6 +52,7 @@ impl Provider {
             Self::Mistral => "https://api.mistral.ai/v1/chat/completions",
             Self::DeepSeek => "https://api.deepseek.com/v1/chat/completions",
             Self::XAI => "https://api.x.ai/v1/chat/completions",
+            Self::Nvidia => "https://integrate.api.nvidia.com/v1/chat/completions",
             Self::Anthropic => crate::anthropic::CHAT_URL,
             Self::Local => "http://127.0.0.1:11434/v1/chat/completions",
         }
@@ -62,6 +67,7 @@ impl Provider {
             Self::Mistral => "https://api.mistral.ai/v1/models",
             Self::DeepSeek => "https://api.deepseek.com/v1/models",
             Self::XAI => "https://api.x.ai/v1/models",
+            Self::Nvidia => "https://integrate.api.nvidia.com/v1/models",
             Self::Anthropic => crate::anthropic::MODELS_URL,
             Self::Local => "http://127.0.0.1:11434/v1/models",
         }
@@ -76,6 +82,7 @@ impl Provider {
             Self::Mistral => "mistral",
             Self::DeepSeek => "deepseek",
             Self::XAI => "xai",
+            Self::Nvidia => "nvidia",
             Self::Anthropic => "anthropic",
             Self::Local => "local",
         }
@@ -94,6 +101,7 @@ impl Provider {
             Self::Mistral => "mistral-small-latest",
             Self::DeepSeek => "deepseek-chat",
             Self::XAI => "grok-3",
+            Self::Nvidia => "meta/llama-3.3-70b-instruct",
             Self::Anthropic => crate::anthropic::DEFAULT_MODEL,
             Self::Local => "llama3.2",
         }
@@ -107,6 +115,7 @@ impl Provider {
             "mistral" => Some(Self::Mistral),
             "deepseek" => Some(Self::DeepSeek),
             "xai" | "grok" => Some(Self::XAI),
+            "nvidia" | "nim" => Some(Self::Nvidia),
             "anthropic" | "claude" => Some(Self::Anthropic),
             "local" | "ollama" => Some(Self::Local),
             _ => None,

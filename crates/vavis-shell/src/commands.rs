@@ -727,13 +727,19 @@ impl AgentHost for EventHost {
         // Two lengths, because the interface shows two things: a one-line
         // note in the feed, and the detail behind it when it is opened. The
         // model still gets the whole output; only the display is trimmed.
+        // The framing around untrusted content is addressed to the model, not
+        // to the reader -- a feed line saying "DIŞ İÇERİK BAŞLANGICI" tells
+        // them nothing about what the tool found. Strip it for display; the
+        // model still receives it intact.
+        let shown = vavis_tools::untrusted::strip_framing(&outcome.content);
+
         let _ = self.app.emit(
             "chat:tool-done",
             ToolDonePayload {
                 tool: tool.to_string(),
                 ok: outcome.ok,
-                summary: one_line(&outcome.content, MAX_TOOL_SUMMARY),
-                detail: clip(&outcome.content, MAX_TOOL_DETAIL),
+                summary: one_line(shown, MAX_TOOL_SUMMARY),
+                detail: clip(shown, MAX_TOOL_DETAIL),
             },
         );
     }

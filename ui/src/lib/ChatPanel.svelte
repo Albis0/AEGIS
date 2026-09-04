@@ -122,7 +122,52 @@
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             submit();
+            return;
         }
+
+        // ↑/↓ walk back through what was sent, the way a shell does.
+        //
+        // The catch is that this is a textarea, not a one-line prompt: inside
+        // a pasted log the arrows have to keep moving the caret. So history
+        // only takes the key at the edge of the text -- ↑ on the first line,
+        // ↓ on the last -- which is exactly where the caret has nowhere left
+        // to go. A modifier means the user is selecting or jumping words;
+        // leave those alone entirely.
+        if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+        if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        if (!inputEl) return;
+
+        const atStart = inputEl.selectionStart === 0 && inputEl.selectionEnd === 0;
+        const end = inputEl.value.length;
+        const atEnd =
+            inputEl.selectionStart === end && inputEl.selectionEnd === end;
+
+        if (event.key === "ArrowUp" && atStart) {
+            if (chat.recallOlder()) {
+                event.preventDefault();
+                caretToEnd();
+            }
+        } else if (event.key === "ArrowDown" && atEnd) {
+            if (chat.recallNewer()) {
+                event.preventDefault();
+                caretToEnd();
+            }
+        }
+    }
+
+    /**
+     * Puts the caret after the recalled line and resizes to fit it.
+     *
+     * Waits a tick: the value arrives through the binding, so the textarea
+     * still holds the old text when the handler runs.
+     */
+    function caretToEnd() {
+        queueMicrotask(() => {
+            if (!inputEl) return;
+            const end = inputEl.value.length;
+            inputEl.setSelectionRange(end, end);
+            autoGrow();
+        });
     }
 
     /** Grows the input up to a limit, then scrolls inside itself. */
@@ -130,6 +175,17 @@
         if (!inputEl) return;
         inputEl.style.height = "auto";
         inputEl.style.height = `${Math.min(inputEl.scrollHeight, 200)}px`;
+    }
+
+    /**
+     * Editing a recalled line makes it a new one.
+     *
+     * Without this, ↑ ↑ then a few keystrokes then ↓ would throw the edit
+     * away and jump to the next entry — the same surprise a shell avoids.
+     */
+    function onInput() {
+        chat.leaveHistory();
+        autoGrow();
     }
 
     /** Focused by the stage when the panel is opened by shortcut. */
@@ -221,7 +277,7 @@
                 bind:this={inputEl}
                 bind:value={chat.input}
                 onkeydown={onKeydown}
-                oninput={autoGrow}
+                oninput={onInput}
                 placeholder={status?.busy ? "Working…" : "Message Vavis…"}
                 rows="1"
                 spellcheck="false"
