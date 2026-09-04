@@ -29,6 +29,12 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: ui
 
+      - name: Version agreement
+        # The version is written in three files and nothing makes them agree.
+        # A mismatch ships a binary whose reported version is not the one in
+        # its own installer, and nothing else would notice.
+        run: node scripts/version.mjs --check
+
       - name: Check the frontend types
         # Vite does not type-check as it builds, so without this a type
         # error in the interface ships with every step green.

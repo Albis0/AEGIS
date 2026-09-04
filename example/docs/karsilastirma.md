@@ -1,6 +1,12 @@
 # VAVIS — Karşılaştırma Raporu
 
-**Tarih:** 2026-09-03 · **VAVIS sürümü:** 0.6.3
+**Tarih:** 2026-09-04 · **VAVIS sürümü:** 0.6.3
+
+> **Not:** Bu raporun ilk hâli VAVIS'i "küçük, sıkı, tek amaç" diye
+> tanımlıyordu ve küçüklüğü bir başarı gibi sunuyordu. **Yanlıştı.** Hedef
+> Jarvis: her şeyi yapabilmeli. Boyut bir ölçüt değil, araç sayısı hedefi
+> büyümek, Windows masaüstü ise kalıcı kapsam değil sıra meselesi. Aşağıdaki
+> ölçümler doğru; yorumları bu gözle düzeltildi.
 
 Üç referans proje ile karşılaştırma:
 
@@ -22,12 +28,15 @@
 | Çalışma zamanı | **Tek .exe (~9 MB)** | Electron 40 | Electron | Node ≥22 + pnpm |
 | Kurulum | **yok** | installer | installer | wizard + sistem bağımlılıkları |
 
-> VAVIS diğerlerinin **1/5 ile 1/20'si** boyutunda. Bu bir eksiklik değil,
-> farklı bir tercih: onlar platform, VAVIS ürün.
+> VAVIS diğerlerinin **1/5 ile 1/20'si** boyutunda. Bu bir övünç değil, bir
+> **durum tespiti**: onlar dört yıldır yazılıyor, VAVIS haftalardır. Boyut
+> kendi başına ne iyi ne kötü — kod satırı sayılmıyor, yetenek sayılıyor.
+> Küçük olmak yalnızca şunu söylüyor: yapılacak çok iş var.
 
 Bitterbot'un README dosyasında Windows için "WSL2 kullanın, `/mnt/c` altına
 klonlamayın (43 kat yavaş)" uyarısı var. VAVIS'in çift tıklanan tek exe dosyası
-bu sınıf sorunları tamamen ortadan kaldırıyor.
+bu sınıf sorunları ortadan kaldırıyor. Asıl kazanç dosya boyutu değil — **hiç
+kurulum olmaması.** Dosya 500 MB olsaydı da bu kazanç aynı kalırdı.
 
 ---
 
@@ -163,13 +172,17 @@ edilmesine karşı koruma yok.
 bitterbot WhatsApp, Telegram, Slack, Discord, Signal ve iMessage üzerinden
 erişilebiliyor.
 
-VAVIS kapsamı bilinçli olarak "Windows masaüstü asistanı". Bu bir eksik
-değil, kapsam kararı. Ama telefondan erişim istenirse mimari hazır değil.
+VAVIS **şimdilik** Windows masaüstünde. Bu bir kapsam kararı değil, sıra
+meselesi: telefondan erişim yol haritasında ve mimari henüz hazır değil.
 
 ### 3.8 🟢 Sürüm/değişiklik otomasyonu yok
 
 bitterbot `release-please` + CHANGELOG + `.release-please-manifest.json`
-kullanıyor. VAVIS tarafında sürüm elle yükseltiliyor, CHANGELOG yok.
+kullanıyor.
+
+**Durum: kapatıldı.** VAVIS'te artık `CHANGELOG.md` ve `scripts/version.mjs`
+var; sürüm üç dosyada birden duruyordu ve elle yükseltmek üçüncüsünün
+unutulması demekti. `--check` CI'da koşuyor.
 
 ---
 
@@ -177,44 +190,60 @@ kullanıyor. VAVIS tarafında sürüm elle yükseltiliyor, CHANGELOG yok.
 
 | Konu | VAVIS | Onlar |
 |---|---|---|
-| **Felsefe** | Küçük, sıkı, tek amaç | Geniş platform |
+| **Felsefe** | Jarvis — her şeyi yapabilmeli | Geniş platform |
 | **Dağıtım** | Tek exe, kurulum yok | Installer / Node+pnpm / WSL2 |
-| **Tool sayısı** | 57, modele **max 12** | Yüzlerce, sınır gevşek |
-| **Kaynak** | ~9 MB, GC yok | Electron/Node, yüzlerce MB |
-| **Genişletme** | Rust kodu + MCP | Klasör tabanlı beceriler |
-| **Güvenlik** | İzin + DPAPI güçlü, **injection savunması yok** | Injection tarama + secret scan var |
-| **Test** | Rust güçlü, **arayüz sıfır** | Her iki tarafta test |
-| **Hedef** | Windows masaüstü | Çok platform, çok kanal |
+| **Tool sayısı** | **58 — az.** Sınır modele göre (8–48) | Yüzlerce |
+| **Genişletme** | Rust kodu + MCP. **Klasör tabanlı beceri yok** | Klasör tabanlı beceriler |
+| **Güvenlik** | İzin + DPAPI + injection savunması + tam yetki modu | Injection tarama + secret scan var |
+| **Test** | 710 Rust + 38 arayüz | Her iki tarafta test |
+| **Hedef** | **Şimdilik** Windows masaüstü | Çok platform, çok kanal |
+
+Kaynak kullanımı (~9 MB, GC yok) bilinçli olarak tablodan çıkarıldı: ölçüt
+değil. İş görmeyen 9 MB'ın, iş gören 900 MB'a karşı bir üstünlüğü yok.
 
 ---
 
 ## 5. Öneri sırası
 
-**Şimdi (güvenlik açığı):**
+**Kapatıldı** (bu raporun yazılmasından sonra):
 
-1. Dış içerik sarmalama + enjeksiyon kalıbı tarama (`FetchUrl`, `WebSearch`)
-2. CI tarafına gizli anahtar taraması (`gitleaks`)
+- ~~Dış içerik sarmalama + enjeksiyon kalıbı tarama~~ → `untrusted.rs`
+- ~~CI tarafına gizli anahtar taraması~~ → `gitleaks`
+- ~~Arayüz testleri~~ → 38 test, XSS dahil
+- ~~CHANGELOG + sürüm otomasyonu~~ → `scripts/version.mjs`
+- Ek olarak: model başına araç bütçesi, ucuz router, tam yetki modu,
+  modelin kendi aracını isteyebilmesi
 
-**Sonra (kalite):**
+**Şimdi — asıl iş:**
 
-3. Arayüz testleri (Vitest) — en azından `store.svelte.ts`
-4. `Operator` trait ile computer-use soyutlaması
+1. **Araç sayısını artır.** 58 az. Takvim, e-posta, tarayıcı kontrolü, kod
+   ajanı, belge okuma, OCR, bildirim, ağ, git, indirme. Felsefenin karşılığı
+   burada; geri kalan her şey altyapı
+2. **Klasör tabanlı beceriler.** Bunun çarpan etkisi var: yeni yetenek için
+   Rust derlemesi gerekmezse yetenek sayısı derleme hızından kurtulur.
+   LobsterAI'de 30, bitterbot'ta 59 beceri var ve ikisi de bu yüzden
 
-**Daha sonra (yetenek):**
+**Sonra:**
 
-5. Klasör tabanlı hafif beceri sistemi
-6. Hibrit hafıza araması (BM25 + yerel embedding)
-7. CHANGELOG + sürüm otomasyonu
+3. `Operator` trait ile computer-use soyutlaması — tarayıcı kontrolü zaten
+   buna ihtiyaç duyacak
+4. Hibrit hafıza araması (BM25 + yerel embedding)
 
 ---
 
 ## 6. Sonuç
 
-VAVIS bu üç projeyle **aynı ligde oynamıyor ve oynamamalı** — onlar 200k-800k
-satırlık platformlar, VAVIS 40k satırlık bir ürün. Mühendislik kalitesi
-açısından VAVIS bazı yerlerde daha disiplinli: tool seçimindeki sert üst
-sınır, CI tarafındaki seçim kalitesi kapısı, MCP karşısındaki şüpheci duruş
-ve tasarım gerekçelerinin yazılı olması üç projede de bu netlikte yok.
+Ölçek farkı gerçek: onlar 200k–800k satırlık, yıllardır yazılan platformlar,
+VAVIS 40k satır ve haftalık. Ama bu bir **konumlanma** değil, bir **an**.
+Hedef aynı ligde oynamamak değil; hedef Jarvis, ve o hedef bu üç projenin
+hepsinden geniş.
 
-Kapatılması gereken tek **gerçek açık** prompt injection savunması; gerisi
-kapsam tercihi veya olgunlaşma meselesi.
+Mühendislik disiplini açısından VAVIS bazı yerlerde önde: araç seçiminin
+alan bazlı olması, CI'daki seçim kalitesi kapısı, MCP karşısındaki şüpheci
+duruş ve tasarım gerekçelerinin kodda yazılı olması üç projede de bu
+netlikte yok. Rapor ilk yazıldığında bunlara "sert üst sınır" da eklenmişti —
+o sınır aslında zayıf modelin çaresiydi ve kaldırıldı.
+
+Raporun bulduğu tek gerçek açık — prompt injection — kapatıldı. Geriye kalan
+tek büyük fark **yetenek sayısı**, ve o fark kapsam tercihiyle değil işle
+kapanır.

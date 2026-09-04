@@ -1,6 +1,6 @@
 # VAVIS — Yapılacaklar
 
-**Tarih:** 2026-09-03 · **Sürüm:** 0.6.3
+**Tarih:** 2026-09-04 · **Sürüm:** 0.6.3
 
 ---
 
@@ -95,14 +95,18 @@ adı yazınca devreye giriyor (örn. Groq'ta `llama-3.1-8b-instant`).
 
 ---
 
-### A3 · Model kendi de düşünebilsin 🟡
+### A3 · Model kendi de düşünebilsin ✅ BİTTİ
 
-Router seçmediyse bile model "bana şu tool lazım" diyebilmeli.
+Router seçmediyse bile model "bana şu tool lazım" diyebiliyor.
 
-- [ ] Meta-tool: `request_tools(domain veya serbest metin)` — model kendi
-      ihtiyacını söyler, sonraki turda o tool'lar sunulur
-- [ ] Turda bir kez sınırı (döngüye girmesin — `LoopGuard` zaten var)
-- [ ] Sistem promptunda katalog özeti: "şu alanlarda araçların var, isteyebilirsin"
+- [x] Meta-tool: `arac_iste(ihtiyac)` — model ne yapmak istediğini yazar,
+      sonraki adımda ilgili tool'lar sunulur
+- [x] Tur başına 2 istek sınırı. Sınırın ötesi **hata değil**, başarılı bir
+      cevap: "yeterince istendi, eldekiyle devam et" — hata dönmek modeli
+      düzeltmeye çalışmaya iterdi
+- [x] İstenen tool'lar **eklenir**, mevcutların yerine geçmez — model tur
+      ortasında elindekini kaybetmez
+- [x] Sistem promptunda tek cümle: "elinde yoksa uydurma, `arac_iste` ile iste"
 
 ---
 
@@ -130,7 +134,7 @@ Her yeni tool: alan ataması + risk seviyesi + router kataloğunda tek satır a�
 Felsefe: **isteyen tüm PC'sini verebilmeli.** Yani kısıt varsayılan olmalı,
 duvar değil. Ama sessiz açık da olmamalı.
 
-### B1 · Prompt injection savunması ✅ BİTTİ (tam yetki modu hariç)
+### B1 · Prompt injection savunması ✅ BİTTİ
 
 Tek gerçek açığımız. Dışarıdan gelen metin (`FetchUrl`, `WebSearch` ve ileride
 e-posta) doğrudan modele gidiyor. Kötü niyetli sayfa "önceki talimatları unut,
@@ -143,20 +147,25 @@ e-posta) doğrudan modele gidiyor. Kötü niyetli sayfa "önceki talimatları un
       (`ApprovalReason::TaintedContext`) ve arayüz sebebi söylüyor
 - [x] `FetchUrl` ve `WebSearch` bağlandı
 - [x] Saldırı senaryosu testi: "hep izin ver" + şüpheli sayfa → izin geçersiz
-- [ ] **Kullanıcı kapatabilsin** — B2'deki tam yetki modu bunu da kapatacak
+- [x] **Kullanıcı kapatabilsin** — B2'deki tam yetki modu bunu da kapatıyor
 
 **Not:** İçerik sansürlenmiyor — şüpheli sayfa yine modele gidiyor, sadece
 çerçeveleniyor ve o tur temkinli olunuyor. Sebep: yanlış pozitifte veri
 kaybetmemek.
 
-### B2 · "Tam yetki" modu 🟡
+### B2 · "Tam yetki" modu ✅ BİTTİ
 
-Şu an güvenlik hep açık. İsteyen kapatabilmeli.
-
-- [ ] Ayarlarda tek anahtar: **Tam yetki** — tüm onaylar kapalı, tüm tool'lar açık
-- [ ] Açarken bir kez net uyarı, sonra bir daha sorma
-- [ ] Durum çubuğunda kalıcı gösterge (açıkken görünsün)
-- [ ] Bütçe kuralı (3 yıkıcı işlem) bu modda devre dışı
+- [x] Ayarlarda tek anahtar: **Tam yetki** — Ayarlar → Tools → Permissions
+- [x] Açarken bir kez net uyarı, sonra bir daha sorma. Kapatırken onay yok:
+      korumayı geri açmak riskli yön değil
+- [x] Durum çubuğunda kalıcı gösterge — etkisi "hiçbir şey çıkmaması" olan bir
+      modun kendisi görünmez olmamalı
+- [x] Bütçe kuralı (3 yıkıcı işlem) bu modda devre dışı
+- [x] **Enjeksiyon koruması da kapanıyor.** Bilinçli: o koruma tam olarak
+      "kullanıcının kendi izninin arkasından iş çevrilmesi"ne karşı var, ve tam
+      yetki tam olarak o korumayı kapatma tercihi. Yarısını açık bırakmak
+      anahtarı yalancı yapardı
+- [x] Ayar dosyasında `[security] full_authority`, varsayılan `false`
 
 ### B3 · CI tarafında gizli anahtar taraması ✅ BİTTİ
 
@@ -167,16 +176,23 @@ kaybetmemek.
 
 ## Bölüm C — Kalite
 
-### C1 · Arayüz testleri 🔴
+### C1 · Arayüz testleri ✅ BİTTİ
 
-Rust tarafında 684 test var, `ui/` altında **sıfır**. `svelte-check` sadece tip
-bakıyor, davranış bakmıyor.
+Rust tarafında 710 test vardı, `ui/` altında sıfır. Artık 38 test var.
 
-- [ ] Vitest + `@testing-library/svelte` kur
-- [ ] `store.svelte.ts` — mesaj birleştirme, streaming, onay akışı
-- [ ] `markdown.ts` — render, kod bloğu, XSS
-- [ ] `api.ts` — olay ayrıştırma
-- [ ] CI'a ekle
+- [x] Vitest + jsdom kuruldu (`ui/vitest.config.ts`, `bun run test`)
+- [x] `markdown.ts` — **XSS**, kod bloğu, akış sırasında yarım kalan girdi.
+      Model cevabı güvenilmez metin ve `innerHTML`'e gidiyor; buradaki en
+      önemli test kümesi bu
+- [x] `store.svelte.ts` — komut geçmişi (yarım kalan yazının korunması dahil),
+      akan cevapların tek balonda birleşmesi, boş balonun düşürülmesi
+- [x] CI'a eklendi
+- [ ] ~~`api.ts` — olay ayrıştırma~~ **Yapılmadı, bilinçli.** `api.ts` yalnızca
+      `invoke` sarmalayıcısı; test edilecek mantık yok, testi mock'u test
+      ederdi. Mantığın olduğu yer store, ve olay işleyicileri oradan test edildi
+
+**Not:** `ChatStore` sınıfı testler için dışa açıldı — testler kendi
+örneklerini kuruyor, yoksa biri diğerinin geçmişini devralıyordu.
 
 ### C2 · Operatör soyutlaması 🟡
 
@@ -206,10 +222,15 @@ Yeni yetenek için Rust derlemesi şart olmamalı. LobsterAI'de 30, bitterbot'ta
 - [ ] Hibrit skor: BM25 + vektör
 - [ ] (İleride) boş zamanda özetleme/konsolidasyon
 
-### C5 · Sürüm otomasyonu 🟢
+### C5 · Sürüm otomasyonu ✅ BİTTİ
 
-- [ ] CHANGELOG
-- [ ] Sürüm yükseltmeyi otomatikleştir
+- [x] `CHANGELOG.md` — gerçek git geçmişinden yazıldı
+- [x] `scripts/version.mjs` — sürüm üç dosyada birden duruyor
+      (`Cargo.toml`, `ui/package.json`, `tauri.conf.json`); betik üçünü
+      birden değiştiriyor. `major`/`minor`/`patch` ya da doğrudan numara
+- [x] `--check` üçünün aynı olduğunu doğruluyor, CI'da koşuyor — uyuşmazlık
+      kendi kurulumundaki sürümle farklı bir ikili yayınlamak demek ve başka
+      hiçbir şey bunu fark etmiyor
 
 ---
 
@@ -223,41 +244,55 @@ Windows masaüstü **şimdilik** — kalıcı karar değil.
 
 ---
 
+## Durum
+
+**Bitti:** A1 (model başına bütçe) · A2 (ucuz router) · A3 (model kendi tool
+isteyebiliyor) · B1 (injection savunması) · B2 (tam yetki) · B3 (gitleaks) ·
+C1 (arayüz testleri) · C5 (sürüm otomasyonu) · E1, E2, E3, E4, E5, E6, E7
+
+**Kalan:** A4 (yeni tool'lar — bu hiç bitmez, felsefe bu) · C2 (operatör
+soyutlaması) · C3 (klasör tabanlı beceriler) · C4 (hibrit hafıza) ·
+D (kanallar, uzaktan erişim, çoklu platform)
+
+Testler: 710 Rust + 38 arayüz, sıfır hata.
+
 ## Sıra
 
 **1. Şimdi**
-1. A1 — model başına tool bütçesi
-2. A2 — ucuz router + pahalı işçi
-3. B1 — injection savunması
+1. A4 — yeni tool'lar. **Asıl iş bu.** "Eksiğimiz değil fazlamız olmalı"
+   cümlesinin karşılığı burada; geri kalanı altyapı. Takvim ve bildirim
+   ucuz ve hemen işe yarar, tarayıcı kontrolü ile kod ajanı en çok açan iki
+   tanesi
+2. C3 — klasör tabanlı beceriler. A4'ü **çarpan**: yeni yetenek için Rust
+   derlemesi gerekmezse yetenek sayısı derleme hızından bağımsız büyür
 
-**2. Hemen sonra**
-4. A3 — model kendi tool isteyebilsin
-5. C1 — arayüz testleri
-6. B2 — tam yetki modu
-7. B3 — gitleaks
+**2. Sonra**
+3. C2 — operatör soyutlaması (tarayıcı kontrolü zaten buna ihtiyaç duyacak)
+4. C4 — hibrit hafıza
 
-**3. Sonra**
-8. A4 — yeni tool'lar (sürekli)
-9. C3 — klasör tabanlı beceriler
-10. C2 — operatör soyutlaması
-11. C4 — hafıza
-12. C5 — sürüm otomasyonu
-
-**4. Yol haritası**
-13. D — kanallar, uzaktan erişim, çoklu platform
+**3. Yol haritası**
+5. D — kanallar, uzaktan erişim, çoklu platform
 
 ---
 
-## Not: raporda düzeltilmesi gerekenler
+## Not: rapor düzeltildi ✅
 
-`karsilastirma.md` ve `karsilastirma.html` yanlış felsefeyle yazıldı.
-Düzeltilmesi gerekenler:
+`karsilastirma.md` ve `karsilastirma.html` yanlış felsefeyle yazılmıştı.
+İkisi de düzeltildi:
 
-- "Küçük, sıkı, tek amaç" → Jarvis hedefi
-- "9 MB" bir üstünlük olarak sunulmuş → ölçüt değil
-- "Modele max 12 tool" bir zafer olarak sunulmuş → aslında zayıf model çaresi
-- "57 tool" yeterlilik göstergesi gibi → az
-- "Windows masaüstü kapsam kararı" → şimdilik
+- [x] "Küçük, sıkı, tek amaç" → Jarvis hedefi. Başa bir düzeltme notu kondu:
+      ölçümler doğruydu, yanlış olan yorumlardı
+- [x] "9 MB" bir üstünlük olarak sunulmuştu → tablodan çıkarıldı. İş görmeyen
+      9 MB'ın iş gören 900 MB'a üstünlüğü yok. Kurulum olmaması ise gerçek bir
+      kazanç ve öyle yazıldı — dosya boyutundan bağımsız
+- [x] "Modele max 12 tool" bir zafer gibi sunulmuştu → o sınırın zayıf model
+      çaresi olduğu ve kaldırıldığı yazıldı. Sonuç bölümünde de açıkça
+      geri alındı
+- [x] "57 tool" yeterlilik göstergesi gibiydi → "58 — az" oldu
+- [x] "Windows masaüstü kapsam kararı" → "şimdilik"
+- [x] Kapanan bulgular güncellendi: injection, arayüz testleri, gitleaks ve
+      sürüm otomasyonu artık "Kapatıldı" diyor. Açık kalan üç bulgu (klasör
+      tabanlı beceriler, operatör soyutlaması, hafıza) olduğu gibi bırakıldı
 
 ---
 
@@ -267,7 +302,7 @@ Uygulama gerçekten çalıştırıldı. Bütçe (`budget=16`) ve dosya aracı do
 injection savunması canlı bir saldırı sayfasına karşı test edildi ve çalıştı.
 Ama şunlar çıktı:
 
-### E1 · Çekirdek araçlar hiç sunulmuyor 🔴 EN KRİTİK
+### E1 · Çekirdek araçlar hiç sunulmuyor ✅ DÜZELTİLDİ
 
 **Belirti:** "saat" yazınca model saati **uyduruyor** ("2023-10-27 14:30").
 Kendi de itiraf ediyor: *"simdiki_zaman aracını kullanmam lazım ama o da şu an
@@ -284,12 +319,18 @@ elimde görünmüyor."*
 gelmiyor. Yani `simdiki_zaman` ve `hesapla` pratikte **hiçbir zaman**
 sunulmuyor; sadece başka bir alan tetiklendiğinde yanlarında gidiyorlar.
 
-**Yapılacak:**
-- [ ] `DOMAIN_KEYWORDS`'e Core satırı ekle (saat, tarih, gün, bugün, zaman,
-      hesapla, kaç eder, time, date, calculate)
-- [ ] Ya da daha iyisi: alan bulunamasa bile çekirdek tool'ları sun
-      (sohbet mesajı ayrımı korunarak)
-- [ ] `selection_eval`'a "saat" ve "hesapla" vakaları ekle — bu bir daha kırılmasın
+**Yapıldı:**
+- [x] `DOMAIN_KEYWORDS`'e Core satırı eklendi
+- [x] Zaman isimleri (`bugün`, `gün`, `zaman`) **zayıf** sayılıyor: yanlarında
+      güçlü bir kelime yoksa alan açılmıyor. Yoksa "bugün nasılsın" cümlesi de
+      araç listesi çekerdi — düzeltmenin diğer yarısı bu
+- [x] Aritmetik ifade kelimeden bağımsız yakalanıyor: "15 * 3 kaç eder"
+      cümlesinde niyeti belli eden şey kelime değil, iki sayı arasındaki
+      operatör. ("kaç eder" iki kelime olduğu için anahtar kelime tablosuna
+      giremiyordu — tablo boşlukta bölüyor.)
+- [x] `selection_eval`'a 9 çekirdek vakası eklendi
+- [x] İki regresyon testi: biri saatin sunulduğunu, diğeri sohbetin
+      tetiklemediğini sabitliyor
 
 ### E2 · Araç satırında çerçeve görünüyor ✅ DÜZELTİLDİ
 
@@ -300,7 +341,7 @@ yazıyordu. Benim injection çerçevem kullanıcıya sızmıştı.
 - [x] Modele giden metin değişmiyor — yalnızca gösterim temizleniyor
 - [x] 3 test eklendi
 
-### E3 · Web arama hiç yapılandırılmamış 🟡
+### E3 · Web arama hiç yapılandırılmamış ✅ DÜZELTİLDİ
 
 **Belirti:** `'İstanbul saat kaç' aranamadı (tavily: not configured, brave:
 not configured, custom: not configured, duckduckgo: no results)`
@@ -308,26 +349,58 @@ not configured, custom: not configured, duckduckgo: no results)`
 Üç sağlayıcının anahtarı yok, ücretsiz olan DuckDuckGo da sonuç döndürmüyor.
 Yani **web arama fiilen çalışmıyor.**
 
-- [ ] DuckDuckGo'nun neden boş döndüğünü bul (kazıma bozulmuş olabilir)
-- [ ] Anahtarsız çalışan bir yedek ekle
-- [ ] Arama hiç çalışmıyorsa kullanıcıya ayarlarda net söyle
+**Teşhis:** kazıma bozulmamış — kullanılan uç nokta (Instant Answer API)
+zaten yalnızca **ansiklopedik varlıkları** biliyor. "rust programming language"
+tam bir özet döndürüyor, "istanbul saat kaç" ise bomboş bir belge. Yani hata
+değil, yanlış uç nokta: anahtarı olmayan kullanıcının yazdığı hemen her şey
+boş dönüyordu.
 
-### E4 · Pencere modu ekranı kaplamıyor 🟡
+- [x] Genel sorgular için Lite uç noktasına düşülüyor — anahtarsız, gerçek web
+      sonuçları. Önce API deneniyor: yapısal cevap ayrıştırılmış cevaptan iyi
+- [x] `Answer` alanı okunuyor — hesaplanan cevapları (çevrim, gün doğumu)
+      taşıyan alan atılıyordu, ki bu uç noktanın gerçekten iyi olduğu tek şey
+- [x] **Kısıtlama sayfası ayırt ediliyor.** HTTP 200 dönüyor, dolayısıyla
+      durum kodundan anlaşılmıyor; "sonuç yok" demek zincire yalan söylemekti
+      ve zincir bir sonraki soruda aynı uç noktayı yine deniyordu
+- [x] Ayarlardaki açıklama düzeltildi
+- [x] Ayrıştırıcı **gerçek sayfaya** karşı test ediliyor (yakalanmış fixture),
+      ayrıştırıcıya uydurulmuş markup'a karşı değil
+- [x] Ağa çıkan test: anahtarsız kullanıcı sonuç alıyor mu
+      (`cargo test -p vavis-tools --test websearch_live -- --ignored`)
+
+### E4 · Pencere modu ekranı kaplamıyor ✅ DÜZELTİLDİ
 
 F11 ile `borderless` moduna geçiyor (ayar dosyasına yazılıyor) ama pencere
 boyutu değişmiyor. Ayrıca sohbet paneli 1530px genişlikte sağ kenardan taşıyor,
 metinler kesiliyor.
 
-- [ ] `borderless` gerçekten ekranı kaplasın
-- [ ] Panel taşmasını düzelt
+**Teşhis:** F11 yolu ile açılış yolu **ayrı ayrı yazılmıştı** ve yalnızca
+açılıştaki çalışıyordu. Ön yüz `maximize()` çağırıyordu; başlık çubuğu kapalı
+bir pencerede "maximized" güvenilir biçimde çalışma alanının tamamı değil.
+Ayrıca tam ekrandan çıkmak anlık değil — aynı nefeste maximize istemek yarışı
+kaybediyor.
 
-### E5 · Hız sınırı mesajı 🟢
+- [x] Tek bir arka uç komutu (`set_window_mode`) hem taşıyor hem kaydediyor;
+      açılış da onu çağırıyor. İki uygulama vardı, artık bir tane var
+- [x] Kenarlıksız modda monitör ölçülüp boyut doğrudan veriliyor
+- [x] Panel taşması: `.body` satırında `min-width: 0` eksikti. Flex satırının
+      çocukları varsayılan olarak `min-width: auto`, dolayısıyla toplamları
+      pencereyi aşabiliyor ve panel sağ kenardan taşıyordu
+
+### E5 · Hız sınırı mesajı ✅ DÜZELTİLDİ
 
 `Sending too fast — try again in about 32s.` Groq ücretsiz katmanında normal,
 ama arka arkaya araç çağrısı yapınca kolay tetikleniyor.
 
-- [ ] Araç çağrıları arasında küçük bir bekleme
-- [ ] Ya da hız sınırında otomatik yeniden deneme
+- [x] Sağlayıcının söylediği bekleme **uygulanıyor**. Bu bilgi zaten geliyordu
+      ve atılıyordu
+- [x] En fazla iki kez, ve yalnızca süre **açıkça söylendiyse**: söylenmediyse
+      tahmin yürütmek net bir mesajı açıklanamayan bir duraklamaya çevirirdi
+- [x] 60 saniyeden uzun bekleme reddediliyor — orası dakikalık sınır değil,
+      günlük kota; kullanıcı spinner izlemek yerine bilgilendirilmeli
+- [x] Beklerken sohbette söyleniyor: sessiz 20 saniye donma gibi okunuyor
+- [ ] Araç çağrıları arasında sabit bekleme — **yapılmadı, gerek kalmadı.**
+      Sınıra çarpmadan yavaşlatmak, çarpınca beklemekten kötü
 
 ### E6 · Terminal tarzı geçmiş ✅ EKLENDİ
 
@@ -338,10 +411,11 @@ ama arka arkaya araç çağrısı yapınca kolay tetikleniyor.
 - [x] Yazmaya başlayınca gezinmeden çıkıyor
 - [x] Uygulama yeniden açılınca geçmiş korunuyor
 
-### E7 · NVIDIA sağlayıcısı ✅ EKLENDİ
+### E7 · NVIDIA sağlayıcısı ✅ BİTTİ
 
 - [x] `Provider::Nvidia` — build.nvidia.com, OpenAI uyumlu
 - [x] Varsayılan model: `meta/llama-3.3-70b-instruct`
-- [ ] Ayarlarda anahtar girişi test edilmedi (uygulama yeniden derlenmeli)
+- [x] Ayarlarda anahtar girişi: sağlayıcı listesi `Provider::ALL`'dan
+      üretiliyor, dolayısıyla NVIDIA ek bir değişiklik olmadan çıkıyor
 
 ---

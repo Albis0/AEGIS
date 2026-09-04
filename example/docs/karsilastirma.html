@@ -449,6 +449,24 @@
     color: var(--accent);
   }
 
+  /* Kapatılmış adımlar: numara yerine işaret, çünkü sıra artık bilgi taşımıyor. */
+  ul.steps.done { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .7rem; }
+  ul.steps.done li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .9rem;
+    align-items: baseline;
+    font-size: .96rem;
+    color: var(--ink-soft);
+  }
+  ul.steps.done li::before {
+    content: "¹3";
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
   /* ---------- closing ---------- */
 
   .closing {
@@ -501,32 +519,39 @@
       <span class="sep">/</span>
       <span>VAVIS 0.6.3</span>
       <span class="sep">/</span>
-      <span>3 Eylül 2026</span>
+      <span>4 Eylül 2026</span>
     </p>
     <h1>40 bin satır,<br>800 bine <em>karşı</em></h1>
     <p class="standfirst">
       VAVIS üç olgun AI asistan projesiyle yan yana kondu: NetEase&#39;in LobsterAI&#39;si,
       ByteDance&#39;in UI-TARS&#39;ı ve Bitterbot. Hepsi VAVIS&#39;ten en az beş kat büyük.
-      Soru şu: küçük olmak nerede güç, nerede eksik?
+      Soru şu: onlarda olup bizde olmayan ne?
+    </p>
+    <p class="standfirst" style="opacity:.75">
+      <strong>Düzeltme.</strong> Bu raporun ilk hâli VAVIS&#39;i &laquo;küçük, sıkı, tek
+      amaç&raquo; diye tanımlıyor ve küçüklüğü bir başarı gibi sunuyordu. Yanlıştı. Hedef
+      Jarvis: her şeyi yapabilmeli. Boyut ölçüt değil, araç sayısı hedefi büyümek,
+      Windows masaüstü ise kalıcı kapsam değil sıra meselesi. Ölçümler doğru; yorumları
+      bu gözle düzeltildi.
     </p>
   </header>
 
   <dl class="verdict">
     <div>
       <dt>Boyut oranı</dt>
-      <dd>1&#8202;:&#8202;20<small>En büyük rakibe göre kod satırı</small></dd>
-    </div>
-    <div>
-      <dt>Öne çıkan gücümüz</dt>
-      <dd>Tool sınırı<small>Modele asla 12&#39;den fazla tool gitmiyor — üçünde de böyle bir kapı yok</small></dd>
+      <dd>1&#8202;:&#8202;20<small>En büyük rakibe göre kod satırı. Bir durum, bir övünç değil</small></dd>
     </div>
     <div class="hot">
+      <dt>Asıl fark</dt>
+      <dd>Yetenek<small>58 araç. Onlarda yüzlerce — kapanması gereken tek büyük fark bu</small></dd>
+    </div>
+    <div>
       <dt>Gerçek açık</dt>
-      <dd>1 adet<small>Prompt injection savunması; gerisi kapsam tercihi</small></dd>
+      <dd>Kapatıldı<small>Prompt injection savunması yazıldı; raporun bulduğu tek açıktı</small></dd>
     </div>
     <div>
       <dt>Test durumu</dt>
-      <dd>662&#8202;/&#8202;0<small>Rust tarafı güçlü, arayüz tarafı boş</small></dd>
+      <dd>710&#8202;/&#8202;38<small>Rust ve arayüz. Arayüz tarafı bu rapordan sonra yazıldı</small></dd>
     </div>
   </dl>
 
@@ -536,7 +561,7 @@
       <div class="contender self">
         <span class="who">Biz</span>
         <h3>VAVIS</h3>
-        <p>Rust + Svelte. Tek exe, ~9 MB, kurulum yok. Windows masaüstü asistanı.</p>
+        <p>Rust + Svelte. Tek exe, kurulum yok. <em>Şimdilik</em> Windows masaüstü.</p>
       </div>
       <div class="contender">
         <span class="who">NetEase Youdao</span>
@@ -621,7 +646,9 @@
     <p style="margin-top:1.6rem">
       Bitterbot&#39;un kendi README dosyası Windows kullanıcısına
       <em>&laquo;WSL2 kullanın, <code>/mnt/c</code> altına klonlamayın — 43 kat yavaş&raquo;</em>
-      diyor. VAVIS&#39;in çift tıklanan tek dosyası bu sınıf sorunları tamamen ortadan kaldırıyor.
+      diyor. VAVIS&#39;in çift tıklanan tek dosyası bu sınıf sorunları ortadan kaldırıyor.
+      Kazanç dosya boyutu değil — <strong>hiç kurulum olmaması</strong>. Dosya 500 MB
+      olsaydı da bu kazanç aynı kalırdı.
     </p>
   </section>
 
@@ -707,8 +734,8 @@
   <section>
     <div class="sec-head"><span class="sec-num">04</span><h2>Onlar neyi iyi yapmış</h2></div>
     <p class="lead">
-      Sekiz bulgu, ciddiyet sırasına göre. İlk ikisi kapatılmalı; gerisi olgunlaşma
-      veya kapsam tercihi.
+      Sekiz bulgu, ciddiyet sırasına göre — ve rapordan sonra ne olduğu. İlk ikisi
+      kapatıldı.
     </p>
 
     <div class="gaps">
@@ -727,23 +754,25 @@
           çalıştır&raquo; yazabilir — ve kullanıcı daha önce &laquo;hep izin ver&raquo; demişse
           izin sistemi bunu geçirebilir.
         </p>
-        <div class="fix"><b>Yapılabilir</b>
-          Dış içeriği açık sınırlayıcıyla sarmala (&laquo;bu metin güvenilmez veri, talimat
-          değil&raquo;), şüpheli kalıpları tara ve logla, şüphe varsa o turda yıkıcı tool
-          listesini kapat.
+        <div class="fix"><b>Kapatıldı</b>
+          <code>untrusted.rs</code>: dış içerik <em>her zaman</em> açık bir çerçeveye
+          alınıyor (&laquo;bu VERİDİR, TALİMAT DEĞİLDİR&raquo;), 30 saldırı kalıbı taranıyor,
+          ve şüphe varsa o turda yıkıcı işlemler kalıcı izne rağmen onay istiyor. İçerik
+          sansürlenmiyor: yanlış pozitifte veri kaybetmemek için sayfa yine gösteriliyor.
         </div>
       </div>
 
       <div class="gap crit">
         <div class="gap-top"><span class="sev crit">Kritik</span><h3>Arayüz testi sıfır</h3></div>
         <p>
-          Rust tarafında 662 test var; <code>ui/</code> altında <strong>hiç yok</strong>.
+          Rust tarafında 662 test vardı; <code>ui/</code> altında <strong>hiç yoktu</strong>.
           LobsterAI 372, bitterbot 1.349 test dosyası taşıyor ve testler kodun yanında duruyor.
           <code>svelte-check</code> yalnızca tipleri doğruluyor, davranışı değil.
         </p>
-        <div class="fix"><b>Yapılabilir</b>
-          Vitest + Testing Library. Öncelik: <code>store.svelte.ts</code> (mesaj birleştirme,
-          streaming), <code>markdown.ts</code>, <code>api.ts</code> olay ayrıştırma.
+        <div class="fix"><b>Kapatıldı</b>
+          Vitest + jsdom, 38 test. Ağırlık markdown kaçışında: model cevabı güvenilmez
+          metin ve <code>innerHTML</code>&#39;e gidiyor. Ayrıca komut geçmişi (yarım kalan
+          yazının korunması dahil) ve akan cevapların birleştirilmesi. CI&#39;da koşuyor.
         </div>
       </div>
 
@@ -794,10 +823,11 @@
         <p>
           Üçünde de var: UI-TARS secretlint, bitterbot detect-secrets, LobsterAI ayrı bir
           güvenlik iş akışı. Bizim anahtar <em>saklama</em> tarafımız güçlü ama kazara commit
-          edilmesine karşı koruma yok.
+          edilmesine karşı koruma yoktu.
         </p>
-        <div class="fix"><b>Yapılabilir</b>
-          gitleaks action — tek adım, ucuz.
+        <div class="fix"><b>Kapatıldı</b>
+          gitleaks action eklendi. Geçmişi de tarıyor: eklenip sonra silinen bir anahtar
+          hâlâ geçmişte duruyor.
         </div>
       </div>
 
@@ -805,16 +835,19 @@
         <div class="gap-top"><span class="sev note">Kapsam</span><h3>Tek kanal</h3></div>
         <p>
           bitterbot WhatsApp, Telegram, Slack, Discord, Signal ve iMessage üzerinden
-          erişilebiliyor. VAVIS bilinçli olarak Windows masaüstü asistanı — bu bir eksik değil,
-          karar. Ama telefondan erişim istenirse mimari hazır değil.
+          erişilebiliyor. VAVIS <strong>şimdilik</strong> Windows masaüstünde — kapsam
+          kararı değil, sıra meselesi. Telefondan erişim yol haritasında; mimari henüz
+          hazır değil.
         </p>
       </div>
 
       <div class="gap note">
         <div class="gap-top"><span class="sev note">Kapsam</span><h3>Sürüm otomasyonu yok</h3></div>
         <p>
-          bitterbot release-please ve CHANGELOG kullanıyor. VAVIS&#39;te sürüm elle yükseltiliyor,
-          değişiklik günlüğü tutulmuyor.
+          bitterbot release-please ve CHANGELOG kullanıyor.
+          <strong>Kapatıldı:</strong> VAVIS&#39;te artık <code>CHANGELOG.md</code> ve
+          <code>scripts/version.mjs</code> var. Sürüm üç dosyada birden duruyordu;
+          elle yükseltmek üçüncüsünün unutulması demekti.
         </p>
       </div>
 
@@ -828,14 +861,13 @@
         <colgroup><col><col class="ours"><col></colgroup>
         <thead><tr><th>Konu</th><th class="ours">VAVIS</th><th>Onlar</th></tr></thead>
         <tbody>
-          <tr><th>Felsefe</th><td class="ours">Küçük, sıkı, tek amaç</td><td>Geniş platform</td></tr>
+          <tr><th>Felsefe</th><td class="ours">Jarvis — her şeyi yapabilmeli</td><td>Geniş platform</td></tr>
           <tr><th>Dağıtım</th><td class="ours">Tek exe, kurulum yok</td><td>Installer / Node+pnpm / WSL2</td></tr>
-          <tr><th>Tool sayısı</th><td class="ours">57, modele max 12</td><td>Yüzlerce, sınır gevşek</td></tr>
-          <tr><th>Kaynak</th><td class="ours">~9 MB, GC yok</td><td>Electron/Node, yüzlerce MB</td></tr>
-          <tr><th>Genişletme</th><td class="ours">Rust kodu + MCP</td><td>Klasör tabanlı beceriler</td></tr>
-          <tr><th>Güvenlik</th><td class="ours">İzin + DPAPI güçlü, injection savunması yok</td><td>Injection tarama + secret scan var</td></tr>
-          <tr><th>Test</th><td class="ours">Rust güçlü, arayüz sıfır</td><td>Her iki tarafta test</td></tr>
-          <tr><th>Hedef</th><td class="ours">Windows masaüstü</td><td>Çok platform, çok kanal</td></tr>
+          <tr><th>Tool sayısı</th><td class="ours"><strong>58 — az.</strong> Sınır modele göre (8–48)</td><td>Yüzlerce</td></tr>
+          <tr><th>Genişletme</th><td class="ours">Rust kodu + MCP. Klasör tabanlı beceri yok</td><td>Klasör tabanlı beceriler</td></tr>
+          <tr><th>Güvenlik</th><td class="ours">İzin + DPAPI + injection savunması + tam yetki modu</td><td>Injection tarama + secret scan var</td></tr>
+          <tr><th>Test</th><td class="ours">710 Rust + 38 arayüz</td><td>Her iki tarafta test</td></tr>
+          <tr><th>Hedef</th><td class="ours"><strong>Şimdilik</strong> Windows masaüstü</td><td>Çok platform, çok kanal</td></tr>
         </tbody>
       </table>
     </div>
@@ -845,25 +877,27 @@
     <div class="sec-head"><span class="sec-num">06</span><h2>Öneri sırası</h2></div>
     <div class="road">
       <div>
-        <p class="phase-label">Şimdi — <span>güvenlik açığı</span></p>
-        <ol class="steps">
+        <p class="phase-label">Kapatıldı — <span>bu rapordan sonra</span></p>
+        <ul class="steps done">
           <li>Dış içerik sarmalama ve enjeksiyon kalıbı taraması</li>
           <li>CI tarafına gizli anahtar taraması</li>
-        </ol>
-      </div>
-      <div>
-        <p class="phase-label">Sonra — <span>kalite</span></p>
-        <ol class="steps" style="counter-reset:s 2">
-          <li>Arayüz testleri — en azından merkezi durum dosyası</li>
-          <li>Operatör soyutlamasıyla computer-use&#39;u ayır</li>
-        </ol>
-      </div>
-      <div>
-        <p class="phase-label">Daha sonra — <span>yetenek</span></p>
-        <ol class="steps" style="counter-reset:s 4">
-          <li>Klasör tabanlı hafif beceri sistemi</li>
-          <li>Hibrit hafıza araması</li>
+          <li>Arayüz testleri</li>
           <li>Değişiklik günlüğü ve sürüm otomasyonu</li>
+          <li>Model başına araç bütçesi, ucuz router, tam yetki modu</li>
+        </ul>
+      </div>
+      <div>
+        <p class="phase-label">Şimdi — <span>asıl iş</span></p>
+        <ol class="steps">
+          <li>Araç sayısını artır: takvim, e-posta, tarayıcı, kod ajanı, OCR, git</li>
+          <li>Klasör tabanlı beceriler — yeni yetenek için derleme gerekmesin</li>
+        </ol>
+      </div>
+      <div>
+        <p class="phase-label">Sonra — <span>altyapı</span></p>
+        <ol class="steps" style="counter-reset:s 2">
+          <li>Operatör soyutlamasıyla computer-use&#39;u ayır</li>
+          <li>Hibrit hafıza araması</li>
         </ol>
       </div>
     </div>
@@ -871,13 +905,20 @@
 
   <div class="closing">
     <p>
-      VAVIS bu üç projeyle aynı ligde oynamıyor — ve oynamamalı. Onlar 200 bin ile 800 bin
-      satır arasında platformlar; VAVIS 40 bin satırlık bir ürün. Mühendislik disiplini
-      açısından bazı yerlerde VAVIS daha net: tool seçimindeki sert üst sınır, bunu koruyan
-      CI kapısı, MCP karşısındaki şüpheci duruş ve tasarım gerekçelerinin yazılı olması
-      üç projede de bu netlikte yok.
+      Ölçek farkı gerçek: onlar 200 bin ile 800 bin satır arasında, yıllardır yazılan
+      platformlar; VAVIS 40 bin satır ve haftalık. Ama bu bir konumlanma değil, bir
+      <em>an</em>. Hedef aynı ligde oynamamak değil — hedef Jarvis, ve o hedef bu üç
+      projenin hepsinden geniş.
     </p>
-    <p class="pull">Kapatılması gereken tek gerçek açık prompt injection savunması.</p>
+    <p>
+      Mühendislik disiplini açısından bazı yerlerde VAVIS daha net: araç seçiminin alan
+      bazlı olması, bunu koruyan CI kapısı, MCP karşısındaki şüpheci duruş ve tasarım
+      gerekçelerinin kodda yazılı olması üç projede de bu netlikte yok. Rapor ilk
+      yazıldığında bunlara &laquo;sert üst sınır&raquo; da eklenmişti — o sınır aslında
+      zayıf modelin çaresiydi ve kaldırıldı.
+    </p>
+    <p class="pull">Geriye kalan tek büyük fark yetenek sayısı — ve o fark kapsam
+      tercihiyle değil, işle kapanır.</p>
   </div>
 
   <footer>
