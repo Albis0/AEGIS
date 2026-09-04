@@ -41,8 +41,7 @@ const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (compatible; Vavis/0.3)";
 ///
 /// This is not evasion: the endpoint is public and unauthenticated, and the
 /// page it returns is the same one a person visiting it would get.
-const BROWSER_USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
      (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 /// [`request`] with the two knobs the HTML endpoints need: a form body and a
@@ -502,7 +501,11 @@ fn parse_lite_results(html: &str, limit: usize) -> Vec<Hit> {
             .unwrap_or_default();
 
         if !title.is_empty() {
-            hits.push(Hit { title, url, snippet });
+            hits.push(Hit {
+                title,
+                url,
+                snippet,
+            });
         }
 
         rest = &rest[anchor + "result-link".len()..];
@@ -777,7 +780,8 @@ mod tests {
 
     #[test]
     fn entities_are_decoded_in_titles() {
-        let html = "<a href=\"https://x.com\" class='result-link'>Ali&#x27;nin &amp; Veli&#x27;nin</a>";
+        let html =
+            "<a href=\"https://x.com\" class='result-link'>Ali&#x27;nin &amp; Veli&#x27;nin</a>";
         let hits = parse_lite_results(html, 1);
         assert_eq!(hits[0].title, "Ali'nin & Veli'nin");
     }

@@ -24,6 +24,14 @@ export interface Status {
     model: string;
     /** Cheap model that picks tools. Empty when routing is off. */
     routerModel: string;
+    /**
+     * Every approval and budget is off.
+     *
+     * Surfaced in the status because a mode whose whole effect is the absence
+     * of prompts would otherwise be invisible -- the user would have no way to
+     * tell it apart from a quiet session.
+     */
+    fullAuthority: boolean;
     providers: ProviderInfo[];
     keys: string[];
     toolCount: number;

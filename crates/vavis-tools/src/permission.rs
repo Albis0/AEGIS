@@ -49,6 +49,13 @@ pub struct PermissionGate {
     /// Tur başına sıfırlanıyor: bir sayfanın şüpheli olması sonraki isteği
     /// cezalandırmamalı.
     tainted: bool,
+    /// Tam yetki — hiçbir şey sorulmuyor.
+    ///
+    /// Kullanıcının açık tercihi, ayarlarda tek anahtar. Varsayılan kapalı ve
+    /// açarken bir kez uyarılıyor; ondan sonra bir daha sorulmuyor, çünkü
+    /// "emin misin" diye tekrar tekrar sormak zaten kapatmak istediği şeyin
+    /// ta kendisi.
+    full_authority: bool,
 }
 
 impl PermissionGate {
@@ -78,6 +85,13 @@ impl PermissionGate {
 
     /// Bu tool çalıştırılabilir mi?
     pub fn check(&self, tool_name: &str, risk: Risk) -> Decision {
+        // Tam yetki her şeyin önünde: bütçe de, şüphe de, risk seviyesi de
+        // kullanıcının bilerek kapattığı korumalar. Yarısını açık bırakmak
+        // anahtarı yalancı yapardı.
+        if self.full_authority {
+            return Decision::Allow;
+        }
+
         match risk {
             Risk::Safe => Decision::Allow,
 
@@ -123,6 +137,20 @@ impl PermissionGate {
     /// Tüm kalıcı izinleri kaldır.
     pub fn revoke_all(&mut self) {
         self.granted.clear();
+    }
+
+    /// Tam yetkiyi aç/kapat.
+    ///
+    /// Oturum boyunca sürüyor ve ayarlardan geliyor; `start_run` bunu
+    /// sıfırlamıyor — her istekte yeniden açtırmak anahtarın anlamını
+    /// ortadan kaldırırdı.
+    pub fn set_full_authority(&mut self, on: bool) {
+        self.full_authority = on;
+    }
+
+    /// Tam yetki açık mı — arayüzün göstergeyi çizmesi için.
+    pub fn full_authority(&self) -> bool {
+        self.full_authority
     }
 
     pub fn destructive_used(&self) -> usize {
@@ -228,5 +256,82 @@ mod tests {
 
         gate.revoke_all();
         assert!(gate.granted_tools().is_empty());
+    }
+
+    /// Tam yetki açıkken hiçbir şey sorulmuyor — anahtarın vaadi bu.
+    #[test]
+    fn full_authority_asks_nothing_at_all() {
+        let mut gate = PermissionGate::new();
+        gate.set_full_authority(true);
+
+        for risk in [Risk::Safe, Risk::Moderate, Risk::Destructive] {
+            assert_eq!(gate.check("herhangi_bir_arac", risk), Decision::Allow);
+        }
+    }
+
+    /// Yıkıcı bütçe de kapanıyor. Yarısını açık bırakmak anahtarı yalancı
+    /// yapardı: kullanıcı dördüncü silmede yine soru görürdü.
+    #[test]
+    fn full_authority_outlasts_the_destructive_budget() {
+        let mut gate = PermissionGate::new();
+        gate.set_full_authority(true);
+
+        for _ in 0..DESTRUCTIVE_BUDGET + 5 {
+            assert_eq!(gate.check("dosya_sil", Risk::Destructive), Decision::Allow);
+            gate.record_execution(Risk::Destructive);
+        }
+    }
+
+    /// Şüpheli sayfa da susturuluyor.
+    ///
+    /// Bilerek: bu koruma kullanıcının kendi izninin arkasından iş çevrilmesini
+    /// engellemek için var, ve tam yetki tam olarak "arkamdan iş çevrilmesin"
+    /// korumasını kapatma tercihidir. Sessizce açık bırakmak, kapattığını
+    /// sanan kullanıcıya yalan söylemek olurdu.
+    #[test]
+    fn full_authority_also_silences_the_injection_guard() {
+        let mut gate = PermissionGate::new();
+        gate.set_full_authority(true);
+        gate.mark_tainted();
+
+        assert_eq!(
+            gate.check("komut_calistir", Risk::Destructive),
+            Decision::Allow
+        );
+    }
+
+    #[test]
+    fn turning_full_authority_off_restores_every_guard() {
+        let mut gate = PermissionGate::new();
+        gate.set_full_authority(true);
+        gate.set_full_authority(false);
+
+        assert_eq!(
+            gate.check("dosya_sil", Risk::Destructive),
+            Decision::Ask(ApprovalReason::RiskLevel)
+        );
+    }
+
+    /// Ayardan geliyor, istekten değil: her turda yeniden açtırmak anahtarı
+    /// anlamsız kılardı.
+    #[test]
+    fn a_new_turn_does_not_switch_full_authority_off() {
+        let mut gate = PermissionGate::new();
+        gate.set_full_authority(true);
+        gate.start_run();
+
+        assert!(gate.full_authority());
+        assert_eq!(gate.check("dosya_sil", Risk::Destructive), Decision::Allow);
+    }
+
+    /// Varsayılan kapalı. Korumalı olan, kullanıcının hiçbir şey seçmediği hâl.
+    #[test]
+    fn full_authority_is_off_until_it_is_asked_for() {
+        let gate = PermissionGate::new();
+        assert!(!gate.full_authority());
+        assert_eq!(
+            gate.check("dosya_sil", Risk::Destructive),
+            Decision::Ask(ApprovalReason::RiskLevel)
+        );
     }
 }

@@ -109,7 +109,12 @@ let nextId = 1;
  */
 const HISTORY_LIMIT = 20;
 
-class ChatStore {
+/**
+ * Exported for the tests, which need an instance of their own: the singleton
+ * below is shared, and a test that arrowed through its history would leave
+ * that history behind for the next one.
+ */
+export class ChatStore {
     messages = $state<Message[]>([]);
     input = $state("");
     status = $state<Status | null>(null);

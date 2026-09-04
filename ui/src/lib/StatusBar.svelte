@@ -55,6 +55,22 @@
     </div>
 
     <div class="right">
+        {#if status?.fullAuthority}
+            <!-- The one indicator that has to be here rather than in settings.
+           Full authority's whole effect is that nothing appears -- no prompts,
+           no budget warnings -- so without a standing marker the mode is
+           indistinguishable from a quiet session. Clicking goes to the switch
+           that turns it off. -->
+            <button
+                class="item warn"
+                onclick={onOpenSettings}
+                title="Every approval is off. Click to change."
+            >
+                <Icon name="warning" size={12} />
+                <span>Full authority</span>
+            </button>
+        {/if}
+
         {#if status?.steamGame}
             <!-- Context, not a control: you do not steer a game from a chat
            window. One line, and it disappears when the process does. -->

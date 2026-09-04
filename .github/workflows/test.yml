@@ -35,6 +35,14 @@ jobs:
         run: bun run check
         working-directory: ui
 
+      - name: Frontend tests
+        # Types are not behaviour. These cover the parts of the interface
+        # that can be wrong while type-checking cleanly: markdown escaping
+        # (a model answer reaches innerHTML), the shell-style history, and
+        # how streamed replies are assembled.
+        run: bun run test
+        working-directory: ui
+
       - name: Build frontend
         # The Rust build embeds ui/dist, so this must run first.
         run: bun run build
@@ -50,6 +58,9 @@ jobs:
         run: cargo test --all
 
       - name: Tool selection quality
-        # Guards the core invariant: the model never sees more than 12
-        # tools, and the selection eval must stay at 100%.
+        # Guards the core invariant: a request is offered the tools it needs
+        # and no more. The budget is per model now rather than a flat twelve,
+        # so what is asserted is the eval staying at 100% -- including the
+        # cases where the only tool needed is a core one, which went
+        # unoffered entirely until a live run caught it.
         run: cargo test -p vavis-tools --test selection_eval -- --nocapture

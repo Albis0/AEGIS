@@ -239,6 +239,34 @@
         });
     }
 
+    /**
+     * Full authority: every approval and budget off.
+     *
+     * Warned about once, on the way in, and never again -- re-asking would be
+     * the exact thing the switch exists to stop. Turning it back off needs no
+     * confirmation: restoring a guard is not the risky direction.
+     */
+    async function toggleFullAuthority(on: boolean) {
+        if (on) {
+            const confirmed = await ask({
+                title: "Give Vavis full authority?",
+                body:
+                    "Every approval prompt is turned off. Files can be deleted, "
+                    + "commands run and settings changed without asking you first, "
+                    + "including when the model is acting on a web page it just "
+                    + "read. Nothing is undone by turning this back off.",
+                confirmLabel: "Give full authority",
+                danger: true,
+            });
+            if (!confirmed) {
+                // Put the switch back: the click already moved it.
+                await chat.refresh();
+                return;
+            }
+        }
+        await updateSetting("fullAuthority", on ? "true" : "false");
+    }
+
     async function saveKey() {
         if (!keyDraft.trim()) return;
         await run(async () => {
@@ -1104,9 +1132,25 @@
             {:else if active === "tools"}
                 <h2>Tools</h2>
                 <p class="hint">
-                    {tools.length} registered. The model is never offered more than twelve
-                    at once — it picks better from a short list than a long one.
+                    {tools.length} registered. Each request is offered only the ones it
+                    needs — how many that can be at most depends on the model, since a
+                    small one loses its way in a long list where a large one does not.
                 </p>
+
+                <h2>Permissions</h2>
+                <p class="hint">
+                    By default Vavis asks before anything destructive, and asks again
+                    after three such actions in one turn — or after reading a web page
+                    that tried to give it orders.
+                </p>
+                <label class="switch">
+                    <input
+                        type="checkbox"
+                        checked={status?.fullAuthority ?? false}
+                        onchange={(e) => toggleFullAuthority(e.currentTarget.checked)}
+                    />
+                    <span>Full authority — never ask me anything</span>
+                </label>
                 <div class="list scroll">
                     {#each tools as tool (tool.name)}
                         <div class="entry">
@@ -1325,6 +1369,24 @@
         font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--text);
+    }
+
+    /* A checkbox and its label as one clickable row. The label leads and the
+       box follows, matching `.field`, so the two read as the same kind of
+       control rather than two different ideas of a setting. */
+    .switch {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        font-size: var(--text-sm);
+        color: var(--text);
+        cursor: pointer;
+        padding: var(--sp-2) 0;
+    }
+    .switch input {
+        flex: 0 0 auto;
+        margin: 0;
+        cursor: pointer;
     }
 
     .row-group {

@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub general: General,
     pub ui: Ui,
+    pub security: Security,
     pub llm: Llm,
     pub search: Search,
     pub canvas: Canvas,
@@ -25,6 +26,21 @@ pub struct Config {
     pub steam: Steam,
     pub spotify: Spotify,
     pub mcp: Mcp,
+}
+
+/// Güvenlik tercihleri.
+///
+/// Varsayılan korumalı, tavan açık: isteyen makinesinin tamamını verebilmeli,
+/// ama bunu bilerek seçmiş olmalı.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Security {
+    /// Tam yetki — hiçbir onay sorulmuyor, hiçbir bütçe uygulanmıyor.
+    ///
+    /// `Default` ile `false` geliyor ve bu bilinçli: ayar dosyasını elle
+    /// yazan ya da eski bir dosyadan yükseltilen kullanıcı, istemediği bir
+    /// şeyin açık olduğunu bulmasın.
+    pub full_authority: bool,
 }
 
 /// MCP sunucuları.

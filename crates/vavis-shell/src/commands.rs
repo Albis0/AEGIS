@@ -25,6 +25,10 @@ pub struct Status {
     pub model: String,
     /// Cheap model that picks tools. Empty when routing is off.
     pub router_model: String,
+    /// Full authority is on -- nothing will be asked. The interface shows a
+    /// standing indicator for this, because a mode that removes every prompt
+    /// must not itself be invisible.
+    pub full_authority: bool,
     pub providers: Vec<ProviderInfo>,
     pub keys: Vec<String>,
     pub tool_count: usize,
@@ -90,6 +94,7 @@ pub fn get_status(state: State<AppState>) -> Status {
         provider: provider.key_name().to_string(),
         model,
         router_model: core.config.llm.router_model.clone(),
+        full_authority: core.config.security.full_authority,
         providers: Provider::ALL
             .iter()
             .map(|p| ProviderInfo {
@@ -200,7 +205,7 @@ pub fn send_message(
         return Err("a reply is already in progress".into());
     }
 
-    let (cfg, router_model, system, history) = {
+    let (cfg, router_model, full_authority, system, history) = {
         let core = AppState::lock(&state.core);
         let keys = AppState::lock(&state.keys);
 
@@ -234,6 +239,7 @@ pub fn send_message(
         (
             ChatConfig::new(provider, model, key),
             core.config.llm.router_model.clone(),
+            core.config.security.full_authority,
             system,
             history.clone(),
         )
@@ -280,6 +286,7 @@ pub fn send_message(
             &approval_rx,
             &cfg,
             &router_model,
+            full_authority,
             system,
             history,
             &text,
@@ -584,6 +591,7 @@ async fn run_turn(
     approval_rx: &std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Approval>>>,
     cfg: &ChatConfig,
     router_model: &str,
+    full_authority: bool,
     system: Message,
     history: Vec<Message>,
     user_message: &str,
@@ -605,6 +613,9 @@ async fn run_turn(
         let names: Vec<&str> = picked.iter().map(String::as_str).collect();
         let mut guard = AppState::lock(agent);
         guard.start_run();
+        // Read fresh each turn, so switching it in settings takes effect on
+        // the next message rather than the next launch.
+        guard.gate.set_full_authority(full_authority);
         vavis_tools::builtin::request_tools::reset();
         guard.schemas_for(&names)
     };
@@ -1109,6 +1120,18 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
         // is the default -- so clearing the box is a supported answer, not
         // an error.
         "routerModel" => core.config.llm.router_model = value.trim().to_string(),
+        // Full authority: every approval off, every budget off. The warning
+        // belongs in the interface, once, at the moment it is switched on --
+        // re-asking here on every turn is the thing being switched off.
+        "fullAuthority" => {
+            let on = match value.as_str() {
+                "true" => true,
+                "false" => false,
+                _ => return Err("full authority must be true or false".into()),
+            };
+            core.config.security.full_authority = on;
+            tracing::warn!(on, "full authority changed");
+        }
         other => return Err(format!("unknown setting: {other}")),
     }
 
@@ -3149,7 +3172,10 @@ mod tests {
         );
 
         // Hız sorunu değil: beklemek bunu çözmez.
-        assert_eq!(wait_before_retry(&api(413, "context length exceeded")), None);
+        assert_eq!(
+            wait_before_retry(&api(413, "context length exceeded")),
+            None
+        );
         assert_eq!(wait_before_retry(&api(401, "bad key")), None);
         assert_eq!(
             wait_before_retry(&vavis_brain::BrainError::MissingKey {
