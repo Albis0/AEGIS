@@ -55,6 +55,17 @@ const EXPECT_OFFERED: &[(&str, &str)] = &[
     ("ekran görüntüsü al", "ekran_goruntusu"),
     // Cekirdek (alan tetiklendiginde birlikte gelir)
     ("cpu durumu ve saat", "simdiki_zaman"),
+    // Cekirdek TEK BASINA — bir zamanlar hicbiri sunulmuyordu ve model
+    // saati uyduruyordu. Bu satirlar o hatanin geri gelmemesi icin.
+    ("saat kaç", "simdiki_zaman"),
+    ("saat", "simdiki_zaman"),
+    ("bugün ayın kaçı", "simdiki_zaman"),
+    ("bugün günlerden ne", "simdiki_zaman"),
+    ("tarih ne", "simdiki_zaman"),
+    ("what time is it", "simdiki_zaman"),
+    ("15 * 3 kaç eder", "hesapla"),
+    ("şunu hesapla: 120 / 4", "hesapla"),
+    ("240 ın yüzde 18 i ne kadar", "hesapla"),
 ];
 
 /// Bu cümlelerde **hiç** tool sunulmamalı — sohbet.

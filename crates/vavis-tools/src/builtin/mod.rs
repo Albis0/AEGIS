@@ -13,6 +13,7 @@ pub mod files;
 pub mod media;
 pub mod memory;
 pub mod obsidian;
+pub mod request_tools;
 pub mod spotify;
 pub mod steam;
 pub mod system;
@@ -26,6 +27,7 @@ pub fn register_all(registry: &mut Registry) {
     // Çekirdek — her alanla birlikte sunulur.
     registry.register(Box::new(core::Now));
     registry.register(Box::new(core::Calculate));
+    registry.register(Box::new(request_tools::RequestTools));
 
     // Sistem.
     registry.register(Box::new(system::SystemInfo));

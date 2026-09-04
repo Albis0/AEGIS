@@ -83,17 +83,12 @@
         const next = order[(order.indexOf(current) + 1) % order.length];
 
         try {
-            // Applied first so the change is instant, then persisted.
-            //
-            // Decorations stay off throughout: the interface draws its own
-            // title strip, and turning the OS one back on gives two of them.
-            await appWindow.setFullscreen(next === "fullscreen");
-            if (next !== "fullscreen") {
-                if (next === "borderless") await appWindow.maximize();
-                else await appWindow.unmaximize();
-            }
-
-            await api.setSetting("windowMode", next);
+            // Moving and saving are one backend call. They used to be separate
+            // steps here, which is how "borderless" ended up meaning two
+            // different things: this path asked the window to maximize, and an
+            // undecorated window does not reliably read that as "fill the
+            // screen". Startup had the working version; now there is only one.
+            await api.setWindowMode(next);
             await chat.refresh();
         } catch (e) {
             // The window is now in a state the config does not describe, which
@@ -439,6 +434,14 @@
         flex: 1;
         display: flex;
         min-height: 0;
+        /* Both of these are load-bearing. A flex row's children default to
+       `min-width: auto`, so the rail and the chat panel could add up to more
+       than the window and push the panel past the right edge -- text in it
+       was being cut off. `min-width: 0` lets the row actually constrain
+       them; `overflow: hidden` keeps a wide message from doing the same
+       thing from the inside. */
+        min-width: 0;
+        overflow: hidden;
     }
 
     .stage {

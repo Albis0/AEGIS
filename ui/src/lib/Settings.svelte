@@ -156,7 +156,7 @@
         tavily: "written answer + sources, free tier",
         brave: "independent index, 2000 queries/month free",
         custom: "your own JSON endpoint",
-        duckduckgo: "no key needed — the fallback",
+        duckduckgo: "no key needed — works out of the box, rate-limited when busy",
     };
 
     const KEYED_CANVAS = ["openai", "stability", "replicate", "custom"];

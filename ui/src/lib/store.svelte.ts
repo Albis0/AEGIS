@@ -17,6 +17,7 @@ import {
     type DeltaEvent,
     type DoneEvent,
     type ErrorEvent,
+    type NoticeEvent,
     type Status,
     type ToolDoneEvent,
     type ToolStartEvent,
@@ -444,6 +445,13 @@ class ChatStore {
                         : undefined,
                 });
                 void this.refresh();
+            }),
+
+            // A rate-limit wait, said out loud. Without it the turn just
+            // stops for twenty seconds and reads as a hang.
+            on<NoticeEvent>("chat:notice", (p) => {
+                this.finishStreaming();
+                this.add("system", p.text);
             }),
 
             on<ToolStartEvent>("chat:tool-start", (p) => {

@@ -8,3 +8,8 @@ ui/dist
 # A package-lock.json is a second answer to the same question that nothing
 # reads, and the two drift apart silently.
 ui/package-lock.json
+
+# Reference clones live here for comparison; they are somebody else's repos.
+# `docs/` under it is ours and is tracked.
+example/*
+!example/docs/

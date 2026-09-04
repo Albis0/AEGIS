@@ -257,6 +257,15 @@ export const api = {
     setSetting: (field: string, value: string) =>
         invoke<void>("set_setting", { field, value }),
 
+    /**
+     * Moves the window and saves the mode in one call.
+     *
+     * The move belongs to the backend rather than here: doing it from the
+     * frontend meant two implementations of "borderless", and the one that ran
+     * on F11 did not actually fill the screen.
+     */
+    setWindowMode: (mode: string) => invoke<void>("set_window_mode", { mode }),
+
     cycleVoice: () => invoke<string>("cycle_voice"),
     stopSpeaking: () => invoke<void>("stop_speaking"),
 
@@ -421,6 +430,16 @@ export interface ToolStartEvent {
     tool: string;
     /** What it was called with, for the expanded view. */
     args: string;
+}
+/**
+ * The turn saying something about itself while still working — currently only
+ * "waiting out a rate limit".
+ *
+ * Separate from a delta because a delta is the model's answer: folding this
+ * into it would leave "waiting 20s" inside the saved reply.
+ */
+export interface NoticeEvent {
+    text: string;
 }
 export interface ToolDoneEvent {
     tool: string;

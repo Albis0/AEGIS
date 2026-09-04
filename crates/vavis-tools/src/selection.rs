@@ -56,7 +56,7 @@ struct DomainKeywords {
     words: &'static [&'static str],
 }
 
-/// Tek başına bir alan tetiklemeye yetmeyen genel fiiller.
+/// Tek başına bir alan tetiklemeye yetmeyen genel kelimeler.
 ///
 /// **Neden gerekli:** "bana bir şiir yaz" cümlesindeki "yaz", dosya yazma
 /// isteği değil. Eski projede tam olarak bu tür yanlış eşleşmeler modele
@@ -65,9 +65,15 @@ struct DomainKeywords {
 ///
 /// Bu kelimeler ancak **alana özgü bir kelimeyle birlikte** sayılır:
 /// "dosya yaz" → Files ✓ · "şiir yaz" → eşleşme yok ✓
+///
+/// Fiillerin yanında birkaç **zaman ismi** de burada: "bugün" ve "gün"
+/// çoğu zaman soru değil, sohbet dolgusu ("bugün nasılsın", "iyi günler").
+/// Gerçek bir tarih sorusunda yanlarında "saat", "tarih" ya da "kaçı"
+/// gibi güçlü bir kelime bulunuyor.
 const WEAK_VERBS: &[&str] = &[
     "yaz", "oku", "kaydet", "sil", "listele", "ara", "bul", "ac", "kapat", "goster", "write",
-    "read", "save", "delete", "list", "search", "find", "open", "close", "show",
+    "read", "save", "delete", "list", "search", "find", "open", "close", "show", "bugun", "gun",
+    "zaman", "today",
 ];
 
 const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
@@ -361,6 +367,49 @@ const DOMAIN_KEYWORDS: &[DomainKeywords] = &[
         // taşıdığı için yanlış eşleşmenin bedeli küçük ama sıfır değil.
         words: crate::builtin::canvas::KEYWORDS,
     },
+    // ÇEKİRDEK — saat/tarih ve hesap.
+    //
+    // Bu satır uzun süre eksikti ve sonucu şuydu: "saat kaç" hiçbir alanı
+    // tetiklemiyor, alan listesi boş kalınca `select_named` erkenden dönüyor,
+    // `simdiki_zaman` modele **hiç** sunulmuyordu. Model de saati uyduruyordu.
+    //
+    // Çekirdek tool'lar başka bir alan tetiklendiğinde zaten ekleniyor; bu
+    // satır onları **tek başlarına** da erişilebilir yapıyor.
+    DomainKeywords {
+        domain: Domain::Core,
+        words: &[
+            "saat",
+            "tarih",
+            // "bugün"/"gün"/"zaman" WEAK_VERBS'te: tek başlarına sohbet
+            // dolgusu ("bugün nasılsın"). Aşağıdaki güçlü kelimelerden biri
+            // yanlarındaysa istek gerçekten tarih/saat sorusudur.
+            "bugun",
+            "bugün",
+            "gun",
+            "gün",
+            "zaman",
+            "gunlerden",
+            "günlerden",
+            "kaci",
+            "kaçı",
+            "hesapla",
+            "hesap",
+            "topla",
+            "carp",
+            "çarp",
+            "bol",
+            "böl",
+            "cikar",
+            "çıkar",
+            "yuzde",
+            "yüzde",
+            "time",
+            "date",
+            "today",
+            "calculate",
+            "compute",
+        ],
+    },
 ];
 
 /// Sohbet kapatıcıları — bunlara tool sunulmaz.
@@ -439,6 +488,24 @@ fn is_chatter(words: &[String]) -> bool {
         .all(|w| normalized_chatter.iter().any(|c| c == w))
 }
 
+/// Mesaj bir aritmetik ifade taşıyor mu — "15 * 3", "(120+8)/4".
+///
+/// Anahtar kelime tablosu bunu yakalayamıyor: "15 * 3 kaç eder" cümlesinde
+/// hesap isteğini belli eden şey kelimeler değil, **iki sayı arasındaki
+/// operatör**. Tek bir sayı ("3 dosya sil") ya da tek bir işaret ("a * b")
+/// yetmiyor; ikisi birden gerekiyor.
+fn has_arithmetic(message: &str) -> bool {
+    let bytes = message.as_bytes();
+    let operator_at = |i: usize| matches!(bytes[i], b'+' | b'*' | b'/' | b'%' | b'-');
+
+    (0..bytes.len()).filter(|&i| operator_at(i)).any(|i| {
+        let before = message[..i].trim_end();
+        let after = message[i + 1..].trim_start();
+        before.ends_with(|c: char| c.is_ascii_digit())
+            && after.starts_with(|c: char| c.is_ascii_digit())
+    })
+}
+
 /// Mesaja uyan alanlar, en çok eşleşenden aza doğru.
 pub fn match_domains(message: &str) -> Vec<Domain> {
     let words = tokenize(message);
@@ -474,6 +541,12 @@ pub fn match_domains(message: &str) -> Vec<Domain> {
             } else {
                 strong * 2 + weak_hits
             };
+
+            // Aritmetik ifade, kelimeye ihtiyaç duymadan çekirdeği tetikler:
+            // "15 * 3 kaç eder" cümlesinde niyeti belli eden şey operatör.
+            if dk.domain == Domain::Core && has_arithmetic(message) {
+                score += 2;
+            }
 
             // Otomasyon niyeti diğer alanları GÖLGELER.
             //
@@ -902,6 +975,65 @@ mod tests {
             let d = match_domains(msg);
             assert!(d.is_empty(), "'{msg}' → {d:?}");
         }
+    }
+
+    /// **Regresyon testi.** Çekirdek tool'lar tek başlarına da sunulmalı.
+    ///
+    /// Uzun süre `DOMAIN_KEYWORDS` içinde Core satırı yoktu. Sonuç: "saat kaç"
+    /// hiçbir alanı tetiklemiyor, alan listesi boş kalınca `select_named`
+    /// erkenden dönüyor, `simdiki_zaman` modele hiç ulaşmıyordu — ve model
+    /// saati uyduruyordu ("2023-10-27 14:30").
+    #[test]
+    fn a_bare_time_question_offers_the_clock() {
+        let reg = big_registry();
+        for msg in [
+            "saat kaç",
+            "saat",
+            "tarih ne",
+            "bugün ayın kaçı",
+            "bugün günlerden ne",
+            "what time is it",
+        ] {
+            let selected = select_named(&reg, msg, DEFAULT_TOOL_BUDGET);
+            assert!(
+                selected.contains(&"now"),
+                "'{msg}' saat tool'unu sunmalıydı: {selected:?}"
+            );
+        }
+    }
+
+    /// Zaman isimleri sohbete sızmamalı — düzeltmenin diğer yarısı.
+    ///
+    /// "bugün" tek başına bir tarih sorusu değil; Core alanını her "bugün"
+    /// geçen cümlede açmak, sohbeti tool listesiyle kışkırtmak olurdu.
+    #[test]
+    fn everyday_time_words_do_not_open_the_core_domain() {
+        for msg in [
+            "bugün nasılsın",
+            "nasılsın bugün",
+            "iyi günler",
+            "bugün canım sıkkın",
+        ] {
+            let d = match_domains(msg);
+            assert!(
+                !d.contains(&Domain::Core),
+                "'{msg}' çekirdeği tetiklememeliydi: {d:?}"
+            );
+        }
+    }
+
+    /// Aritmetik ifade kelimeye ihtiyaç duymadan hesap makinesini getirmeli.
+    #[test]
+    fn an_arithmetic_expression_offers_the_calculator() {
+        assert!(has_arithmetic("15 * 3 kaç eder"));
+        assert!(has_arithmetic("(120+8)/4"));
+        assert!(has_arithmetic("100-25"));
+
+        // Tek sayı ya da tek işaret yetmez.
+        assert!(!has_arithmetic("3 dosya sil"));
+        assert!(!has_arithmetic("a * b"));
+        assert!(!has_arithmetic("merhaba"));
+        assert!(!has_arithmetic("dosya-adi.txt oku"));
     }
 
     #[test]

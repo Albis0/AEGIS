@@ -349,6 +349,28 @@ struct ToolStartPayload {
     args: String,
 }
 
+/// Something the turn wants to say about itself while still working.
+///
+/// Its own event rather than a delta: a delta is the model's answer, and
+/// mixing "waiting 20s" into that text would leave it in the saved reply.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct NoticePayload {
+    text: String,
+}
+
+/// How many times one turn will wait out a rate limit before giving up.
+///
+/// Two, because the free tiers refuse on a per-minute budget: one wait covers
+/// the usual overspend from a multi-tool turn, and a third would mean the
+/// limit is not the per-minute one and waiting is the wrong remedy.
+const MAX_RATE_LIMIT_WAITS: u8 = 2;
+
+/// The longest wait worth sitting through. Beyond this the limit is a daily
+/// quota wearing a per-minute costume, and the user should be told rather
+/// than left watching a spinner.
+const MAX_RATE_LIMIT_WAIT_SECS: u64 = 60;
+
 /// How much of a tool's output the collapsed line shows.
 const MAX_TOOL_SUMMARY: usize = 120;
 
@@ -575,10 +597,15 @@ async fn run_turn(
     // Configured off, in which case this is keyword matching as before.
     let picked = route_tools(client, cfg, router_model, agent, user_message, budget).await;
 
-    let tools = {
+    // Mutable because the model can ask for more mid-turn -- see the
+    // `arac_iste` handling further down. The starting set is what the router
+    // (or the keyword table) chose from the message alone.
+    let mut offered: Vec<String> = picked.clone();
+    let mut tools = {
         let names: Vec<&str> = picked.iter().map(String::as_str).collect();
         let mut guard = AppState::lock(agent);
         guard.start_run();
+        vavis_tools::builtin::request_tools::reset();
         guard.schemas_for(&names)
     };
     tracing::info!(
@@ -595,6 +622,9 @@ async fn run_turn(
     // only, so a provider that refuses for some other reason it happens to
     // describe as "too long" cannot walk the conversation down to nothing.
     let mut shrunk = false;
+    // How many times a rate limit has been waited out this turn. Separate from
+    // `shrunk` because the two failures are unrelated and a turn can hit both.
+    let mut rate_limit_waits = 0u8;
 
     for step in 0..MAX_STEPS {
         let emit = app.clone();
@@ -638,6 +668,36 @@ async fn run_turn(
                 continue;
             }
 
+            // The free tiers refuse on a per-minute budget, and a turn that
+            // calls two or three tools spends that budget in a few seconds.
+            // The provider names the wait it wants; honouring it turns a dead
+            // turn into a slow one.
+            //
+            // Bounded, and only when a wait was actually named: an unbounded
+            // retry against a daily quota would hang the turn until the user
+            // gave up, and the message they get instead ("try again in ...")
+            // is at least true.
+            Err(e) if rate_limit_waits < MAX_RATE_LIMIT_WAITS => {
+                let Some(secs) = wait_before_retry(&e) else {
+                    return Err(TurnError::from(&e));
+                };
+
+                rate_limit_waits += 1;
+                tracing::info!(secs, attempt = rate_limit_waits, "rate limited; waiting");
+
+                // Said out loud: several seconds of silence with no
+                // explanation reads as the app having hung.
+                let _ = app.emit(
+                    "chat:notice",
+                    NoticePayload {
+                        text: format!("Rate limited — waiting {secs}s."),
+                    },
+                );
+
+                tokio::time::sleep(std::time::Duration::from_secs(secs)).await;
+                continue;
+            }
+
             Err(e) => return Err(TurnError::from(&e)),
         };
 
@@ -674,6 +734,32 @@ async fn run_turn(
         // results must be text, so it cannot ride along with them.
         if let Some(image) = vavis_tools::builtin::vision::take_pending_image() {
             messages.push(Message::user_with_image("(screenshot attached)", image));
+        }
+
+        // The model said it needs something it was not given. Neither the
+        // keyword table nor the router can see this coming: both read the
+        // user's message, and the need often only becomes clear once the
+        // model is halfway through the job.
+        //
+        // The new tools are *added*, so nothing it is already holding
+        // disappears mid-turn.
+        for need in vavis_tools::builtin::request_tools::take() {
+            let added = {
+                let guard = AppState::lock(agent);
+                let names = vavis_tools::selection::select_named(&guard.registry, &need, budget);
+                let fresh: Vec<&str> = names
+                    .into_iter()
+                    .filter(|n| !offered.iter().any(|had| had == n))
+                    .collect();
+                let schemas = guard.schemas_for(&fresh);
+                let fresh: Vec<String> = fresh.into_iter().map(String::from).collect();
+                (fresh, schemas)
+            };
+
+            let (names, schemas) = added;
+            tracing::info!(need = %need, added = names.len(), "model asked for more tools");
+            offered.extend(names);
+            tools.extend(schemas);
         }
 
         if step == MAX_STEPS - 1 {
@@ -803,6 +889,23 @@ fn is_too_long(status: u16, body: &str) -> bool {
         || body.contains("too large")
         || body.contains("context_length_exceeded")
         || body.contains("maximum context length")
+}
+
+/// How long to wait before trying this request again, if waiting would help.
+///
+/// `None` means do not retry — either the refusal is not about pace, or the
+/// provider named no delay, or the delay it named is long enough that the user
+/// should be told rather than left watching a spinner. A quota refusal with no
+/// stated delay falls here on purpose: guessing a number would turn a clear
+/// message into an unexplained pause.
+fn wait_before_retry(err: &vavis_brain::BrainError) -> Option<u64> {
+    let vavis_brain::BrainError::Api { status, body } = err else {
+        return None;
+    };
+    if !is_quota_refusal(*status, body) {
+        return None;
+    }
+    retry_after_seconds(body).filter(|secs| *secs <= MAX_RATE_LIMIT_WAIT_SECS)
 }
 
 /// Whether this error is one the user can fix by shortening the conversation.
@@ -3022,6 +3125,40 @@ mod tests {
         assert_eq!(retry_after_seconds("no delay mentioned"), None);
     }
 
+    /// Hangi reddedilmeler beklenerek çözülür, hangileri kullanıcıya söylenir.
+    #[test]
+    fn only_a_short_named_pace_limit_is_waited_out() {
+        let api = |status: u16, body: &str| vavis_brain::BrainError::Api {
+            status,
+            body: body.to_string(),
+        };
+
+        // Süre söylenmiş ve kısa — beklenir.
+        assert_eq!(
+            wait_before_retry(&api(429, "rate limit, please try again in 12s")),
+            Some(12)
+        );
+
+        // Süre söylenmemiş: tahmin yürütmek yerine kullanıcıya söyle.
+        assert_eq!(wait_before_retry(&api(429, "rate limit exceeded")), None);
+
+        // Günlük kota kılığındaki uzun bekleme — kullanıcı spinner izlemesin.
+        assert_eq!(
+            wait_before_retry(&api(429, "quota, try again in 3600s")),
+            None
+        );
+
+        // Hız sorunu değil: beklemek bunu çözmez.
+        assert_eq!(wait_before_retry(&api(413, "context length exceeded")), None);
+        assert_eq!(wait_before_retry(&api(401, "bad key")), None);
+        assert_eq!(
+            wait_before_retry(&vavis_brain::BrainError::MissingKey {
+                provider: Provider::Groq
+            }),
+            None
+        );
+    }
+
     #[test]
     fn a_size_refusal_is_recognised_however_it_is_worded() {
         // Providers disagree: some 413, some 400 with an explanation.
@@ -3090,4 +3227,88 @@ mod tests {
 #[tauri::command]
 pub fn mic_level(state: State<AppState>) -> f32 {
     AppState::lock(&state.voice).mic_level()
+}
+
+// ---------------------------------------------------------------------------
+// Window mode
+// ---------------------------------------------------------------------------
+
+/// Puts the window into `mode`.
+///
+/// # Why this is not two lines in the frontend
+///
+/// It used to be, and startup had its own copy — which is how the two drifted
+/// apart. The frontend called `maximize()` and the window stayed the size it
+/// was, because of two things `maximize()` alone does not handle:
+///
+/// * **Leaving fullscreen is not instant.** Asking to maximize in the same
+///   breath as `set_fullscreen(false)` races the window manager, and the
+///   maximize is the one that loses.
+/// * **An undecorated window maximizes oddly.** With the OS title bar off,
+///   "maximized" is not reliably the whole work area, which is what the user
+///   means by borderless.
+///
+/// So borderless is applied by measuring the monitor and setting the size
+/// directly. One function, called from startup and from the F11 toggle.
+pub fn apply_window_mode(
+    window: &tauri::WebviewWindow,
+    mode: vavis_core::WindowMode,
+) -> Result<(), String> {
+    use vavis_core::WindowMode;
+
+    // The interface draws its own title strip, so the OS decorations stay off
+    // in every mode — turning them on gives two title bars.
+    let was_fullscreen = window.is_fullscreen().unwrap_or(false);
+    if was_fullscreen && mode != WindowMode::Fullscreen {
+        window.set_fullscreen(false).map_err(|e| e.to_string())?;
+    }
+
+    match mode {
+        WindowMode::Fullscreen => window.set_fullscreen(true).map_err(|e| e.to_string())?,
+
+        WindowMode::Borderless => {
+            // Unmaximize first: a window that is already maximized ignores a
+            // set_size, and would keep whatever bounds it had.
+            let _ = window.unmaximize();
+
+            match window.current_monitor() {
+                Ok(Some(monitor)) => {
+                    let size = *monitor.size();
+                    let position = *monitor.position();
+                    window.set_position(position).map_err(|e| e.to_string())?;
+                    window.set_size(size).map_err(|e| e.to_string())?;
+                }
+                // No monitor information — maximize is the honest fallback,
+                // and is what this always did before.
+                _ => window.maximize().map_err(|e| e.to_string())?,
+            }
+        }
+
+        WindowMode::Windowed => {
+            let _ = window.unmaximize();
+        }
+    }
+
+    Ok(())
+}
+
+/// Sets the window mode and saves it.
+///
+/// Replaces the frontend doing the move itself: the two paths had drifted, and
+/// only one of them worked.
+#[tauri::command]
+pub fn set_window_mode(
+    state: State<AppState>,
+    window: tauri::WebviewWindow,
+    mode: String,
+) -> Result<(), String> {
+    if !["windowed", "borderless", "fullscreen"].contains(&mode.as_str()) {
+        return Err("window mode: windowed, borderless or fullscreen".into());
+    }
+
+    apply_window_mode(&window, vavis_core::WindowMode::parse(&mode))?;
+
+    let mut core = AppState::lock(&state.core);
+    core.config.ui.window_mode = mode;
+    core.config.save(&core.paths).map_err(|e| e.to_string())
 }

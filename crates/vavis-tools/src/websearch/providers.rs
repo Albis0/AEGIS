@@ -30,10 +30,35 @@ fn request(
     headers: &[(String, String)],
     body: Option<Value>,
 ) -> Result<(u16, String), ProviderError> {
+    request_with(method, url, headers, body, None, DEFAULT_USER_AGENT)
+}
+
+/// The agent's own identity, used for every API that expects a real client.
+const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (compatible; Vavis/0.3)";
+
+/// A browser identity, for HTML endpoints that serve a stripped page — or
+/// nothing at all — to anything that announces itself as a bot.
+///
+/// This is not evasion: the endpoint is public and unauthenticated, and the
+/// page it returns is the same one a person visiting it would get.
+const BROWSER_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+     (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+/// [`request`] with the two knobs the HTML endpoints need: a form body and a
+/// chosen user agent.
+fn request_with(
+    method: reqwest::Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Option<Value>,
+    form: Option<&[(&str, &str)]>,
+    user_agent: &str,
+) -> Result<(u16, String), ProviderError> {
     crate::run_async(async {
         let client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
-            .user_agent("Mozilla/5.0 (compatible; Vavis/0.3)")
+            .user_agent(user_agent)
             .build()
             .map_err(|e| ProviderError::Failed(e.to_string()))?;
 
@@ -43,6 +68,9 @@ fn request(
         }
         if let Some(json) = body {
             req = req.json(&json);
+        }
+        if let Some(fields) = form {
+            req = req.form(fields);
         }
 
         let resp = req.send().await.map_err(|e| {
@@ -265,11 +293,22 @@ impl Provider for Brave {
 // DuckDuckGo
 // ---------------------------------------------------------------------------
 
-/// DuckDuckGo Instant Answer — needs no key, so it is the floor of the chain.
+/// DuckDuckGo — needs no key, so it is the floor of the chain.
 ///
-/// It only answers well-known entities and returns nothing for most real
-/// queries, which is exactly why it sits last rather than being the only
-/// option.
+/// # Why there are two endpoints behind one provider
+///
+/// The Instant Answer API is the polite one: documented, JSON, no scraping.
+/// But it only knows *entities* — "rust programming language" gets a full
+/// abstract, while "istanbul saat kaç" gets a document with every field empty.
+/// For a long time that empty document was the end of the road, and a user
+/// with no keys had a search tool that reported `no results` for almost
+/// everything they typed.
+///
+/// So a miss falls through to the Lite endpoint, which is the ordinary result
+/// page with the markup stripped down. It answers general queries.
+///
+/// The order matters: the API is asked first because a structured answer beats
+/// a parsed one, and the HTML path only runs when there was nothing to lose.
 pub struct DuckDuckGo;
 
 impl Provider for DuckDuckGo {
@@ -282,6 +321,16 @@ impl Provider for DuckDuckGo {
     }
 
     fn search(&self, query: &str, limit: usize) -> Result<SearchResponse, ProviderError> {
+        match self.instant_answer(query, limit) {
+            Err(ProviderError::Empty) => self.lite(query, limit),
+            other => other,
+        }
+    }
+}
+
+impl DuckDuckGo {
+    /// The documented JSON API. Answers entity questions, nothing else.
+    fn instant_answer(&self, query: &str, limit: usize) -> Result<SearchResponse, ProviderError> {
         let url = format!(
             "https://api.duckduckgo.com/?q={}&format=json&no_html=1&skip_disambig=1",
             urlencode(query)
@@ -294,11 +343,19 @@ impl Provider for DuckDuckGo {
 
         let json = parse_json(&text)?;
 
-        let answer = json["AbstractText"]
-            .as_str()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string);
+        let non_empty = |v: &Value| {
+            v.as_str()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        };
+
+        // `Answer` carries the computed replies — conversions, sums, sunrise
+        // times. It was ignored here for a long time, which threw away the one
+        // kind of question this endpoint is actually good at.
+        let answer = non_empty(&json["Answer"])
+            .or_else(|| non_empty(&json["AbstractText"]))
+            .or_else(|| non_empty(&json["Definition"]));
 
         let mut hits = Vec::new();
         if let Some(src) = json["AbstractURL"].as_str().filter(|s| !s.is_empty()) {
@@ -337,6 +394,150 @@ impl Provider for DuckDuckGo {
             hits,
         })
     }
+
+    /// The Lite result page — general web results, no key.
+    fn lite(&self, query: &str, limit: usize) -> Result<SearchResponse, ProviderError> {
+        let (status, html) = request_with(
+            reqwest::Method::POST,
+            "https://lite.duckduckgo.com/lite/",
+            &[],
+            None,
+            Some(&[("q", query)]),
+            BROWSER_USER_AGENT,
+        )?;
+
+        if let Some(err) = classify_status(status, &html) {
+            return Err(err);
+        }
+
+        // Too many requests in a row and the endpoint answers 200 with an
+        // "anomaly" interstitial instead of results. Reporting that as Empty
+        // would be a lie the chain acts on: it would try the same endpoint
+        // again on the next query instead of backing off.
+        if is_throttle_page(&html) {
+            return Err(ProviderError::RateLimited);
+        }
+
+        let hits = parse_lite_results(&html, limit);
+        if hits.is_empty() {
+            return Err(ProviderError::Empty);
+        }
+
+        Ok(SearchResponse {
+            provider: "duckduckgo".into(),
+            answer: None,
+            hits,
+        })
+    }
+}
+
+/// Is this the throttle interstitial rather than a result page?
+///
+/// It comes back with HTTP 200 and no results, so status alone cannot tell it
+/// apart from a genuine miss. Both markers must be present *and* the page must
+/// carry no results, so a page that merely mentions the word does not trip it.
+fn is_throttle_page(html: &str) -> bool {
+    !html.contains("result-link")
+        && (html.contains("anomaly") || html.contains("challenge"))
+        && html.contains("duckduckgo")
+}
+
+/// Pulls results out of the Lite page.
+///
+/// Deliberately hand-rolled rather than a DOM library: the page is a flat table
+/// of `class="result-link"` anchors each followed by a `class="result-snippet"`
+/// cell, and the two markers are all that is needed. A parser that understands
+/// the whole document would not survive the markup changing any better than
+/// this does — and this fails by returning nothing, which the chain already
+/// treats as "try the next provider".
+fn parse_lite_results(html: &str, limit: usize) -> Vec<Hit> {
+    let mut hits = Vec::new();
+    let mut rest = html;
+
+    while hits.len() < limit {
+        // Each result is an <a ... class='result-link'>Title</a>.
+        let Some(anchor) = rest.find("result-link") else {
+            break;
+        };
+        // The href sits before the class attribute on the same tag.
+        let tag_start = rest[..anchor].rfind("<a ").unwrap_or(0);
+        let tag = &rest[tag_start..anchor];
+
+        let url = match extract_attr(tag, "href") {
+            Some(u) if u.starts_with("http") => u,
+            // Some entries are redirect stubs (`//duckduckgo.com/l/?uddg=...`);
+            // skipping them costs one result and avoids handing the model a
+            // link that resolves to a tracker.
+            _ => {
+                rest = &rest[anchor + "result-link".len()..];
+                continue;
+            }
+        };
+
+        let after_tag = &rest[anchor..];
+        let Some(close) = after_tag.find('>') else {
+            break;
+        };
+        let title_region = &after_tag[close + 1..];
+        let title = match title_region.find("</a>") {
+            Some(end) => decode_entities(strip_tags(&title_region[..end]).trim()),
+            None => break,
+        };
+
+        // The snippet cell follows, before the next result's link.
+        let snippet = title_region
+            .find("result-snippet")
+            .filter(|&pos| {
+                title_region[..pos]
+                    .find("result-link")
+                    .is_none_or(|next| next > pos)
+            })
+            .and_then(|pos| {
+                let after = &title_region[pos..];
+                let close = after.find('>')?;
+                let body = &after[close + 1..];
+                let end = body.find("</td>").unwrap_or(body.len());
+                Some(clip(&decode_entities(strip_tags(&body[..end]).trim())))
+            })
+            .unwrap_or_default();
+
+        if !title.is_empty() {
+            hits.push(Hit { title, url, snippet });
+        }
+
+        rest = &rest[anchor + "result-link".len()..];
+    }
+
+    hits
+}
+
+/// Reads `name="value"` or `name='value'` out of a tag.
+fn extract_attr(tag: &str, name: &str) -> Option<String> {
+    let at = tag.find(&format!("{name}="))?;
+    let after = &tag[at + name.len() + 1..];
+    let quote = after.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let body = &after[1..];
+    let end = body.find(quote)?;
+    Some(body[..end].to_string())
+}
+
+/// The handful of entities that actually show up in result titles.
+///
+/// A full entity table would be dead weight: these pages are UTF-8, so only
+/// the five markup-significant characters are ever escaped — plus the numeric
+/// form DuckDuckGo uses for apostrophes.
+fn decode_entities(text: &str) -> String {
+    text.replace("&#x27;", "'")
+        .replace("&#39;", "'")
+        .replace("&quot;", "\"")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&nbsp;", " ")
+        // Ampersand last: doing it first would corrupt the entities above.
+        .replace("&amp;", "&")
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +707,100 @@ fn strip_tags(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A real captured Lite page, so the parser is tested against the markup
+    /// that actually ships rather than markup written to match the parser.
+    const LITE_PAGE: &str = include_str!("../../tests/fixtures/ddg_lite.html");
+
+    #[test]
+    fn lite_results_are_parsed_from_a_real_page() {
+        let hits = parse_lite_results(LITE_PAGE, 10);
+
+        assert!(
+            hits.len() >= 5,
+            "gerçek sayfadan sonuç çıkmadı: {} adet",
+            hits.len()
+        );
+
+        let first = &hits[0];
+        assert!(first.url.starts_with("https://"), "url: {}", first.url);
+        assert!(!first.title.is_empty());
+        // Başlık ham HTML taşımamalı — model onu okuyacak.
+        assert!(!first.title.contains('<'), "başlık: {}", first.title);
+        assert!(!first.snippet.contains('<'), "özet: {}", first.snippet);
+        assert!(
+            first.snippet.contains("nüfus"),
+            "özet ilgili olmalı: {}",
+            first.snippet
+        );
+    }
+
+    /// Kısıtlama sayfası HTTP 200 dönüyor — "sonuç yok" ile karıştırılmamalı.
+    #[test]
+    fn the_throttle_page_is_told_apart_from_a_real_miss() {
+        const THROTTLED: &str = include_str!("../../tests/fixtures/ddg_throttle.html");
+
+        assert!(is_throttle_page(THROTTLED));
+        // Gerçek sonuç sayfası kısıtlama sanılmamalı.
+        assert!(!is_throttle_page(LITE_PAGE));
+        assert!(!is_throttle_page("<html>sonuç yok</html>"));
+    }
+
+    #[test]
+    fn lite_parsing_respects_the_limit() {
+        assert_eq!(parse_lite_results(LITE_PAGE, 3).len(), 3);
+        assert_eq!(parse_lite_results(LITE_PAGE, 1).len(), 1);
+    }
+
+    /// Sayfa değişirse ya da boş dönerse ayrıştırıcı çökmemeli — boş dönmeli.
+    /// Zincir zaten boş sonucu "sonraki sağlayıcıya geç" diye okuyor.
+    #[test]
+    fn lite_parsing_survives_markup_it_does_not_recognise() {
+        for html in [
+            "",
+            "<html><body>hiç sonuç yok</body></html>",
+            "<a class='result-link'",           // yarım etiket
+            "<a href='x' class='result-link'>", // kapanmayan bağlantı
+            "result-link result-link result-link",
+        ] {
+            assert!(parse_lite_results(html, 10).is_empty(), "girdi: {html:?}");
+        }
+    }
+
+    /// Yönlendirme bağlantıları atlanıyor — modele izleyici bağlantısı gitmesin.
+    #[test]
+    fn redirect_stubs_are_skipped() {
+        let html = "<a rel=\"nofollow\" href=\"//duckduckgo.com/l/?uddg=http%3A%2F%2Fx.com\" \
+                    class='result-link'>Stub</a>";
+        assert!(parse_lite_results(html, 10).is_empty());
+    }
+
+    #[test]
+    fn entities_are_decoded_in_titles() {
+        let html = "<a href=\"https://x.com\" class='result-link'>Ali&#x27;nin &amp; Veli&#x27;nin</a>";
+        let hits = parse_lite_results(html, 1);
+        assert_eq!(hits[0].title, "Ali'nin & Veli'nin");
+    }
+
+    /// Ampersand en sona bırakılmazsa `&amp;lt;` gibi diziler bozulur.
+    #[test]
+    fn ampersand_is_decoded_last() {
+        assert_eq!(decode_entities("&amp;lt;"), "&lt;");
+        assert_eq!(decode_entities("&lt;b&gt;"), "<b>");
+    }
+
+    #[test]
+    fn attributes_are_read_with_either_quote_style() {
+        assert_eq!(
+            extract_attr("<a href=\"https://a.com\" x=1", "href").as_deref(),
+            Some("https://a.com")
+        );
+        assert_eq!(
+            extract_attr("<a href='https://b.com'", "href").as_deref(),
+            Some("https://b.com")
+        );
+        assert_eq!(extract_attr("<a class='x'", "href"), None);
+    }
 
     #[test]
     fn providers_without_keys_report_unavailable() {

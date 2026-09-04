@@ -115,6 +115,7 @@ fn main() {
             commands::council_keep,
             commands::test_connection,
             commands::mic_level,
+            commands::set_window_mode,
         ])
         .setup(move |app| {
             apply_window_mode(app.handle(), window_mode);
@@ -164,23 +165,10 @@ fn allow_media_in_webview(app: &tauri::AppHandle, media_dir: &std::path::Path) {
 
 /// Applies the saved window mode at startup.
 fn apply_window_mode(app: &tauri::AppHandle, mode: vavis_core::WindowMode) {
-    use vavis_core::WindowMode;
-
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
-
-    // The interface draws its own title strip, so the OS decorations stay
-    // off in every mode — turning them on gives two title bars.
-    match mode {
-        WindowMode::Windowed => {}
-        WindowMode::Borderless => {
-            let _ = window.maximize();
-        }
-        WindowMode::Fullscreen => {
-            let _ = window.set_fullscreen(true);
-        }
-    }
+    let _ = commands::apply_window_mode(&window, mode);
     tracing::info!(?mode, "window opened");
 }
 
