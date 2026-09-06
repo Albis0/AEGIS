@@ -54,8 +54,11 @@
 
     const CATEGORIES: Category[] = [
         { id: "general", label: "General", icon: "◈", keywords: "name language font window interface theme size assistant" },
-        { id: "provider", label: "Model", icon: "◉", keywords: "provider model llm groq openai anthropic claude gemini local ollama temperature" },
-        { id: "keys", label: "API keys", icon: "⚿", keywords: "key token secret credential api auth" },
+        // Model and API keys were two categories, and the split was arbitrary:
+        // picking a provider marked "no key" sent you to a second screen to do
+        // the one thing that pick implied. They are one pane now, a card per
+        // provider, with the key field on the card whose provider it belongs to.
+        { id: "provider", label: "Model & keys", icon: "◉", keywords: "provider model llm groq openai anthropic claude gemini local ollama temperature key token secret credential api auth" },
         { id: "voice", label: "Voice", icon: "◍", keywords: "microphone speech tts stt wake word listen speak" },
         { id: "memory", label: "Memory", icon: "◎", keywords: "facts remember forget knowledge history" },
         { id: "search", label: "Web search", icon: "⌕", keywords: "tavily brave duckduckgo searx internet browse" },
@@ -118,7 +121,14 @@
     let models = $state<string[]>([]);
     let loadingModels = $state(false);
 
-    let keyProvider = $state("groq");
+    /**
+     * Which provider's key box is open, if any.
+     *
+     * One at a time. Every provider showing an empty password field at once
+     * reads as a form demanding five keys, when the truth is that one is
+     * enough and the rest are alternatives.
+     */
+    let keyOpen = $state<string | null>(null);
     let keyDraft = $state("");
     let searchKeyProvider = $state("tavily");
     let searchKeyDraft = $state("");
@@ -194,7 +204,6 @@
 
     async function load() {
         try {
-            keyProvider = status?.provider ?? "groq";
             steamIdDraft = (await api.steamSettings()).steamId;
             [search, canvas, vaults, spotify, steam, mcp, facts, tools] =
                 await Promise.all([
@@ -267,16 +276,33 @@
         await updateSetting("fullAuthority", on ? "true" : "false");
     }
 
-    async function saveKey() {
-        if (!keyDraft.trim()) return;
+    async function saveKey(provider: string) {
+        // Nothing typed is not a failure — it is the ordinary case of opening
+        // the box and thinking better of it. Close, say nothing.
+        if (!keyDraft.trim()) {
+            keyOpen = null;
+            return;
+        }
         await run(async () => {
-            await api.setKey(keyProvider, keyDraft.trim());
+            await api.setKey(provider, keyDraft.trim());
             keyDraft = "";
+            keyOpen = null;
             await chat.refresh();
             // The stored key is proved immediately rather than at the next
             // conversation, which is the entire point of this screen.
-            void test(keyProvider);
+            void test(provider);
         }, "Key saved, encrypted.");
+    }
+
+    /**
+     * Opens the key box for one provider, closing any other.
+     *
+     * The draft is dropped rather than carried across, so a key half typed for
+     * one provider can never be saved against another.
+     */
+    function openKey(provider: string) {
+        keyDraft = "";
+        keyOpen = keyOpen === provider ? null : provider;
     }
 
     async function pickProvider(id: string) {
@@ -548,60 +574,134 @@
 
                 <p class="hint">Version {status?.version ?? "—"}</p>
             {:else if active === "provider"}
-                <h2>Model</h2>
+                <h2>Model &amp; keys</h2>
                 <p class="hint">
-                    Which provider answers. A provider without a key is marked; the key
-                    itself goes in API keys.
+                    One card per provider: whether it holds a key, whether it answers,
+                    and which one is doing the answering. Keys are encrypted with
+                    Windows DPAPI, never written to the settings file, and never shown
+                    again once saved.
                 </p>
 
-                <div class="chips">
+                <div class="cards">
                     {#each status?.providers ?? [] as p (p.id)}
-                        <button
-                            class="chip"
-                            class:active={p.id === status?.provider}
-                            class:missing={p.needsKey && !p.hasKey}
-                            onclick={() => pickProvider(p.id)}
-                            title={p.needsKey && !p.hasKey ? "no key stored" : p.defaultModel}
-                        >
-                            {p.id}
-                        </button>
+                        {@const selected = p.id === status?.provider}
+                        {@const blocked = p.needsKey && !p.hasKey}
+                        <!-- A div, not a button: the card holds a key field and its own
+                             buttons, and nesting those inside a button is invalid and
+                             swallows their clicks. Selection is the separate control at
+                             the end of the header row. -->
+                        <div class="card" class:selected class:blocked>
+                            <div class="card-head">
+                                <span class="card-name">{p.id}</span>
+                                <!-- Beside the name, not under it. On its own line it
+                                     was a row of its own for one short string, which
+                                     made every card taller than it had anything to
+                                     say. -->
+                                <span class="card-model">
+                                    {selected ? (status?.model ?? p.defaultModel) : p.defaultModel}
+                                </span>
+
+                                <span class="card-spacer"></span>
+
+                                {#if !p.needsKey}
+                                    <span class="tag key-tag" data-tone="neutral">no key needed</span>
+                                {:else if p.hasKey}
+                                    <span class="tag key-tag" data-tone="good">key stored</span>
+                                {:else}
+                                    <span class="tag key-tag" data-tone="warn">no key</span>
+                                {/if}
+
+                                {#if selected}
+                                    <span class="tag pick" data-tone="accent">answering</span>
+                                {:else}
+                                    <button
+                                        class="tiny pick"
+                                        onclick={() => pickProvider(p.id)}
+                                        title={blocked
+                                            ? "can be selected, but will not answer until a key is stored"
+                                            : `default model: ${p.defaultModel}`}
+                                    >
+                                        use this
+                                    </button>
+                                {/if}
+                            </div>
+
+                            {#if tests[p.id]}
+                                <p class="result" class:bad={!tests[p.id].ok}>
+                                    {tests[p.id].ok ? "✓" : "✕"}
+                                    {tests[p.id].detail}
+                                </p>
+                            {/if}
+
+                            {#if keyOpen === p.id}
+                                <!-- svelte-ignore a11y_autofocus -->
+                                <input
+                                    class="key-input"
+                                    type="password"
+                                    autofocus
+                                    bind:value={keyDraft}
+                                    placeholder={p.hasKey
+                                        ? "paste a new key to replace the stored one…"
+                                        : "paste key…"}
+                                    onkeydown={(e) => {
+                                        if (e.key === "Enter") saveKey(p.id);
+                                        if (e.key === "Escape") {
+                                            keyDraft = "";
+                                            keyOpen = null;
+                                        }
+                                    }}
+                                    onblur={() => saveKey(p.id)}
+                                />
+                                <p class="hint small">
+                                    Saved on Enter or when you leave the field. Esc discards it.
+                                </p>
+                            {/if}
+
+                            <div class="card-actions">
+                                {#if p.needsKey}
+                                    <button class="tiny" onclick={() => openKey(p.id)}>
+                                        {keyOpen === p.id
+                                            ? "cancel"
+                                            : p.hasKey
+                                              ? "replace key"
+                                              : "add key"}
+                                    </button>
+                                {/if}
+                                <button
+                                    class="tiny"
+                                    disabled={blocked || testing !== null}
+                                    onclick={() => test(p.id)}
+                                    title={blocked ? "store a key first" : "make a real request"}
+                                >
+                                    {testing === p.id ? "testing…" : "test"}
+                                </button>
+                                {#if selected}
+                                    <button class="tiny" onclick={fetchModels} disabled={loadingModels}>
+                                        {loadingModels ? "loading…" : "change model"}
+                                    </button>
+                                {/if}
+                            </div>
+
+                            <!-- Under the card whose provider they belong to, so there is
+                                 never a list of models with no visible owner. -->
+                            {#if selected && models.length}
+                                <div class="list scroll">
+                                    {#each models as m (m)}
+                                        <button
+                                            class="row"
+                                            class:active={m === status?.model}
+                                            onclick={() => pickModel(m)}
+                                        >
+                                            {m}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
                     {/each}
                 </div>
 
-                <!-- A read-only row, not a label: there is no control to label. -->
-                <div class="field">
-                    <span>Current model</span>
-                    <span class="value">{status?.model ?? "—"}</span>
-                </div>
-
-                <div class="actions">
-                    <button onclick={fetchModels} disabled={loadingModels}>
-                        {loadingModels ? "loading…" : "list models"}
-                    </button>
-                    <button
-                        onclick={() => test(status?.provider ?? "groq")}
-                        disabled={testing !== null}
-                    >
-                        {testing === status?.provider ? "testing…" : "test"}
-                    </button>
-                </div>
-
-                {#if tests[status?.provider ?? ""]}
-                    {@const result = tests[status?.provider ?? ""]}
-                    <p class="result" class:bad={!result.ok}>
-                        {result.ok ? "✓" : "✕"} {result.detail}
-                    </p>
-                {/if}
-
-                {#if models.length}
-                    <div class="list scroll">
-                        {#each models as m (m)}
-                            <button class="row" onclick={() => pickModel(m)}>{m}</button>
-                        {/each}
-                    </div>
-                {/if}
-
-                <h2>Tool routing</h2>
+                <h3>Tool routing</h3>
                 <p class="hint">
                     A small, cheap model reads your request and decides which tools the
                     main model needs, so only those are sent. Leave this empty to match
@@ -622,59 +722,6 @@
                     Runs on the provider and key you already use. If it is slow or
                     fails, keyword matching takes over — the assistant keeps working.
                 </p>
-            {:else if active === "keys"}
-                <h2>API keys</h2>
-                <p class="hint">
-                    Stored encrypted with Windows DPAPI, never written to the settings
-                    file and never shown again after they are saved.
-                </p>
-
-                {#each status?.providers ?? [] as p (p.id)}
-                    {#if p.needsKey}
-                        <div class="entry">
-                            <div class="entry-main">
-                                <span class="tool-name">
-                                    {p.id}
-                                    <span class="risk" data-risk={p.hasKey ? "safe" : "destructive"}>
-                                        {p.hasKey ? "stored" : "no key"}
-                                    </span>
-                                </span>
-                                {#if tests[p.id]}
-                                    <span class="tool-desc" class:bad={!tests[p.id].ok}>
-                                        {tests[p.id].ok ? "✓" : "✕"} {tests[p.id].detail}
-                                    </span>
-                                {/if}
-                            </div>
-                            <div class="entry-actions">
-                                <button
-                                    class="tiny"
-                                    disabled={!p.hasKey || testing !== null}
-                                    onclick={() => test(p.id)}
-                                >
-                                    {testing === p.id ? "…" : "test"}
-                                </button>
-                            </div>
-                        </div>
-                    {/if}
-                {/each}
-
-                <div class="row-group">
-                    <select bind:value={keyProvider}>
-                        {#each status?.providers ?? [] as p (p.id)}
-                            {#if p.needsKey}
-                                <option value={p.id}>{p.id}{p.hasKey ? " ✓" : ""}</option>
-                            {/if}
-                        {/each}
-                    </select>
-                    <input
-                        type="password"
-                        bind:value={keyDraft}
-                        placeholder="paste key…"
-                        onkeydown={(e) => e.key === "Enter" && saveKey()}
-                        onblur={saveKey}
-                    />
-                </div>
-                <p class="hint">Committed on Enter or when you leave the field.</p>
             {:else if active === "voice"}
                 <h2>Voice</h2>
                 <p class="hint">
@@ -1287,10 +1334,13 @@
         gap: var(--sp-3);
         width: 100%;
         text-align: left;
-        padding: var(--sp-2) var(--sp-2);
-        font-size: var(--text-sm);
+        padding: var(--sp-2) var(--sp-3);
+        font-size: var(--text-base);
         color: var(--text-muted);
-        border-radius: var(--r-sm);
+        border-radius: var(--r-md);
+        transition:
+            color var(--fast) var(--ease),
+            background var(--fast) var(--ease);
     }
     .category:hover {
         color: var(--text);
@@ -1355,8 +1405,9 @@
         align-items: center;
         justify-content: space-between;
         gap: var(--sp-3);
-        font-size: var(--text-sm);
+        font-size: var(--text-base);
         color: var(--text-muted);
+        min-height: 34px;
     }
     .field > span:first-child {
         flex: 0 0 auto;
@@ -1419,8 +1470,7 @@
         font-size: var(--text-sm);
         color: var(--success);
     }
-    .result.bad,
-    .tool-desc.bad {
+    .result.bad {
         color: var(--warning);
     }
 
@@ -1454,24 +1504,6 @@
         color: var(--text-muted);
     }
 
-    .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--sp-1);
-    }
-
-    .chip {
-        font-size: var(--text-xs);
-        padding: 2px 10px;
-    }
-    .chip.active {
-        color: var(--accent-hover);
-        border-color: var(--accent-line);
-    }
-    .chip.missing {
-        color: var(--text-faint);
-    }
-
     .list {
         display: flex;
         flex-direction: column;
@@ -1486,9 +1518,11 @@
         border: none;
         background: none;
         text-align: left;
+        font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--text-muted);
-        padding: 3px var(--sp-1);
+        padding: var(--sp-1) var(--sp-2);
+        border-radius: var(--r-sm);
     }
     .row:hover {
         background: var(--surface-hover);
@@ -1555,7 +1589,7 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: var(--sp-2);
-        padding: var(--sp-1) 0;
+        padding: var(--sp-2) 0;
         border-bottom: 1px solid var(--line);
     }
     .entry.off {
@@ -1628,20 +1662,172 @@
     }
 
     .tiny {
-        font-size: 10px;
-        padding: 1px 6px;
+        font-size: var(--text-xs);
+        padding: 3px 10px;
+        border-radius: var(--r-sm);
     }
 
+    /* Controls sized to be hit, not to be small. These were 11.5px text in
+       3px of padding — a target under twenty pixels tall, which is below what
+       a pointer lands on reliably and well below what reads as an input at a
+       normal viewing distance. */
     input,
     select {
         background: var(--surface-sunken);
         border: 1px solid var(--line);
         border-radius: var(--r-md);
-        padding: 3px var(--sp-1);
-        font-size: var(--text-xs);
+        padding: var(--sp-2) var(--sp-3);
+        font-size: var(--text-sm);
         color: var(--text);
         font-family: inherit;
         min-width: 0;
+        transition:
+            border-color var(--fast) var(--ease),
+            background var(--fast) var(--ease);
+    }
+    input:focus,
+    select:focus {
+        border-color: var(--accent-line);
+        background: var(--surface);
+    }
+    input::placeholder {
+        color: var(--text-faint);
+    }
+
+    /* ── Provider cards ───────────────────────────────────────────────
+       One provider, everything about it: its key, its model, its proof that
+       it works. The alternative — a chip row here and a key list on another
+       screen — meant picking a provider marked "no key" told you what was
+       wrong and then made you go somewhere else to fix it. */
+
+    .cards {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+    }
+
+    .card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        padding: var(--sp-3);
+        background: var(--surface-raised);
+        border: 1px solid var(--line);
+        border-radius: var(--r-lg);
+        transition:
+            border-color var(--fast) var(--ease),
+            background var(--fast) var(--ease);
+    }
+    .card:hover {
+        border-color: var(--line-strong);
+    }
+
+    /* The one that answers is bordered, not filled: a filled card at this size
+       reads as pressed rather than as chosen, and there are several of them. */
+    .card.selected {
+        border-color: var(--accent-line);
+        background: var(--accent-muted);
+    }
+
+    /* Dimmed, never hidden. A provider you have no key for is still a provider
+       you can choose to set up, and greying it out of existence hides the very
+       card carrying the button that fixes it. */
+    .card.blocked:not(.selected) .card-name,
+    .card.blocked:not(.selected) .card-model {
+        color: var(--text-muted);
+    }
+
+    .card-head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+    }
+
+    /* The model id gets whatever room is left over but never pushes; the spacer
+       after it is what actually holds the tags and the select button against
+       the right edge, so those line up down the column no matter how long each
+       provider's model id happens to be. */
+    .card-model {
+        flex: 0 1 auto;
+    }
+
+    .card-spacer {
+        flex: 1 1 var(--sp-2);
+    }
+
+    .card-name {
+        font-size: var(--text-md);
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .card-model {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-faint);
+        /* Truncates rather than wraps: a long model id pushing the tags and the
+           select button onto a second line would rearrange the header row of one
+           card and not the others. */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+
+    /* Same width whether it says "use this" or "answering", so the right edge of
+       the column is a straight line rather than a ragged one that shifts as the
+       selection moves from card to card. */
+    .pick {
+        flex: 0 0 74px;
+        text-align: center;
+    }
+
+    /* Wide enough for the longest of the three ("no key needed"), so the key
+       state sits in a column of its own rather than sliding left and right as
+       the wording changes between providers. */
+    .key-tag {
+        flex: 0 0 96px;
+        text-align: center;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+    }
+
+    .key-input {
+        width: 100%;
+        font-family: var(--font-mono);
+    }
+
+    .hint.small {
+        font-size: var(--text-xs);
+    }
+
+    /* Status words, one shape for all of them. `.risk` elsewhere is a 9px pill
+       that was never meant to carry a phrase like "no key needed". */
+    .tag {
+        font-size: var(--text-xs);
+        padding: 1px 8px;
+        border-radius: var(--r-full);
+        border: 1px solid var(--line);
+        color: var(--text-faint);
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+    .tag[data-tone="good"] {
+        color: var(--success);
+        border-color: rgba(74, 222, 128, 0.35);
+    }
+    .tag[data-tone="warn"] {
+        color: var(--warning);
+        border-color: rgba(245, 158, 11, 0.4);
+    }
+    .tag[data-tone="accent"] {
+        color: var(--accent-text);
+        border-color: var(--accent-line);
+        background: var(--accent-muted);
     }
 
     .danger {
