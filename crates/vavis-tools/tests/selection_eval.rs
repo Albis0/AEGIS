@@ -170,7 +170,7 @@ fn average_offered_tool_count_stays_small() {
     let avg = counts.iter().sum::<usize>() as f64 / counts.len() as f64;
     let max = counts.iter().copied().max().unwrap_or(0);
 
-    println!("ortalama sunulan tool: {avg:.1} · en fazla: {max}");
+    println!("average tools offered: {avg:.1} · most: {max}");
     assert!(
         avg <= 8.0,
         "ortalama {avg:.1} tool sunuluyor — model şaşırabilir"
