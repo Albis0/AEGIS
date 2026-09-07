@@ -7,7 +7,11 @@ elle üç dosya düzenlemek, üçüncüsünün unutulması demek.
 Buradaki başlıklar yapılan işi değil, **kullanıcı için değişen şeyi** anlatıyor.
 Bir düzeltmenin hangi dosyaya dokunduğu git geçmişinde zaten var.
 
-## 0.7.0 — 2026-09-07
+## 0.7.4 — 2026-09-07
+
+0.7.0 ile 0.7.3 arası atlandı. O numaralar bu deponun önceki adıyla (AEGIS)
+verilmiş etiketlerde duruyor; silmek yerine üstünden devam edildi, böylece
+yeni sürüm GitHub'da gerçekten "latest" görünüyor.
 
 ### Eklendi
 
