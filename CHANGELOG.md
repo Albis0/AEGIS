@@ -7,10 +7,20 @@ elle üç dosya düzenlemek, üçüncüsünün unutulması demek.
 Buradaki başlıklar yapılan işi değil, **kullanıcı için değişen şeyi** anlatıyor.
 Bir düzeltmenin hangi dosyaya dokunduğu git geçmişinde zaten var.
 
-## Yayınlanmamış
+## 0.7.0 — 2026-09-07
 
 ### Eklendi
 
+- **Ayarlarda model ve anahtarlar tek ekranda.** Sağlayıcı başına bir kart:
+  anahtarı var mı, hangi model, çalışıyor mu, ve üçünün de düğmesi orada.
+  Anahtar kutusu ait olduğu kartın içinde açılıyor, aynı anda yalnızca bir
+  tanesi. Eskiden "anahtar yok" yazan sağlayıcıyı seçmek sorunu söylüyor ama
+  düzeltmek için başka bir ekrana yolluyordu — orada da aynı sağlayıcılar bir
+  kez daha, başka bir biçimde listeleniyordu.
+- **Ayar kontrolleri dokunulabilir boyutta.** Giriş alanları 3 piksel dolgudan
+  8 piksele çıktı. Hedefler 20 pikselin altındaydı: işaretçinin güvenilir
+  şekilde yakalayamayacağı, normal bakış mesafesinde giriş alanı gibi
+  okunmayacağı kadar küçük.
 - **Tam yetki modu.** Ayarlar → Tools altında tek anahtar: bütün onaylar ve
   bütçeler kapanıyor. Açarken bir kez uyarı çıkıyor, sonra bir daha
   sorulmuyor. Açıkken durum çubuğunda kalıcı bir gösterge duruyor — etkisi
