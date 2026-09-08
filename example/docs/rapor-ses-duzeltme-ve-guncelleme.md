@@ -184,6 +184,11 @@ listesi okunuyor.
 | Canlı: Edge TTS (Türkçe) | 15984 bayt ses üretildi |
 | Canlı: Edge TTS (İngilizce) | 14400 bayt ses üretildi |
 | Canlı: yayın akışı | `v0.7.4` okundu, "güncel" kararı doğru |
+| Canlı: Edge seçili | doğrudan konuştu, yedeğe düşmedi |
+| Canlı: SAPI + İngilizce | doğrudan konuştu |
+| Canlı: SAPI + Türkçe | Edge'e düştü, duyuru yapıldı |
+| Canlı: uygulama | açıldı, günlükte 403 yok |
+| GitHub Actions | `tests` ve `secrets` — ikisi de yeşil |
 
 Suite sayılarını toplamak yerine **her suite'in durumuna** bakılıyor —
 geçen sefer 8 kırık testi "geçti" diye bildirmemin sebebi buydu.
@@ -206,6 +211,25 @@ değiştiği için güncellendiler; yerlerine niyeti anlatan testler kondu
 - `scratchpad/branch-backup/all-refs.bundle` — deponun tüm ref'leri
 
 Hepsi "sil" denene kadar duruyor.
+
+## 6. Kayıtlı ayarı olan kullanıcı ne oluyor
+
+Varsayılanı değiştirmek yalnızca **yeni** kurulumlara yarıyor. Bu makinede
+kayıtlı ayar `engine = "sapi"`, `language = "tr"` — yani düzeltme
+olmasaydı sen yine bozuk ses duyacaktın.
+
+Ayarı zorla değiştirmedim: kullanıcının bilinçli seçimini üzerine yazmak
+yanlış olurdu. Bunun yerine SAPI, **dile uyan ses yüklü değilse konuşmayı
+reddediyor**. Reddetmek zinciri devreye sokuyor; yanlış dilde okumak ise
+sessizce gürültü üretiyordu.
+
+Fark önemli: yanlış dilde okumak *hata vermiyor*, bu yüzden hiçbir yedek
+tetiklenmiyordu. Şimdi kullanıcı hem sesli duyuruyu duyuyor hem de
+anlaşılır bir ses geliyor. Kullanıcı bir ses **seçmişse** ona karışılmıyor.
+
+Canlı doğrulandı: SAPI seçili + Türkçe → Edge'e düştü, duyuru yapıldı.
+
+---
 
 ## Açık kalan
 
