@@ -36,8 +36,19 @@ const WSS_BASE: &str = "wss://speech.platform.bing.com/consumer/speech/synthesiz
 /// `Sec-MS-GEC` imzasında kullanılan sabit tuz (Edge istemcisinin değeri).
 const GEC_SALT: &str = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
-/// Edge sürümü — `Sec-MS-GEC-Version` başlığında gidiyor.
-const GEC_VERSION: &str = "1-130.0.2849.68";
+/// Edge sürümü — `Sec-MS-GEC-Version` sorgu parametresinde gidiyor.
+///
+/// **Bu değer eskiyor.** Servis, tanımadığı bir Edge sürümüyle gelen isteği
+/// 403 ile reddediyor — imza doğru olsa bile. Eski değer (`1-130...`) tam
+/// olarak bu yüzden çalışmıyordu: her istek 403 alıyordu, kullanıcı da
+/// sebebini bilmeden sistem sesine düşüyordu.
+///
+/// Edge yeni bir kararlı sürüm yayınladığında burası güncellenmeli.
+const GEC_VERSION: &str = "1-143.0.3650.75";
+
+/// Tarayıcı sürümü — `User-Agent` içindeki değer [`GEC_VERSION`] ile tutarlı
+/// olmalı; ikisi ayrı ayrı güncellenirse istek yine reddedilir.
+const CHROMIUM_VERSION: &str = "143.0.0.0";
 
 /// `Sec-MS-GEC` imzasını üretir.
 ///
@@ -79,6 +90,13 @@ fn build_url(connection_id: &str) -> String {
     format!(
         "{WSS_BASE}&Sec-MS-GEC={}&Sec-MS-GEC-Version={GEC_VERSION}&ConnectionId={connection_id}",
         gec_token()
+    )
+}
+
+/// `User-Agent` başlığı — sürüm tek yerden, [`CHROMIUM_VERSION`] üzerinden.
+fn user_agent() -> String {
+    format!(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36          (KHTML, like Gecko) Chrome/{CHROMIUM_VERSION} Safari/537.36          Edg/{CHROMIUM_VERSION}"
     )
 }
 
@@ -126,14 +144,41 @@ pub fn escape_xml(text: &str) -> String {
     out
 }
 
+/// Ses adından dil etiketini çıkarır: `tr-TR-EmelNeural` -> `tr-TR`.
+///
+/// SSML'deki `xml:lang` sesin diliyle uyuşmalı. Uyuşmadığında servis hata
+/// vermiyor, daha kötüsünü yapıyor: metni yanlış dilin telaffuz kurallarıyla
+/// okuyor. Burası eskiden `tr-TR` sabitiydi, yani İngilizce bir ses
+/// seçildiğinde İngilizce metin Türkçe okunuyordu.
+///
+/// Beklenen biçime uymayan bir ad gelirse `None`; o zaman `xml:lang` hiç
+/// yazılmıyor ve servis sesin kendi dilini kullanıyor.
+pub fn voice_language(voice: &str) -> Option<String> {
+    let mut parts = voice.split('-');
+    let lang = parts.next()?;
+    let region = parts.next()?;
+    // "tr" + "TR": iki harf küçük, iki harf büyük. Aksi hâlde ad bizim
+    // tanıdığımız biçimde değil.
+    let ok = lang.len() == 2
+        && lang.chars().all(|c| c.is_ascii_lowercase())
+        && region.len() == 2
+        && region.chars().all(|c| c.is_ascii_uppercase());
+    ok.then(|| format!("{lang}-{region}"))
+}
+
 /// SSML belgesi üretir.
 pub fn build_ssml(text: &str, voice: &str, rate_percent: i32, volume_percent: i32) -> String {
     // Aşırı değerler servisi hata verdiriyor.
     let rate = rate_percent.clamp(-50, 100);
     let volume = volume_percent.clamp(0, 100);
 
+    // Dil sesin adından geliyor, sabit değil: bkz. [`voice_language`].
+    let lang = voice_language(voice)
+        .map(|l| format!(" xml:lang='{l}'"))
+        .unwrap_or_default();
+
     format!(
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='tr-TR'>\
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'{lang}>\
          <voice name='{voice}'>\
          <prosody pitch='+0Hz' rate='{rate:+}%' volume='{volume:+}%'>{}</prosody>\
          </voice></speak>",
@@ -197,11 +242,10 @@ pub fn synthesize(text: &str, voice: &str, rate: i32, volume: i32) -> Result<Vec
             "Origin",
             "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
         )
-        .header(
-            "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
-        )
+        .header("User-Agent", user_agent())
+        // Edge istemcisinin gönderdiği önbellek başlıkları.
+        .header("Pragma", "no-cache")
+        .header("Cache-Control", "no-cache")
         .header("Host", "speech.platform.bing.com")
         .header("Connection", "Upgrade")
         .header("Upgrade", "websocket")
@@ -377,6 +421,52 @@ mod tests {
     fn frame_with_no_audio_yields_empty_slice() {
         let frame = vec![0x00, 0x02, b'A', b'B'];
         assert_eq!(extract_audio(&frame).unwrap().len(), 0);
+    }
+
+    /// `xml:lang` sesin dilinden gelmeli. Sabit `tr-TR` olduğunda İngilizce
+    /// bir ses İngilizce metni Türkçe telaffuz kurallarıyla okuyordu.
+    #[test]
+    fn the_document_language_follows_the_voice_not_a_constant() {
+        let tr = build_ssml("x", VOICE_TR_FEMALE, 0, 100);
+        assert!(tr.contains("xml:lang='tr-TR'"), "{tr}");
+
+        let en = build_ssml("x", VOICE_EN_FEMALE, 0, 100);
+        assert!(en.contains("xml:lang='en-US'"), "{en}");
+        assert!(
+            !en.contains("tr-TR"),
+            "İngilizce ses Türkçe okunmamalı: {en}"
+        );
+    }
+
+    #[test]
+    fn a_language_tag_is_read_off_the_voice_name() {
+        assert_eq!(voice_language("tr-TR-EmelNeural").as_deref(), Some("tr-TR"));
+        assert_eq!(voice_language("en-US-AriaNeural").as_deref(), Some("en-US"));
+    }
+
+    /// Tanımadığımız bir ad gelirse dil hiç yazılmıyor: yanlış dil yazmaktansa
+    /// servisin sesin kendi dilini kullanması iyi.
+    #[test]
+    fn an_unrecognised_voice_name_yields_no_language() {
+        assert!(voice_language("").is_none());
+        assert!(voice_language("gecersiz").is_none());
+        assert!(voice_language("TR-tr-Ses").is_none());
+
+        let ssml = build_ssml("x", "gecersiz", 0, 100);
+        assert!(!ssml.contains("xml:lang"), "{ssml}");
+    }
+
+    /// Sürüm dizesi eskidiğinde servis 403 dönüyor ve ses tamamen susuyor.
+    /// Bu test onu yakalamıyor ama ikisinin birlikte güncellenmesini
+    /// zorunlu kılıyor — ayrı ayrı değişirlerse istek yine reddedilir.
+    #[test]
+    fn the_signature_version_and_the_user_agent_agree() {
+        let major = CHROMIUM_VERSION.split('.').next().unwrap();
+        assert!(
+            GEC_VERSION.starts_with(&format!("1-{major}.")),
+            "sürümler ayrışmış: {GEC_VERSION} / {CHROMIUM_VERSION}"
+        );
+        assert!(user_agent().contains(CHROMIUM_VERSION));
     }
 
     #[test]

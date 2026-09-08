@@ -185,8 +185,17 @@ impl VoiceState {
             return;
         }
 
+        // The model writes markdown, and markdown read aloud is noise:
+        // asterisks, backticks and URLs all get pronounced. Only the copy
+        // going to the speaker is cleaned -- what is on screen keeps its
+        // formatting.
+        let spoken = vavis_audio::to_speech(text, &self.language);
+        if spoken.trim().is_empty() {
+            return;
+        }
+
         self.tts.reset();
-        for piece in split_sentences(text) {
+        for piece in split_sentences(&spoken) {
             self.queue.push(piece);
         }
         self.drain();

@@ -11,6 +11,7 @@
 mod commands;
 mod council;
 mod state;
+mod update;
 mod voice;
 mod workspace;
 
@@ -119,6 +120,9 @@ fn main() {
             commands::get_voice_settings,
             commands::set_voice_key,
             commands::preview_voice,
+            commands::check_update,
+            commands::open_release_page,
+            commands::app_version,
         ])
         .setup(move |app| {
             apply_window_mode(app.handle(), window_mode);

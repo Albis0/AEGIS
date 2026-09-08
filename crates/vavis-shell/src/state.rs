@@ -374,5 +374,8 @@ fn tts_config_from(
         openai_key: keys.get("openai").unwrap_or_default().to_string(),
         openai_voice: v.openai_voice.clone(),
         openai_model: v.openai_model.clone(),
+        // Which voice speaks depends on the language: a Turkish reply read by
+        // an English voice is what "it says weird things" sounded like.
+        language: config.general.language.clone(),
     }
 }

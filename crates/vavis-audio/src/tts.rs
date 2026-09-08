@@ -148,6 +148,33 @@ pub struct TtsConfig {
     pub openai_key: String,
     pub openai_voice: String,
     pub openai_model: String,
+    /// Asistanın konuştuğu dil (`"tr"`, `"en"`).
+    ///
+    /// Ses seçimi için gerekiyor: SAPI dile uyan sesi buradan buluyor, ve
+    /// Edge'in varsayılan sesi de buna göre değişiyor. Dil sesin bir ayarı
+    /// değil ama sesin **hangi** ses olacağını belirliyor.
+    pub language: String,
+}
+
+impl TtsConfig {
+    /// Dilin iki harfli kodu — PowerShell'e gömmeden önce temizlenmiş.
+    ///
+    /// Yalnızca harf bırakılıyor: bu değer bir betiğin içine giriyor ve
+    /// ayarlardan gelen bir metin oraya doğrudan konmamalı.
+    pub(crate) fn language_tag(&self) -> String {
+        let tag: String = self
+            .language
+            .chars()
+            .filter(char::is_ascii_alphabetic)
+            .take(2)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        if tag.is_empty() {
+            "en".to_string()
+        } else {
+            tag
+        }
+    }
 }
 
 impl Default for TtsConfig {
@@ -156,10 +183,15 @@ impl Default for TtsConfig {
             rate: 1, // hafif hızlı — bekleme hissini azaltır
             volume: 100,
             voice: String::new(),
-            // SAPI varsayılan: ağ da anahtar da istemiyor, dolayısıyla
-            // hiçbir ayar yapılmamış kurulumda da ses çıkıyor.
-            engine: TtsEngineKind::Sapi,
-            edge_voice: crate::edge_tts::VOICE_TR_FEMALE.to_string(),
+            // Edge varsayılan: anahtar istemiyor ve **kullanıcının dilini
+            // konuşuyor**. SAPI varsayılandı, ama çoğu Windows kurulumunda
+            // yalnızca İngilizce ses yüklü: Türkçe metin İngilizce sesle
+            // okununca anlaşılmaz çıkıyordu. Edge ulaşılamazsa zincir zaten
+            // SAPI'ye düşüyor, yani çevrimdışı kullanıcı yine ses duyuyor.
+            engine: TtsEngineKind::Edge,
+            // Boş: dile uyan ses konuşma anında seçiliyor, çünkü dil
+            // ayarlardan sonradan değişebiliyor.
+            edge_voice: String::new(),
             kokoro_url: crate::kokoro::DEFAULT_URL.to_string(),
             kokoro_voice: crate::kokoro::DEFAULT_VOICE.to_string(),
             eleven_key: String::new(),
@@ -168,6 +200,7 @@ impl Default for TtsConfig {
             openai_key: String::new(),
             openai_voice: crate::openai_tts::DEFAULT_VOICE.to_string(),
             openai_model: crate::openai_tts::DEFAULT_MODEL.to_string(),
+            language: "tr".to_string(),
         }
     }
 }
@@ -178,7 +211,10 @@ impl Default for TtsConfig {
 /// zincirin dibi orası. Kendisi zaten seçilmişse tekrar denenmiyor.
 fn fallback_chain(chosen: TtsEngineKind) -> Vec<TtsEngineKind> {
     match chosen {
-        TtsEngineKind::Sapi => vec![],
+        // SAPI seçiliyken de bir çıkış yolu gerekiyor: dile uyan ses yüklü
+        // değilse SAPI konuşamıyor (bkz. `speak_with`), ve zincir boş
+        // olsaydı kullanıcı hiç ses duymazdı.
+        TtsEngineKind::Sapi => vec![TtsEngineKind::Edge],
         // Ücretli motorlar önce ücretsiz doğal sese düşüyor: kullanıcı
         // kota bittiğinde robot ses yerine hâlâ iyi bir ses duysun.
         TtsEngineKind::ElevenLabs | TtsEngineKind::OpenAi | TtsEngineKind::Kokoro => {
@@ -232,14 +268,26 @@ impl TtsEngine {
         }
     }
 
-    /// Duyuruların hangi dilde yapılacağı.
+    /// Duyuruların ve **ses seçiminin** dili.
+    ///
+    /// Ayara da yazılıyor: SAPI ve Edge dile uyan sesi oradan okuyor, ve
+    /// yalnızca duyuru dilini değiştirmek sesin dilini eski bırakırdı.
     pub fn set_language(&mut self, language: impl Into<String>) {
-        self.language = language.into();
+        let language = language.into();
+        self.config.language = language.clone();
+        self.language = language;
     }
 
     /// Ayarları değiştirir — kullanıcı ayarlardan motoru değiştirdiğinde.
+    ///
+    /// Dil ayarın parçası değil (kullanıcı ses ekranında dil seçmiyor), o
+    /// yüzden yeni ayara buradan yazılıyor. Yazılmasaydı motor değiştiren
+    /// kullanıcı sessizce varsayılan dile dönerdi.
     pub fn set_config(&mut self, config: TtsConfig) {
-        self.config = config;
+        self.config = TtsConfig {
+            language: self.language.clone(),
+            ..config
+        };
     }
 
     pub fn config(&self) -> &TtsConfig {
@@ -347,11 +395,32 @@ impl TtsEngine {
     fn speak_with(&self, engine: TtsEngineKind, text: &str) -> Result<()> {
         let c = &self.config;
         match engine {
-            TtsEngineKind::Sapi => speak_platform(text, c),
+            TtsEngineKind::Sapi => {
+                // Dile uyan ses yoksa SAPI **başarısız sayılıyor**, sessizce
+                // yanlış dilde okumak yerine.
+                //
+                // Sebep: yanlış dildeki bir ses hata vermiyor, metni kendi
+                // telaffuz kurallarıyla okuyor — çıkan şey konuşma değil,
+                // gürültü. Kullanıcı da bunu bir arıza olarak değil, sesin
+                // "bozukluğu" olarak duyuyor ve neyi düzelteceğini bilmiyor.
+                //
+                // Başarısız saymak zinciri devreye sokuyor: kullanıcı
+                // duyuruyu duyuyor ve gerçekten anlaşılır bir ses geliyor.
+                // Kullanıcı bir ses **seçmişse** ona karışılmıyor.
+                if c.voice.trim().is_empty() && !has_voice_for(&c.language_tag()) {
+                    return Err(TtsError::Engine(format!(
+                        "sistemde {} dilinde ses yüklü değil",
+                        c.language_tag()
+                    )));
+                }
+                speak_platform(text, c)
+            }
 
             TtsEngineKind::Edge => {
+                // Ses seçilmemişse dile uyanı kullan — sabit Türkçe ses,
+                // İngilizce konuşan bir kullanıcıya Türkçe aksan verirdi.
                 let voice = if c.edge_voice.trim().is_empty() {
-                    crate::edge_tts::VOICE_TR_FEMALE
+                    crate::edge_tts::default_voice(&c.language)
                 } else {
                     &c.edge_voice
                 };
@@ -412,7 +481,23 @@ fn speak_platform(text: &str, config: &TtsConfig) -> Result<()> {
     let safe = text.replace('\'', "''");
 
     let voice_line = if config.voice.trim().is_empty() {
-        String::new()
+        // Ses seçilmemişse dile uyan ilk sesi seç.
+        //
+        // **Neden gerekli:** SAPI'nin varsayılanı sistem dilinin sesi, ve
+        // çoğu Windows kurulumunda yalnızca İngilizce ses yüklü. O sesle
+        // Türkçe metin okunduğunda çıkan şey Türkçe değil, İngilizce
+        // telaffuz kurallarıyla harf harf uydurulmuş bir gürültü —
+        // kullanıcının "tuhaf şeyler söylüyor" dediği şey bu.
+        //
+        // Uyan ses yoksa hiçbir şey seçilmiyor: sistem varsayılanıyla
+        // konuşmak, hiç konuşmamaktan iyi.
+        format!(
+            "$m = $s.GetInstalledVoices() | \
+             Where-Object {{ $_.VoiceInfo.Culture.TwoLetterISOLanguageName -eq '{}' }} | \
+             Select-Object -First 1; \
+             if ($m) {{ try {{ $s.SelectVoice($m.VoiceInfo.Name) }} catch {{ }} }};",
+            config.language_tag()
+        )
     } else {
         format!(
             "try {{ $s.SelectVoice('{}') }} catch {{ }};",
@@ -470,6 +555,63 @@ fn stop_platform_speech() {
              Stop-Process -Force -ErrorAction SilentlyContinue",
         ])
         .output();
+}
+
+/// Sistemde bu dilde bir ses yüklü mü.
+///
+/// Sonuç önbelleğe alınıyor: her cümlede bir PowerShell süreci başlatmak,
+/// önlemeye çalıştığımız gecikmeyi geri getirirdi. Kullanıcı konuşurken
+/// Windows'a ses yüklemiyor, dolayısıyla süreç ömrü boyunca sabit sayılabilir.
+#[cfg(windows)]
+fn has_voice_for(language: &str) -> bool {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    static CACHE: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+
+    if let Ok(map) = cache.lock() {
+        if let Some(&known) = map.get(language) {
+            return known;
+        }
+    }
+
+    let found = query_voice_language(language);
+    if let Ok(mut map) = cache.lock() {
+        map.insert(language.to_string(), found);
+    }
+    found
+}
+
+#[cfg(windows)]
+fn query_voice_language(language: &str) -> bool {
+    use std::process::Command;
+
+    let script = format!(
+        "Add-Type -AssemblyName System.Speech; \
+         @((New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | \
+         Where-Object {{ $_.VoiceInfo.Culture.TwoLetterISOLanguageName -eq '{language}' }}).Count"
+    );
+
+    let Ok(output) = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+    else {
+        // Sorulamadıysa "var" sayılıyor: emin olmadan motoru devre dışı
+        // bırakmak, çalışan bir kurulumu susturabilirdi.
+        return true;
+    };
+
+    String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .parse::<u32>()
+        .map(|n| n > 0)
+        .unwrap_or(true)
+}
+
+#[cfg(not(windows))]
+fn has_voice_for(_language: &str) -> bool {
+    true
 }
 
 #[cfg(windows)]
@@ -581,13 +723,37 @@ mod tests {
     #[test]
     fn settings_can_be_swapped_at_runtime() {
         let mut engine = TtsEngine::new(TtsConfig::default());
-        assert_eq!(engine.config().engine, TtsEngineKind::Sapi);
 
         engine.set_config(TtsConfig {
             engine: TtsEngineKind::Kokoro,
             ..Default::default()
         });
         assert_eq!(engine.config().engine, TtsEngineKind::Kokoro);
+    }
+
+    /// Dil ses ekranının bir ayarı değil, ama **hangi** sesin konuşacağını
+    /// belirliyor. Motor değiştiren kullanıcı sessizce varsayılan dile
+    /// dönmemeli.
+    #[test]
+    fn changing_the_engine_keeps_the_language() {
+        let mut engine = TtsEngine::new(TtsConfig::default());
+        engine.set_language("en");
+
+        engine.set_config(TtsConfig {
+            engine: TtsEngineKind::Kokoro,
+            ..Default::default()
+        });
+
+        assert_eq!(engine.config().language, "en", "dil korunmalı");
+    }
+
+    /// Dil değişince ses seçimi de değişmeli — yalnızca duyuru dilinin
+    /// değişmesi, sesin eski dilde kalması demekti.
+    #[test]
+    fn setting_the_language_reaches_the_voice_selection() {
+        let mut engine = TtsEngine::new(TtsConfig::default());
+        engine.set_language("en");
+        assert_eq!(engine.config().language, "en");
     }
 }
 
@@ -624,12 +790,20 @@ mod engine_tests {
         }
     }
 
+    /// Varsayılan motor anahtar istememeli **ve kullanıcının dilini
+    /// konuşmalı**.
+    ///
+    /// Eskiden SAPI'ydi. SAPI anahtar istemiyor ama çoğu Windows kurulumunda
+    /// yalnızca İngilizce ses yüklü, ve Türkçe metin İngilizce sesle okununca
+    /// anlaşılmaz çıkıyor. Edge de anahtar istemiyor ve her iki dili de
+    /// konuşuyor; ulaşılamadığında zincir zaten SAPI'ye düşüyor.
     #[test]
-    fn default_engine_is_sapi() {
-        // Varsayılan ağ da anahtar da istememeli: hiçbir ayar yapılmamış
-        // kurulumda da ses çıkmalı.
-        assert_eq!(TtsConfig::default().engine, TtsEngineKind::Sapi);
-        assert!(!TtsEngineKind::Sapi.needs_key());
+    fn the_default_engine_needs_no_key_and_speaks_the_users_language() {
+        let default = TtsConfig::default().engine;
+        assert!(!default.needs_key(), "varsayılan anahtar istememeli");
+        assert_eq!(default, TtsEngineKind::Edge);
+        // Ve çevrimdışı kullanıcı yine ses duymalı.
+        assert_eq!(fallback_chain(default).last(), Some(&TtsEngineKind::Sapi));
     }
 
     #[test]
@@ -650,21 +824,37 @@ mod engine_tests {
         assert!(!TtsEngineKind::Sapi.needs_key());
     }
 
-    /// Zincir her zaman SAPI'de bitmeli — ağsız, anahtarsız tek motor o.
+    /// Ağ ya da anahtar isteyen her motorun zinciri SAPI'de bitmeli —
+    /// çevrimdışı kullanıcı da ses duymalı.
     #[test]
-    fn every_chain_ends_at_the_offline_engine() {
+    fn every_online_chain_ends_at_the_offline_engine() {
         for e in TtsEngineKind::ALL {
-            let chain = fallback_chain(e);
             if e == TtsEngineKind::Sapi {
-                assert!(chain.is_empty(), "sapi kendine düşmemeli");
-            } else {
-                assert_eq!(
-                    chain.last(),
-                    Some(&TtsEngineKind::Sapi),
-                    "{} zinciri sapi'de bitmeli",
-                    e.id()
-                );
+                continue;
             }
+            assert_eq!(
+                fallback_chain(e).last(),
+                Some(&TtsEngineKind::Sapi),
+                "{} zinciri sapi'de bitmeli",
+                e.id()
+            );
+        }
+    }
+
+    /// SAPI seçiliyken de bir çıkış yolu olmalı.
+    ///
+    /// SAPI konuşamayabiliyor: dile uyan ses yüklü değilse metni yanlış
+    /// dilin telaffuzuyla okumaktansa başarısız sayılıyor. Zincir boş
+    /// olsaydı o kullanıcı hiç ses duymazdı.
+    #[test]
+    fn the_offline_engine_still_has_somewhere_to_go() {
+        let chain = fallback_chain(TtsEngineKind::Sapi);
+        assert!(!chain.is_empty(), "sapi çıkışsız kalmamalı");
+        assert!(!chain.contains(&TtsEngineKind::Sapi), "kendini denememeli");
+        // Ve gidilen yer anahtar istememeli: SAPI'yi seçen kullanıcının
+        // ödeme yapan bir servise düşmesi sürpriz olurdu.
+        for e in chain {
+            assert!(!e.needs_key(), "{} anahtar istiyor", e.id());
         }
     }
 

@@ -73,8 +73,12 @@ pub struct Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
-            // Varsayılan hiçbir şey istemeyen motor: ağ da anahtar da yok.
-            engine: "sapi".to_string(),
+            // Anahtar istemeyen **ve** kullanıcının dilini konuşan motor.
+            // Eskiden "sapi"ydi; SAPI de anahtar istemiyor ama çoğu Windows
+            // kurulumunda yalnızca İngilizce ses yüklü, ve Türkçe metin o
+            // sesle okununca anlaşılmıyor. Edge ulaşılamazsa zincir zaten
+            // SAPI'ye düşüyor.
+            engine: "edge".to_string(),
             rate: 1,
             volume: 100,
             sapi_voice: String::new(),

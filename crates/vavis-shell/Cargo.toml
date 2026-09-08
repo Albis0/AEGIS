@@ -35,6 +35,9 @@ tauri = { version = "2", features = ["tray-icon", "protocol-asset", "custom-prot
 tauri-plugin-clipboard-manager = "2"
 serde.workspace = true
 serde_json.workspace = true
+# The update check reads the project's own release list. Nothing else in the
+# shell talks to the network -- model traffic goes through vavis-brain.
+reqwest.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

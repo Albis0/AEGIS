@@ -34,6 +34,7 @@
         type SteamSettings,
         type VoiceSettings,
         type Tool,
+        type UpdateCheck,
         type VaultInfo,
     } from "./api";
     import { ask } from "./confirm.svelte";
@@ -71,10 +72,29 @@
         { id: "tools", label: "Tools", icon: "⚙", keywords: "tool registry risk domain permission approval" },
         { id: "shortcuts", label: "Shortcuts", icon: "⌘", keywords: "keyboard keys hotkey binding" },
         { id: "data", label: "Data", icon: "▦", keywords: "folder disk database storage conversation clear export" },
+        { id: "updates", label: "Updates", icon: "⇡", keywords: "update version release upgrade download new latest changelog" },
     ];
 
     let active = $state("general");
     let query = $state("");
+
+    /**
+     * The last release check.
+     *
+     * `null` means nobody has asked yet -- distinct from a check that ran and
+     * failed, which the pane reports as a failure rather than as silence.
+     */
+    let update = $state<UpdateCheck | null>(null);
+    let checkingUpdate = $state(false);
+
+    async function checkUpdate() {
+        checkingUpdate = true;
+        try {
+            update = await api.checkUpdate();
+        } finally {
+            checkingUpdate = false;
+        }
+    }
 
     /** Test results, keyed by target. */
     let tests = $state<Record<string, ConnectionTest>>({});
@@ -345,6 +365,21 @@
             voice?.sapiVoice ??
             "",
     );
+
+    /**
+     * What picking "default" will actually get you.
+     *
+     * An empty value is stored as "follow the language", which is the right
+     * default but an opaque one to read in a list -- so the option says which
+     * voice that resolves to.
+     */
+    const defaultVoiceLabel = $derived.by(() => {
+        if (!voice || voice.engine !== "edge") return "system choice";
+        const match = voice.edgeVoices.find(
+            ([id]) => id === voice!.defaultEdgeVoice,
+        );
+        return match?.[1] ?? "follows your language";
+    });
 
     /** Whether the chosen engine is missing the key it needs. */
     const voiceKeyMissing = $derived(
@@ -618,12 +653,17 @@
 
                 <label class="field">
                     <span>Language</span>
+                    <!-- `selected` on the option rather than `value` on the
+                         select: the select renders before its options exist,
+                         so a value naming an option that is not there yet is
+                         dropped and the box shows the first entry instead. -->
                     <select
-                        value={status?.language ?? "en"}
                         onchange={(e) => updateSetting("language", e.currentTarget.value)}
                     >
                         {#each LANGUAGES as [code, name] (code)}
-                            <option value={code}>{name}</option>
+                            <option value={code} selected={code === (status?.language ?? "en")}>
+                                {name}
+                            </option>
                         {/each}
                     </select>
                 </label>
@@ -631,11 +671,15 @@
                 <label class="field">
                     <span>Window</span>
                     <select
-                        value={status?.windowMode ?? "windowed"}
                         onchange={(e) => updateSetting("windowMode", e.currentTarget.value)}
                     >
                         {#each WINDOW_MODES as mode (mode)}
-                            <option value={mode}>{mode}</option>
+                            <option
+                                value={mode}
+                                selected={mode === (status?.windowMode ?? "windowed")}
+                            >
+                                {mode}
+                            </option>
                         {/each}
                     </select>
                 </label>
@@ -836,12 +880,20 @@
                     <label class="field">
                         <span>Engine</span>
                         <select
-                            value={voice.engine}
                             onchange={(e) =>
                                 updateVoice("voiceEngine", e.currentTarget.value)}
                         >
+                            <!-- `selected` on the option, not `value` on the
+                                 select: the select is rendered before its
+                                 options exist, so a value naming an option
+                                 that is not there yet is discarded and the
+                                 box silently snaps back to the first entry.
+                                 That is why changing the voice looked like it
+                                 did nothing. -->
                             {#each voice.engines as e (e.id)}
-                                <option value={e.id}>{e.label}</option>
+                                <option value={e.id} selected={e.id === voice.engine}>
+                                    {e.label}
+                                </option>
                             {/each}
                         </select>
                     </label>
@@ -856,13 +908,16 @@
                     <label class="field">
                         <span>Voice</span>
                         <select
-                            value={selectedVoice}
                             onchange={(e) =>
                                 updateVoice(voiceField, e.currentTarget.value)}
                         >
-                            <option value="">default</option>
+                            <option value="" selected={!selectedVoice}>
+                                default ({defaultVoiceLabel})
+                            </option>
                             {#each voiceOptions as [id, label] (id)}
-                                <option value={id}>{label}</option>
+                                <option value={id} selected={id === selectedVoice}>
+                                    {label}
+                                </option>
                             {/each}
                         </select>
                     </label>
@@ -1457,6 +1512,60 @@
                     </button>
                 </div>
                 <p class="hint">Remembered facts survive that — forget them in Memory.</p>
+
+            {:else if active === "updates"}
+                <h2>Updates</h2>
+
+                <div class="field">
+                    <span>This build</span>
+                    <span class="value">{status?.version ?? ""}</span>
+                </div>
+
+                <p class="hint">
+                    Vavis does not install updates by itself, and does not update in
+                    the background. It checks the project's release page and tells
+                    you what it found; downloading is yours to start. Nothing about
+                    you is sent with the check.
+                </p>
+
+                <div class="actions">
+                    <button onclick={checkUpdate} disabled={checkingUpdate}>
+                        {checkingUpdate ? "checking…" : "check for updates"}
+                    </button>
+                </div>
+
+                {#if update?.status === "available"}
+                    <div class="update-box">
+                        <p class="update-head">
+                            Version {update.latest} is out — you have {update.current}.
+                        </p>
+                        {#if update.notes}
+                            <pre class="snippet selectable">{update.notes}</pre>
+                        {/if}
+                        <div class="actions">
+                            <button class="primary" onclick={() => api.openReleasePage()}>
+                                open the download page
+                            </button>
+                        </div>
+                        <p class="hint">
+                            The page has the installer and a checksum. Close Vavis
+                            before running it.
+                        </p>
+                    </div>
+                {:else if update?.status === "upToDate"}
+                    <p class="hint">You are on the newest release ({update.current}).</p>
+                {:else if update?.status === "failed"}
+                    <!-- Deliberately not phrased as "up to date": a check that
+                         could not run has not established anything. -->
+                    <p class="hint warn-text">
+                        Could not check: {update.error}. Your build is {update.current}.
+                    </p>
+                    <div class="actions">
+                        <button onclick={() => api.openReleasePage()}>
+                            open the release page anyway
+                        </button>
+                    </div>
+                {/if}
             {/if}
         </section>
     </div>
@@ -1594,6 +1703,21 @@
         font-size: var(--text-lg);
         font-weight: 600;
         color: var(--text);
+    }
+
+    /* The one raised block in this pane: a waiting update is the only thing
+       here that asks the reader to do something. */
+    .update-box {
+        margin-top: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--line, #333);
+        border-radius: 8px;
+        background: var(--raised, rgba(255, 255, 255, 0.03));
+    }
+
+    .update-head {
+        margin: 0 0 0.5rem;
+        font-weight: 600;
     }
 
     /* Plain case and muted, matching `.section-label` in the design system.

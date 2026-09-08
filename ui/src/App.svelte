@@ -36,6 +36,13 @@
     const appWindow = getCurrentWindow();
 
     const THEME_KEY = "vavis.theme";
+    /**
+     * The release the user has already been told about.
+     *
+     * Per-machine and per-version, which is why localStorage rather than the
+     * config: it records what this person has seen, not how the app behaves.
+     */
+    const UPDATE_SEEN_KEY = "vavis.update.seen";
 
     let chatOpen = $state(true);
     let paletteOpen = $state(false);
@@ -55,11 +62,43 @@
         // Polls whether or not the box is on screen: music starting is what
         // puts it there, so detection cannot live inside the thing it shows.
         nowPlaying.start();
+        void announceUpdate();
         return () => {
             chat.stop();
             nowPlaying.stop();
         };
     });
+
+    /**
+     * Mentions a new release once, at startup, and only when there is one.
+     *
+     * Three deliberate restraints. It says nothing when the check fails --
+     * someone offline does not need a startup error about a background task
+     * they did not ask for; the Updates pane reports failures, because there
+     * the user asked. It says nothing when already current, for the same
+     * reason. And it stays quiet for a version already dismissed, so the
+     * answer to "not now" is not the same notice again tomorrow morning.
+     */
+    async function announceUpdate() {
+        const update = await api.checkUpdate().catch(() => null);
+        if (update?.status !== "available") return;
+
+        // Per-version, not a global "don't ask": skipping 0.8.0 should not
+        // also hide 0.9.0.
+        const dismissed = localStorage.getItem(UPDATE_SEEN_KEY);
+        if (dismissed === update.latest) return;
+
+        toast.info(`Version ${update.latest} is available.`, {
+            duration: 0,
+            action: {
+                label: "download",
+                run: () => {
+                    localStorage.setItem(UPDATE_SEEN_KEY, update.latest);
+                    void api.openReleasePage();
+                },
+            },
+        });
+    }
 
     // Theme is presentation and per-machine, so it lives in localStorage rather
     // than in the app config: there is nothing for the backend or another

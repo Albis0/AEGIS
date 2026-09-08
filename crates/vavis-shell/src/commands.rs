@@ -1097,6 +1097,10 @@ pub struct VoiceSettings {
     pub openai_voices: Vec<[String; 2]>,
     /// The address Kokoro listens on out of the box, shown as the placeholder.
     pub kokoro_default_url: String,
+    /// Which Edge voice an empty choice resolves to, for the current
+    /// language. The interface names it rather than showing a blank
+    /// "default" the user cannot interpret.
+    pub default_edge_voice: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -1145,6 +1149,8 @@ pub fn get_voice_settings(state: State<AppState>) -> VoiceSettings {
         eleven_voices: pairs(vavis_audio::elevenlabs::voices()),
         openai_voices: pairs(vavis_audio::openai_tts::voices()),
         kokoro_default_url: vavis_audio::kokoro::DEFAULT_URL.to_string(),
+        default_edge_voice: vavis_audio::edge_tts::default_voice(&core.config.general.language)
+            .to_string(),
     }
 }
 
@@ -1214,6 +1220,7 @@ pub async fn list_models(state: State<'_, AppState>) -> Result<Vec<String>, Stri
 #[tauri::command]
 pub fn set_setting(state: State<AppState>, field: String, value: String) -> Result<(), String> {
     let mut core = AppState::lock(&state.core);
+    let mut language_changed = false;
 
     match field.as_str() {
         "name" => core.config.general.assistant_name = value,
@@ -1223,6 +1230,9 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
             }
             core.config.general.language = value.clone();
             AppState::lock(&state.voice).set_language(value);
+            // Which voice speaks follows the language, so the engine has to
+            // be rebuilt too -- see the refresh below.
+            language_changed = true;
         }
         "fontSize" => {
             let size: f32 = value.parse().map_err(|_| "font size must be a number")?;
@@ -1307,7 +1317,7 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
         "openaiVoice",
         "openaiModel",
     ];
-    let is_voice = VOICE_FIELDS.contains(&field.as_str());
+    let is_voice = VOICE_FIELDS.contains(&field.as_str()) || language_changed;
 
     core.config.save(&core.paths).map_err(|e| e.to_string())?;
 
@@ -2714,6 +2724,49 @@ pub fn open_media_folder(state: State<AppState>) -> Result<(), String> {
     // explorer.exe returns a non-zero exit code even when it worked, so only
     // a spawn failure counts as a failure here.
     result.map(|_| ()).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Updates
+// ---------------------------------------------------------------------------
+
+/// Asks GitHub whether a newer release exists.
+///
+/// Nothing about the user goes out with this request: no key, no identifier,
+/// no settings. It reads a public release list, unauthenticated.
+#[tauri::command]
+pub async fn check_update() -> vavis_core::version::UpdateCheck {
+    crate::update::check().await
+}
+
+/// Opens the release page in the browser.
+///
+/// The address is the compiled-in constant, never a value that came back over
+/// the network. A URL from a response is data, and handing data straight to
+/// the shell's "open this" verb is how a compromised or spoofed release feed
+/// would get to open anything it liked on the user's machine.
+#[tauri::command]
+pub fn open_release_page() -> Result<(), String> {
+    let url = crate::update::RELEASES_PAGE;
+
+    #[cfg(target_os = "windows")]
+    // Through `explorer`, not `cmd /c start`: `start` runs its argument
+    // through the command interpreter.
+    let result = std::process::Command::new("explorer").arg(url).spawn();
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(url).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(url).spawn();
+
+    // explorer.exe reports a non-zero exit code even on success, so only a
+    // failure to spawn counts.
+    result.map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// The version this build reports.
+#[tauri::command]
+pub fn app_version() -> String {
+    vavis_core::version::CURRENT.to_string()
 }
 
 // ---------------------------------------------------------------------------

@@ -22,11 +22,13 @@ pub mod kokoro;
 pub mod openai_tts;
 pub mod playback;
 pub mod queue;
+pub mod speakable;
 pub mod stt;
 pub mod tts;
 
 pub use capture::{Microphone, Utterance, VoiceDetector, SAMPLE_RATE};
 pub use queue::{split_sentences, SpeechQueue};
+pub use speakable::to_speech;
 pub use stt::{contains_wake_word, strip_wake_word, SttClient};
 pub use tts::{TtsConfig, TtsEngine, TtsEngineKind};
 

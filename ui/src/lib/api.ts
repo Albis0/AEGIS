@@ -154,6 +154,18 @@ export interface VoiceEngineInfo {
     needsKey: boolean;
 }
 
+/** What a release check came back with. */
+export type UpdateCheck =
+    | { status: "upToDate"; current: string }
+    | {
+          status: "available";
+          current: string;
+          latest: string;
+          url: string;
+          notes: string;
+      }
+    | { status: "failed"; current: string; error: string };
+
 /** Everything the speech section of settings needs. */
 export interface VoiceSettings {
     engines: VoiceEngineInfo[];
@@ -177,6 +189,8 @@ export interface VoiceSettings {
     openaiVoices: [string, string][];
     /** Where Kokoro listens by default — shown as the placeholder. */
     kokoroDefaultUrl: string;
+    /** Which Edge voice an empty choice resolves to, for the current language. */
+    defaultEdgeVoice: string;
 }
 
 export interface SearchSettings {
@@ -312,6 +326,19 @@ export const api = {
     setVoiceKey: (key: string) => invoke<void>("set_voice_key", { key }),
     /** Speaks a sample line — the only honest way to audition a voice. */
     previewVoice: () => invoke<void>("preview_voice"),
+
+    /**
+     * Asks whether a newer release exists.
+     *
+     * Never throws: a failed check comes back as a `failed` result, because
+     * "could not check" and "you are up to date" are different answers and
+     * collapsing them would leave someone stranded on an old build believing
+     * it was current.
+     */
+    checkUpdate: () => invoke<UpdateCheck>("check_update"),
+    /** Opens the release page. The address is fixed in the binary. */
+    openReleasePage: () => invoke<void>("open_release_page"),
+    appVersion: () => invoke<string>("app_version"),
 
     cycleVoice: () => invoke<string>("cycle_voice"),
     stopSpeaking: () => invoke<void>("stop_speaking"),
