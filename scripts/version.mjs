@@ -18,6 +18,10 @@
  *   node scripts/version.mjs major     0.6.3 -> 1.0.0
  *   node scripts/version.mjs --check   verify the three agree, change nothing
  *
+ * `bun` works in place of `node` everywhere above, and is what CI uses —
+ * it is the only runtime the workflow installs. Nothing here is specific to
+ * either one.
+ *
  * `--check` is what CI runs. It is the half that keeps working after somebody
  * edits a file by hand anyway.
  */

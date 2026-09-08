@@ -33,7 +33,13 @@ jobs:
         # The version is written in three files and nothing makes them agree.
         # A mismatch ships a binary whose reported version is not the one in
         # its own installer, and nothing else would notice.
-        run: node scripts/version.mjs --check
+        #
+        # Run with bun rather than node: bun is the only runtime this workflow
+        # actually installs. `node` works on the Windows runner today only
+        # because the image happens to ship it, which is luck rather than a
+        # guarantee -- and the day that image changes, the step breaks for a
+        # reason that has nothing to do with the versions it checks.
+        run: bun scripts/version.mjs --check
 
       - name: Check the frontend types
         # Vite does not type-check as it builds, so without this a type
