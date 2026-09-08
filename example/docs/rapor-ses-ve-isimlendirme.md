@@ -151,11 +151,31 @@ değişince ses motoru boşuna yeniden kuruluyordu. Açık listeye çevrildi.
 
 ---
 
+## Kendi hatam — ve nasıl yakalandı
+
+İlk gönderimde **8 test kırıktı ve ben "hepsi geçti" dedim.** Sebebi
+doğrulama yöntemimdi: suite'lerin `passed` sütunlarını toplayıp
+yazdırıyordum, ama `FAILED` durumuna hiç bakmıyordum. Kırık suite'in
+sayısı toplama giriyor, "FAILED" kelimesi ekrana hiç gelmiyordu.
+
+CI yakaladı. Üç tür artık kalmış:
+
+1. **Router testleri** — modelin cevabını taklit eden girdiler hâlâ
+   Türkçe ad kullanıyor, ama beklenen çıktı İngilizceye çevrilmişti.
+2. **29 hata mesajı** — `"yol parametresi gerekli"` gibi. Bu mesajlar
+   **modele geri gidiyor**; yani modele artık var olmayan bir parametre
+   adı söylüyorlardı. Çeviriden bağımsız olarak da bir hataydı.
+3. **`click` düğme değerleri** — şema İngilizce ilan ediyor ama kod
+   Türkçe varsayılan bekliyordu.
+
+Artık her suite'in durumuna bakıyorum, sayı toplamıyorum.
+
 ## Doğrulama
 
 | | Sonuç |
 |---|---|
-| `cargo test --workspace` | **716 geçti, 0 başarısız** (+6 yeni) |
+| `cargo test --workspace` | **740 geçti, 0 başarısız** (15 suite'in hepsi ok) |
+| GitHub Actions | 13 adımın hepsi yeşil |
 | `cargo clippy --all-targets` | 0 uyarı |
 | `cargo fmt --check` | temiz |
 | `vitest` | 38 geçti |
