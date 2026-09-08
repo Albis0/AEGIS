@@ -51,7 +51,7 @@ impl Tool for Playback {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(action) = arg_str(args, "process") else {
-            return ToolOutcome::err("islem parametresi gerekli");
+            return ToolOutcome::err("process is required");
         };
 
         let mapped = match action.to_lowercase().as_str() {
@@ -144,7 +144,7 @@ impl Tool for PlaySearch {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "what") else {
-            return ToolOutcome::err("ne parametresi gerekli");
+            return ToolOutcome::err("what is required");
         };
         // The canonical values are English, because that is what the schema
         // advertises. The Turkish aliases stay because a model answering a
@@ -213,7 +213,7 @@ impl Tool for Queue {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "track") else {
-            return ToolOutcome::err("sarki parametresi gerekli");
+            return ToolOutcome::err("track is required");
         };
 
         let results = match spotify::search(query, "track", 1) {

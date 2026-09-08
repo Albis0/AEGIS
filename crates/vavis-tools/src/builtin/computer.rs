@@ -88,9 +88,12 @@ impl Tool for Click {
             ));
         }
 
-        let button = match arg_str(args, "button").unwrap_or("sol") {
-            "sag" | "sağ" | "right" => MouseButton::Right,
-            "orta" | "middle" => MouseButton::Middle,
+        // English is what the schema advertises; the Turkish spellings stay
+        // accepted because a model answering in Turkish sometimes fills the
+        // field in Turkish, and refusing the click over that helps nobody.
+        let button = match arg_str(args, "button").unwrap_or("left") {
+            "right" | "sag" | "sağ" => MouseButton::Right,
+            "middle" | "orta" => MouseButton::Middle,
             _ => MouseButton::Left,
         };
         let double = arg_str(args, "double")
@@ -132,7 +135,7 @@ impl Tool for TypeText {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(text) = arg_str(args, "text") else {
-            return ToolOutcome::err("metin parametresi gerekli");
+            return ToolOutcome::err("text is required");
         };
         if text.chars().count() > MAX_TYPE_CHARS {
             return ToolOutcome::err(format!(
@@ -175,7 +178,7 @@ impl Tool for PressKey {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(key) = arg_str(args, "key") else {
-            return ToolOutcome::err("tus parametresi gerekli");
+            return ToolOutcome::err("key is required");
         };
         let Some(sequence) = translate_keys(key) else {
             return ToolOutcome::err(format!("'{key}' tanınmayan bir tuş"));
@@ -802,7 +805,7 @@ mod tests {
     fn descriptions_tell_the_model_to_look_first() {
         // Koordinat uydurmasın, önce ekrana baksın.
         assert!(Click.description().contains("take_screenshot"));
-        assert!(TypeText.description().contains("tıkla"));
+        assert!(TypeText.description().contains("Click"));
     }
 }
 

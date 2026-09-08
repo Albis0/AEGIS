@@ -61,7 +61,7 @@ impl Tool for SearchNotes {
             Err(e) => return e,
         };
         let Some(query) = arg_str(args, "query") else {
-            return ToolOutcome::err("sorgu parametresi gerekli");
+            return ToolOutcome::err("query is required");
         };
         let limit = arg_num(args, "count")
             .map(|n| (n as usize).clamp(1, 25))
@@ -141,7 +141,7 @@ impl Tool for ReadNote {
             Err(e) => return e,
         };
         let Some(path) = arg_str(args, "path") else {
-            return ToolOutcome::err("yol parametresi gerekli");
+            return ToolOutcome::err("path is required");
         };
 
         match vault.read(path) {
@@ -453,7 +453,7 @@ impl Tool for DeleteNote {
             Err(e) => return e,
         };
         let Some(path) = arg_str(args, "path") else {
-            return ToolOutcome::err("yol parametresi gerekli");
+            return ToolOutcome::err("path is required");
         };
         // Joker karakter tek notu değil, bir yığını hedefler.
         if path.contains('*') || path.contains('?') {
@@ -497,7 +497,7 @@ impl Tool for NoteLinks {
             Err(e) => return e,
         };
         let Some(path) = arg_str(args, "path") else {
-            return ToolOutcome::err("yol parametresi gerekli");
+            return ToolOutcome::err("path is required");
         };
 
         match vault.links(path) {

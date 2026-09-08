@@ -70,7 +70,7 @@ impl Tool for MediaControl {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(action) = arg_str(args, "action") else {
-            return ToolOutcome::err("eylem parametresi gerekli");
+            return ToolOutcome::err("action is required");
         };
 
         let Some((key, label)) = resolve_action(action) else {

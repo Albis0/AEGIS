@@ -236,7 +236,7 @@ impl Tool for DeleteAutomation {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(id) = arg_num(args, "number") else {
-            return ToolOutcome::err("numara parametresi gerekli");
+            return ToolOutcome::err("number is required");
         };
         let id = id as i64;
 

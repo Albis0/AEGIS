@@ -58,7 +58,7 @@ impl Tool for Remember {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(text) = arg_str(args, "fact") else {
-            return ToolOutcome::err("bilgi parametresi gerekli");
+            return ToolOutcome::err("fact is required");
         };
 
         match with_store(|s| s.add_fact(text)) {
@@ -173,7 +173,7 @@ impl Tool for Forget {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(id) = arg_num(args, "number") else {
-            return ToolOutcome::err("numara parametresi gerekli");
+            return ToolOutcome::err("number is required");
         };
         let id = id as i64;
 

@@ -77,7 +77,7 @@ impl Tool for ReadFile {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(raw) = arg_str(args, "path") else {
-            return ToolOutcome::err("yol parametresi gerekli");
+            return ToolOutcome::err("path is required");
         };
         let path = match resolve_path(raw) {
             Ok(p) => p,
@@ -239,7 +239,7 @@ impl Tool for WriteFile {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(raw) = arg_str(args, "path") else {
-            return ToolOutcome::err("yol parametresi gerekli");
+            return ToolOutcome::err("path is required");
         };
         // İçerik boş string olabilir (dosyayı boşaltmak meşru) — arg_str
         // boşları eleyeceği için doğrudan okuyoruz.
@@ -305,7 +305,7 @@ impl Tool for FindFile {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(pattern) = arg_str(args, "pattern") else {
-            return ToolOutcome::err("desen parametresi gerekli");
+            return ToolOutcome::err("pattern is required");
         };
         let root = match resolve_path(arg_str(args, "path").unwrap_or("~")) {
             Ok(p) => p,

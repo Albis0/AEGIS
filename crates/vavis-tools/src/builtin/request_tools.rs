@@ -102,7 +102,7 @@ impl Tool for RequestTools {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(need) = arg_str(args, "need") else {
-            return ToolOutcome::err("ihtiyac parametresi gerekli");
+            return ToolOutcome::err("need is required");
         };
         let need = need.trim();
         if need.is_empty() {

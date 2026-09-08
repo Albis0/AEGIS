@@ -72,7 +72,7 @@ impl Tool for Generate {
         // `arg_str` already rejects an empty or whitespace-only value, so a
         // missing description and a blank one land here together.
         let Some(prompt) = arg_str(args, "description").map(str::to_string) else {
-            return ToolOutcome::err("aciklama gerekli");
+            return ToolOutcome::err("description is required");
         };
 
         let Some(sink) = SINK.get() else {

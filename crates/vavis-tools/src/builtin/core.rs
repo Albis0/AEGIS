@@ -73,7 +73,7 @@ impl Tool for Calculate {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(expr) = arg_str(args, "expression") else {
-            return ToolOutcome::err("ifade parametresi gerekli");
+            return ToolOutcome::err("expression is required");
         };
         match eval_expr(expr) {
             Some(result) => {

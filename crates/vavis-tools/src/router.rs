@@ -263,7 +263,7 @@ mod tests {
     fn parses_a_clean_reply() {
         let reg = registry();
         assert_eq!(
-            parse_reply("dosya_oku, dosya_yaz", &reg),
+            parse_reply("read_file, write_file", &reg),
             vec!["read_file", "write_file"]
         );
     }
@@ -273,18 +273,18 @@ mod tests {
     fn parses_a_messy_reply() {
         let reg = registry();
         assert_eq!(
-            parse_reply("- dosya_oku\n- sistem_durumu\n", &reg),
+            parse_reply("- read_file\n- get_system_status\n", &reg),
             vec!["read_file", "get_system_status"]
         );
-        assert_eq!(parse_reply("1. dosya_oku", &reg), vec!["read_file"]);
-        assert_eq!(parse_reply("`dosya_oku`", &reg), vec!["read_file"]);
+        assert_eq!(parse_reply("1. read_file", &reg), vec!["read_file"]);
+        assert_eq!(parse_reply("`read_file`", &reg), vec!["read_file"]);
     }
 
     #[test]
     fn invented_tool_names_are_dropped() {
         let reg = registry();
         assert_eq!(
-            parse_reply("dosya_oku, ucan_hali, nukleer_firlat", &reg),
+            parse_reply("read_file, ucan_hali, nukleer_firlat", &reg),
             vec!["read_file"]
         );
     }
@@ -300,7 +300,7 @@ mod tests {
     fn duplicates_collapse() {
         let reg = registry();
         assert_eq!(
-            parse_reply("dosya_oku, dosya_oku, dosya_oku", &reg),
+            parse_reply("read_file, read_file, read_file", &reg),
             vec!["read_file"]
         );
     }
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn llm_router_uses_the_reply() {
         let reg = registry();
-        let router = LlmRouter::new(|_: &str| Ok("dosya_oku, dosya_yaz".to_string()));
+        let router = LlmRouter::new(|_: &str| Ok("read_file, write_file".to_string()));
         assert_eq!(
             router.pick(&reg, "şu belgeyi güncelle", 12),
             vec!["read_file", "write_file"]
@@ -338,8 +338,9 @@ mod tests {
     #[test]
     fn the_budget_is_a_ceiling() {
         let reg = registry();
-        let router =
-            LlmRouter::new(|_: &str| Ok("dosya_oku, dosya_yaz, sistem_durumu, simdi".to_string()));
+        let router = LlmRouter::new(|_: &str| {
+            Ok("read_file, write_file, get_system_status, now".to_string())
+        });
         assert_eq!(router.pick(&reg, "her şeyi yap", 2).len(), 2);
     }
 }

@@ -183,7 +183,7 @@ impl Tool for LaunchGame {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "game") else {
-            return ToolOutcome::err("oyun parametresi gerekli");
+            return ToolOutcome::err("game is required");
         };
 
         let matches = match find_game(query) {
@@ -265,7 +265,7 @@ impl Tool for Achievements {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "game") else {
-            return ToolOutcome::err("oyun parametresi gerekli");
+            return ToolOutcome::err("game is required");
         };
 
         let matches = match find_game(query) {
@@ -330,7 +330,7 @@ impl Tool for StorePrice {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "game") else {
-            return ToolOutcome::err("oyun parametresi gerekli");
+            return ToolOutcome::err("game is required");
         };
         let country = arg_str(args, "country").unwrap_or("tr");
 

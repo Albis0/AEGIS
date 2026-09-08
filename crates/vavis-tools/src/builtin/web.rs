@@ -133,7 +133,7 @@ impl Tool for WebSearch {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(query) = arg_str(args, "query") else {
-            return ToolOutcome::err("sorgu parametresi gerekli");
+            return ToolOutcome::err("query is required");
         };
 
         // Hangi sağlayıcının cevapladığı modeli ilgilendirmez — zincir bir
@@ -197,7 +197,7 @@ impl Tool for FetchUrl {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(raw) = arg_str(args, "url") else {
-            return ToolOutcome::err("adres parametresi gerekli");
+            return ToolOutcome::err("url is required");
         };
 
         // Şema eksikse https varsay — kullanıcı "example.com" yazabilir.

@@ -40,7 +40,7 @@ impl Tool for SetBrightness {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(level) = arg_num(args, "level") else {
-            return ToolOutcome::err("seviye parametresi gerekli (0-100)");
+            return ToolOutcome::err("level is required (0-100)");
         };
         if !(0.0..=100.0).contains(&level) {
             return ToolOutcome::err("seviye 0-100 arasında olmalı");
@@ -103,7 +103,7 @@ impl Tool for LaunchApp {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(name) = arg_str(args, "name") else {
-            return ToolOutcome::err("ad parametresi gerekli");
+            return ToolOutcome::err("name is required");
         };
         // Boşluk/tırnak içeren adları reddet — komut enjeksiyonu vektörü.
         if name.contains('"') || name.contains(';') || name.contains('|') || name.contains('&') {
@@ -172,7 +172,7 @@ impl Tool for CloseApp {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(name) = arg_str(args, "name") else {
-            return ToolOutcome::err("ad parametresi gerekli");
+            return ToolOutcome::err("name is required");
         };
 
         // Kendimizi kapatmak anlamsız; sistem süreçlerini kapatmak tehlikeli.
@@ -240,7 +240,7 @@ impl Tool for RunCommand {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(command) = arg_str(args, "command") else {
-            return ToolOutcome::err("komut parametresi gerekli");
+            return ToolOutcome::err("command is required");
         };
         run_command_platform(command)
     }
@@ -345,7 +345,7 @@ impl Tool for WriteClipboard {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(text) = arg_str(args, "text") else {
-            return ToolOutcome::err("metin parametresi gerekli");
+            return ToolOutcome::err("text is required");
         };
         write_clipboard_platform(text)
     }

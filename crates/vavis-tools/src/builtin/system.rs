@@ -223,7 +223,7 @@ impl Tool for SetVolume {
 
     fn run(&self, args: &Value) -> ToolOutcome {
         let Some(level) = arg_num(args, "level") else {
-            return ToolOutcome::err("seviye parametresi gerekli (0-100)");
+            return ToolOutcome::err("level is required (0-100)");
         };
         if !(0.0..=100.0).contains(&level) {
             return ToolOutcome::err("seviye 0-100 arasında olmalı");
