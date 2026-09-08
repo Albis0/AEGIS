@@ -21,11 +21,11 @@ pub struct SystemInfo;
 
 impl Tool for SystemInfo {
     fn name(&self) -> &'static str {
-        "sistem_durumu"
+        "get_system_status"
     }
 
     fn description(&self) -> &'static str {
-        "Bilgisayarın anlık durumu: CPU kullanımı, RAM, disk. Performans sorulduğunda kullan."
+        "Current machine status: CPU usage, RAM and disk. Use when performance is asked about."
     }
 
     fn domain(&self) -> Domain {
@@ -72,11 +72,11 @@ pub struct ListProcesses;
 
 impl Tool for ListProcesses {
     fn name(&self) -> &'static str {
-        "calisan_uygulamalar"
+        "list_processes"
     }
 
     fn description(&self) -> &'static str {
-        "En çok kaynak kullanan uygulamaları listeler."
+        "Lists the processes using the most resources."
     }
 
     fn domain(&self) -> Domain {
@@ -119,11 +119,11 @@ pub struct Battery;
 
 impl Tool for Battery {
     fn name(&self) -> &'static str {
-        "pil_durumu"
+        "get_battery"
     }
 
     fn description(&self) -> &'static str {
-        "Pil yüzdesi ve şarj durumu."
+        "Battery percentage and charging status."
     }
 
     fn domain(&self) -> Domain {
@@ -197,11 +197,11 @@ pub struct SetVolume;
 
 impl Tool for SetVolume {
     fn name(&self) -> &'static str {
-        "ses_ayarla"
+        "set_volume"
     }
 
     fn description(&self) -> &'static str {
-        "Sistem ses seviyesini 0-100 arasına ayarlar."
+        "Sets the system volume, 0 to 100."
     }
 
     fn domain(&self) -> Domain {
@@ -214,7 +214,7 @@ impl Tool for SetVolume {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("seviye", "0 ile 100 arası ses seviyesi")]
+        vec![Param::required("level", "Volume level between 0 and 100")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -222,7 +222,7 @@ impl Tool for SetVolume {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(level) = arg_num(args, "seviye") else {
+        let Some(level) = arg_num(args, "level") else {
             return ToolOutcome::err("seviye parametresi gerekli (0-100)");
         };
         if !(0.0..=100.0).contains(&level) {
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn volume_rejects_out_of_range() {
         for bad in [-5.0, 101.0, 1000.0] {
-            let args = serde_json::json!({"seviye": bad});
+            let args = serde_json::json!({"level": bad});
             let out = SetVolume.run(&args);
             assert!(!out.ok, "{bad} reddedilmeliydi");
         }
@@ -340,8 +340,8 @@ mod tests {
     #[test]
     fn volume_accepts_string_numbers() {
         // Model sayıyı string olarak gönderebilir — kabul edilmeli.
-        let args = serde_json::json!({"seviye": "50"});
-        assert_eq!(arg_num(&args, "seviye"), Some(50.0));
+        let args = serde_json::json!({"level": "50"});
+        assert_eq!(arg_num(&args, "level"), Some(50.0));
     }
 
     #[test]

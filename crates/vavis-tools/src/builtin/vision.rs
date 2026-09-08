@@ -49,7 +49,7 @@ pub struct Screenshot;
 
 impl Tool for Screenshot {
     fn name(&self) -> &'static str {
-        "ekran_goruntusu"
+        "take_screenshot"
     }
 
     fn description(&self) -> &'static str {
@@ -63,8 +63,8 @@ impl Tool for Screenshot {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "pencere",
-            "Sadece bu pencerenin görüntüsü alınsın (boşsa tüm ekran)",
+            "window",
+            "Capture only this window (whole screen when empty)",
         )]
     }
 
@@ -73,7 +73,7 @@ impl Tool for Screenshot {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        match capture_screen(arg_str(args, "pencere")) {
+        match capture_screen(arg_str(args, "window")) {
             Ok(base64) => {
                 let size_kb = base64.len() * 3 / 4 / 1024;
                 set_pending_image(base64);

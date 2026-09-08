@@ -360,7 +360,7 @@ mod tests {
                     id: "call_x".into(),
                     kind: "function".into(),
                     function: FunctionCall {
-                        name: "simdiki_zaman".into(),
+                        name: "get_current_time".into(),
                         arguments: r#"{"a":1}"#.into(),
                     },
                 }]),
@@ -372,7 +372,7 @@ mod tests {
         let blocks = assistant["content"].as_array().unwrap();
         assert_eq!(blocks[0]["type"], "text");
         assert_eq!(blocks[1]["type"], "tool_use");
-        assert_eq!(blocks[1]["name"], "simdiki_zaman");
+        assert_eq!(blocks[1]["name"], "get_current_time");
         assert_eq!(blocks[1]["input"]["a"], 1);
     }
 
@@ -396,17 +396,17 @@ mod tests {
         let openai = vec![json!({
             "type": "function",
             "function": {
-                "name": "dosya_oku",
+                "name": "read_file",
                 "description": "dosya okur",
-                "parameters": {"type": "object", "properties": {"yol": {"type": "string"}}}
+                "parameters": {"type": "object", "properties": {"path": {"type": "string"}}}
             }
         })];
 
         let converted = convert_tools(&openai);
         assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0]["name"], "dosya_oku");
+        assert_eq!(converted[0]["name"], "read_file");
         assert_eq!(converted[0]["description"], "dosya okur");
-        assert!(converted[0]["input_schema"]["properties"]["yol"].is_object());
+        assert!(converted[0]["input_schema"]["properties"]["path"].is_object());
         assert!(
             converted[0].get("function").is_none(),
             "sarmalayıcı kalmamalı"
@@ -458,11 +458,11 @@ mod tests {
 
         state.feed(
             r#"{"type":"content_block_start","index":0,
-                "content_block":{"type":"tool_use","id":"toolu_1","name":"dosya_oku"}}"#,
+                "content_block":{"type":"tool_use","id":"toolu_1","name":"read_file"}}"#,
         );
         state.feed(
             r#"{"type":"content_block_delta","index":0,
-                "delta":{"type":"input_json_delta","partial_json":"{\"yol\":"}}"#,
+                "delta":{"type":"input_json_delta","partial_json":"{\"path\":"}}"#,
         );
         state.feed(
             r#"{"type":"content_block_delta","index":0,
@@ -472,8 +472,8 @@ mod tests {
         let calls = state.finish();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].id, "toolu_1");
-        assert_eq!(calls[0].function.name, "dosya_oku");
-        assert_eq!(calls[0].function.arguments, r#"{"yol":"~/a.txt"}"#);
+        assert_eq!(calls[0].function.name, "read_file");
+        assert_eq!(calls[0].function.arguments, r#"{"path":"~/a.txt"}"#);
     }
 
     #[test]
@@ -504,7 +504,7 @@ mod tests {
         let mut state = StreamState::default();
         state.feed(
             r#"{"type":"content_block_start","index":0,
-                "content_block":{"type":"tool_use","id":"x","name":"simdiki_zaman"}}"#,
+                "content_block":{"type":"tool_use","id":"x","name":"get_current_time"}}"#,
         );
 
         let calls = state.finish();

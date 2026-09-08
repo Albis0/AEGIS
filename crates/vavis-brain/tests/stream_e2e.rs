@@ -114,8 +114,8 @@ async fn tool_call_fragments_are_merged_across_chunks() {
     // Sağlayıcılar tool çağrısını parçalara böler: ad bir parçada, argümanlar
     // birkaç parçada. Birleştirme çalışmazsa argümanlar bozulur ve model
     // "geçersiz JSON" hatası alır — eski projede yaşanan sorun buydu.
-    let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_abc\",\"function\":{\"name\":\"dosya_oku\",\"arguments\":\"\"}}]}}]}\n\
-                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"yol\\\":\"}}]}}]}\n\
+    let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_abc\",\"function\":{\"name\":\"read_file\",\"arguments\":\"\"}}]}}]}\n\
+                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"path\\\":\"}}]}}]}\n\
                 data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"~/test.txt\\\"}\"}}]}}]}\n\
                 data: [DONE]\n";
     let port = spawn_sse_server(body);
@@ -133,9 +133,9 @@ async fn tool_call_fragments_are_merged_across_chunks() {
     assert_eq!(resp.tool_calls.len(), 1, "tek çağrı bekleniyordu");
     let call = &resp.tool_calls[0];
     assert_eq!(call.id, "call_abc");
-    assert_eq!(call.function.name, "dosya_oku");
+    assert_eq!(call.function.name, "read_file");
     assert_eq!(
-        call.function.arguments, r#"{"yol":"~/test.txt"}"#,
+        call.function.arguments, r#"{"path":"~/test.txt"}"#,
         "argümanlar parçalardan doğru birleştirilmeli"
     );
 }
@@ -144,8 +144,8 @@ async fn tool_call_fragments_are_merged_across_chunks() {
 async fn multiple_parallel_tool_calls_stay_separate() {
     // Model aynı anda iki tool isteyebilir; indeksler karışmamalı.
     let body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[\
-                  {\"index\":0,\"id\":\"a\",\"function\":{\"name\":\"simdiki_zaman\",\"arguments\":\"{}\"}},\
-                  {\"index\":1,\"id\":\"b\",\"function\":{\"name\":\"pil_durumu\",\"arguments\":\"{}\"}}]}}]}\n\
+                  {\"index\":0,\"id\":\"a\",\"function\":{\"name\":\"get_current_time\",\"arguments\":\"{}\"}},\
+                  {\"index\":1,\"id\":\"b\",\"function\":{\"name\":\"get_battery\",\"arguments\":\"{}\"}}]}}]}\n\
                 data: [DONE]\n";
     let port = spawn_sse_server(body);
 
@@ -155,8 +155,8 @@ async fn multiple_parallel_tool_calls_stay_separate() {
         .unwrap();
 
     assert_eq!(resp.tool_calls.len(), 2);
-    assert_eq!(resp.tool_calls[0].function.name, "simdiki_zaman");
-    assert_eq!(resp.tool_calls[1].function.name, "pil_durumu");
+    assert_eq!(resp.tool_calls[0].function.name, "get_current_time");
+    assert_eq!(resp.tool_calls[1].function.name, "get_battery");
 }
 
 #[tokio::test]
@@ -177,7 +177,7 @@ async fn nameless_tool_call_is_discarded() {
 #[tokio::test]
 async fn text_and_tool_calls_can_arrive_together() {
     let body = "data: {\"choices\":[{\"delta\":{\"content\":\"Bakıyorum...\"}}]}\n\
-                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"sistem_durumu\",\"arguments\":\"{}\"}}]}}]}\n\
+                data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"get_system_status\",\"arguments\":\"{}\"}}]}}]}\n\
                 data: [DONE]\n";
     let port = spawn_sse_server(body);
 

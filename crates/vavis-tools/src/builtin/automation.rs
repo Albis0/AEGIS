@@ -106,7 +106,7 @@ pub struct CreateAutomation;
 
 impl Tool for CreateAutomation {
     fn name(&self) -> &'static str {
-        "otomasyon_kur"
+        "create_automation"
     }
 
     fn description(&self) -> &'static str {
@@ -126,8 +126,8 @@ impl Tool for CreateAutomation {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("ne_zaman", "Tetiklenme zamanı veya koşulu"),
-            Param::required("gorev", "Tetiklendiğinde yapılacak iş"),
+            Param::required("when", "When it fires: a time or a condition"),
+            Param::required("task", "What to do when it fires"),
         ]
     }
 
@@ -136,7 +136,7 @@ impl Tool for CreateAutomation {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let (Some(when), Some(task)) = (arg_str(args, "ne_zaman"), arg_str(args, "gorev")) else {
+        let (Some(when), Some(task)) = (arg_str(args, "when"), arg_str(args, "task")) else {
             return ToolOutcome::err("ne_zaman ve gorev parametreleri gerekli");
         };
 
@@ -163,11 +163,11 @@ pub struct ListAutomations;
 
 impl Tool for ListAutomations {
     fn name(&self) -> &'static str {
-        "otomasyonlari_listele"
+        "list_automations"
     }
 
     fn description(&self) -> &'static str {
-        "Kurulu zamanlanmış görevleri ve koşullu uyarıları listeler."
+        "Lists the scheduled tasks and conditional alerts that are set up."
     }
 
     fn domain(&self) -> Domain {
@@ -208,11 +208,11 @@ pub struct DeleteAutomation;
 
 impl Tool for DeleteAutomation {
     fn name(&self) -> &'static str {
-        "otomasyon_sil"
+        "delete_automation"
     }
 
     fn description(&self) -> &'static str {
-        "Kurulu bir otomasyonu siler. Önce otomasyonlari_listele ile numarasını bul."
+        "Deletes an automation. Use list_automations first to find its number."
     }
 
     fn domain(&self) -> Domain {
@@ -224,7 +224,10 @@ impl Tool for DeleteAutomation {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("numara", "Silinecek otomasyonun numarası")]
+        vec![Param::required(
+            "number",
+            "Number of the automation to delete",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -232,7 +235,7 @@ impl Tool for DeleteAutomation {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(id) = arg_num(args, "numara") else {
+        let Some(id) = arg_num(args, "number") else {
             return ToolOutcome::err("numara parametresi gerekli");
         };
         let id = id as i64;
@@ -361,7 +364,7 @@ mod tests {
         assert!(!CreateAutomation.run(&serde_json::json!({})).ok);
         assert!(
             !CreateAutomation
-                .run(&serde_json::json!({"ne_zaman": "09:00"}))
+                .run(&serde_json::json!({"when": "09:00"}))
                 .ok
         );
     }
@@ -370,8 +373,8 @@ mod tests {
     fn create_explains_accepted_formats_on_failure() {
         ensure_store();
         let out = CreateAutomation.run(&serde_json::json!({
-            "ne_zaman": "bir ara",
-            "gorev": "x"
+            "when": "bir ara",
+            "task": "x"
         }));
         assert!(!out.ok);
         assert!(out.content.contains("09:00"), "örnekler gösterilmeli");
@@ -381,8 +384,8 @@ mod tests {
     fn create_and_list_round_trip() {
         ensure_store();
         let out = CreateAutomation.run(&serde_json::json!({
-            "ne_zaman": "08:15",
-            "gorev": "benzersiz-gorev-aaa hatirlatt"
+            "when": "08:15",
+            "task": "benzersiz-gorev-aaa hatirlatt"
         }));
         assert!(out.ok, "{}", out.content);
         assert!(out.content.contains("08:15"));
@@ -396,8 +399,8 @@ mod tests {
     fn delete_removes_the_automation() {
         ensure_store();
         let created = CreateAutomation.run(&serde_json::json!({
-            "ne_zaman": "45 dakika",
-            "gorev": "silinecek-gorev-bbb"
+            "when": "45 dakika",
+            "task": "silinecek-gorev-bbb"
         }));
 
         let id: i64 = created
@@ -408,7 +411,7 @@ mod tests {
             .and_then(|s| s.parse().ok())
             .expect("numara ayrıştırılmalı");
 
-        let deleted = DeleteAutomation.run(&serde_json::json!({"numara": id.to_string()}));
+        let deleted = DeleteAutomation.run(&serde_json::json!({"number": id.to_string()}));
         assert!(deleted.ok, "{}", deleted.content);
 
         let list = ListAutomations.run(&Value::Null);
@@ -418,7 +421,7 @@ mod tests {
     #[test]
     fn delete_reports_missing_id() {
         ensure_store();
-        let out = DeleteAutomation.run(&serde_json::json!({"numara": "99999"}));
+        let out = DeleteAutomation.run(&serde_json::json!({"number": "99999"}));
         assert!(!out.ok);
         assert!(out.content.contains("bulunamadı"));
     }

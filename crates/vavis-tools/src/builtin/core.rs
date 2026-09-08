@@ -11,11 +11,11 @@ pub struct Now;
 
 impl Tool for Now {
     fn name(&self) -> &'static str {
-        "simdiki_zaman"
+        "get_current_time"
     }
 
     fn description(&self) -> &'static str {
-        "Şu anki tarih ve saati verir. Tarih/saat/gün sorulduğunda kullan."
+        "Returns the current date and time. Use whenever the date, time or day is asked."
     }
 
     fn domain(&self) -> Domain {
@@ -49,11 +49,11 @@ pub struct Calculate;
 
 impl Tool for Calculate {
     fn name(&self) -> &'static str {
-        "hesapla"
+        "calculate"
     }
 
     fn description(&self) -> &'static str {
-        "Aritmetik ifade hesaplar. Örnek: '12 * (3 + 4)'. Sayısal işlemler için kullan."
+        "Evaluates an arithmetic expression, e.g. '12 * (3 + 4)'. Use for any calculation."
     }
 
     fn domain(&self) -> Domain {
@@ -62,8 +62,8 @@ impl Tool for Calculate {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::required(
-            "ifade",
-            "Hesaplanacak ifade, örn: 15 * 3 + 2",
+            "expression",
+            "The expression to evaluate, e.g. 15 * 3 + 2",
         )]
     }
 
@@ -72,7 +72,7 @@ impl Tool for Calculate {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(expr) = arg_str(args, "ifade") else {
+        let Some(expr) = arg_str(args, "expression") else {
             return ToolOutcome::err("ifade parametresi gerekli");
         };
         match eval_expr(expr) {
@@ -224,7 +224,7 @@ mod tests {
             ("100/4", "25"),
             ("10%3", "1"),
         ] {
-            let args = serde_json::json!({"ifade": expr});
+            let args = serde_json::json!({"expression": expr});
             let out = Calculate.run(&args);
             assert!(out.ok, "{expr} başarısız");
             assert_eq!(out.content, expected, "{expr}");
@@ -233,29 +233,29 @@ mod tests {
 
     #[test]
     fn calculator_respects_precedence_and_parens() {
-        let args = serde_json::json!({"ifade": "2+3*4"});
+        let args = serde_json::json!({"expression": "2+3*4"});
         assert_eq!(Calculate.run(&args).content, "14");
 
-        let args = serde_json::json!({"ifade": "(2+3)*4"});
+        let args = serde_json::json!({"expression": "(2+3)*4"});
         assert_eq!(Calculate.run(&args).content, "20");
     }
 
     #[test]
     fn calculator_handles_negatives_and_decimals() {
-        let args = serde_json::json!({"ifade": "-5 + 2.5"});
+        let args = serde_json::json!({"expression": "-5 + 2.5"});
         assert_eq!(Calculate.run(&args).content, "-2.5");
     }
 
     #[test]
     fn calculator_rejects_division_by_zero() {
-        let args = serde_json::json!({"ifade": "1/0"});
+        let args = serde_json::json!({"expression": "1/0"});
         assert!(!Calculate.run(&args).ok);
     }
 
     #[test]
     fn calculator_rejects_malformed_input() {
         for bad in ["2+", "(2+3", "abc", "2 3", ""] {
-            let args = serde_json::json!({"ifade": bad});
+            let args = serde_json::json!({"expression": bad});
             assert!(!Calculate.run(&args).ok, "'{bad}' reddedilmeliydi");
         }
     }
@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn calculator_does_not_execute_arbitrary_text() {
         // Kod çalıştırma yok — sadece aritmetik.
-        let args = serde_json::json!({"ifade": "system('rm -rf /')"});
+        let args = serde_json::json!({"expression": "system('rm -rf /')"});
         assert!(!Calculate.run(&args).ok);
     }
 }

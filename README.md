@@ -137,7 +137,7 @@ Bunu koruyan iki mekanizma:
 - **Zayıf fiil kuralı**: "yaz", "oku", "aç" gibi genel fiiller tek başına alan
   tetiklemez. "dosya yaz" → Files ✓ · "şiir yaz" → hiçbir şey ✓
 - **Alan ayrımı**: Sistem okuma ve sistem değiştirme ayrı alanlar. "cpu durumu"
-  sorusuna `komut_calistir` sunmak hem gereksiz hem riskli.
+  sorusuna `run_command` sunmak hem gereksiz hem riskli.
 
 ### 2. Barge-in yapısal olarak doğru
 

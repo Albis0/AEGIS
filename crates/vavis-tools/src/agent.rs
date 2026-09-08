@@ -265,14 +265,14 @@ mod tests {
         let mut agent = agent();
         let mut host = AllowAll::default();
 
-        let results = agent.execute_calls(&[call("simdiki_zaman", "{}")], &mut host);
+        let results = agent.execute_calls(&[call("get_current_time", "{}")], &mut host);
 
         assert_eq!(results.len(), 1);
         assert!(
             host.approvals_asked.is_empty(),
             "güvenli tool onay sormamalı"
         );
-        assert!(host.tools_run.contains(&"simdiki_zaman".to_string()));
+        assert!(host.tools_run.contains(&"get_current_time".to_string()));
     }
 
     #[test]
@@ -280,11 +280,11 @@ mod tests {
         let mut agent = agent();
         let mut host = AllowAll::default();
 
-        agent.execute_calls(&[call("unut", r#"{"numara":"1"}"#)], &mut host);
+        agent.execute_calls(&[call("forget", r#"{"number":"1"}"#)], &mut host);
 
         assert_eq!(
             host.approvals_asked,
-            vec!["unut"],
+            vec!["forget"],
             "yıkıcı tool onay sormalı"
         );
     }
@@ -294,7 +294,7 @@ mod tests {
         let mut agent = agent();
         let mut host = DenyAll;
 
-        let results = agent.execute_calls(&[call("unut", r#"{"numara":"1"}"#)], &mut host);
+        let results = agent.execute_calls(&[call("forget", r#"{"number":"1"}"#)], &mut host);
 
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains("reddetti"));
@@ -319,7 +319,7 @@ mod tests {
         let mut agent = agent();
         let mut host = AllowAll::default();
 
-        let results = agent.execute_calls(&[call("hesapla", "{bozuk")], &mut host);
+        let results = agent.execute_calls(&[call("calculate", "{bozuk")], &mut host);
 
         assert!(
             results[0].content.contains("JSON"),
@@ -333,7 +333,7 @@ mod tests {
         let mut agent = agent();
         let mut host = AllowAll::default();
 
-        let results = agent.execute_calls(&[call("simdiki_zaman", "")], &mut host);
+        let results = agent.execute_calls(&[call("get_current_time", "")], &mut host);
         assert!(
             !results[0].content.starts_with("HATA"),
             "{}",
@@ -345,7 +345,7 @@ mod tests {
     fn repeated_identical_call_is_cut_off() {
         let mut agent = agent();
         let mut host = AllowAll::default();
-        let c = call("hesapla", r#"{"ifade":"1+1"}"#);
+        let c = call("calculate", r#"{"expression":"1+1"}"#);
 
         // İlk iki çağrı geçer, üçüncüsü döngü sayılır.
         agent.execute_calls(std::slice::from_ref(&c), &mut host);
@@ -365,7 +365,7 @@ mod tests {
         let mut host = AllowAll::default();
 
         for expr in ["1+1", "2+2", "3+3", "4+4"] {
-            let c = call("hesapla", &format!(r#"{{"ifade":"{expr}"}}"#));
+            let c = call("calculate", &format!(r#"{{"expression":"{expr}"}}"#));
             let r = agent.execute_calls(&[c], &mut host);
             assert!(!r[0].content.contains("döngü"), "{expr} döngü sayılmamalı");
         }
@@ -386,8 +386,8 @@ mod tests {
         }
         let mut granting = AlwaysGrant(0);
 
-        agent.execute_calls(&[call("unut", r#"{"numara":"1"}"#)], &mut granting);
-        agent.execute_calls(&[call("unut", r#"{"numara":"2"}"#)], &mut granting);
+        agent.execute_calls(&[call("forget", r#"{"number":"1"}"#)], &mut granting);
+        agent.execute_calls(&[call("forget", r#"{"number":"2"}"#)], &mut granting);
 
         assert_eq!(granting.0, 1, "ikinci çağrıda tekrar sorulmamalı");
         let _ = &mut host;
@@ -417,7 +417,7 @@ mod tests {
     fn start_run_resets_loop_guard() {
         let mut agent = agent();
         let mut host = AllowAll::default();
-        let c = call("hesapla", r#"{"ifade":"1+1"}"#);
+        let c = call("calculate", r#"{"expression":"1+1"}"#);
 
         agent.execute_calls(std::slice::from_ref(&c), &mut host);
         agent.execute_calls(std::slice::from_ref(&c), &mut host);
@@ -452,7 +452,7 @@ mod tests {
         let results = runtime.block_on(async {
             let mut agent = agent();
             let mut host = AllowAll::default();
-            let c = call("hesapla", r#"{"ifade":"6*7"}"#);
+            let c = call("calculate", r#"{"expression":"6*7"}"#);
             agent.execute_calls(std::slice::from_ref(&c), &mut host)
         });
 
@@ -468,7 +468,7 @@ mod tests {
 
     impl crate::tool::Tool for Page {
         fn name(&self) -> &'static str {
-            "test_sayfa_getir"
+            "test_fetch_page"
         }
         fn description(&self) -> &'static str {
             "test"
@@ -499,20 +499,20 @@ mod tests {
         let mut host = AllowAll::default();
 
         agent.start_run();
-        agent.gate.grant_always("komut_calistir");
+        agent.gate.grant_always("run_command");
 
         // Şüpheli sayfa okunmadan önce: kalıcı izin geçerli.
         assert_eq!(
-            agent.gate.check("komut_calistir", Risk::Destructive),
+            agent.gate.check("run_command", Risk::Destructive),
             Decision::Allow
         );
 
-        agent.execute_calls(&[call("test_sayfa_getir", "{}")], &mut host);
+        agent.execute_calls(&[call("test_fetch_page", "{}")], &mut host);
 
         // Okunduktan sonra: izin geçersiz, kullanıcıya sorulur.
         assert!(agent.gate.is_tainted());
         assert_eq!(
-            agent.gate.check("komut_calistir", Risk::Destructive),
+            agent.gate.check("run_command", Risk::Destructive),
             Decision::Ask(crate::permission::ApprovalReason::TaintedContext)
         );
     }
@@ -523,12 +523,12 @@ mod tests {
         let mut host = AllowAll::default();
 
         agent.start_run();
-        agent.gate.grant_always("komut_calistir");
-        agent.execute_calls(&[call("test_sayfa_getir", "{}")], &mut host);
+        agent.gate.grant_always("run_command");
+        agent.execute_calls(&[call("test_fetch_page", "{}")], &mut host);
 
         assert!(!agent.gate.is_tainted());
         assert_eq!(
-            agent.gate.check("komut_calistir", Risk::Destructive),
+            agent.gate.check("run_command", Risk::Destructive),
             Decision::Allow
         );
     }
@@ -540,7 +540,7 @@ mod tests {
         let mut host = AllowAll::default();
 
         agent.start_run();
-        agent.execute_calls(&[call("test_sayfa_getir", "{}")], &mut host);
+        agent.execute_calls(&[call("test_fetch_page", "{}")], &mut host);
         assert!(agent.gate.is_tainted());
 
         agent.start_run();

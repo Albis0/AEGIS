@@ -35,7 +35,7 @@ pub struct Generate;
 
 impl Tool for Generate {
     fn name(&self) -> &'static str {
-        "gorsel_uret"
+        "generate_image"
     }
 
     fn description(&self) -> &'static str {
@@ -55,9 +55,12 @@ impl Tool for Generate {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("aciklama", "Üretilecek görselin İngilizce tarifi"),
-            Param::optional("oran", "kare | yatay | dikey. Varsayılan kare."),
-            Param::optional("adet", "Kaç tane üretilsin, 1-4. Varsayılan 1."),
+            Param::required(
+                "description",
+                "Description of the image to generate, in English",
+            ),
+            Param::optional("amount", "square | landscape | portrait. Default: square."),
+            Param::optional("count", "How many to generate, 1-4. Default: 1."),
         ]
     }
 
@@ -68,7 +71,7 @@ impl Tool for Generate {
     fn run(&self, args: &Value) -> ToolOutcome {
         // `arg_str` already rejects an empty or whitespace-only value, so a
         // missing description and a blank one land here together.
-        let Some(prompt) = arg_str(args, "aciklama").map(str::to_string) else {
+        let Some(prompt) = arg_str(args, "description").map(str::to_string) else {
             return ToolOutcome::err("aciklama gerekli");
         };
 
@@ -82,13 +85,13 @@ impl Tool for Generate {
             );
         }
 
-        let (width, height) = match arg_str(args, "oran").map(str::to_lowercase).as_deref() {
+        let (width, height) = match arg_str(args, "amount").map(str::to_lowercase).as_deref() {
             Some("yatay" | "landscape" | "wide") => (1536, 1024),
             Some("dikey" | "portrait" | "tall") => (1024, 1536),
             _ => (1024, 1024),
         };
 
-        let count = arg_num(args, "adet").map_or(1, |n| n as u32).clamp(1, 4);
+        let count = arg_num(args, "count").map_or(1, |n| n as u32).clamp(1, 4);
 
         let request = canvas::Request {
             prompt: prompt.clone(),
@@ -188,12 +191,12 @@ mod tests {
     fn a_missing_description_is_refused_before_anything_is_spent() {
         let out = Generate.run(&serde_json::json!({}));
         assert!(!out.ok);
-        assert!(out.content.contains("aciklama"));
+        assert!(out.content.contains("description"));
     }
 
     #[test]
     fn a_blank_description_is_refused() {
-        let out = Generate.run(&serde_json::json!({ "aciklama": "   " }));
+        let out = Generate.run(&serde_json::json!({ "description": "   " }));
         assert!(!out.ok);
     }
 
@@ -217,8 +220,8 @@ mod tests {
     fn the_schema_names_the_arguments_the_model_must_send() {
         let schema = Generate.schema();
         let text = schema.to_string();
-        assert!(text.contains("aciklama"));
-        assert!(text.contains("oran"));
-        assert!(text.contains("adet"));
+        assert!(text.contains("description"));
+        assert!(text.contains("amount"));
+        assert!(text.contains("count"));
     }
 }

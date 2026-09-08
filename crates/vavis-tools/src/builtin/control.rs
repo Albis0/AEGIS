@@ -15,11 +15,11 @@ pub struct SetBrightness;
 
 impl Tool for SetBrightness {
     fn name(&self) -> &'static str {
-        "parlaklik_ayarla"
+        "set_brightness"
     }
 
     fn description(&self) -> &'static str {
-        "Ekran parlaklığını 0-100 arasına ayarlar. Dizüstü ekranlarda çalışır."
+        "Sets screen brightness, 0 to 100. Works on laptop displays."
     }
 
     fn domain(&self) -> Domain {
@@ -31,7 +31,7 @@ impl Tool for SetBrightness {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("seviye", "0 ile 100 arası parlaklık")]
+        vec![Param::required("level", "Brightness between 0 and 100")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -39,7 +39,7 @@ impl Tool for SetBrightness {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(level) = arg_num(args, "seviye") else {
+        let Some(level) = arg_num(args, "level") else {
             return ToolOutcome::err("seviye parametresi gerekli (0-100)");
         };
         if !(0.0..=100.0).contains(&level) {
@@ -74,11 +74,11 @@ pub struct LaunchApp;
 
 impl Tool for LaunchApp {
     fn name(&self) -> &'static str {
-        "uygulama_ac"
+        "launch_app"
     }
 
     fn description(&self) -> &'static str {
-        "Bir uygulamayı başlatır. Örnek: notepad, chrome, spotify, calc, explorer."
+        "Launches an application, e.g. notepad, chrome, spotify, calc, explorer."
     }
 
     fn domain(&self) -> Domain {
@@ -92,8 +92,8 @@ impl Tool for LaunchApp {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("ad", "Uygulama adı veya tam yolu"),
-            Param::optional("argumanlar", "Uygulamaya geçirilecek argümanlar"),
+            Param::required("name", "Application name or full path"),
+            Param::optional("args", "Arguments to pass to the application"),
         ]
     }
 
@@ -102,14 +102,14 @@ impl Tool for LaunchApp {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(name) = arg_str(args, "ad") else {
+        let Some(name) = arg_str(args, "name") else {
             return ToolOutcome::err("ad parametresi gerekli");
         };
         // Boşluk/tırnak içeren adları reddet — komut enjeksiyonu vektörü.
         if name.contains('"') || name.contains(';') || name.contains('|') || name.contains('&') {
             return ToolOutcome::err("uygulama adında geçersiz karakter var");
         }
-        launch_platform(name, arg_str(args, "argumanlar"))
+        launch_platform(name, arg_str(args, "args"))
     }
 }
 
@@ -143,11 +143,11 @@ pub struct CloseApp;
 
 impl Tool for CloseApp {
     fn name(&self) -> &'static str {
-        "uygulama_kapat"
+        "close_app"
     }
 
     fn description(&self) -> &'static str {
-        "Çalışan bir uygulamayı kapatır. Kaydedilmemiş veri kaybolabilir."
+        "Closes a running application. Unsaved work may be lost."
     }
 
     fn domain(&self) -> Domain {
@@ -160,7 +160,10 @@ impl Tool for CloseApp {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("ad", "Kapatılacak uygulamanın süreç adı")]
+        vec![Param::required(
+            "name",
+            "Process name of the application to close",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -168,7 +171,7 @@ impl Tool for CloseApp {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(name) = arg_str(args, "ad") else {
+        let Some(name) = arg_str(args, "name") else {
             return ToolOutcome::err("ad parametresi gerekli");
         };
 
@@ -210,7 +213,7 @@ pub struct RunCommand;
 
 impl Tool for RunCommand {
     fn name(&self) -> &'static str {
-        "komut_calistir"
+        "run_command"
     }
 
     fn description(&self) -> &'static str {
@@ -228,7 +231,7 @@ impl Tool for RunCommand {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("komut", "Çalıştırılacak PowerShell komutu")]
+        vec![Param::required("command", "The PowerShell command to run")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -236,7 +239,7 @@ impl Tool for RunCommand {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(command) = arg_str(args, "komut") else {
+        let Some(command) = arg_str(args, "command") else {
             return ToolOutcome::err("komut parametresi gerekli");
         };
         run_command_platform(command)
@@ -274,11 +277,11 @@ pub struct ReadClipboard;
 
 impl Tool for ReadClipboard {
     fn name(&self) -> &'static str {
-        "pano_oku"
+        "read_clipboard"
     }
 
     fn description(&self) -> &'static str {
-        "Panodaki metni okur. Kullanıcı 'kopyaladığım şey' dediğinde kullan."
+        "Reads the clipboard text. Use when the user refers to what they copied."
     }
 
     fn domain(&self) -> Domain {
@@ -316,11 +319,11 @@ pub struct WriteClipboard;
 
 impl Tool for WriteClipboard {
     fn name(&self) -> &'static str {
-        "pano_yaz"
+        "write_clipboard"
     }
 
     fn description(&self) -> &'static str {
-        "Panoya metin kopyalar."
+        "Copies text to the clipboard."
     }
 
     fn domain(&self) -> Domain {
@@ -333,7 +336,7 @@ impl Tool for WriteClipboard {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("metin", "Panoya kopyalanacak metin")]
+        vec![Param::required("text", "Text to copy to the clipboard")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -341,7 +344,7 @@ impl Tool for WriteClipboard {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(text) = arg_str(args, "metin") else {
+        let Some(text) = arg_str(args, "text") else {
             return ToolOutcome::err("metin parametresi gerekli");
         };
         write_clipboard_platform(text)
@@ -370,11 +373,11 @@ pub struct ListWindows;
 
 impl Tool for ListWindows {
     fn name(&self) -> &'static str {
-        "pencereleri_listele"
+        "list_windows"
     }
 
     fn description(&self) -> &'static str {
-        "Açık pencereleri ve başlıklarını listeler."
+        "Lists the open windows and their titles."
     }
 
     fn domain(&self) -> Domain {
@@ -415,7 +418,7 @@ mod tests {
     #[test]
     fn brightness_rejects_out_of_range() {
         for bad in [-1.0, 101.0, 500.0] {
-            let args = serde_json::json!({"seviye": bad});
+            let args = serde_json::json!({"level": bad});
             assert!(!SetBrightness.run(&args).ok, "{bad} reddedilmeliydi");
         }
     }
@@ -434,7 +437,7 @@ mod tests {
             "notepad & format c:",
             "notepad\"quoted",
         ] {
-            let args = serde_json::json!({"ad": evil});
+            let args = serde_json::json!({"name": evil});
             let out = LaunchApp.run(&args);
             assert!(!out.ok, "'{evil}' reddedilmeliydi");
             assert!(out.content.contains("geçersiz"));
@@ -444,14 +447,14 @@ mod tests {
     #[test]
     fn launch_requires_a_name() {
         assert!(!LaunchApp.run(&serde_json::json!({})).ok);
-        assert!(!LaunchApp.run(&serde_json::json!({"ad": "  "})).ok);
+        assert!(!LaunchApp.run(&serde_json::json!({"name": "  "})).ok);
     }
 
     #[test]
     fn close_refuses_to_kill_protected_processes() {
         // Kendini veya sistemi kapatmak felaket olur.
         for protected in ["vavis", "vavis.exe", "System", "csrss", "winlogon"] {
-            let args = serde_json::json!({"ad": protected});
+            let args = serde_json::json!({"name": protected});
             let out = CloseApp.run(&args);
             assert!(!out.ok, "'{protected}' korunmalıydı");
             assert!(out.content.contains("korumalı"));
@@ -460,7 +463,7 @@ mod tests {
 
     #[test]
     fn close_rejects_quote_injection() {
-        let args = serde_json::json!({"ad": "notepad'; Stop-Process -Name explorer; '"});
+        let args = serde_json::json!({"name": "notepad'; Stop-Process -Name explorer; '"});
         assert!(!CloseApp.run(&args).ok);
     }
 

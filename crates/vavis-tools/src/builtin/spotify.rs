@@ -12,7 +12,7 @@ use crate::tool::{arg_num, arg_str, Domain, Param, Risk, Tool, ToolOutcome};
 use serde_json::Value;
 
 const WORDS: &[&str] = &[
-    "spotify", "şarkı", "sarki", "müzik", "muzik", "çal", "cal", "song", "music", "playlist",
+    "spotify", "şarkı", "track", "müzik", "muzik", "çal", "cal", "song", "music", "playlist",
 ];
 
 /// Ücretsiz hesap hatasını, medya tuşu önerisiyle birlikte anlatır.
@@ -25,11 +25,11 @@ pub struct Playback;
 
 impl Tool for Playback {
     fn name(&self) -> &'static str {
-        "spotify_kontrol"
+        "spotify_control"
     }
 
     fn description(&self) -> &'static str {
-        "Spotify'da oynatmayı kontrol eder: cal, duraklat, sonraki, onceki."
+        "Controls Spotify playback: play, pause, next, previous."
     }
 
     fn domain(&self) -> Domain {
@@ -42,10 +42,7 @@ impl Tool for Playback {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required(
-            "islem",
-            "cal | duraklat | sonraki | onceki",
-        )]
+        vec![Param::required("process", "play | pause | next | previous")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -53,7 +50,7 @@ impl Tool for Playback {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(action) = arg_str(args, "islem") else {
+        let Some(action) = arg_str(args, "process") else {
             return ToolOutcome::err("islem parametresi gerekli");
         };
 
@@ -77,11 +74,11 @@ pub struct NowPlaying;
 
 impl Tool for NowPlaying {
     fn name(&self) -> &'static str {
-        "spotify_calan"
+        "spotify_now_playing"
     }
 
     fn description(&self) -> &'static str {
-        "Spotify'da şu an çalan parçayı söyler."
+        "Says which track Spotify is playing now."
     }
 
     fn domain(&self) -> Domain {
@@ -117,7 +114,7 @@ pub struct PlaySearch;
 
 impl Tool for PlaySearch {
     fn name(&self) -> &'static str {
-        "spotify_cal"
+        "spotify_play"
     }
 
     fn description(&self) -> &'static str {
@@ -135,12 +132,9 @@ impl Tool for PlaySearch {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("ne", "Şarkı, albüm, sanatçı veya playlist adı"),
-            Param::optional(
-                "tur",
-                "track | album | artist | playlist (varsayılan track)",
-            ),
-            Param::optional("calma", "'hayir' ise sadece arar, çalmaz"),
+            Param::required("what", "Track, album, artist or playlist name"),
+            Param::optional("kind", "track | album | artist | playlist (default: track)"),
+            Param::optional("playing", "'no' searches without starting playback"),
         ]
     }
 
@@ -149,10 +143,14 @@ impl Tool for PlaySearch {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "ne") else {
+        let Some(query) = arg_str(args, "what") else {
             return ToolOutcome::err("ne parametresi gerekli");
         };
-        let kind = match arg_str(args, "tur").unwrap_or("track") {
+        // The canonical values are English, because that is what the schema
+        // advertises. The Turkish aliases stay because a model answering a
+        // Turkish conversation sometimes fills the field in Turkish, and
+        // failing the call over that would be pedantry rather than safety.
+        let kind = match arg_str(args, "kind").unwrap_or("track") {
             k @ ("track" | "album" | "artist" | "playlist") => k,
             "şarkı" | "sarki" | "parça" | "parca" => "track",
             "albüm" | "albom" => "album",
@@ -170,7 +168,7 @@ impl Tool for PlaySearch {
             return ToolOutcome::ok(format!("'{query}' için sonuç yok."));
         };
 
-        let search_only = arg_str(args, "calma")
+        let search_only = arg_str(args, "playing")
             .is_some_and(|v| matches!(v.to_lowercase().as_str(), "hayir" | "hayır" | "no"));
 
         if search_only {
@@ -190,11 +188,11 @@ pub struct Queue;
 
 impl Tool for Queue {
     fn name(&self) -> &'static str {
-        "spotify_kuyruk"
+        "spotify_queue"
     }
 
     fn description(&self) -> &'static str {
-        "Bir şarkıyı Spotify kuyruğuna ekler."
+        "Adds a track to the Spotify queue."
     }
 
     fn domain(&self) -> Domain {
@@ -206,7 +204,7 @@ impl Tool for Queue {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("sarki", "Kuyruğa eklenecek şarkı adı")]
+        vec![Param::required("track", "Name of the track to queue")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -214,7 +212,7 @@ impl Tool for Queue {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "sarki") else {
+        let Some(query) = arg_str(args, "track") else {
             return ToolOutcome::err("sarki parametresi gerekli");
         };
 
@@ -238,11 +236,11 @@ pub struct PlayerSettings;
 
 impl Tool for PlayerSettings {
     fn name(&self) -> &'static str {
-        "spotify_ayar"
+        "spotify_settings"
     }
 
     fn description(&self) -> &'static str {
-        "Spotify ses seviyesini, karıştırmayı veya tekrarı ayarlar."
+        "Sets Spotify volume, shuffle or repeat."
     }
 
     fn domain(&self) -> Domain {
@@ -255,9 +253,9 @@ impl Tool for PlayerSettings {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::optional("ses", "0-100 arası ses seviyesi"),
-            Param::optional("karistir", "acik | kapali"),
-            Param::optional("tekrar", "off | track | context"),
+            Param::optional("volume", "Volume level between 0 and 100"),
+            Param::optional("shuffle", "on | off"),
+            Param::optional("repeat", "off | track | context"),
         ]
     }
 
@@ -276,7 +274,7 @@ impl Tool for PlayerSettings {
     fn run(&self, args: &Value) -> ToolOutcome {
         let mut done: Vec<String> = Vec::new();
 
-        if let Some(volume) = arg_num(args, "ses") {
+        if let Some(volume) = arg_num(args, "volume") {
             let percent = volume.clamp(0.0, 100.0) as u8;
             if let Err(e) = spotify::set_volume(percent) {
                 return explain(e);
@@ -284,7 +282,7 @@ impl Tool for PlayerSettings {
             done.push(format!("ses %{percent}"));
         }
 
-        if let Some(shuffle) = arg_str(args, "karistir") {
+        if let Some(shuffle) = arg_str(args, "shuffle") {
             let on = matches!(
                 shuffle.to_lowercase().as_str(),
                 "acik" | "açık" | "on" | "evet"
@@ -295,7 +293,7 @@ impl Tool for PlayerSettings {
             done.push(format!("karıştırma {}", if on { "açık" } else { "kapalı" }));
         }
 
-        if let Some(repeat) = arg_str(args, "tekrar") {
+        if let Some(repeat) = arg_str(args, "repeat") {
             if let Err(e) = spotify::set_repeat(&repeat.to_lowercase()) {
                 return explain(e);
             }
@@ -314,11 +312,11 @@ pub struct Like;
 
 impl Tool for Like {
     fn name(&self) -> &'static str {
-        "spotify_begen"
+        "spotify_like"
     }
 
     fn description(&self) -> &'static str {
-        "Şu an çalan parçayı Spotify kitaplığına ekler."
+        "Saves the currently playing track to the Spotify library."
     }
 
     fn domain(&self) -> Domain {
@@ -346,11 +344,11 @@ pub struct Devices;
 
 impl Tool for Devices {
     fn name(&self) -> &'static str {
-        "spotify_cihaz"
+        "spotify_devices"
     }
 
     fn description(&self) -> &'static str {
-        "Spotify cihazlarını listeler; ad verilirse oynatmayı o cihaza taşır."
+        "Lists Spotify devices; moves playback to one when a name is given."
     }
 
     fn domain(&self) -> Domain {
@@ -362,7 +360,7 @@ impl Tool for Devices {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::optional("cihaz", "Geçilecek cihazın adı")]
+        vec![Param::optional("device", "Name of the device to switch to")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -381,7 +379,7 @@ impl Tool for Devices {
             );
         }
 
-        let Some(wanted) = arg_str(args, "cihaz") else {
+        let Some(wanted) = arg_str(args, "device") else {
             let listed: Vec<String> = list
                 .iter()
                 .map(|(name, _, active)| {
@@ -431,7 +429,7 @@ mod tests {
             ("calan", NowPlaying.run(&serde_json::json!({}))),
             (
                 "kontrol",
-                Playback.run(&serde_json::json!({"islem": "cal"})),
+                Playback.run(&serde_json::json!({"process": "cal"})),
             ),
             ("begen", Like.run(&serde_json::json!({}))),
         ] {
@@ -449,11 +447,11 @@ mod tests {
         let _guard = test_lock();
         spotify::configure(Settings::default());
 
-        let out = Playback.run(&serde_json::json!({"islem": "havala"}));
+        let out = Playback.run(&serde_json::json!({"process": "havala"}));
         assert!(!out.ok);
         assert!(out.content.contains("bilinmeyen işlem"), "{}", out.content);
 
-        let out = PlaySearch.run(&serde_json::json!({"ne": "x", "tur": "kedi"}));
+        let out = PlaySearch.run(&serde_json::json!({"what": "x", "kind": "kedi"}));
         assert!(out.content.contains("bilinmeyen tür"), "{}", out.content);
     }
 
@@ -465,7 +463,7 @@ mod tests {
         // Bunlar tanınmalı; bağlantı olmadığı için hata "bağlı değil" olmalı,
         // "bilinmeyen işlem" değil.
         for word in ["çal", "duraklat", "sonraki", "önceki", "durdur", "geri"] {
-            let out = Playback.run(&serde_json::json!({ "islem": word }));
+            let out = Playback.run(&serde_json::json!({ "process": word }));
             assert!(
                 out.content.contains("bağlı değil"),
                 "'{word}' tanınmalıydı: {}",

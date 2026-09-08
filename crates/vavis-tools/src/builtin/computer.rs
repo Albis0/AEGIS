@@ -45,12 +45,13 @@ pub struct Click;
 
 impl Tool for Click {
     fn name(&self) -> &'static str {
-        "tikla"
+        "click"
     }
 
     fn description(&self) -> &'static str {
-        "Ekranda belirtilen koordinata tıklar. Sıra: ekran_goruntusu ile bak → \
-         tıkla → ekran_bekle ile sonucu doğrula. Doğrulamadan sonraki adıma geçme."
+        "Clicks at the given screen coordinate. The order is: take_screenshot to \
+         look → click → wait_for_screen to confirm. Do not move to the next step \
+         before confirming."
     }
 
     fn domain(&self) -> Domain {
@@ -64,10 +65,10 @@ impl Tool for Click {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("x", "Yatay koordinat (piksel)"),
-            Param::required("y", "Dikey koordinat (piksel)"),
-            Param::optional("dugme", "sol | sag | orta (varsayılan: sol)"),
-            Param::optional("cift", "çift tıklama için 'evet'"),
+            Param::required("x", "Horizontal coordinate, in pixels"),
+            Param::required("y", "Vertical coordinate, in pixels"),
+            Param::optional("button", "left | right | middle (default: left)"),
+            Param::optional("double", "'yes' for a double click"),
         ]
     }
 
@@ -87,12 +88,12 @@ impl Tool for Click {
             ));
         }
 
-        let button = match arg_str(args, "dugme").unwrap_or("sol") {
+        let button = match arg_str(args, "button").unwrap_or("sol") {
             "sag" | "sağ" | "right" => MouseButton::Right,
             "orta" | "middle" => MouseButton::Middle,
             _ => MouseButton::Left,
         };
-        let double = arg_str(args, "cift")
+        let double = arg_str(args, "double")
             .is_some_and(|v| matches!(v.to_lowercase().as_str(), "evet" | "true" | "yes" | "1"));
 
         click_platform(x as i32, y as i32, button, double)
@@ -104,12 +105,13 @@ pub struct TypeText;
 
 impl Tool for TypeText {
     fn name(&self) -> &'static str {
-        "klavyeyle_yaz"
+        "type_text"
     }
 
     fn description(&self) -> &'static str {
-        "Klavyeden metin yazar (o an odaklı pencereye). Önce doğru yere \
-         tıklayarak odağı ver, sonra ekran_bekle ile yazının girdiğini doğrula."
+        "Types text into the currently focused window. Click the right place \
+         first to give it focus, then confirm with wait_for_screen that the \
+         text actually landed."
     }
 
     fn domain(&self) -> Domain {
@@ -121,7 +123,7 @@ impl Tool for TypeText {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("metin", "Yazılacak metin")]
+        vec![Param::required("text", "Text to type")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -129,7 +131,7 @@ impl Tool for TypeText {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(text) = arg_str(args, "metin") else {
+        let Some(text) = arg_str(args, "text") else {
             return ToolOutcome::err("metin parametresi gerekli");
         };
         if text.chars().count() > MAX_TYPE_CHARS {
@@ -147,11 +149,11 @@ pub struct PressKey;
 
 impl Tool for PressKey {
     fn name(&self) -> &'static str {
-        "tusa_bas"
+        "press_key"
     }
 
     fn description(&self) -> &'static str {
-        "Bir tuşa veya kombinasyona basar. Örnek: enter, escape, tab, \
+        "Presses a key or a key combination, e.g. enter, escape, tab, \
          ctrl+s, ctrl+c, alt+f4, win+d."
     }
 
@@ -164,7 +166,7 @@ impl Tool for PressKey {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("tus", "Tuş adı veya kombinasyon")]
+        vec![Param::required("key", "Key name or combination")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -172,7 +174,7 @@ impl Tool for PressKey {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(key) = arg_str(args, "tus") else {
+        let Some(key) = arg_str(args, "key") else {
             return ToolOutcome::err("tus parametresi gerekli");
         };
         let Some(sequence) = translate_keys(key) else {
@@ -218,13 +220,13 @@ const POLL_MS: u64 = 250;
 
 impl Tool for WaitForScreen {
     fn name(&self) -> &'static str {
-        "ekran_bekle"
+        "wait_for_screen"
     }
 
     fn description(&self) -> &'static str {
-        "Tıkladıktan veya yazdıktan sonra ekranın durulmasını bekler ve neyin \
-         değiştiğini söyler. Her adımdan sonra bunu kullan; ekran görüntüsünü \
-         ancak gerçekten bakman gerekiyorsa iste."
+        "Waits for the screen to settle after a click or typing, and reports \
+         what changed. Use this after every step; ask for a screenshot only \
+         when you genuinely need to look."
     }
 
     fn domain(&self) -> Domain {
@@ -238,8 +240,8 @@ impl Tool for WaitForScreen {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "saniye",
-            "En fazla kaç saniye beklensin (varsayılan 8)",
+            "seconds",
+            "Maximum seconds to wait (default 8)",
         )]
     }
 
@@ -248,7 +250,7 @@ impl Tool for WaitForScreen {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let budget_ms = arg_num(args, "saniye")
+        let budget_ms = arg_num(args, "seconds")
             .map_or(MAX_WAIT_MS, |s| (s * 1000.0).clamp(500.0, 30_000.0) as u64);
 
         let mut previous = match screen_signature() {
@@ -279,7 +281,7 @@ impl Tool for WaitForScreen {
                     // rather than carry on as though it worked.
                     format!(
                         "Ekranda değişiklik yok ({elapsed} ms). \
-                         Tıklama hedefi ıskalamış olabilir — ekran_goruntusu ile bak."
+                         Tıklama hedefi ıskalamış olabilir — take_screenshot ile bak."
                     )
                 });
             }
@@ -383,11 +385,11 @@ pub struct ScreenSize;
 
 impl Tool for ScreenSize {
     fn name(&self) -> &'static str {
-        "ekran_boyutu"
+        "get_screen_size"
     }
 
     fn description(&self) -> &'static str {
-        "Ekran çözünürlüğünü verir. Tıklama koordinatı hesaplamadan önce kullan."
+        "Returns the screen resolution. Use before working out click coordinates."
     }
 
     fn domain(&self) -> Domain {
@@ -702,7 +704,7 @@ mod tests {
     #[test]
     fn typing_rejects_overly_long_text() {
         let long = "a".repeat(MAX_TYPE_CHARS + 1);
-        let args = serde_json::json!({"metin": long});
+        let args = serde_json::json!({"text": long});
         let out = TypeText.run(&args);
         assert!(!out.ok);
         assert!(out.content.contains("çok uzun"));
@@ -762,7 +764,7 @@ mod tests {
         assert!(translate_keys("bilinmeyen_tus").is_none());
         assert!(translate_keys("").is_none());
 
-        let out = PressKey.run(&serde_json::json!({"tus": "saçmalık"}));
+        let out = PressKey.run(&serde_json::json!({"key": "saçmalık"}));
         assert!(!out.ok);
         assert!(out.content.contains("tanınmayan"));
     }
@@ -799,7 +801,7 @@ mod tests {
     #[test]
     fn descriptions_tell_the_model_to_look_first() {
         // Koordinat uydurmasın, önce ekrana baksın.
-        assert!(Click.description().contains("ekran_goruntusu"));
+        assert!(Click.description().contains("take_screenshot"));
         assert!(TypeText.description().contains("tıkla"));
     }
 }
@@ -972,7 +974,7 @@ mod live_screen_tests {
     #[test]
     #[ignore = "needs a real desktop session"]
     fn live_screen_settles_when_nothing_is_happening() {
-        let out = WaitForScreen.run(&serde_json::json!({ "saniye": 4 }));
+        let out = WaitForScreen.run(&serde_json::json!({ "seconds": 4 }));
         println!("{}", out.content);
         assert!(out.ok, "{}", out.content);
     }

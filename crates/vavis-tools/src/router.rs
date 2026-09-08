@@ -237,9 +237,9 @@ mod tests {
 
     fn registry() -> Registry {
         let mut reg = Registry::new();
-        reg.register(Box::new(Fake("dosya_oku", Domain::Files)));
-        reg.register(Box::new(Fake("dosya_yaz", Domain::Files)));
-        reg.register(Box::new(Fake("sistem_durumu", Domain::System)));
+        reg.register(Box::new(Fake("read_file", Domain::Files)));
+        reg.register(Box::new(Fake("write_file", Domain::Files)));
+        reg.register(Box::new(Fake("get_system_status", Domain::System)));
         reg.register(Box::new(Fake("simdi", Domain::Core)));
         reg
     }
@@ -255,8 +255,8 @@ mod tests {
         let reg = registry();
         let p = prompt("dosyaları listele", &catalog(&reg));
         assert!(p.contains("dosyaları listele"));
-        assert!(p.contains("dosya_oku"));
-        assert!(p.contains("sistem_durumu"));
+        assert!(p.contains("read_file"));
+        assert!(p.contains("get_system_status"));
     }
 
     #[test]
@@ -264,7 +264,7 @@ mod tests {
         let reg = registry();
         assert_eq!(
             parse_reply("dosya_oku, dosya_yaz", &reg),
-            vec!["dosya_oku", "dosya_yaz"]
+            vec!["read_file", "write_file"]
         );
     }
 
@@ -274,10 +274,10 @@ mod tests {
         let reg = registry();
         assert_eq!(
             parse_reply("- dosya_oku\n- sistem_durumu\n", &reg),
-            vec!["dosya_oku", "sistem_durumu"]
+            vec!["read_file", "get_system_status"]
         );
-        assert_eq!(parse_reply("1. dosya_oku", &reg), vec!["dosya_oku"]);
-        assert_eq!(parse_reply("`dosya_oku`", &reg), vec!["dosya_oku"]);
+        assert_eq!(parse_reply("1. dosya_oku", &reg), vec!["read_file"]);
+        assert_eq!(parse_reply("`dosya_oku`", &reg), vec!["read_file"]);
     }
 
     #[test]
@@ -285,7 +285,7 @@ mod tests {
         let reg = registry();
         assert_eq!(
             parse_reply("dosya_oku, ucan_hali, nukleer_firlat", &reg),
-            vec!["dosya_oku"]
+            vec!["read_file"]
         );
     }
 
@@ -301,7 +301,7 @@ mod tests {
         let reg = registry();
         assert_eq!(
             parse_reply("dosya_oku, dosya_oku, dosya_oku", &reg),
-            vec!["dosya_oku"]
+            vec!["read_file"]
         );
     }
 
@@ -311,7 +311,7 @@ mod tests {
         let router = LlmRouter::new(|_: &str| Ok("dosya_oku, dosya_yaz".to_string()));
         assert_eq!(
             router.pick(&reg, "şu belgeyi güncelle", 12),
-            vec!["dosya_oku", "dosya_yaz"]
+            vec!["read_file", "write_file"]
         );
     }
 

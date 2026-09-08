@@ -71,7 +71,7 @@ pub struct RequestTools;
 
 impl Tool for RequestTools {
     fn name(&self) -> &'static str {
-        "arac_iste"
+        "request_tools"
     }
 
     fn description(&self) -> &'static str {
@@ -91,8 +91,8 @@ impl Tool for RequestTools {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::required(
-            "ihtiyac",
-            "Ne yapmak istediğin, kendi cümlenle. Örn: 'ekran görüntüsü almam lazım'",
+            "need",
+            "What you are trying to do, in your own words, e.g. 'I need to take a screenshot'",
         )]
     }
 
@@ -101,7 +101,7 @@ impl Tool for RequestTools {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(need) = arg_str(args, "ihtiyac") else {
+        let Some(need) = arg_str(args, "need") else {
             return ToolOutcome::err("ihtiyac parametresi gerekli");
         };
         let need = need.trim();
@@ -136,7 +136,7 @@ mod tests {
     static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn ask(need: &str) -> ToolOutcome {
-        RequestTools.run(&serde_json::json!({ "ihtiyac": need }))
+        RequestTools.run(&serde_json::json!({ "need": need }))
     }
 
     #[test]

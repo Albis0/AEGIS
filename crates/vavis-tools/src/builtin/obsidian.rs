@@ -31,7 +31,7 @@ pub struct SearchNotes;
 
 impl Tool for SearchNotes {
     fn name(&self) -> &'static str {
-        "not_ara"
+        "search_notes"
     }
 
     fn description(&self) -> &'static str {
@@ -45,9 +45,9 @@ impl Tool for SearchNotes {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("sorgu", "Aranacak konu veya kelimeler"),
-            Param::optional("etiket", "Sadece bu etiketi taşıyan notlar"),
-            Param::optional("adet", "Kaç sonuç (varsayılan 8)"),
+            Param::required("query", "Topic or words to search for"),
+            Param::optional("tag", "Only notes carrying this tag"),
+            Param::optional("count", "How many results (default 8)"),
         ]
     }
 
@@ -60,16 +60,16 @@ impl Tool for SearchNotes {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let Some(query) = arg_str(args, "sorgu") else {
+        let Some(query) = arg_str(args, "query") else {
             return ToolOutcome::err("sorgu parametresi gerekli");
         };
-        let limit = arg_num(args, "adet")
+        let limit = arg_num(args, "count")
             .map(|n| (n as usize).clamp(1, 25))
             .unwrap_or(DEFAULT_LIMIT);
 
         // Etiket filtresi aramadan önce uygulanıyor: "şu etiketteki notlarda
         // ara" isteği, etiketi olmayan yüksek puanlı notları elemeli.
-        let tag = arg_str(args, "etiket");
+        let tag = arg_str(args, "tag");
         let results = match vault.search(query, limit * 3) {
             Ok(r) => r,
             Err(e) => return ToolOutcome::err(e),
@@ -113,11 +113,11 @@ pub struct ReadNote;
 
 impl Tool for ReadNote {
     fn name(&self) -> &'static str {
-        "not_oku"
+        "read_note"
     }
 
     fn description(&self) -> &'static str {
-        "Bir Obsidian notunun içeriğini getirir. Yolu bilmiyorsan önce not_ara kullan."
+        "Returns the contents of an Obsidian note. Use search_notes first if you do not know the path."
     }
 
     fn domain(&self) -> Domain {
@@ -126,8 +126,8 @@ impl Tool for ReadNote {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::required(
-            "yol",
-            "Kasa içindeki yol, örn. projeler/vavis.md",
+            "path",
+            "Path inside the vault, e.g. projects/vavis.md",
         )]
     }
 
@@ -140,7 +140,7 @@ impl Tool for ReadNote {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let Some(path) = arg_str(args, "yol") else {
+        let Some(path) = arg_str(args, "path") else {
             return ToolOutcome::err("yol parametresi gerekli");
         };
 
@@ -169,7 +169,7 @@ pub struct ListNotes;
 
 impl Tool for ListNotes {
     fn name(&self) -> &'static str {
-        "not_listele"
+        "list_notes"
     }
 
     fn description(&self) -> &'static str {
@@ -183,8 +183,8 @@ impl Tool for ListNotes {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::optional("klasor", "Sadece bu klasördeki notlar"),
-            Param::optional("etiket", "Sadece bu etiketi taşıyan notlar"),
+            Param::optional("folder", "Only notes in this folder"),
+            Param::optional("tag", "Only notes carrying this tag"),
         ]
     }
 
@@ -202,11 +202,11 @@ impl Tool for ListNotes {
             Err(e) => return ToolOutcome::err(e),
         };
 
-        let folder = arg_str(args, "klasor").map(|f| {
+        let folder = arg_str(args, "folder").map(|f| {
             let f = f.trim_matches('/').replace('\\', "/");
             format!("{f}/")
         });
-        let tag = arg_str(args, "etiket");
+        let tag = arg_str(args, "tag");
 
         let matching: Vec<_> = notes
             .iter()
@@ -273,7 +273,7 @@ pub struct CreateNote;
 
 impl Tool for CreateNote {
     fn name(&self) -> &'static str {
-        "not_olustur"
+        "create_note"
     }
 
     fn description(&self) -> &'static str {
@@ -293,8 +293,8 @@ impl Tool for CreateNote {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("yol", "Kasa içindeki yol, örn. fikirler/yeni.md"),
-            Param::required("icerik", "Notun Markdown içeriği"),
+            Param::required("path", "Path inside the vault, e.g. ideas/new.md"),
+            Param::required("content", "The note's Markdown content"),
         ]
     }
 
@@ -307,7 +307,7 @@ impl Tool for CreateNote {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let (Some(path), Some(content)) = (arg_str(args, "yol"), arg_str(args, "icerik")) else {
+        let (Some(path), Some(content)) = (arg_str(args, "path"), arg_str(args, "content")) else {
             return ToolOutcome::err("yol ve icerik parametreleri gerekli");
         };
 
@@ -323,7 +323,7 @@ pub struct AppendNote;
 
 impl Tool for AppendNote {
     fn name(&self) -> &'static str {
-        "not_ekle"
+        "append_to_note"
     }
 
     fn description(&self) -> &'static str {
@@ -341,8 +341,8 @@ impl Tool for AppendNote {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("yol", "Kasa içindeki yol"),
-            Param::required("icerik", "Eklenecek metin"),
+            Param::required("path", "Path inside the vault"),
+            Param::required("content", "Text to append"),
         ]
     }
 
@@ -355,7 +355,7 @@ impl Tool for AppendNote {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let (Some(path), Some(content)) = (arg_str(args, "yol"), arg_str(args, "icerik")) else {
+        let (Some(path), Some(content)) = (arg_str(args, "path"), arg_str(args, "content")) else {
             return ToolOutcome::err("yol ve icerik parametreleri gerekli");
         };
 
@@ -371,7 +371,7 @@ pub struct EditNote;
 
 impl Tool for EditNote {
     fn name(&self) -> &'static str {
-        "not_duzenle"
+        "edit_note"
     }
 
     fn description(&self) -> &'static str {
@@ -389,9 +389,9 @@ impl Tool for EditNote {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("yol", "Kasa içindeki yol"),
-            Param::required("eski", "Değiştirilecek metin, birebir"),
-            Param::required("yeni", "Yerine yazılacak metin"),
+            Param::required("path", "Path inside the vault"),
+            Param::required("old", "The exact text to replace"),
+            Param::required("new", "The replacement text"),
         ]
     }
 
@@ -404,11 +404,11 @@ impl Tool for EditNote {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let (Some(path), Some(old)) = (arg_str(args, "yol"), arg_str(args, "eski")) else {
+        let (Some(path), Some(old)) = (arg_str(args, "path"), arg_str(args, "old")) else {
             return ToolOutcome::err("yol ve eski parametreleri gerekli");
         };
-        // Boş "yeni" silme demektir; arg_str boş dizeyi eleyeceği için ayrı okunuyor.
-        let new = args.get("yeni").and_then(Value::as_str).unwrap_or_default();
+        // Boş "new" silme demektir; arg_str boş dizeyi eleyeceği için ayrı okunuyor.
+        let new = args.get("new").and_then(Value::as_str).unwrap_or_default();
 
         match vault.edit(path, old, new) {
             Ok(written) => ToolOutcome::ok(format!("düzenlendi: {written}")),
@@ -422,11 +422,11 @@ pub struct DeleteNote;
 
 impl Tool for DeleteNote {
     fn name(&self) -> &'static str {
-        "not_sil"
+        "delete_note"
     }
 
     fn description(&self) -> &'static str {
-        "Bir notu kasanın .trash klasörüne taşır. Tek not siler, toplu silme yok."
+        "Moves a note to the vault's .trash folder. One note at a time; no bulk delete."
     }
 
     fn domain(&self) -> Domain {
@@ -440,7 +440,7 @@ impl Tool for DeleteNote {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("yol", "Silinecek notun kasa içindeki yolu")]
+        vec![Param::required("path", "Vault path of the note to delete")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -452,7 +452,7 @@ impl Tool for DeleteNote {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let Some(path) = arg_str(args, "yol") else {
+        let Some(path) = arg_str(args, "path") else {
             return ToolOutcome::err("yol parametresi gerekli");
         };
         // Joker karakter tek notu değil, bir yığını hedefler.
@@ -472,11 +472,11 @@ pub struct NoteLinks;
 
 impl Tool for NoteLinks {
     fn name(&self) -> &'static str {
-        "not_baglantilar"
+        "get_note_links"
     }
 
     fn description(&self) -> &'static str {
-        "Bir nota gelen (backlink) ve ondan giden bağlantıları listeler."
+        "Lists the links into a note (backlinks) and the links out of it."
     }
 
     fn domain(&self) -> Domain {
@@ -484,7 +484,7 @@ impl Tool for NoteLinks {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("yol", "Kasa içindeki yol")]
+        vec![Param::required("path", "Path inside the vault")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -496,7 +496,7 @@ impl Tool for NoteLinks {
             Ok(v) => v,
             Err(e) => return e,
         };
-        let Some(path) = arg_str(args, "yol") else {
+        let Some(path) = arg_str(args, "path") else {
             return ToolOutcome::err("yol parametresi gerekli");
         };
 
@@ -523,7 +523,7 @@ pub struct DailyNote;
 
 impl Tool for DailyNote {
     fn name(&self) -> &'static str {
-        "gunluk_not"
+        "get_daily_note"
     }
 
     fn description(&self) -> &'static str {
@@ -541,8 +541,8 @@ impl Tool for DailyNote {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::optional("icerik", "Eklenecek metin; boşsa sadece okunur"),
-            Param::optional("tarih", "YYYY-AA-GG; boşsa bugün"),
+            Param::optional("content", "Text to append; reads only when empty"),
+            Param::optional("date", "YYYY-MM-DD; today when empty"),
         ]
     }
 
@@ -556,7 +556,7 @@ impl Tool for DailyNote {
             Err(e) => return e,
         };
 
-        let date = match arg_str(args, "tarih") {
+        let date = match arg_str(args, "date") {
             Some(d) => {
                 if !is_iso_date(d) {
                     return ToolOutcome::err("tarih YYYY-AA-GG biçiminde olmalı");
@@ -570,7 +570,7 @@ impl Tool for DailyNote {
         // kullanıcının düzenine uymak demek, yoksa köke yazılır.
         let path = existing_daily(&vault, &date).unwrap_or_else(|| format!("{date}.md"));
 
-        match arg_str(args, "icerik") {
+        match arg_str(args, "content") {
             Some(content) => match vault.append(&path, content) {
                 Ok(written) => ToolOutcome::ok(format!("günlük nota eklendi: {written}")),
                 Err(e) => ToolOutcome::err(e),
@@ -639,11 +639,14 @@ mod tests {
 
         for (name, out) in [
             (
-                "not_ara",
-                SearchNotes.run(&serde_json::json!({"sorgu": "x"})),
+                "search_notes",
+                SearchNotes.run(&serde_json::json!({"query": "x"})),
             ),
-            ("not_oku", ReadNote.run(&serde_json::json!({"yol": "a.md"}))),
-            ("not_listele", ListNotes.run(&serde_json::json!({}))),
+            (
+                "read_note",
+                ReadNote.run(&serde_json::json!({"path": "a.md"})),
+            ),
+            ("list_notes", ListNotes.run(&serde_json::json!({}))),
         ] {
             assert!(!out.ok, "{name} kasasız başarılı olmamalı");
             assert!(out.content.contains("kasa"), "{name}: {}", out.content);
@@ -653,7 +656,7 @@ mod tests {
     #[test]
     fn delete_refuses_wildcards() {
         with_vault(&[("a.md", "x\n")], |_| {
-            let out = DeleteNote.run(&serde_json::json!({"yol": "*.md"}));
+            let out = DeleteNote.run(&serde_json::json!({"path": "*.md"}));
             assert!(!out.ok);
             assert!(out.content.contains("toplu silme yok"), "{}", out.content);
         });
@@ -676,8 +679,8 @@ mod tests {
         with_vault(&[], |_| {
             assert!(!SearchNotes.run(&serde_json::json!({})).ok);
             assert!(!ReadNote.run(&serde_json::json!({})).ok);
-            assert!(!CreateNote.run(&serde_json::json!({"yol": "a.md"})).ok);
-            assert!(!EditNote.run(&serde_json::json!({"yol": "a.md"})).ok);
+            assert!(!CreateNote.run(&serde_json::json!({"path": "a.md"})).ok);
+            assert!(!EditNote.run(&serde_json::json!({"path": "a.md"})).ok);
         });
     }
 
@@ -692,7 +695,7 @@ mod tests {
     #[test]
     fn a_bad_date_is_rejected_before_touching_the_vault() {
         with_vault(&[], |_| {
-            let out = DailyNote.run(&serde_json::json!({"tarih": "dün"}));
+            let out = DailyNote.run(&serde_json::json!({"date": "dün"}));
             assert!(!out.ok);
             assert!(out.content.contains("YYYY"), "{}", out.content);
         });
@@ -710,7 +713,7 @@ mod tests {
     #[test]
     fn search_returns_titles_with_paths() {
         with_vault(&[("spotify.md", "# Spotify\nplayback notes\n")], |_| {
-            let out = SearchNotes.run(&serde_json::json!({"sorgu": "spotify"}));
+            let out = SearchNotes.run(&serde_json::json!({"query": "spotify"}));
             assert!(out.ok, "{}", out.content);
             assert!(out.content.contains("spotify.md"), "{}", out.content);
         });
@@ -724,8 +727,7 @@ mod tests {
                 ("b.md", "# Beta\nshared word\n"),
             ],
             |_| {
-                let out =
-                    SearchNotes.run(&serde_json::json!({"sorgu": "shared", "etiket": "keep"}));
+                let out = SearchNotes.run(&serde_json::json!({"query": "shared", "tag": "keep"}));
                 assert!(out.content.contains("a.md"), "{}", out.content);
                 assert!(!out.content.contains("b.md"), "{}", out.content);
             },
@@ -740,7 +742,7 @@ mod tests {
                 ("Big Note.md", "huge content here\n"),
             ],
             |_| {
-                let out = ReadNote.run(&serde_json::json!({"yol": "a.md"}));
+                let out = ReadNote.run(&serde_json::json!({"path": "a.md"}));
                 assert!(out.content.contains("gömülü"), "{}", out.content);
                 assert!(
                     !out.content.contains("huge content"),
@@ -755,18 +757,18 @@ mod tests {
     fn a_full_create_read_edit_delete_cycle_works() {
         with_vault(&[], |vault| {
             let created = CreateNote
-                .run(&serde_json::json!({"yol": "fikirler/yeni.md", "icerik": "ilk satır"}));
+                .run(&serde_json::json!({"path": "fikirler/yeni.md", "content": "ilk satır"}));
             assert!(created.ok, "{}", created.content);
 
-            let read = ReadNote.run(&serde_json::json!({"yol": "fikirler/yeni.md"}));
+            let read = ReadNote.run(&serde_json::json!({"path": "fikirler/yeni.md"}));
             assert!(read.content.contains("ilk satır"), "{}", read.content);
 
             let edited = EditNote.run(&serde_json::json!({
-                "yol": "fikirler/yeni.md", "eski": "ilk satır", "yeni": "değişti"
+                "path": "fikirler/yeni.md", "old": "ilk satır", "new": "değişti"
             }));
             assert!(edited.ok, "{}", edited.content);
 
-            let deleted = DeleteNote.run(&serde_json::json!({"yol": "fikirler/yeni.md"}));
+            let deleted = DeleteNote.run(&serde_json::json!({"path": "fikirler/yeni.md"}));
             assert!(deleted.ok, "{}", deleted.content);
             assert!(
                 vault.root.join(".trash/yeni.md").exists(),

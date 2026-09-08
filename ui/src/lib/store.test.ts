@@ -158,7 +158,7 @@ describe("the feed", () => {
     it("finds the last user line past replies and tool output", async () => {
         await sendAll("ilk soru");
         chat.add("assistant", "cevap");
-        chat.add("tool", "dosya_listele — 3 dosya");
+        chat.add("tool", "list_directory — 3 dosya");
 
         expect(chat.lastUserText()).toBe("ilk soru");
     });
@@ -217,7 +217,7 @@ describe("streaming a reply", () => {
     it("does not fold text after a tool line into the earlier bubble", () => {
         chat.appendDelta("Bakıyorum");
         chat.finishStreaming();
-        chat.add("tool", "dosya_listele — 3 dosya");
+        chat.add("tool", "list_directory — 3 dosya");
         chat.appendDelta("Üç dosya var");
 
         expect(chat.messages.map((m) => m.speaker)).toEqual([

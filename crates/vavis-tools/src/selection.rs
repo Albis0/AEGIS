@@ -68,7 +68,7 @@ struct DomainKeywords {
 ///
 /// Fiillerin yanında birkaç **zaman ismi** de burada: "bugün" ve "gün"
 /// çoğu zaman soru değil, sohbet dolgusu ("bugün nasılsın", "iyi günler").
-/// Gerçek bir tarih sorusunda yanlarında "saat", "tarih" ya da "kaçı"
+/// Gerçek bir tarih sorusunda yanlarında "saat", "date" ya da "kaçı"
 /// gibi güçlü bir kelime bulunuyor.
 const WEAK_VERBS: &[&str] = &[
     "yaz", "oku", "kaydet", "sil", "listele", "ara", "bul", "ac", "kapat", "goster", "write",

@@ -72,8 +72,8 @@ fn full_flow_from_message_to_tool_result() {
     assert!(!offered.is_empty(), "sistem sorusuna tool sunulmalı");
     assert!(offered.len() <= selection::DEFAULT_TOOL_BUDGET);
 
-    // 2) Model sistem_durumu'nu çağırmak istiyor
-    let results = agent.execute_calls(&[call("sistem_durumu", "{}")], &mut host);
+    // 2) Model get_system_status'nu çağırmak istiyor
+    let results = agent.execute_calls(&[call("get_system_status", "{}")], &mut host);
 
     // 3) Sonuç modele dönmeli
     assert_eq!(results.len(), 1);
@@ -88,8 +88,8 @@ fn full_flow_from_message_to_tool_result() {
         results[0].content
     );
 
-    assert_eq!(host.started, vec!["sistem_durumu"]);
-    assert_eq!(host.finished, vec![("sistem_durumu".to_string(), true)]);
+    assert_eq!(host.started, vec!["get_system_status"]);
+    assert_eq!(host.finished, vec![("get_system_status".to_string(), true)]);
     assert!(host.asked.is_empty(), "güvenli tool onay sormamalı");
 }
 
@@ -98,9 +98,9 @@ fn destructive_tool_blocked_when_user_denies() {
     let mut agent = agent();
     let mut host = ScriptedHost::new(Approval::Deny);
 
-    let results = agent.execute_calls(&[call("unut", r#"{"numara":"1"}"#)], &mut host);
+    let results = agent.execute_calls(&[call("forget", r#"{"number":"1"}"#)], &mut host);
 
-    assert_eq!(host.asked, vec!["unut"], "onay sorulmalıydı");
+    assert_eq!(host.asked, vec!["forget"], "onay sorulmalıydı");
     assert!(host.started.is_empty(), "reddedilen tool ÇALIŞMAMALI");
     assert!(results[0].content.contains("reddetti"));
 }
@@ -112,8 +112,8 @@ fn multiple_tools_in_one_turn_all_execute() {
 
     let results = agent.execute_calls(
         &[
-            call("simdiki_zaman", "{}"),
-            call("hesapla", r#"{"ifade":"6*7"}"#),
+            call("get_current_time", "{}"),
+            call("calculate", r#"{"expression":"6*7"}"#),
         ],
         &mut host,
     );
@@ -135,8 +135,8 @@ fn tool_error_is_reported_to_model_not_swallowed() {
     // Var olmayan dosya → tool hata döner, ama akış devam etmeli.
     let results = agent.execute_calls(
         &[call(
-            "dosya_oku",
-            r#"{"yol":"C:/kesinlikle/yok/dosya.txt"}"#,
+            "read_file",
+            r#"{"path":"C:/kesinlikle/yok/dosya.txt"}"#,
         )],
         &mut host,
     );
@@ -146,7 +146,7 @@ fn tool_error_is_reported_to_model_not_swallowed() {
         "{}",
         results[0].content
     );
-    assert_eq!(host.finished, vec![("dosya_oku".to_string(), false)]);
+    assert_eq!(host.finished, vec![("read_file".to_string(), false)]);
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn destructive_budget_forces_reapproval_within_one_run() {
     // Bütçe 3; farklı argümanlarla 5 yıkıcı çağrı.
     for i in 1..=5 {
         agent.execute_calls(
-            &[call("unut", &format!(r#"{{"numara":"{i}"}}"#))],
+            &[call("forget", &format!(r#"{{"number":"{i}"}}"#))],
             &mut host,
         );
     }
@@ -201,7 +201,7 @@ fn memory_round_trip_through_the_agent() {
     let mut agent = agent();
     let mut host = ScriptedHost::new(Approval::Allow);
 
-    let results = agent.execute_calls(&[call("hatirla", r#"{"bilgi":"test bilgisi"}"#)], &mut host);
+    let results = agent.execute_calls(&[call("remember", r#"{"fact":"test bilgisi"}"#)], &mut host);
 
     assert_eq!(results.len(), 1, "her çağrı bir sonuç üretmeli");
     assert_eq!(host.started.len(), 1);
@@ -213,7 +213,7 @@ fn unknown_tool_does_not_abort_remaining_calls() {
     let mut host = ScriptedHost::new(Approval::Allow);
 
     let results = agent.execute_calls(
-        &[call("uydurma_tool", "{}"), call("simdiki_zaman", "{}")],
+        &[call("uydurma_tool", "{}"), call("get_current_time", "{}")],
         &mut host,
     );
 

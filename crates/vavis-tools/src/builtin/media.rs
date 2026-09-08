@@ -37,7 +37,7 @@ pub struct MediaControl;
 
 impl Tool for MediaControl {
     fn name(&self) -> &'static str {
-        "medya_kontrol"
+        "media_control"
     }
 
     fn description(&self) -> &'static str {
@@ -56,8 +56,8 @@ impl Tool for MediaControl {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::required(
-            "eylem",
-            "oynat | duraklat | sonraki | onceki | durdur | sessiz | ses_arttir | ses_azalt",
+            "action",
+            "play | pause | next | previous | stop | mute | volume_up | volume_down",
         )]
     }
 
@@ -69,7 +69,7 @@ impl Tool for MediaControl {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(action) = arg_str(args, "eylem") else {
+        let Some(action) = arg_str(args, "action") else {
             return ToolOutcome::err("eylem parametresi gerekli");
         };
 
@@ -141,11 +141,11 @@ pub struct NowPlaying;
 
 impl Tool for NowPlaying {
     fn name(&self) -> &'static str {
-        "calan_parca"
+        "get_now_playing"
     }
 
     fn description(&self) -> &'static str {
-        "Şu an çalan şarkıyı/videoyu söyler."
+        "Says what track or video is playing right now."
     }
 
     fn domain(&self) -> Domain {
@@ -200,12 +200,12 @@ mod tests {
     #[test]
     fn action_requires_the_parameter() {
         assert!(!MediaControl.run(&serde_json::json!({})).ok);
-        assert!(!MediaControl.run(&serde_json::json!({"eylem": "  "})).ok);
+        assert!(!MediaControl.run(&serde_json::json!({"action": "  "})).ok);
     }
 
     #[test]
     fn unknown_actions_list_the_valid_options() {
-        let out = MediaControl.run(&serde_json::json!({"eylem": "saçmalık"}));
+        let out = MediaControl.run(&serde_json::json!({"action": "saçmalık"}));
         assert!(!out.ok);
         assert!(out.content.contains("oynat"), "seçenekler gösterilmeli");
         assert!(out.content.contains("sonraki"));

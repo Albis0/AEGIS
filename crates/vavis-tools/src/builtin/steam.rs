@@ -12,7 +12,7 @@ use serde_json::Value;
 
 const VAULT_WORDS: &[&str] = &[
     "steam",
-    "oyun",
+    "game",
     "game",
     "oynadım",
     "oynadim",
@@ -57,7 +57,7 @@ pub struct Library;
 
 impl Tool for Library {
     fn name(&self) -> &'static str {
-        "steam_kutuphane"
+        "steam_library"
     }
 
     fn description(&self) -> &'static str {
@@ -71,8 +71,8 @@ impl Tool for Library {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "filtre",
-            "oynanmamis | en_cok | aranacak oyun adı",
+            "filter",
+            "unplayed | most_played | a game name to search for",
         )]
     }
 
@@ -86,7 +86,7 @@ impl Tool for Library {
             Err(e) => return ToolOutcome::err(e.to_string()),
         };
 
-        let filter = arg_str(args, "filtre").unwrap_or("en_cok");
+        let filter = arg_str(args, "filter").unwrap_or("en_cok");
         let selected: Vec<steam::Game> = match filter {
             "oynanmamis" | "oynanmamış" | "unplayed" => {
                 games.into_iter().filter(|g| g.minutes == 0).collect()
@@ -122,7 +122,7 @@ pub struct NowPlaying;
 
 impl Tool for NowPlaying {
     fn name(&self) -> &'static str {
-        "steam_su_an"
+        "steam_current_game"
     }
 
     fn description(&self) -> &'static str {
@@ -153,11 +153,11 @@ pub struct LaunchGame;
 
 impl Tool for LaunchGame {
     fn name(&self) -> &'static str {
-        "steam_oyun_baslat"
+        "steam_launch_game"
     }
 
     fn description(&self) -> &'static str {
-        "Bir Steam oyununu başlatır. Oyunun tam adını ver."
+        "Launches a Steam game. Give the full game name."
     }
 
     fn domain(&self) -> Domain {
@@ -172,7 +172,7 @@ impl Tool for LaunchGame {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("oyun", "Başlatılacak oyunun adı")]
+        vec![Param::required("game", "Name of the game to launch")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -182,7 +182,7 @@ impl Tool for LaunchGame {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "oyun") else {
+        let Some(query) = arg_str(args, "game") else {
             return ToolOutcome::err("oyun parametresi gerekli");
         };
 
@@ -244,11 +244,11 @@ pub struct Achievements;
 
 impl Tool for Achievements {
     fn name(&self) -> &'static str {
-        "steam_basarimlar"
+        "steam_achievements"
     }
 
     fn description(&self) -> &'static str {
-        "Bir oyundaki başarım ilerlemesini verir."
+        "Reports achievement progress for a game."
     }
 
     fn domain(&self) -> Domain {
@@ -256,7 +256,7 @@ impl Tool for Achievements {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("oyun", "Oyunun adı")]
+        vec![Param::required("game", "Name of the game")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -264,7 +264,7 @@ impl Tool for Achievements {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "oyun") else {
+        let Some(query) = arg_str(args, "game") else {
             return ToolOutcome::err("oyun parametresi gerekli");
         };
 
@@ -298,11 +298,11 @@ pub struct StorePrice;
 
 impl Tool for StorePrice {
     fn name(&self) -> &'static str {
-        "steam_fiyat"
+        "steam_price"
     }
 
     fn description(&self) -> &'static str {
-        "Bir oyunun Steam mağazasındaki fiyatını ve indirimini söyler."
+        "Reports a game's price and discount on the Steam store."
     }
 
     fn domain(&self) -> Domain {
@@ -311,8 +311,8 @@ impl Tool for StorePrice {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("oyun", "Oyunun adı"),
-            Param::optional("ulke", "Ülke kodu, varsayılan tr"),
+            Param::required("game", "Name of the game"),
+            Param::optional("country", "Country code, default tr"),
         ]
     }
 
@@ -329,10 +329,10 @@ impl Tool for StorePrice {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "oyun") else {
+        let Some(query) = arg_str(args, "game") else {
             return ToolOutcome::err("oyun parametresi gerekli");
         };
-        let country = arg_str(args, "ulke").unwrap_or("tr");
+        let country = arg_str(args, "country").unwrap_or("tr");
 
         // Önce kütüphanede ara; yoksa istek listesinde. İkisi de AppID veriyor,
         // mağaza API'si isimle arama yapmıyor.
@@ -372,11 +372,11 @@ pub struct Wishlist;
 
 impl Tool for Wishlist {
     fn name(&self) -> &'static str {
-        "steam_istek_listesi"
+        "steam_wishlist"
     }
 
     fn description(&self) -> &'static str {
-        "Steam istek listesini listeler; indirimde olanları da gösterir."
+        "Lists the Steam wishlist, including which items are discounted."
     }
 
     fn domain(&self) -> Domain {
@@ -385,8 +385,8 @@ impl Tool for Wishlist {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "indirimdekiler",
-            "'evet' ise sadece indirimde olanlar",
+            "on_sale_only",
+            "'yes' to list only discounted items",
         )]
     }
 
@@ -404,7 +404,7 @@ impl Tool for Wishlist {
             return ToolOutcome::ok("İstek listen boş.".to_string());
         }
 
-        let only_sales = arg_str(args, "indirimdekiler")
+        let only_sales = arg_str(args, "on_sale_only")
             .is_some_and(|v| matches!(v.to_lowercase().as_str(), "evet" | "true" | "yes"));
 
         if !only_sales {
@@ -440,11 +440,11 @@ pub struct Friends;
 
 impl Tool for Friends {
     fn name(&self) -> &'static str {
-        "steam_arkadaslar"
+        "steam_friends"
     }
 
     fn description(&self) -> &'static str {
-        "Steam arkadaşlarını ve kimin ne oynadığını listeler."
+        "Lists Steam friends and what each of them is playing."
     }
 
     fn domain(&self) -> Domain {
@@ -453,8 +453,8 @@ impl Tool for Friends {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "adet",
-            "Kaç kişi gösterilsin (varsayılan 15)",
+            "count",
+            "How many people to show (default 15)",
         )]
     }
 
@@ -470,7 +470,7 @@ impl Tool for Friends {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let limit = arg_num(args, "adet")
+        let limit = arg_num(args, "count")
             .map(|n| (n as usize).clamp(1, 50))
             .unwrap_or(15);
 
@@ -507,7 +507,7 @@ mod tests {
             ("kutuphane", Library.run(&serde_json::json!({}))),
             (
                 "basarimlar",
-                Achievements.run(&serde_json::json!({"oyun": "x"})),
+                Achievements.run(&serde_json::json!({"game": "x"})),
             ),
             ("arkadaslar", Friends.run(&serde_json::json!({}))),
         ] {
@@ -554,6 +554,6 @@ mod tests {
         let required = schema["function"]["parameters"]["required"]
             .as_array()
             .unwrap();
-        assert!(required.contains(&Value::String("oyun".into())));
+        assert!(required.contains(&Value::String("game".into())));
     }
 }

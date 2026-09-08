@@ -111,7 +111,7 @@ pub struct WebSearch;
 
 impl Tool for WebSearch {
     fn name(&self) -> &'static str {
-        "web_ara"
+        "web_search"
     }
 
     fn description(&self) -> &'static str {
@@ -124,7 +124,7 @@ impl Tool for WebSearch {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("sorgu", "Aranacak metin")]
+        vec![Param::required("query", "What to search for")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -132,7 +132,7 @@ impl Tool for WebSearch {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(query) = arg_str(args, "sorgu") else {
+        let Some(query) = arg_str(args, "query") else {
             return ToolOutcome::err("sorgu parametresi gerekli");
         };
 
@@ -176,11 +176,11 @@ pub struct FetchUrl;
 
 impl Tool for FetchUrl {
     fn name(&self) -> &'static str {
-        "sayfa_oku"
+        "fetch_page"
     }
 
     fn description(&self) -> &'static str {
-        "Bir web sayfasının metin içeriğini getirir. Kullanıcı link verdiğinde kullan."
+        "Fetches the text content of a web page. Use when the user gives a link."
     }
 
     fn domain(&self) -> Domain {
@@ -188,7 +188,7 @@ impl Tool for FetchUrl {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("adres", "Okunacak sayfanın adresi (URL)")]
+        vec![Param::required("url", "URL of the page to read")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -196,7 +196,7 @@ impl Tool for FetchUrl {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(raw) = arg_str(args, "adres") else {
+        let Some(raw) = arg_str(args, "url") else {
             return ToolOutcome::err("adres parametresi gerekli");
         };
 
@@ -302,6 +302,6 @@ mod tests {
     fn schemas_declare_required_parameters() {
         let s = WebSearch.schema();
         let required = s["function"]["parameters"]["required"].as_array().unwrap();
-        assert!(required.contains(&Value::String("sorgu".into())));
+        assert!(required.contains(&Value::String("query".into())));
     }
 }

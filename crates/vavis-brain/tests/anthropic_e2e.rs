@@ -68,7 +68,7 @@ async fn text_stream_is_assembled() {
 
 #[tokio::test]
 async fn tool_use_is_assembled_from_json_deltas() {
-    let body = "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"sistem_durumu\"}}\n\
+    let body = "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"get_system_status\"}}\n\
                 data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{}\"}}\n\
                 data: {\"type\":\"message_stop\"}\n";
     let port = spawn_server(body);
@@ -79,7 +79,7 @@ async fn tool_use_is_assembled_from_json_deltas() {
         .unwrap();
 
     assert_eq!(resp.tool_calls.len(), 1);
-    assert_eq!(resp.tool_calls[0].function.name, "sistem_durumu");
+    assert_eq!(resp.tool_calls[0].function.name, "get_system_status");
     assert_eq!(resp.tool_calls[0].id, "toolu_1");
 }
 

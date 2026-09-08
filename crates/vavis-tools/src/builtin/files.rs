@@ -56,11 +56,11 @@ pub struct ReadFile;
 
 impl Tool for ReadFile {
     fn name(&self) -> &'static str {
-        "dosya_oku"
+        "read_file"
     }
 
     fn description(&self) -> &'static str {
-        "Bir metin dosyasının içeriğini okur. ~ ev dizinini temsil eder."
+        "Reads the contents of a text file. ~ stands for the home directory."
     }
 
     fn domain(&self) -> Domain {
@@ -68,7 +68,7 @@ impl Tool for ReadFile {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("yol", "Okunacak dosyanın yolu")]
+        vec![Param::required("path", "Path of the file to read")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -76,7 +76,7 @@ impl Tool for ReadFile {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(raw) = arg_str(args, "yol") else {
+        let Some(raw) = arg_str(args, "path") else {
             return ToolOutcome::err("yol parametresi gerekli");
         };
         let path = match resolve_path(raw) {
@@ -128,11 +128,11 @@ pub struct ListDir;
 
 impl Tool for ListDir {
     fn name(&self) -> &'static str {
-        "dosya_listele"
+        "list_directory"
     }
 
     fn description(&self) -> &'static str {
-        "Bir klasördeki dosya ve klasörleri listeler. ~ ev dizinidir."
+        "Lists the files and folders in a directory. ~ is the home directory."
     }
 
     fn domain(&self) -> Domain {
@@ -140,7 +140,10 @@ impl Tool for ListDir {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::optional("yol", "Klasör yolu (boşsa ev dizini)")]
+        vec![Param::optional(
+            "path",
+            "Folder path (home directory when empty)",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -148,7 +151,7 @@ impl Tool for ListDir {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let raw = arg_str(args, "yol").unwrap_or("~");
+        let raw = arg_str(args, "path").unwrap_or("~");
         let path = match resolve_path(raw) {
             Ok(p) => p,
             Err(e) => return ToolOutcome::err(e),
@@ -207,11 +210,11 @@ pub struct WriteFile;
 
 impl Tool for WriteFile {
     fn name(&self) -> &'static str {
-        "dosya_yaz"
+        "write_file"
     }
 
     fn description(&self) -> &'static str {
-        "Bir dosyaya metin yazar. Dosya varsa ÜZERİNE YAZAR."
+        "Writes text to a file. OVERWRITES the file if it already exists."
     }
 
     fn domain(&self) -> Domain {
@@ -225,8 +228,8 @@ impl Tool for WriteFile {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("yol", "Yazılacak dosyanın yolu"),
-            Param::required("icerik", "Dosyaya yazılacak metin"),
+            Param::required("path", "Path of the file to write"),
+            Param::required("content", "Text to write into the file"),
         ]
     }
 
@@ -235,13 +238,13 @@ impl Tool for WriteFile {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(raw) = arg_str(args, "yol") else {
+        let Some(raw) = arg_str(args, "path") else {
             return ToolOutcome::err("yol parametresi gerekli");
         };
         // İçerik boş string olabilir (dosyayı boşaltmak meşru) — arg_str
         // boşları eleyeceği için doğrudan okuyoruz.
         let content = args
-            .get("icerik")
+            .get("content")
             .and_then(Value::as_str)
             .unwrap_or_default();
 
@@ -278,11 +281,11 @@ pub struct FindFile;
 
 impl Tool for FindFile {
     fn name(&self) -> &'static str {
-        "dosya_ara"
+        "search_files"
     }
 
     fn description(&self) -> &'static str {
-        "Adında belirtilen metin geçen dosyaları arar."
+        "Finds files whose name contains the given text."
     }
 
     fn domain(&self) -> Domain {
@@ -291,8 +294,8 @@ impl Tool for FindFile {
 
     fn params(&self) -> Vec<Param> {
         vec![
-            Param::required("desen", "Dosya adında aranacak metin"),
-            Param::optional("yol", "Aranacak klasör (boşsa ev dizini)"),
+            Param::required("pattern", "Text to look for in file names"),
+            Param::optional("path", "Folder to search in (home directory when empty)"),
         ]
     }
 
@@ -301,10 +304,10 @@ impl Tool for FindFile {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(pattern) = arg_str(args, "desen") else {
+        let Some(pattern) = arg_str(args, "pattern") else {
             return ToolOutcome::err("desen parametresi gerekli");
         };
-        let root = match resolve_path(arg_str(args, "yol").unwrap_or("~")) {
+        let root = match resolve_path(arg_str(args, "path").unwrap_or("~")) {
             Ok(p) => p,
             Err(e) => return ToolOutcome::err(e),
         };
@@ -374,7 +377,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let file = write_temp(tmp.path(), "test.txt", "merhaba dünya");
 
-        let args = serde_json::json!({"yol": file.to_str().unwrap()});
+        let args = serde_json::json!({"path": file.to_str().unwrap()});
         let out = ReadFile.run(&args);
         assert!(out.ok);
         assert_eq!(out.content, "merhaba dünya");
@@ -382,7 +385,7 @@ mod tests {
 
     #[test]
     fn read_file_reports_missing_file_clearly() {
-        let args = serde_json::json!({"yol": "C:/yok/olmayan/dosya.txt"});
+        let args = serde_json::json!({"path": "C:/yok/olmayan/dosya.txt"});
         let out = ReadFile.run(&args);
         assert!(!out.ok);
         assert!(out.content.contains("dosya.txt"), "yol mesajda olmalı");
@@ -391,7 +394,7 @@ mod tests {
     #[test]
     fn read_file_refuses_directories() {
         let tmp = tempfile::tempdir().unwrap();
-        let args = serde_json::json!({"yol": tmp.path().to_str().unwrap()});
+        let args = serde_json::json!({"path": tmp.path().to_str().unwrap()});
         let out = ReadFile.run(&args);
         assert!(!out.ok);
         assert!(out.content.contains("klasör"));
@@ -403,7 +406,7 @@ mod tests {
         let big = "x".repeat((MAX_FILE_BYTES + 1) as usize);
         let file = write_temp(tmp.path(), "big.txt", &big);
 
-        let args = serde_json::json!({"yol": file.to_str().unwrap()});
+        let args = serde_json::json!({"path": file.to_str().unwrap()});
         let out = ReadFile.run(&args);
         assert!(!out.ok);
         assert!(out.content.contains("büyük"));
@@ -415,7 +418,7 @@ mod tests {
         let long = "a".repeat(MAX_CONTENT_CHARS + 500);
         let file = write_temp(tmp.path(), "long.txt", &long);
 
-        let args = serde_json::json!({"yol": file.to_str().unwrap()});
+        let args = serde_json::json!({"path": file.to_str().unwrap()});
         let out = ReadFile.run(&args);
         assert!(out.ok);
         assert!(out.content.contains("kırpıldı"));
@@ -427,7 +430,7 @@ mod tests {
         write_temp(tmp.path(), "a.txt", "x");
         std::fs::create_dir(tmp.path().join("altklasor")).unwrap();
 
-        let args = serde_json::json!({"yol": tmp.path().to_str().unwrap()});
+        let args = serde_json::json!({"path": tmp.path().to_str().unwrap()});
         let out = ListDir.run(&args);
         assert!(out.ok);
         assert!(out.content.contains("a.txt"));
@@ -443,7 +446,7 @@ mod tests {
         write_temp(tmp.path(), ".gizli", "x");
         write_temp(tmp.path(), "acik.txt", "x");
 
-        let args = serde_json::json!({"yol": tmp.path().to_str().unwrap()});
+        let args = serde_json::json!({"path": tmp.path().to_str().unwrap()});
         let out = ListDir.run(&args);
         assert!(!out.content.contains(".gizli"));
         assert!(out.content.contains("acik.txt"));
@@ -455,8 +458,8 @@ mod tests {
         let target = tmp.path().join("yeni.txt");
 
         let args = serde_json::json!({
-            "yol": target.to_str().unwrap(),
-            "icerik": "içerik"
+            "path": target.to_str().unwrap(),
+            "content": "içerik"
         });
         let out = WriteFile.run(&args);
         assert!(out.ok, "{}", out.content);
@@ -470,8 +473,8 @@ mod tests {
         let target = tmp.path().join("yok").join("dosya.txt");
 
         let args = serde_json::json!({
-            "yol": target.to_str().unwrap(),
-            "icerik": "x"
+            "path": target.to_str().unwrap(),
+            "content": "x"
         });
         let out = WriteFile.run(&args);
         assert!(!out.ok);
@@ -493,8 +496,8 @@ mod tests {
         write_temp(tmp.path(), "baska.txt", "x");
 
         let args = serde_json::json!({
-            "desen": "rapor",
-            "yol": tmp.path().to_str().unwrap()
+            "pattern": "rapor",
+            "path": tmp.path().to_str().unwrap()
         });
         let out = FindFile.run(&args);
         assert!(out.ok);
@@ -506,8 +509,8 @@ mod tests {
     fn find_file_reports_no_matches_gracefully() {
         let tmp = tempfile::tempdir().unwrap();
         let args = serde_json::json!({
-            "desen": "kesinlikleyokboyle",
-            "yol": tmp.path().to_str().unwrap()
+            "pattern": "kesinlikleyokboyle",
+            "path": tmp.path().to_str().unwrap()
         });
         let out = FindFile.run(&args);
         assert!(out.ok, "sonuç bulunamaması hata değildir");

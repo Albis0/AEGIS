@@ -295,7 +295,7 @@ mod tests {
         gate.mark_tainted();
 
         assert_eq!(
-            gate.check("komut_calistir", Risk::Destructive),
+            gate.check("run_command", Risk::Destructive),
             Decision::Allow
         );
     }

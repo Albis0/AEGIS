@@ -33,7 +33,7 @@ pub struct Remember;
 
 impl Tool for Remember {
     fn name(&self) -> &'static str {
-        "hatirla"
+        "remember"
     }
 
     fn description(&self) -> &'static str {
@@ -46,7 +46,10 @@ impl Tool for Remember {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("bilgi", "Kaydedilecek bilgi, tam cümle")]
+        vec![Param::required(
+            "fact",
+            "The fact to store, as a full sentence",
+        )]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -54,7 +57,7 @@ impl Tool for Remember {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(text) = arg_str(args, "bilgi") else {
+        let Some(text) = arg_str(args, "fact") else {
             return ToolOutcome::err("bilgi parametresi gerekli");
         };
 
@@ -70,7 +73,7 @@ pub struct Recall;
 
 impl Tool for Recall {
     fn name(&self) -> &'static str {
-        "hafizada_ara"
+        "search_memory"
     }
 
     fn description(&self) -> &'static str {
@@ -84,8 +87,8 @@ impl Tool for Recall {
 
     fn params(&self) -> Vec<Param> {
         vec![Param::optional(
-            "sorgu",
-            "Aranacak kelime (boşsa hepsi listelenir)",
+            "query",
+            "Word to search for (lists everything when empty)",
         )]
     }
 
@@ -106,7 +109,7 @@ impl Tool for Recall {
             return ToolOutcome::ok("kayıtlı bilgi yok");
         }
 
-        let selected = match arg_str(args, "sorgu") {
+        let selected = match arg_str(args, "query") {
             None => facts,
             Some(query) => {
                 // BM25: alaka sırası + Türkçe ek eşleşmesi.
@@ -144,11 +147,11 @@ pub struct Forget;
 
 impl Tool for Forget {
     fn name(&self) -> &'static str {
-        "unut"
+        "forget"
     }
 
     fn description(&self) -> &'static str {
-        "Kaydedilmiş bir bilgiyi siler. Önce hafizada_ara ile numarasını bul."
+        "Deletes a stored fact. Use search_memory first to find its number."
     }
 
     fn domain(&self) -> Domain {
@@ -161,7 +164,7 @@ impl Tool for Forget {
     }
 
     fn params(&self) -> Vec<Param> {
-        vec![Param::required("numara", "Silinecek bilginin numarası")]
+        vec![Param::required("number", "Number of the fact to delete")]
     }
 
     fn keywords(&self) -> &'static [&'static str] {
@@ -169,7 +172,7 @@ impl Tool for Forget {
     }
 
     fn run(&self, args: &Value) -> ToolOutcome {
-        let Some(id) = arg_num(args, "numara") else {
+        let Some(id) = arg_num(args, "number") else {
             return ToolOutcome::err("numara parametresi gerekli");
         };
         let id = id as i64;
@@ -199,7 +202,7 @@ mod tests {
     }
 
     fn remember(text: &str) -> ToolOutcome {
-        Remember.run(&serde_json::json!({ "bilgi": text }))
+        Remember.run(&serde_json::json!({ "fact": text }))
     }
 
     #[test]
@@ -214,7 +217,7 @@ mod tests {
     fn remember_requires_the_parameter() {
         ensure_store();
         assert!(!Remember.run(&serde_json::json!({})).ok);
-        assert!(!Remember.run(&serde_json::json!({"bilgi": "  "})).ok);
+        assert!(!Remember.run(&serde_json::json!({"fact": "  "})).ok);
     }
 
     #[test]
@@ -222,7 +225,7 @@ mod tests {
         ensure_store();
         remember("kırmızı-bisiklet-benzersiz-bbb kullanıyorum");
 
-        let out = Recall.run(&serde_json::json!({"sorgu": "bisiklet"}));
+        let out = Recall.run(&serde_json::json!({"query": "bisiklet"}));
         assert!(out.ok);
         assert!(
             out.content.contains("kırmızı-bisiklet-benzersiz-bbb"),
@@ -248,7 +251,7 @@ mod tests {
         // "eşleşme yok" yoluna girelim.
         remember("alakasiz-olgu-benzersiz-fff");
 
-        let out = Recall.run(&serde_json::json!({"sorgu": "kesinlikleyokboylebirsey"}));
+        let out = Recall.run(&serde_json::json!({"query": "kesinlikleyokboylebirsey"}));
         assert!(out.ok, "sonuç bulunamaması hata değil");
         assert!(
             out.content.contains("bulunamadı"),
@@ -271,10 +274,10 @@ mod tests {
             .and_then(|s| s.trim().parse().ok())
             .expect("numara ayrıştırılmalı");
 
-        let deleted = Forget.run(&serde_json::json!({"numara": id.to_string()}));
+        let deleted = Forget.run(&serde_json::json!({"number": id.to_string()}));
         assert!(deleted.ok, "{}", deleted.content);
 
-        let after = Recall.run(&serde_json::json!({"sorgu": "silinecek-olgu-benzersiz-ddd"}));
+        let after = Recall.run(&serde_json::json!({"query": "silinecek-olgu-benzersiz-ddd"}));
         assert!(
             !after.content.contains("silinecek-olgu-benzersiz-ddd"),
             "silinen olgu hâlâ görünüyor"
@@ -284,7 +287,7 @@ mod tests {
     #[test]
     fn forget_reports_missing_id() {
         ensure_store();
-        let out = Forget.run(&serde_json::json!({"numara": "999999"}));
+        let out = Forget.run(&serde_json::json!({"number": "999999"}));
         assert!(!out.ok);
         assert!(out.content.contains("bulunamadı"));
     }
@@ -308,7 +311,7 @@ mod tests {
         remember("kahveyi-benzersiz-eee sade içerim");
 
         // "kahveyi" kaydedildi, "kahveyi-benzersiz" ile aranıyor.
-        let out = Recall.run(&serde_json::json!({"sorgu": "kahveyi-benzersiz-eee"}));
+        let out = Recall.run(&serde_json::json!({"query": "kahveyi-benzersiz-eee"}));
         assert!(
             out.content.contains("sade içerim"),
             "Türkçe ek eşleşmesi çalışmalı: {}",
