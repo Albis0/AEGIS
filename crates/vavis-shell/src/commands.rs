@@ -1042,7 +1042,128 @@ pub fn set_key(state: State<AppState>, provider: String, key: String) -> Result<
     }
 
     let root = AppState::lock(&state.core).paths.root().to_path_buf();
-    keys.save(&root).map_err(|e| e.to_string())
+    keys.save(&root).map_err(|e| e.to_string())?;
+    drop(keys);
+
+    // OpenAI TTS reads the same key as OpenAI chat, so pasting it once is
+    // enough -- but the speech engine holds its own copy and has to be told.
+    if provider == Provider::OpenAI {
+        state.refresh_voice();
+    }
+    Ok(())
+}
+
+/// Stores the ElevenLabs key.
+///
+/// Separate from `set_key` because ElevenLabs is not a chat provider: it does
+/// speech only, so it has no place in the provider list the model picker
+/// reads. The key still goes to the same encrypted store.
+#[tauri::command]
+pub fn set_voice_key(state: State<AppState>, key: String) -> Result<(), String> {
+    {
+        let mut keys = AppState::lock(&state.keys);
+        keys.set("elevenlabs", key.trim());
+        let root = AppState::lock(&state.core).paths.root().to_path_buf();
+        keys.save(&root).map_err(|e| e.to_string())?;
+    }
+    state.refresh_voice();
+    Ok(())
+}
+
+/// What the speech section of settings shows.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceSettings {
+    /// Engine ids, in the order the interface should list them.
+    pub engines: Vec<VoiceEngineInfo>,
+    pub engine: String,
+    pub rate: i32,
+    pub volume: u32,
+    pub sapi_voice: String,
+    pub edge_voice: String,
+    pub kokoro_url: String,
+    pub kokoro_voice: String,
+    pub eleven_voice: String,
+    pub openai_voice: String,
+    /// True when an ElevenLabs key is stored. The key never crosses this bridge.
+    pub has_eleven_key: bool,
+    pub has_openai_key: bool,
+    /// Voices offered per engine, so the interface can show a real list
+    /// rather than making the user guess an identifier.
+    pub sapi_voices: Vec<String>,
+    pub edge_voices: Vec<[String; 2]>,
+    pub kokoro_voices: Vec<[String; 2]>,
+    pub eleven_voices: Vec<[String; 2]>,
+    pub openai_voices: Vec<[String; 2]>,
+    /// The address Kokoro listens on out of the box, shown as the placeholder.
+    pub kokoro_default_url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceEngineInfo {
+    pub id: String,
+    pub label: String,
+    pub needs_key: bool,
+}
+
+fn pairs(list: &[(&'static str, &'static str)]) -> Vec<[String; 2]> {
+    list.iter()
+        .map(|(id, label)| [id.to_string(), label.to_string()])
+        .collect()
+}
+
+#[tauri::command]
+pub fn get_voice_settings(state: State<AppState>) -> VoiceSettings {
+    let core = AppState::lock(&state.core);
+    let keys = AppState::lock(&state.keys);
+    let v = &core.config.voice;
+
+    VoiceSettings {
+        engines: vavis_audio::TtsEngineKind::ALL
+            .iter()
+            .map(|e| VoiceEngineInfo {
+                id: e.id().to_string(),
+                label: e.label().to_string(),
+                needs_key: e.needs_key(),
+            })
+            .collect(),
+        engine: v.engine.clone(),
+        rate: v.rate,
+        volume: v.volume,
+        sapi_voice: v.sapi_voice.clone(),
+        edge_voice: v.edge_voice.clone(),
+        kokoro_url: v.kokoro_url.clone(),
+        kokoro_voice: v.kokoro_voice.clone(),
+        eleven_voice: v.eleven_voice.clone(),
+        openai_voice: v.openai_voice.clone(),
+        has_eleven_key: keys.get("elevenlabs").is_some_and(|k| !k.trim().is_empty()),
+        has_openai_key: keys.get("openai").is_some_and(|k| !k.trim().is_empty()),
+        sapi_voices: vavis_audio::TtsEngine::available_voices(),
+        edge_voices: pairs(vavis_audio::edge_tts::voices()),
+        kokoro_voices: pairs(vavis_audio::kokoro::voices()),
+        eleven_voices: pairs(vavis_audio::elevenlabs::voices()),
+        openai_voices: pairs(vavis_audio::openai_tts::voices()),
+        kokoro_default_url: vavis_audio::kokoro::DEFAULT_URL.to_string(),
+    }
+}
+
+/// Speaks a sample line with the current settings.
+///
+/// The only honest test of a voice is hearing it: a key can be valid and the
+/// engine still unreachable, and a voice id can be accepted and still be the
+/// wrong voice.
+#[tauri::command]
+pub fn preview_voice(state: State<AppState>) -> Result<(), String> {
+    let text = {
+        let core = AppState::lock(&state.core);
+        match core.config.general.language.as_str() {
+            "en" => "Hello, this is how I sound.",
+            _ => "Merhaba, sesim böyle çıkıyor.",
+        }
+    };
+    AppState::lock(&state.voice).preview(text);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1132,10 +1253,71 @@ pub fn set_setting(state: State<AppState>, field: String, value: String) -> Resu
             core.config.security.full_authority = on;
             tracing::warn!(on, "full authority changed");
         }
+        // ── Speech ──────────────────────────────────────────────────────
+        //
+        // The engine and the voices. Keys are not here: those go through
+        // `set_key`, into the encrypted store, and never touch this file.
+        "voiceEngine" => {
+            let Some(engine) = vavis_audio::TtsEngineKind::parse(&value) else {
+                return Err("voice engine: sapi, edge, kokoro, elevenlabs or openai".into());
+            };
+            core.config.voice.engine = engine.id().to_string();
+        }
+        "voiceRate" => {
+            let rate: i32 = value.parse().map_err(|_| "rate must be a number")?;
+            if !(-10..=10).contains(&rate) {
+                return Err("rate must be between -10 and 10".into());
+            }
+            core.config.voice.rate = rate;
+        }
+        "voiceVolume" => {
+            let volume: u32 = value.parse().map_err(|_| "volume must be a number")?;
+            if volume > 100 {
+                return Err("volume must be between 0 and 100".into());
+            }
+            core.config.voice.volume = volume;
+        }
+        "sapiVoice" => core.config.voice.sapi_voice = value.trim().to_string(),
+        "edgeVoice" => core.config.voice.edge_voice = value.trim().to_string(),
+        // Blank means "use the default address", which is what the Kokoro
+        // container listens on -- so most users never type anything here.
+        "kokoroUrl" => core.config.voice.kokoro_url = value.trim().to_string(),
+        "kokoroVoice" => core.config.voice.kokoro_voice = value.trim().to_string(),
+        "elevenVoice" => core.config.voice.eleven_voice = value.trim().to_string(),
+        "elevenModel" => core.config.voice.eleven_model = value.trim().to_string(),
+        "openaiVoice" => core.config.voice.openai_voice = value.trim().to_string(),
+        "openaiModel" => core.config.voice.openai_model = value.trim().to_string(),
+
         other => return Err(format!("unknown setting: {other}")),
     }
 
-    core.config.save(&core.paths).map_err(|e| e.to_string())
+    // Listed rather than pattern-matched: "routerModel" ends in "Model" and
+    // has nothing to do with speech, so a suffix rule would quietly rebuild
+    // the speech engine every time the router changed.
+    const VOICE_FIELDS: [&str; 11] = [
+        "voiceEngine",
+        "voiceRate",
+        "voiceVolume",
+        "sapiVoice",
+        "edgeVoice",
+        "kokoroUrl",
+        "kokoroVoice",
+        "elevenVoice",
+        "elevenModel",
+        "openaiVoice",
+        "openaiModel",
+    ];
+    let is_voice = VOICE_FIELDS.contains(&field.as_str());
+
+    core.config.save(&core.paths).map_err(|e| e.to_string())?;
+
+    // The lock has to go before refreshing: `refresh_voice` takes it again,
+    // and holding it here would deadlock the moment anyone changed a voice.
+    drop(core);
+    if is_voice {
+        state.refresh_voice();
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

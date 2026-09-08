@@ -32,6 +32,7 @@
         type SearchSettings,
         type SpotifySettings,
         type SteamSettings,
+        type VoiceSettings,
         type Tool,
         type VaultInfo,
     } from "./api";
@@ -111,6 +112,8 @@
     // ── Loaded state ───────────────────────────────────────────────────
 
     let search = $state<SearchSettings | null>(null);
+    let voice = $state<VoiceSettings | null>(null);
+    let voiceKeyDraft = $state("");
     let canvas = $state<CanvasSettings | null>(null);
     let vaults = $state<VaultInfo[]>([]);
     let spotify = $state<SpotifySettings | null>(null);
@@ -205,7 +208,7 @@
     async function load() {
         try {
             steamIdDraft = (await api.steamSettings()).steamId;
-            [search, canvas, vaults, spotify, steam, mcp, facts, tools] =
+            [search, canvas, vaults, spotify, steam, mcp, facts, tools, voice] =
                 await Promise.all([
                     api.searchSettings(),
                     api.canvasSettings(),
@@ -215,6 +218,7 @@
                     api.listMcpServers(),
                     api.listFacts(),
                     api.listTools(),
+                    api.voiceSettings(),
                 ]);
             spotifyIdDraft = spotify?.clientId ?? "";
         } catch (e) {
@@ -275,6 +279,81 @@
         }
         await updateSetting("fullAuthority", on ? "true" : "false");
     }
+
+    /**
+     * Saves a speech setting and reloads the section.
+     *
+     * Reloading matters: switching engine changes which voice list applies,
+     * and a stale list would offer voices the new engine has never heard of.
+     */
+    async function updateVoice(field: string, value: string) {
+        await run(async () => {
+            await api.setSetting(field, value);
+            voice = await api.voiceSettings();
+            toast.success("Saved.");
+        });
+    }
+
+    async function saveVoiceKey() {
+        if (!voiceKeyDraft.trim()) return;
+        await run(async () => {
+            await api.setVoiceKey(voiceKeyDraft.trim());
+            voiceKeyDraft = "";
+            voice = await api.voiceSettings();
+        }, "ElevenLabs key saved, encrypted.");
+    }
+
+    /** The voices that apply to whichever engine is selected. */
+    const voiceOptions = $derived.by((): [string, string][] => {
+        if (!voice) return [];
+        switch (voice.engine) {
+            case "edge":
+                return voice.edgeVoices;
+            case "kokoro":
+                return voice.kokoroVoices;
+            case "elevenlabs":
+                return voice.elevenVoices;
+            case "openai":
+                return voice.openaiVoices;
+            // SAPI reports whatever Windows has installed, as plain names.
+            default:
+                return voice.sapiVoices.map((v) => [v, v] as [string, string]);
+        }
+    });
+
+    /** Which setting field the voice picker writes to. */
+    const voiceField = $derived(
+        (
+            {
+                edge: "edgeVoice",
+                kokoro: "kokoroVoice",
+                elevenlabs: "elevenVoice",
+                openai: "openaiVoice",
+            } as Record<string, string>
+        )[voice?.engine ?? "sapi"] ?? "sapiVoice",
+    );
+
+    const selectedVoice = $derived(
+        (
+            {
+                edge: voice?.edgeVoice,
+                kokoro: voice?.kokoroVoice,
+                elevenlabs: voice?.elevenVoice,
+                openai: voice?.openaiVoice,
+            } as Record<string, string | undefined>
+        )[voice?.engine ?? "sapi"] ??
+            voice?.sapiVoice ??
+            "",
+    );
+
+    /** Whether the chosen engine is missing the key it needs. */
+    const voiceKeyMissing = $derived(
+        voice?.engine === "elevenlabs"
+            ? !voice.hasElevenKey
+            : voice?.engine === "openai"
+              ? !voice.hasOpenaiKey
+              : false,
+    );
 
     async function saveKey(provider: string) {
         // Nothing typed is not a failure — it is the ordinary case of opening
@@ -745,6 +824,134 @@
                     Speech recognition runs through Groq, so it needs the Groq key even
                     when another provider is answering.
                 </p>
+
+                <h2>Speaking</h2>
+                <p class="hint">
+                    Which voice reads the replies. If the one you pick cannot be
+                    reached, Vavis says so out loud and falls back to one that works —
+                    it will not go silent on you.
+                </p>
+
+                {#if voice}
+                    <label class="field">
+                        <span>Engine</span>
+                        <select
+                            value={voice.engine}
+                            onchange={(e) =>
+                                updateVoice("voiceEngine", e.currentTarget.value)}
+                        >
+                            {#each voice.engines as e (e.id)}
+                                <option value={e.id}>{e.label}</option>
+                            {/each}
+                        </select>
+                    </label>
+
+                    {#if voiceKeyMissing}
+                        <p class="hint warn-text">
+                            This engine needs a key before it can speak. Until then
+                            Vavis falls back to a free voice.
+                        </p>
+                    {/if}
+
+                    <label class="field">
+                        <span>Voice</span>
+                        <select
+                            value={selectedVoice}
+                            onchange={(e) =>
+                                updateVoice(voiceField, e.currentTarget.value)}
+                        >
+                            <option value="">default</option>
+                            {#each voiceOptions as [id, label] (id)}
+                                <option value={id}>{label}</option>
+                            {/each}
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Speed</span>
+                        <input
+                            type="number"
+                            min="-10"
+                            max="10"
+                            value={voice.rate}
+                            onchange={(e) =>
+                                updateVoice("voiceRate", e.currentTarget.value)}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>Volume</span>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={voice.volume}
+                            onchange={(e) =>
+                                updateVoice("voiceVolume", e.currentTarget.value)}
+                        />
+                    </label>
+
+                    <div class="actions">
+                        <button onclick={() => api.previewVoice()}>
+                            hear this voice
+                        </button>
+                    </div>
+
+                    {#if voice.engine === "kokoro"}
+                        <!-- Kokoro is a model the user runs themselves, so the
+                             one thing they need from us is the command. -->
+                        <p class="hint">
+                            Kokoro runs on your own machine, so nothing is sent
+                            anywhere and it costs nothing. Vavis does not install or
+                            start it — run the server yourself and point this at it:
+                        </p>
+                        <pre class="snippet selectable">docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</pre>
+                        <label class="field">
+                            <span>Server</span>
+                            <input
+                                type="text"
+                                placeholder={voice.kokoroDefaultUrl}
+                                value={voice.kokoroUrl}
+                                onchange={(e) =>
+                                    updateVoice("kokoroUrl", e.currentTarget.value)}
+                            />
+                        </label>
+                        <p class="hint">
+                            Leave the address empty to use the default above.
+                        </p>
+                    {/if}
+
+                    {#if voice.engine === "elevenlabs"}
+                        <label class="field">
+                            <span>
+                                ElevenLabs key
+                                <span
+                                    class="risk"
+                                    data-risk={voice.hasElevenKey
+                                        ? "safe"
+                                        : "destructive"}
+                                >
+                                    {voice.hasElevenKey ? "stored" : "no key"}
+                                </span>
+                            </span>
+                            <input
+                                type="password"
+                                placeholder="paste and press Enter"
+                                bind:value={voiceKeyDraft}
+                                onkeydown={(e) => e.key === "Enter" && saveVoiceKey()}
+                                onblur={saveVoiceKey}
+                            />
+                        </label>
+                    {/if}
+
+                    {#if voice.engine === "openai"}
+                        <p class="hint">
+                            Uses the OpenAI key from the API keys section — the same
+                            one chat uses, so there is nothing extra to paste.
+                            {voice.hasOpenaiKey ? "" : " No key stored yet."}
+                        </p>
+                    {/if}
+                {/if}
             {:else if active === "memory"}
                 <h2>Memory</h2>
                 <p class="hint">
@@ -1420,6 +1627,27 @@
         font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--text);
+    }
+
+    /* A command the user is meant to copy and run. Monospace because the
+       spacing is load-bearing, selectable because copying is the point. */
+    .snippet {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text);
+        background: var(--surface-sunken);
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        padding: var(--sp-2) var(--sp-3);
+        margin: var(--sp-2) 0;
+        /* A long command scrolls inside its box rather than widening the
+           panel and pushing everything else off the edge. */
+        overflow-x: auto;
+        white-space: pre;
+    }
+
+    .warn-text {
+        color: var(--warning);
     }
 
     /* A checkbox and its label as one clickable row. The label leads and the

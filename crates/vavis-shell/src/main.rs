@@ -116,6 +116,9 @@ fn main() {
             commands::test_connection,
             commands::mic_level,
             commands::set_window_mode,
+            commands::get_voice_settings,
+            commands::set_voice_key,
+            commands::preview_voice,
         ])
         .setup(move |app| {
             apply_window_mode(app.handle(), window_mode);

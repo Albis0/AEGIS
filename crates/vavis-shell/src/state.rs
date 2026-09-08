@@ -73,11 +73,15 @@ impl AppState {
 
         let (approval_tx, approval_rx) = std::sync::mpsc::channel();
 
-        let voice = crate::voice::VoiceState::new(
+        let mut voice = crate::voice::VoiceState::new(
             core.config.general.assistant_name.to_lowercase(),
             core.config.general.language.clone(),
             keys.get("groq").unwrap_or_default().to_string(),
         );
+        // The saved engine and voice, applied before the first word is
+        // spoken -- otherwise the first reply of every session would come
+        // out in the default voice regardless of what the user chose.
+        voice.set_tts_config(tts_config_from(&core.config, &keys));
 
         Ok(Self {
             core: Mutex::new(core),
@@ -120,6 +124,18 @@ impl AppState {
         let core = Self::lock(&self.core);
         let keys = Self::lock(&self.keys);
         push_search_settings(&core.config, &keys);
+    }
+
+    /// Re-installs the speech settings.
+    ///
+    /// Same shape as the other refreshers: keys live in the encrypted store
+    /// and are read here, so the audio layer never has to know DPAPI exists.
+    /// Called at startup and whenever a voice setting or key changes.
+    pub fn refresh_voice(&self) {
+        let core = Self::lock(&self.core);
+        let keys = Self::lock(&self.keys);
+        let config = tts_config_from(&core.config, &keys);
+        Self::lock(&self.voice).set_tts_config(config);
     }
 
     /// Re-installs the generation chain snapshot.
@@ -330,4 +346,33 @@ fn push_search_settings(config: &vavis_core::Config, keys: &KeyStore) {
         },
         custom_key: keys.get("search_custom").unwrap_or_default().to_string(),
     });
+}
+
+/// Turns the saved settings plus the encrypted keys into a [`TtsConfig`].
+///
+/// Blank fields are left blank on purpose: the audio layer substitutes its
+/// own defaults, so the default lives in exactly one place rather than being
+/// copied into the config file the first time it is written.
+fn tts_config_from(
+    config: &vavis_core::Config,
+    keys: &vavis_brain::KeyStore,
+) -> vavis_audio::TtsConfig {
+    let v = &config.voice;
+    vavis_audio::TtsConfig {
+        rate: v.rate,
+        volume: v.volume,
+        voice: v.sapi_voice.clone(),
+        engine: vavis_audio::TtsEngineKind::parse(&v.engine).unwrap_or_default(),
+        edge_voice: v.edge_voice.clone(),
+        kokoro_url: v.kokoro_url.clone(),
+        kokoro_voice: v.kokoro_voice.clone(),
+        eleven_key: keys.get("elevenlabs").unwrap_or_default().to_string(),
+        eleven_voice: v.eleven_voice.clone(),
+        eleven_model: v.eleven_model.clone(),
+        // Falls back to the chat key: someone who pasted an OpenAI key for
+        // conversation should not have to paste the same key again for speech.
+        openai_key: keys.get("openai").unwrap_or_default().to_string(),
+        openai_voice: v.openai_voice.clone(),
+        openai_model: v.openai_model.clone(),
+    }
 }

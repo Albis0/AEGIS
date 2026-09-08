@@ -132,6 +132,35 @@ impl VoiceState {
         Ok(mode)
     }
 
+    /// Applies the user's speech settings.
+    ///
+    /// The engine is rebuilt rather than mutated: `TtsEngine` is handed to
+    /// speaking threads inside an `Arc`, and swapping the whole thing avoids
+    /// a lock on a path that runs for every sentence. Anything already
+    /// speaking keeps the old engine until it finishes, which is correct --
+    /// changing the voice mid-sentence would be worse than finishing it.
+    pub fn set_tts_config(&mut self, config: TtsConfig) {
+        let mut engine = TtsEngine::new(config);
+        engine.set_language(self.language.clone());
+        self.tts = Arc::new(engine);
+    }
+
+    /// Speaks one line regardless of voice mode.
+    ///
+    /// Used by the settings preview. It ignores the mode on purpose: someone
+    /// choosing a voice wants to hear it, and making them enable the
+    /// microphone first to audition a speaker would be backwards.
+    pub fn preview(&self, text: &str) {
+        self.tts.reset();
+        let tts = self.tts.clone();
+        let text = text.to_string();
+        std::thread::spawn(move || {
+            if let Err(e) = tts.speak(&text) {
+                tracing::warn!(%e, "voice preview failed");
+            }
+        });
+    }
+
     /// **Barge-in.** Cuts speech immediately.
     ///
     /// Order matters: clear the queue first so no further utterance can
@@ -181,6 +210,18 @@ impl VoiceState {
 
             if let Err(e) = tts.speak(&utterance.text) {
                 tracing::warn!(%e, "speech synthesis failed");
+            }
+
+            // The engine already said this out loud, for the user who is not
+            // looking at the screen. This is the other half: the user who is.
+            if let Some((failed, using)) = tts.take_fallback() {
+                let _ = tx.send(VoiceEvent::Notice {
+                    text: format!(
+                        "{} sesi yanıt vermedi — {} ile devam ediliyor.",
+                        failed.spoken_name("tr"),
+                        using.spoken_name("tr")
+                    ),
+                });
             }
 
             // A barge-in bumped the generation while we were speaking:

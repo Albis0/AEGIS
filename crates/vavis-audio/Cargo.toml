@@ -13,7 +13,11 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
-reqwest.workspace = true
+# `blocking` is enabled here and nowhere else. TTS synthesis is called from a
+# dedicated speech thread that is already blocking on playback, so a blocking
+# client is the honest shape -- and the alternative, bridging to an async
+# runtime, would mean depending on a crate this layer sits below.
+reqwest = { workspace = true, features = ["blocking"] }
 tracing.workspace = true
 cpal = "0.15"
 tungstenite = { version = "0.30.0", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }

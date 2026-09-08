@@ -18,8 +18,6 @@
 //! Ses verisi düz gelmiyor — her parçanın başında HTTP benzeri bir başlık
 //! bloğu var. Bunu atlamazsak MP3 bozulur ve çalmaz.
 
-use std::io::Write;
-
 #[derive(Debug, thiserror::Error)]
 pub enum EdgeError {
     #[error("bağlantı kurulamadı: {0}")]
@@ -264,9 +262,11 @@ pub fn synthesize(text: &str, voice: &str, rate: i32, volume: i32) -> Result<Vec
     }
 }
 
-/// MP3'ü geçici dosyaya yazıp sistem oynatıcısıyla çalar.
+/// Metni seslendirip çalar.
 ///
-/// `cancel` bayrağı kaldırılırsa oynatma başlamaz/kesilir.
+/// Çalma işi [`crate::playback`] modülünde: bütün motorlar aynı yolu
+/// kullanıyor, dolayısıyla barge-in bir motorda çalışıp diğerinde
+/// çalışmıyor olamaz.
 pub fn speak(
     text: &str,
     voice: &str,
@@ -281,80 +281,8 @@ pub fn speak(
     }
 
     let mp3 = synthesize(text, voice, rate, volume)?;
-    if mp3.is_empty() || cancel.load(Ordering::SeqCst) {
-        return Ok(());
-    }
 
-    // Geçici dosya — süreç kimliği + zaman damgası ile çakışma önlenir.
-    let path = std::env::temp_dir().join(format!(
-        "vavis_tts_{}_{}.mp3",
-        std::process::id(),
-        timestamp_millis()
-    ));
-
-    let mut file = std::fs::File::create(&path).map_err(|e| EdgeError::Protocol(e.to_string()))?;
-    file.write_all(&mp3)
-        .map_err(|e| EdgeError::Protocol(e.to_string()))?;
-    drop(file);
-
-    let result = play_file(&path, cancel);
-    // Çalma başarısız olsa da geçici dosyayı bırakma.
-    let _ = std::fs::remove_file(&path);
-    result
-}
-
-#[cfg(windows)]
-fn play_file(path: &std::path::Path, cancel: &std::sync::atomic::AtomicBool) -> Result<()> {
-    use std::process::Command;
-    use std::sync::atomic::Ordering;
-
-    // MediaPlayer: MP3 çalar, ek bağımlılık yok, süre bilgisi verir.
-    let script = format!(
-        "Add-Type -AssemblyName presentationCore; \
-         $p = New-Object System.Windows.Media.MediaPlayer; \
-         $p.Open([uri]'{}'); \
-         Start-Sleep -Milliseconds 400; \
-         $p.Play(); \
-         $d = $p.NaturalDuration.TimeSpan.TotalMilliseconds; \
-         if ($d -le 0) {{ $d = 3000 }}; \
-         Start-Sleep -Milliseconds $d; \
-         $p.Stop(); $p.Close()",
-        path.display()
-    );
-
-    let mut child = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            &script,
-        ])
-        .spawn()
-        .map_err(|e| EdgeError::Protocol(e.to_string()))?;
-
-    // Barge-in: iptal edilirse oynatıcıyı öldür.
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => return Ok(()),
-            Ok(None) => {
-                if cancel.load(Ordering::SeqCst) {
-                    let _ = child.kill();
-                    return Ok(());
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-            Err(e) => return Err(EdgeError::Protocol(e.to_string())),
-        }
-    }
-}
-
-#[cfg(not(windows))]
-fn play_file(_path: &std::path::Path, _cancel: &std::sync::atomic::AtomicBool) -> Result<()> {
-    Err(EdgeError::Protocol(
-        "oynatma bu platformda desteklenmiyor".into(),
-    ))
+    crate::playback::play_bytes(&mp3, "mp3", cancel).map_err(|e| EdgeError::Protocol(e.to_string()))
 }
 
 fn timestamp_now() -> String {
@@ -364,13 +292,6 @@ fn timestamp_now() -> String {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     format!("{secs}Z")
-}
-
-fn timestamp_millis() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
 }
 
 /// Tireli olmayan rastgele istek kimliği (Edge'in beklediği biçim).

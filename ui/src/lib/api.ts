@@ -146,6 +146,39 @@ export interface VaultInfo {
     active: boolean;
 }
 
+/** One text-to-speech engine, as the settings list shows it. */
+export interface VoiceEngineInfo {
+    id: string;
+    label: string;
+    /** Needs an API key before it can speak. */
+    needsKey: boolean;
+}
+
+/** Everything the speech section of settings needs. */
+export interface VoiceSettings {
+    engines: VoiceEngineInfo[];
+    engine: string;
+    rate: number;
+    volume: number;
+    sapiVoice: string;
+    edgeVoice: string;
+    kokoroUrl: string;
+    kokoroVoice: string;
+    elevenVoice: string;
+    openaiVoice: string;
+    /** Whether a key is stored. Keys themselves never cross this bridge. */
+    hasElevenKey: boolean;
+    hasOpenaiKey: boolean;
+    sapiVoices: string[];
+    /** [id, label] pairs, so the user picks a name rather than typing an id. */
+    edgeVoices: [string, string][];
+    kokoroVoices: [string, string][];
+    elevenVoices: [string, string][];
+    openaiVoices: [string, string][];
+    /** Where Kokoro listens by default — shown as the placeholder. */
+    kokoroDefaultUrl: string;
+}
+
 export interface SearchSettings {
     /** Provider ids in the order they are tried. */
     order: string[];
@@ -273,6 +306,12 @@ export const api = {
      * on F11 did not actually fill the screen.
      */
     setWindowMode: (mode: string) => invoke<void>("set_window_mode", { mode }),
+
+    voiceSettings: () => invoke<VoiceSettings>("get_voice_settings"),
+    /** ElevenLabs speaks but does not chat, so its key has its own command. */
+    setVoiceKey: (key: string) => invoke<void>("set_voice_key", { key }),
+    /** Speaks a sample line — the only honest way to audition a voice. */
+    previewVoice: () => invoke<void>("preview_voice"),
 
     cycleVoice: () => invoke<string>("cycle_voice"),
     stopSpeaking: () => invoke<void>("stop_speaking"),

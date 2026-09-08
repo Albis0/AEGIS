@@ -19,6 +19,7 @@ pub struct Config {
     pub general: General,
     pub ui: Ui,
     pub security: Security,
+    pub voice: Voice,
     pub llm: Llm,
     pub search: Search,
     pub canvas: Canvas,
@@ -41,6 +42,51 @@ pub struct Security {
     /// yazan ya da eski bir dosyadan yükseltilen kullanıcı, istemediği bir
     /// şeyin açık olduğunu bulmasın.
     pub full_authority: bool,
+}
+
+/// Konuşma (TTS) ayarları.
+///
+/// Anahtarlar **burada değil**: onlar şifreli depoda (DPAPI) duruyor ve ayar
+/// dosyasına hiç yazılmıyor. Burada yalnızca hangi motorun seçildiği ve
+/// hangi sesin isteneceği var.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Voice {
+    /// Motor kimliği: sapi | edge | kokoro | elevenlabs | openai.
+    pub engine: String,
+    /// Konuşma hızı (-10 … +10).
+    pub rate: i32,
+    /// Ses yüksekliği (0-100).
+    pub volume: u32,
+    /// SAPI ses adı — boşsa sistem varsayılanı.
+    pub sapi_voice: String,
+    pub edge_voice: String,
+    /// Kokoro sunucusunun adresi. Kullanıcı kendi başlatıyor.
+    pub kokoro_url: String,
+    pub kokoro_voice: String,
+    pub eleven_voice: String,
+    pub eleven_model: String,
+    pub openai_voice: String,
+    pub openai_model: String,
+}
+
+impl Default for Voice {
+    fn default() -> Self {
+        Self {
+            // Varsayılan hiçbir şey istemeyen motor: ağ da anahtar da yok.
+            engine: "sapi".to_string(),
+            rate: 1,
+            volume: 100,
+            sapi_voice: String::new(),
+            edge_voice: String::new(),
+            kokoro_url: String::new(),
+            kokoro_voice: String::new(),
+            eleven_voice: String::new(),
+            eleven_model: String::new(),
+            openai_voice: String::new(),
+            openai_model: String::new(),
+        }
+    }
 }
 
 /// MCP sunucuları.
